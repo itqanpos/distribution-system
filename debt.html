@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متابعة الديون - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f5f6fa;
+        }
+
+        /* نفس تنسيقات dashboard.html للتنقل والشريط الجانبي */
+        .navbar, .sidebar, .main-content, .page-header {
+            /* نفس التنسيقات السابقة */
+        }
+
+        .debt-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        .debt-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .debt-stat {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-top: 4px solid;
+        }
+
+        .debt-stat.total { border-color: var(--primary); }
+        .debt-stat.overdue { border-color: var(--danger); }
+        .debt-stat.good { border-color: var(--success); }
+        .debt-stat.warning { border-color: var(--warning); }
+
+        .debt-stat h3 {
+            font-size: 24px;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .debt-stat p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .filter-bar {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .filter-item {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-item label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-overdue { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
+        .status-warning { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+        .status-good { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .action-btn.view { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
+        .action-btn.collect { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .action-btn.alert { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f5f6fa;
+        }
+
+        .modal-header h3 {
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        .payment-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .payment-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .payment-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        @media (max-width: 768px) {
+            .filter-bar {
+                flex-direction: column;
+            }
+            
+            .filter-actions {
+                width: 100%;
+            }
+            
+            .btn {
+                flex: 1;
+                justify-content: center;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- نفس شريط التنقل والشريط الجانبي من dashboard.html -->
+    
+    <main class="main-content">
+        <div class="page-header">
+            <div class="page-title">
+                <i class="fas fa-hand-holding-usd"></i>
+                <h1>متابعة ديون العملاء</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-success" onclick="showPaymentModal()">
+                    <i class="fas fa-money-bill-wave"></i> تسجيل تحصيل
+                </button>
+                <button class="btn btn-primary" onclick="exportDebtReport()">
+                    <i class="fas fa-file-export"></i> تصدير تقرير
+                </button>
+            </div>
+        </div>
+
+        <div class="debt-container">
+            <div class="debt-stats">
+                <div class="debt-stat total">
+                    <h3 id="totalDebtAmount">85,500 ج</h3>
+                    <p>إجمالي الديون</p>
+                </div>
+                <div class="debt-stat overdue">
+                    <h3 id="overdueDebt">45,000 ج</h3>
+                    <p>ديون متأخرة</p>
+                </div>
+                <div class="debt-stat good">
+                    <h3 id="goodDebt">25,500 ج</h3>
+                    <p>ديون جيدة</p>
+                </div>
+                <div class="debt-stat warning">
+                    <h3 id="warningDebt">15,000 ج</h3>
+                    <p>ديون تحت المراقبة</p>
+                </div>
+            </div>
+
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <label>بحث عن عميل</label>
+                    <input type="text" id="searchCustomer" placeholder="اسم العميل أو رقم الهاتف">
+                </div>
+                <div class="filter-item">
+                    <label>حالة الدين</label>
+                    <select id="debtStatus">
+                        <option value="">جميع الحالات</option>
+                        <option value="overdue">متأخر</option>
+                        <option value="warning">تحت المراقبة</option>
+                        <option value="good">جيد</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>المندوب</label>
+                    <select id="debtRep">
+                        <option value="">جميع المندوبين</option>
+                        <option value="1">أحمد محمود</option>
+                        <option value="2">خالد عمرو</option>
+                        <option value="3">وليد حسن</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="filterDebts()">
+                        <i class="fas fa-filter"></i> تصفية
+                    </button>
+                    <button class="btn" onclick="resetFilters()">
+                        <i class="fas fa-redo"></i> إعادة تعيين
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>العميل</th>
+                            <th>المبلغ</th>
+                            <th>الحالة</th>
+                            <th>أخر تحصيل</th>
+                            <th>المندوب</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debtTableBody">
+                        <!-- سيتم تعبئته بالبيانات -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- نافذة تسجيل التحصيل -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-money-bill-wave"></i> تسجيل تحصيل دين</h3>
+                <button class="close-modal" onclick="closePaymentModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>اختر العميل</label>
+                <select id="paymentCustomer">
+                    <option value="">اختر عميلاً</option>
+                    <!-- سيتم تعبئته بالبيانات -->
+                </select>
+            </div>
+            
+            <div class="payment-summary" id="customerDebtSummary">
+                <!-- سيتم تعبئته بالبيانات -->
+            </div>
+            
+            <div class="form-group">
+                <label>المبلغ المحصل</label>
+                <input type="number" id="paymentAmount" placeholder="أدخل المبلغ المحصل">
+            </div>
+            
+            <div class="form-group">
+                <label>طريقة الدفع</label>
+                <select id="paymentMethod">
+                    <option value="cash">نقدي</option>
+                    <option value="check">شيك</option>
+                    <option value="transfer">تحويل بنكي</option>
+                    <option value="card">بطاقة ائتمان</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea id="paymentNotes" placeholder="ملاحظات حول التحصيل"></textarea>
+            </div>
+            
+            <div class="payment-summary">
+                <div class="payment-item">
+                    <span>المبلغ المطلوب:</span>
+                    <span id="requiredAmount">0 ج</span>
+                </div>
+                <div class="payment-item">
+                    <span>المبلغ المحصل:</span>
+                    <span id="collectedAmount">0 ج</span>
+                </div>
+                <div class="payment-item">
+                    <span>الباقي:</span>
+                    <span id="remainingAmount">0 ج</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-success" style="flex: 1;" onclick="submitPayment()">
+                    <i class="fas fa-check"></i> تأكيد التحصيل
+                </button>
+                <button class="btn" style="flex: 1;" onclick="closePaymentModal()">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // بيانات الديون
+        const debtsData = [
+            {
+                id: 1,
+                customer: "مطعم الشيف",
+                phone: "01055556666",
+                amount: 35000,
+                status: "overdue",
+                lastPayment: "2023-12-20",
+                overdueDays: 27,
+                rep: "أحمد محمود",
+                repId: 1
+            },
+            {
+                id: 2,
+                customer: "محمد أحمد",
+                phone: "01012345678",
+                amount: 25000,
+                status: "overdue",
+                lastPayment: "2024-01-10",
+                overdueDays: 6,
+                rep: "خالد عمرو",
+                repId: 2
+            },
+            {
+                id: 3,
+                customer: "سوبرماركت النور",
+                phone: "01087654321",
+                amount: 15000,
+                status: "good",
+                lastPayment: "2024-01-15",
+                overdueDays: 0,
+                rep: "وليد حسن",
+                repId: 3
+            },
+            {
+                id: 4,
+                customer: "مخبز الفردوس",
+                phone: "01099998888",
+                amount: 8500,
+                status: "warning",
+                lastPayment: "2024-01-12",
+                overdueDays: 4,
+                rep: "أحمد محمود",
+                repId: 1
+            },
+            {
+                id: 5,
+                customer: "مطعم المدينة",
+                phone: "01077775555",
+                amount: 2000,
+                status: "good",
+                lastPayment: "2024-01-14",
+                overdueDays: 0,
+                rep: "خالد عمرو",
+                repId: 2
+            }
+        ];
+
+        // تحميل البيانات
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDebtsData();
+            populateCustomersSelect();
+        });
+
+        // تحميل بيانات الديون
+        function loadDebtsData() {
+            const tableBody = document.getElementById('debtTableBody');
+            tableBody.innerHTML = '';
+            
+            let totalDebt = 0;
+            let overdueDebt = 0;
+            let goodDebt = 0;
+            let warningDebt = 0;
+            
+            debtsData.forEach(debt => {
+                // حساب الإحصائيات
+                totalDebt += debt.amount;
+                if (debt.status === 'overdue') overdueDebt += debt.amount;
+                if (debt.status === 'good') goodDebt += debt.amount;
+                if (debt.status === 'warning') warningDebt += debt.amount;
+                
+                // تحديد لون الحالة
+                let statusClass, statusText;
+                if (debt.status === 'overdue') {
+                    statusClass = 'status-overdue';
+                    statusText = `متأخر ${debt.overdueDays} يوم`;
+                } else if (debt.status === 'warning') {
+                    statusClass = 'status-warning';
+                    statusText = 'تحت المراقبة';
+                } else {
+                    statusClass = 'status-good';
+                    statusText = 'جيد';
+                }
+                
+                // إضافة الصف
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>
+                            <strong>${debt.customer}</strong><br>
+                            <small style="color: #7f8c8d;">${debt.phone}</small>
+                        </td>
+                        <td><strong>${debt.amount.toLocaleString()} ج</strong></td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${debt.lastPayment}</td>
+                        <td><i class="fas fa-user-tie"></i> ${debt.rep}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn view" onclick="viewCustomer(${debt.id})" title="عرض التفاصيل">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn collect" onclick="collectFromCustomer(${debt.id})" title="تسجيل تحصيل">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </button>
+                                <button class="action-btn alert" onclick="sendReminder(${debt.id})" title="إرسال تذكير">
+                                    <i class="fas fa-bell"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // تحديث الإحصائيات
+            document.getElementById('totalDebtAmount').textContent = totalDebt.toLocaleString() + ' ج';
+            document.getElementById('overdueDebt').textContent = overdueDebt.toLocaleString() + ' ج';
+            document.getElementById('goodDebt').textContent = goodDebt.toLocaleString() + ' ج';
+            document.getElementById('warningDebt').textContent = warningDebt.toLocaleString() + ' ج';
+        }
+
+        // تعبئة قائمة العملاء
+        function populateCustomersSelect() {
+            const select = document.getElementById('paymentCustomer');
+            select.innerHTML = '<option value="">اختر عميلاً</option>';
+            
+            debtsData.forEach(debt => {
+                select.innerHTML += `
+                    <option value="${debt.id}">${debt.customer} (${debt.amount.toLocaleString()} ج)</option>
+                `;
+            });
+        }
+
+        // تصفية الديون
+        function filterDebts() {
+            // سيتم تنفيذ التصفية في الإصدار القادم
+            alert('خاصية التصفية قيد التطوير');
+        }
+
+        // إعادة تعيين الفلاتر
+        function resetFilters() {
+            document.getElementById('searchCustomer').value = '';
+            document.getElementById('debtStatus').value = '';
+            document.getElementById('debtRep').value = '';
+            loadDebtsData();
+        }
+
+        // عرض تفاصيل العميل
+        function viewCustomer(customerId) {
+            const customer = debtsData.find(d => d.id === customerId);
+            alert(`تفاصيل العميل:\n\nالاسم: ${customer.customer}\nالهاتف: ${customer.phone}\nالدين: ${customer.amount.toLocaleString()} ج\nالحالة: ${customer.status}\nالمندوب: ${customer.rep}`);
+        }
+
+        // تسجيل تحصيل من عميل
+        function collectFromCustomer(customerId) {
+            const customer = debtsData.find(d => d.id === customerId);
+            document.getElementById('paymentCustomer').value = customerId;
+            updateCustomerDebtSummary();
+            showPaymentModal();
+        }
+
+        // إرسال تذكير
+        function sendReminder(customerId) {
+            const customer = debtsData.find(d => d.id === customerId);
+            if (confirm(`هل تريد إرسال تذكير للعميل ${customer.customer}؟`)) {
+                alert(`تم إرسال تذكير للعميل ${customer.customer} على الرقم ${customer.phone}`);
+            }
+        }
+
+        // عرض نافذة التحصيل
+        function showPaymentModal() {
+            document.getElementById('paymentModal').style.display = 'flex';
+            updateCustomerDebtSummary();
+        }
+
+        // إغلاق نافذة التحصيل
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+            // إعادة تعيين الحقول
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentNotes').value = '';
+        }
+
+        // تحديث ملخص ديون العميل
+        function updateCustomerDebtSummary() {
+            const customerId = parseInt(document.getElementById('paymentCustomer').value);
+            if (!customerId) {
+                document.getElementById('customerDebtSummary').innerHTML = `
+                    <p style="text-align: center; color: #7f8c8d;">اختر عميلاً لعرض تفاصيل ديونه</p>
+                `;
+                return;
+            }
+            
+            const customer = debtsData.find(d => d.id === customerId);
+            document.getElementById('customerDebtSummary').innerHTML = `
+                <h4>${customer.customer}</h4>
+                <p>الهاتف: ${customer.phone}</p>
+                <p>الدين الحالي: <strong>${customer.amount.toLocaleString()} ج</strong></p>
+                <p>المندوب: ${customer.rep}</p>
+            `;
+            
+            // تحديث المبالغ
+            const paymentAmount = parseFloat(document.getElementById('paymentAmount').value) || 0;
+            document.getElementById('requiredAmount').textContent = customer.amount.toLocaleString() + ' ج';
+            document.getElementById('collectedAmount').textContent = paymentAmount.toLocaleString() + ' ج';
+            document.getElementById('remainingAmount').textContent = (customer.amount - paymentAmount).toLocaleString() + ' ج';
+        }
+
+        // تحديث المبالغ عند تغيير قيمة الدفع
+        document.getElementById('paymentAmount').addEventListener('input', updateCustomerDebtSummary);
+
+        // تأكيد التحصيل
+        function submitPayment() {
+            const customerId = parseInt(document.getElementById('paymentCustomer').value);
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const method = document.getElementById('paymentMethod').value;
+            const notes = document.getElementById('paymentNotes').value;
+            
+            if (!customerId) {
+                alert('يرجى اختيار عميل');
+                return;
+            }
+            
+            if (!amount || amount <= 0) {
+                alert('يرجى إدخال مبلغ صحيح');
+                return;
+            }
+            
+            const customer = debtsData.find(d => d.id === customerId);
+            
+            if (amount > customer.amount) {
+                alert('المبلغ المحصل أكبر من الدين المطلوب');
+                return;
+            }
+            
+            // في الإصدار الحقيقي، سيتم حفظ البيانات في قاعدة البيانات
+            alert(`تم تسجيل تحصيل ${amount.toLocaleString()} ج من العميل ${customer.customer}\nطريقة الدفع: ${method}\nملاحظات: ${notes}`);
+            
+            // تحديث بيانات العميل
+            const debtIndex = debtsData.findIndex(d => d.id === customerId);
+            debtsData[debtIndex].amount -= amount;
+            debtsData[debtIndex].lastPayment = new Date().toISOString().split('T')[0];
+            
+            // إعادة تحميل البيانات
+            loadDebtsData();
+            populateCustomersSelect();
+            closePaymentModal();
+        }
+
+        // تصدير تقرير الديون
+        function exportDebtReport() {
+            const reportData = {
+                title: "تقرير ديون العملاء",
+                date: new Date().toLocaleDateString('ar-EG'),
+                totalDebt: debtsData.reduce((sum, d) => sum + d.amount, 0),
+                debts: debtsData.map(d => ({
+                    customer: d.customer,
+                    amount: d.amount,
+                    status: d.status,
+                    rep: d.rep
+                }))
+            };
+            
+            alert('تم تصدير تقرير الديون\nسيتم تنزيل الملف تلقائياً في الإصدار القادم');
+            console.log('تقرير الديون:', reportData);
+        }
+    </script>
+</body>
+</html>
