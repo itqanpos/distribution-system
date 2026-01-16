@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المخزون - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f5f6fa;
+        }
+
+        .inventory-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        .inventory-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .inventory-stat {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-top: 5px solid;
+            transition: all 0.3s;
+        }
+
+        .inventory-stat:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .inventory-stat.total { border-color: var(--primary); }
+        .inventory-stat.low { border-color: var(--danger); }
+        .inventory-stat.expiring { border-color: var(--warning); }
+        .inventory-stat.categories { border-color: var(--info); }
+
+        .inventory-stat h3 {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .inventory-stat p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .category-filter {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            padding: 8px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .category-btn:hover {
+            border-color: var(--secondary);
+            color: var(--secondary);
+        }
+
+        .category-btn.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-color: var(--secondary);
+        }
+
+        .product-card.low-stock {
+            border-color: var(--danger);
+            background: linear-gradient(to right, white, rgba(231, 76, 60, 0.05));
+        }
+
+        .product-card.expiring {
+            border-color: var(--warning);
+            background: linear-gradient(to right, white, rgba(243, 156, 18, 0.05));
+        }
+
+        .product-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-low { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
+        .badge-expiring { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+        .badge-new { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+
+        .product-image {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(45deg, #f5f7fa, #c3cfe2);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #7f8c8d;
+        }
+
+        .product-info h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 16px;
+            height: 40px;
+            overflow: hidden;
+        }
+
+        .product-category {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .product-stock {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .stock-info h4 {
+            font-size: 14px;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .stock-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .stock-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease-out;
+        }
+
+        .stock-fill.high { background: var(--success); }
+        .stock-fill.medium { background: var(--warning); }
+        .stock-fill.low { background: var(--danger); }
+
+        .product-price {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 15px 0;
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .product-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        .product-btn.edit { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
+        .product-btn.stock { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .product-btn.details { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
+
+        .product-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .expiry-warning {
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(to right, rgba(243, 156, 18, 0.1), transparent);
+            border-right: 4px solid var(--warning);
+            border-radius: 8px;
+        }
+
+        .warning-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(243, 156, 18, 0.2);
+        }
+
+        .warning-item:last-child {
+            border-bottom: none;
+        }
+
+        .batch-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .stock-movement {
+            margin-top: 30px;
+        }
+
+        .movement-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .movement-table th {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: right;
+        }
+
+        .movement-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .movement-in { color: var(--success); font-weight: bold; }
+        .movement-out { color: var(--danger); font-weight: bold; }
+
+        .quick-actions {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: white;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .quick-action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+
+        .quick-action-btn.add {
+            background: linear-gradient(135deg, var(--success), #27ae60);
+            color: white;
+        }
+
+        .quick-action-btn.import {
+            background: linear-gradient(135deg, var(--secondary), #2980b9);
+            color: white;
+        }
+
+        .quick-action-btn.export {
+            background: linear-gradient(135deg, var(--warning), #e67e22);
+            color: white;
+        }
+
+        .quick-action-btn.count {
+            background: linear-gradient(135deg, var(--info), #16a085);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-actions {
+                flex-direction: column;
+            }
+            
+            .quick-action-btn {
+                min-width: 100%;
+            }
+            
+            .category-filter {
+                justify-content: center;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- نفس شريط التنقل والشريط الجانبي من dashboard.html -->
+    
+    <main class="main-content">
+        <div class="page-header">
+            <div class="page-title">
+                <i class="fas fa-boxes"></i>
+                <h1>إدارة المخزون</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-success" onclick="showAddProductModal()">
+                    <i class="fas fa-plus"></i> إضافة منتج
+                </button>
+                <button class="btn btn-primary" onclick="showInventoryReport()">
+                    <i class="fas fa-file-export"></i> تقرير المخزون
+                </button>
+            </div>
+        </div>
+
+        <div class="inventory-container">
+            <div class="inventory-stats">
+                <div class="inventory-stat total">
+                    <h3 id="totalProducts">1,024</h3>
+                    <p>إجمالي المنتجات</p>
+                </div>
+                <div class="inventory-stat low">
+                    <h3 id="lowStockCount">42</h3>
+                    <p>منتجات قليلة المخزون</p>
+                </div>
+                <div class="inventory-stat expiring">
+                    <h3 id="expiringCount">18</h3>
+                    <p>منتجات قريبة من الانتهاء</p>
+                </div>
+                <div class="inventory-stat categories">
+                    <h3 id="categoriesCount">12</h3>
+                    <p>فئة منتج</p>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="quick-action-btn add" onclick="showAddProductModal()">
+                    <i class="fas fa-plus"></i>
+                    إضافة منتج جديد
+                </button>
+                <button class="quick-action-btn import" onclick="importProducts()">
+                    <i class="fas fa-file-import"></i>
+                    استيراد منتجات
+                </button>
+                <button class="quick-action-btn export" onclick="exportInventory()">
+                    <i class="fas fa-file-export"></i>
+                    تصدير المخزون
+                </button>
+                <button class="quick-action-btn count" onclick="startStockCount()">
+                    <i class="fas fa-clipboard-check"></i>
+                    جرد المخزون
+                </button>
+            </div>
+
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <label>بحث في المنتجات</label>
+                    <input type="text" id="searchProduct" placeholder="اسم المنتج أو الرمز">
+                </div>
+                <div class="filter-item">
+                    <label>ترتيب حسب</label>
+                    <select id="sortProducts">
+                        <option value="name">الاسم</option>
+                        <option value="stock">المخزون</option>
+                        <option value="price">السعر</option>
+                        <option value="sales">المبيعات</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>حالة المخزون</label>
+                    <select id="filterStock">
+                        <option value="">جميع الحالات</option>
+                        <option value="low">قليل المخزون</option>
+                        <option value="normal">طبيعي</option>
+                        <option value="high">كبير</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="applyProductFilters()">
+                        <i class="fas fa-filter"></i> تطبيق
+                    </button>
+                    <button class="btn" onclick="resetProductFilters()">
+                        <i class="fas fa-redo"></i> إعادة تعيين
+                    </button>
+                </div>
+            </div>
+
+            <div class="category-filter">
+                <button class="category-btn active" onclick="filterByCategory('all')">الكل</button>
+                <button class="category-btn" onclick="filterByCategory('food')">مواد غذائية</button>
+                <button class="category-btn" onclick="filterByCategory('canned')">معلبات</button>
+                <button class="category-btn" onclick="filterByCategory('drinks')">مشروبات</button>
+                <button class="category-btn" onclick="filterByCategory('dairy')">ألبان</button>
+                <button class="category-btn" onclick="filterByCategory('grains')">حبوب</button>
+                <button class="category-btn" onclick="filterByCategory('spices')">توابل</button>
+            </div>
+
+            <div class="products-grid" id="productsGrid">
+                <!-- سيتم تعبئته بالبيانات -->
+            </div>
+
+            <div class="expiry-warning">
+                <h4><i class="fas fa-exclamation-triangle"></i> تنبيهات انتهاء الصلاحية</h4>
+                <div id="expiryWarnings">
+                    <!-- سيتم تعبئته بالبيانات -->
+                </div>
+            </div>
+
+            <div class="stock-movement">
+                <h3><i class="fas fa-exchange-alt"></i> حركة المخزون اليوم</h3>
+                <table class="movement-table">
+                    <thead>
+                        <tr>
+                            <th>المنتج</th>
+                            <th>الحركة</th>
+                            <th>الكمية</th>
+                            <th>الوقت</th>
+                            <th>المستخدم</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockMovement">
+                        <!-- سيتم تعبئته بالبيانات -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- نافذة إضافة منتج -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-box"></i> إضافة منتج جديد</h3>
+                <button class="close-modal" onclick="closeAddProductModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>اسم المنتج</label>
+                <input type="text" id="productName" placeholder="اسم المنتج بالكامل">
+            </div>
+            
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>الرمز</label>
+                    <input type="text" id="productCode" placeholder="PROD-001">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>الباركود</label>
+                    <input type="text" id="productBarcode" placeholder="123456789012">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>الفئة</label>
+                <select id="productCategory">
+                    <option value="">اختر فئة</option>
+                    <option value="food">مواد غذائية</option>
+                    <option value="canned">معلبات</option>
+                    <option value="drinks">مشروبات</option>
+                    <option value="dairy">ألبان</option>
+                    <option value="grains">حبوب</option>
+                    <option value="spices">توابل</option>
+                    <option value="other">أخرى</option>
+                </select>
+            </div>
+            
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>سعر الشراء</label>
+                    <input type="number" id="purchasePrice" placeholder="سعر الشراء">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>سعر البيع</label>
+                    <input type="number" id="sellingPrice" placeholder="سعر البيع">
+                </div>
+            </div>
+            
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>الكمية الحالية</label>
+                    <input type="number" id="currentQuantity" placeholder="الكمية في المخزون">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>الحد الأدنى</label>
+                    <input type="number" id="minQuantity" placeholder="الحد الأدنى للإشعار">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>تاريخ الصلاحية</label>
+                <input type="date" id="expiryDate">
+            </div>
+            
+            <div class="form-group">
+                <label>الوحدة</label>
+                <select id="productUnit">
+                    <option value="piece">قطعة</option>
+                    <option value="kg">كيلو</option>
+                    <option value="gram">جرام</option>
+                    <option value="liter">لتر</option>
+                    <option value="box">كرتون</option>
+                    <option value="pack">علبة</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>المورد</label>
+                <select id="productSupplier">
+                    <option value="">اختر مورد</option>
+                    <option value="1">مورد الأغذية</option>
+                    <option value="2">شركة المعلبات</option>
+                    <option value="3">مصنع المشروبات</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea id="productNotes" placeholder="ملاحظات حول المنتج"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-success" style="flex: 1;" onclick="saveProduct()">
+                    <i class="fas fa-save"></i> حفظ المنتج
+                </button>
+                <button class="btn" style="flex: 1;" onclick="closeAddProductModal()">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // بيانات المخزون
+        const productsData = [
+            {
+                id: 1,
+                name: "أرز بسمتي هندي",
+                code: "RICE-001",
+                barcode: "123456789012",
+                category: "grains",
+                purchasePrice: 15,
+                sellingPrice: 25,
+                quantity: 150,
+                minQuantity: 50,
+                unit: "kg",
+                expiryDate: "2024-12-31",
+                supplier: "مورد الأغذية",
+                sales: 1200,
+                status: "normal",
+                badge: null
+            },
+            {
+                id: 2,
+                name: "سكر أبيض ناعم",
+                code: "SUGAR-001",
+                barcode: "123456789013",
+                category: "food",
+                purchasePrice: 10,
+                sellingPrice: 18,
+                quantity: 20,
+                minQuantity: 30,
+                unit: "kg",
+                expiryDate: "2025-06-30",
+                supplier: "مورد الأغذية",
+                sales: 800,
+                status: "low",
+                badge: "low"
+            },
+            {
+                id: 3,
+                name: "زيت ذرة صافي",
+                code: "OIL-001",
+                barcode: "123456789014",
+                category: "food",
+                purchasePrice: 35,
+                sellingPrice: 50,
+                quantity: 80,
+                minQuantity: 40,
+                unit: "liter",
+                expiryDate: "2024-03-15",
+                supplier: "شركة المعلبات",
+                sales: 600,
+                status: "expiring",
+                badge: "expiring"
+            },
+            {
+                id: 4,
+                name: "معلبات طماطم",
+                code: "CAN-001",
+                barcode: "123456789015",
+                category: "canned",
+                purchasePrice: 8,
+                sellingPrice: 15,
+                quantity: 200,
+                minQuantity: 100,
+                unit: "can",
+                expiryDate: "2024-08-20",
+                supplier: "شركة المعلبات",
+                sales: 400,
+                status: "normal",
+                badge: null
+            },
+            {
+                id: 5,
+                name: "ماء معدني",
+                code: "WATER-001",
+                barcode: "123456789016",
+                category: "drinks",
+                purchasePrice: 3,
+                sellingPrice: 6,
+                quantity: 500,
+                minQuantity: 200,
+                unit: "bottle",
+                expiryDate: "2025-01-31",
+                supplier: "مصنع المشروبات",
+                sales: 1500,
+                status: "normal",
+                badge: null
+            },
+            {
+                id: 6,
+                name: "حليب طازج",
+                code: "MILK-001",
+                barcode: "123456789017",
+                category: "dairy",
+                purchasePrice: 12,
+                sellingPrice: 20,
+                quantity: 45,
+                minQuantity: 30,
+                unit: "liter",
+                expiryDate: "2024-01-25",
+                supplier: "مورد الأغذية",
+                sales: 300,
+                status: "expiring",
+                badge: "expiring"
+            },
+            {
+                id: 7,
+                name: "قهوة تركية",
+                code: "COFFEE-001",
+                barcode: "123456789018",
+                category: "food",
+                purchasePrice: 40,
+                sellingPrice: 70,
+                quantity: 25,
+                minQuantity: 20,
+                unit: "kg",
+                expiryDate: "2024-10-15",
+                supplier: "مورد الأغذية",
+                sales: 200,
+                status: "low",
+                badge: "low"
+            },
+            {
+                id: 8,
+                name: "بهارات مشكلة",
+                code: "SPICE-001",
+                barcode: "123456789019",
+                category: "spices",
+                purchasePrice: 15,
+                sellingPrice: 30,
+                quantity: 180,
+                minQuantity: 50,
+                unit: "gram",
+                expiryDate: "2024-09-30",
+                supplier: "مورد الأغذية",
+                sales: 350,
+                status: "normal",
+                badge: null
+            }
+        ];
+
+        // تحميل البيانات
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProductsData();
+            loadExpiryWarnings();
+            loadStockMovement();
+            updateInventoryStats();
+        });
+
+        // تحميل بيانات المنتجات
+        function loadProductsData() {
+            const productsGrid = document.getElementById('productsGrid');
+            productsGrid.innerHTML = '';
+            
+            productsData.forEach(product => {
+                const stockPercentage = (product.quantity / (product.minQuantity * 3)) * 100;
+                let stockClass = 'high';
+                if (stockPercentage < 30) stockClass = 'low';
+                else if (stockPercentage < 60) stockClass = 'medium';
+                
+                const categoryNames = {
+                    'food': 'مواد غذائية',
+                    'canned': 'معلبات',
+                    'drinks': 'مشروبات',
+                    'dairy': 'ألبان',
+                    'grains': 'حبوب',
+                    'spices': 'توابل'
+                };
+                
+                const categoryIcons = {
+                    'food': 'fa-utensils',
+                    'canned': 'fa-can',
+                    'drinks': 'fa-wine-bottle',
+                    'dairy': 'fa-cow',
+                    'grains': 'fa-wheat-awn',
+                    'spices': 'fa-mortar-pestle'
+                };
+                
+                const cardClass = product.badge ? product.badge + '-stock' : '';
+                const badgeHTML = product.badge ? 
+                    `<div class="product-badge badge-${product.badge}">
+                        <i class="fas fa-${product.badge === 'low' ? 'exclamation-triangle' : 'clock'}"></i>
+                        ${product.badge === 'low' ? 'قليل' : 'ينتهي قريباً'}
+                    </div>` : '';
+                
+                productsGrid.innerHTML += `
+                    <div class="product-card ${cardClass}">
+                        ${badgeHTML}
+                        
+                        <div class="product-image">
+                            <i class="fas ${categoryIcons[product.category] || 'fa-box'}"></i>
+                        </div>
+                        
+                        <div class="product-info">
+                            <h3>${product.name}</h3>
+                            <div class="product-category">
+                                <i class="fas ${categoryIcons[product.category] || 'fa-tag'}"></i>
+                                ${categoryNames[product.category] || 'أخرى'}
+                            </div>
+                        </div>
+                        
+                        <div class="product-stock">
+                            <div class="stock-info">
+                                <h4>المخزون: ${product.quantity} ${product.unit}</h4>
+                                <div class="stock-bar">
+                                    <div class="stock-fill ${stockClass}" style="width: ${Math.min(stockPercentage, 100)}%"></div>
+                                </div>
+                            </div>
+                            <div style="text-align: left;">
+                                <small style="color: #7f8c8d;">الحد الأدنى: ${product.minQuantity}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="product-price">
+                            ${product.sellingPrice.toLocaleString()} ج
+                            <small style="font-size: 12px; color: #7f8c8d; display: block;">
+                                الشراء: ${product.purchasePrice.toLocaleString()} ج
+                            </small>
+                        </div>
+                        
+                        <div class="product-actions">
+                            <button class="product-btn edit" onclick="editProduct(${product.id})">
+                                <i class="fas fa-edit"></i> تعديل
+                            </button>
+                            <button class="product-btn stock" onclick="adjustStock(${product.id})">
+                                <i class="fas fa-boxes"></i> مخزون
+                            </button>
+                            <button class="product-btn details" onclick="showProductDetails(${product.id})">
+                                <i class="fas fa-info-circle"></i> تفاصيل
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // تحديث إحصائيات المخزون
+        function updateInventoryStats() {
+            const totalProducts = productsData.length;
+            const lowStockCount = productsData.filter(p => p.badge === 'low').length;
+            const expiringCount = productsData.filter(p => p.badge === 'expiring').length;
+            const categoriesCount = new Set(productsData.map(p => p.category)).size;
+            
+            document.getElementById('totalProducts').textContent = totalProducts;
+            document.getElementById('lowStockCount').textContent = lowStockCount;
+            document.getElementById('expiringCount').textContent = expiringCount;
+            document.getElementById('categoriesCount').textContent = categoriesCount;
+        }
+
+        // تحميل تنبيهات انتهاء الصلاحية
+        function loadExpiryWarnings() {
+            const warningsContainer = document.getElementById('expiryWarnings');
+            warningsContainer.innerHTML = '';
+            
+            const expiringProducts = productsData.filter(p => p.badge === 'expiring').slice(0, 5);
+            
+            if (expiringProducts.length === 0) {
+                warningsContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d;">لا توجد منتجات قريبة من انتهاء الصلاحية</p>';
+                return;
+            }
+            
+            expiringProducts.forEach(product => {
+                const expiryDate = new Date(product.expiryDate);
+                const today = new Date();
+                const diffTime = expiryDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                warningsContainer.innerHTML += `
+                    <div class="warning-item">
+                        <div>
+                            <strong>${product.name}</strong>
+                            <div class="batch-info">ينتهي في ${diffDays} يوم | الكمية: ${product.quantity} ${product.unit}</div>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm" onclick="handleExpiringProduct(${product.id})" style="font-size: 12px;">
+                                <i class="fas fa-bullhorn"></i> تنبيه
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // تحميل حركة المخزون
+        function loadStockMovement() {
+            const movementContainer = document.getElementById('stockMovement');
+            movementContainer.innerHTML = '';
+            
+            const movements = [
+                { product: "أرز بسمتي هندي", type: "out", quantity: 5, time: "10:30 ص", user: "أحمد محمود" },
+                { product: "سكر أبيض ناعم", type: "in", quantity: 50, time: "09:15 ص", user: "المستودع" },
+                { product: "زيت ذرة صافي", type: "out", quantity: 12, time: "11:45 ص", user: "خالد عمرو" },
+                { product: "ماء معدني", type: "out", quantity: 24, time: "08:20 ص", user: "وليد حسن" },
+                { product: "قهوة تركية", type: "in", quantity: 10, time: "14:30 م", user: "المستودع" }
+            ];
+            
+            movements.forEach(movement => {
+                const typeClass = movement.type === 'in' ? 'movement-in' : 'movement-out';
+                const typeIcon = movement.type === 'in' ? 'fa-arrow-down' : 'fa-arrow-up';
+                const typeText = movement.type === 'in' ? 'إدخال' : 'إخراج';
+                
+                movementContainer.innerHTML += `
+                    <tr>
+                        <td>${movement.product}</td>
+                        <td class="${typeClass}"><i class="fas ${typeIcon}"></i> ${typeText}</td>
+                        <td>${movement.quantity}</td>
+                        <td>${movement.time}</td>
+                        <td>${movement.user}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // تطبيق فلاتر المنتجات
+        function applyProductFilters() {
+            const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
+            const sortBy = document.getElementById('sortProducts').value;
+            const stockFilter = document.getElementById('filterStock').value;
+            
+            let filteredProducts = productsData;
+            
+            // فلترة حسب البحث
+            if (searchTerm) {
+                filteredProducts = filteredProducts.filter(product => 
+                    product.name.toLowerCase().includes(searchTerm) || 
+                    product.code.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // فلترة حسب حالة المخزون
+            if (stockFilter) {
+                filteredProducts = filteredProducts.filter(product => {
+                    const stockPercentage = (product.quantity / (product.minQuantity * 3)) * 100;
+                    if (stockFilter === 'low') return stockPercentage < 30;
+                    if (stockFilter === 'normal') return stockPercentage >= 30 && stockPercentage < 60;
+                    if (stockFilter === 'high') return stockPercentage >= 60;
+                    return true;
+                });
+            }
+            
+            // ترتيب النتائج
+            filteredProducts.sort((a, b) => {
+                switch(sortBy) {
+                    case 'name':
+                        return a.name.localeCompare(b.name, 'ar');
+                    case 'stock':
+                        return b.quantity - a.quantity;
+                    case 'price':
+                        return b.sellingPrice - a.sellingPrice;
+                    case 'sales':
+                        return b.sales - a.sales;
+                    default:
+                        return 0;
+                }
+            });
+            
+            // عرض النتائج المفلترة
+            alert(`تم العثور على ${filteredProducts.length} منتج`);
+        }
+
+        // إعادة تعيين الفلاتر
+        function resetProductFilters() {
+            document.getElementById('searchProduct').value = '';
+            document.getElementById('sortProducts').value = 'name';
+            document.getElementById('filterStock').value = '';
+            loadProductsData();
+        }
+
+        // فلترة حسب الفئة
+        function filterByCategory(category) {
+            // تحديث أزرار الفئات
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            let filteredProducts = productsData;
+            
+            if (category !== 'all') {
+                filteredProducts = productsData.filter(product => product.category === category);
+            }
+            
+            const productsGrid = document.getElementById('productsGrid');
+            productsGrid.innerHTML = '';
+            
+            if (filteredProducts.length === 0) {
+                productsGrid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                        <i class="fas fa-box-open" style="font-size: 48px; color: #ddd; margin-bottom: 15px;"></i>
+                        <p>لا توجد منتجات في هذه الفئة</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // إعادة تحميل المنتجات المفلترة
+            loadProductsData();
+        }
+
+        // عرض نافذة إضافة منتج
+        function showAddProductModal() {
+            document.getElementById('addProductModal').style.display = 'flex';
+        }
+
+        // إغلاق نافذة إضافة منتج
+        function closeAddProductModal() {
+            document.getElementById('addProductModal').style.display = 'none';
+            // إعادة تعيين الحقول
+            document.getElementById('productName').value = '';
+            document.getElementById('productCode').value = '';
+            document.getElementById('productBarcode').value = '';
+            document.getElementById('productCategory').value = '';
+            document.getElementById('purchasePrice').value = '';
+            document.getElementById('sellingPrice').value = '';
+            document.getElementById('currentQuantity').value = '';
+            document.getElementById('minQuantity').value = '';
+            document.getElementById('expiryDate').value = '';
+            document.getElementById('productUnit').value = 'piece';
+            document.getElementById('productSupplier').value = '';
+            document.getElementById('productNotes').value = '';
+        }
+
+        // حفظ منتج جديد
+        function saveProduct() {
+            const name = document.getElementById('productName').value;
+            const code = document.getElementById('productCode').value;
+            const category = document.getElementById('productCategory').value;
+            const purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+            const sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
+            const quantity = parseInt(document.getElementById('currentQuantity').value);
+            const minQuantity = parseInt(document.getElementById('minQuantity').value);
+            
+            if (!name || !code || !category || !purchasePrice || !sellingPrice || !quantity || !minQuantity) {
+                alert('يرجى ملء جميع الحقول المطلوبة');
+                return;
+            }
+            
+            // تحديد حالة المنتج
+            let badge = null;
+            const stockPercentage = (quantity / (minQuantity * 3)) * 100;
+            if (stockPercentage < 30) badge = 'low';
+            
+            // التحقق من تاريخ الصلاحية
+            const expiryDate = document.getElementById('expiryDate').value;
+            if (expiryDate) {
+                const expiry = new Date(expiryDate);
+                const today = new Date();
+                const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+                if (diffDays <= 30) badge = 'expiring';
+            }
+            
+            const newProduct = {
+                id: productsData.length + 1,
+                name: name,
+                code: code,
+                barcode: document.getElementById('productBarcode').value || '123456789000',
+                category: category,
+                purchasePrice: purchasePrice,
+                sellingPrice: sellingPrice,
+                quantity: quantity,
+                minQuantity: minQuantity,
+                unit: document.getElementById('productUnit').value,
+                expiryDate: expiryDate || '2024-12-31',
+                supplier: document.getElementById('productSupplier').value || 'مورد عام',
+                sales: 0,
+                status: 'normal',
+                badge: badge
+            };
+            
+            productsData.push(newProduct);
+            loadProductsData();
+            updateInventoryStats();
+            loadExpiryWarnings();
+            closeAddProductModal();
+            
+            alert(`تم إضافة المنتج "${name}" بنجاح!`);
+        }
+
+        // تعديل منتج
+        function editProduct(productId) {
+            const product = productsData.find(p => p.id === productId);
+            alert(`تعديل المنتج: ${product.name}\n\nسيتم فتح صفحة التعديل في الإصدار القادم`);
+        }
+
+        // تعديل المخزون
+        function adjustStock(productId) {
+            const product = productsData.find(p => p.id === productId);
+            const adjustment = prompt(`تعديل مخزون ${product.name}\n\nالمخزون الحالي: ${product.quantity} ${product.unit}\n\nأدخل الكمية الإضافية (استخدم - للنقص):`, '0');
+            
+            if (adjustment !== null && !isNaN(adjustment)) {
+                const adjustmentNum = parseInt(adjustment);
+                productsData.find(p => p.id === productId).quantity += adjustmentNum;
+                
+                loadProductsData();
+                updateInventoryStats();
+                loadExpiryWarnings();
+                
+                alert(`تم تعديل مخزون ${product.name}\nالمخزون الجديد: ${product.quantity + adjustmentNum} ${product.unit}`);
+            }
+        }
+
+        // عرض تفاصيل المنتج
+        function showProductDetails(productId) {
+            const product = productsData.find(p => p.id === productId);
+            
+            const detailsHTML = `
+                <div style="padding: 20px;">
+                    <h3>${product.name}</h3>
+                    <p><strong>الرمز:</strong> ${product.code}</p>
+                    <p><strong>الباركود:</strong> ${product.barcode}</p>
+                    <p><strong>سعر الشراء:</strong> ${product.purchasePrice.toLocaleString()} ج</p>
+                    <p><strong>سعر البيع:</strong> ${product.sellingPrice.toLocaleString()} ج</p>
+                    <p><strong>الهامش:</strong> ${(product.sellingPrice - product.purchasePrice).toLocaleString()} ج</p>
+                    <p><strong>المخزون:</strong> ${product.quantity} ${product.unit}</p>
+                    <p><strong>الحد الأدنى:</strong> ${product.minQuantity} ${product.unit}</p>
+                    <p><strong>تاريخ الصلاحية:</strong> ${product.expiryDate}</p>
+                    <p><strong>المورد:</strong> ${product.supplier}</p>
+                    <p><strong>المبيعات:</strong> ${product.sales.toLocaleString()} وحدة</p>
+                </div>
+            `;
+            
+            alert(detailsHTML);
+        }
+
+        // التعامل مع المنتج المنتهي الصلاحية
+        function handleExpiringProduct(productId) {
+            const product = productsData.find(p => p.id === productId);
+            const action = confirm(`المنتج: ${product.name}\nينتهي صلاحيته قريباً\n\nهل تريد:\n1. تنبيه المندوبين لتسويقه\n2. إرجاعه للمورد\n3. تغيير سعره للبيع السريع`);
+            
+            if (action) {
+                alert('تم إرسال تنبيه للمندوبين لتسويق المنتج بسرعة');
+            }
+        }
+
+        // استيراد منتجات
+        function importProducts() {
+            alert('خاصية استيراد المنتجات\nيمكنك استيراد قائمة منتجات من ملف Excel\nسيتم تفعيل هذه الميزة في الإصدار القادم');
+        }
+
+        // تصدير المخزون
+        function exportInventory() {
+            const exportData = {
+                date: new Date().toLocaleDateString('ar-EG'),
+                products: productsData.map(p => ({
+                    name: p.name,
+                    code: p.code,
+                    quantity: p.quantity,
+                    unit: p.unit,
+                    price: p.sellingPrice
+                }))
+            };
+            
+            alert(`تم تصدير بيانات المخزون\nعدد المنتجات: ${exportData.products.length}\nسيتم تنزيل ملف Excel في الإصدار القادم`);
+        }
+
+        // بدء جرد المخزون
+        function startStockCount() {
+            alert('بدء جرد المخزون\n\nسيتم تفعيل وضع الجرد:\n1. إغلاق عمليات البيع مؤقتاً\n2. طباعة كشوف الجرد\n3. مقارنة المخزون الفعلي مع النظام\n\nهل تريد المتابعة؟');
+        }
+
+        // عرض تقرير المخزون
+        function showInventoryReport() {
+            const reportData = {
+                date: new Date().toLocaleDateString('ar-EG'),
+                totalProducts: productsData.length,
+                totalValue: productsData.reduce((sum, p) => sum + (p.quantity * p.purchasePrice), 0),
+                lowStock: productsData.filter(p => p.badge === 'low').length,
+                expiring: productsData.filter(p => p.badge === 'expiring').length,
+                topProducts: productsData.sort((a, b) => b.sales - a.slices).slice(0, 5)
+            };
+            
+            alert(`📊 تقرير المخزون:\n\n` +
+                  `📅 التاريخ: ${reportData.date}\n` +
+                  `📦 إجمالي المنتجات: ${reportData.totalProducts}\n` +
+                  `💰 القيمة الإجمالية: ${reportData.totalValue.toLocaleString()} ج\n` +
+                  `⚠️  منتجات قليلة: ${reportData.lowStock}\n` +
+                  `⏰ منتجات منتهية: ${reportData.expiring}\n\n` +
+                  `سيتم إنشاء ملف PDF في الإصدار القادم`);
+        }
+    </script>
+</body>
+</html>
