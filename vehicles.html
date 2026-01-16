@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة السيارات - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f5f6fa;
+        }
+
+        .vehicles-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        .vehicles-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .vehicle-stat {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-top: 5px solid;
+            transition: all 0.3s;
+        }
+
+        .vehicle-stat:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .vehicle-stat.total { border-color: var(--primary); }
+        .vehicle-stat.active { border-color: var(--success); }
+        .vehicle-stat.maintenance { border-color: var(--warning); }
+        .vehicle-stat.fuel { border-color: var(--danger); }
+
+        .vehicle-stat h3 {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .vehicle-stat p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .vehicle-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .vehicle-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-color: var(--secondary);
+        }
+
+        .vehicle-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(to left, var(--secondary), var(--info));
+        }
+
+        .vehicle-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .vehicle-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--secondary), var(--info));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .vehicle-info h3 {
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 18px;
+        }
+
+        .vehicle-info p {
+            color: #7f8c8d;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .vehicle-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .status-maintenance { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+        .status-inactive { background: rgba(149, 165, 166, 0.1); color: #95a5a6; }
+        .status-trip { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
+
+        .vehicle-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .detail-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        .vehicle-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .vehicle-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        .vehicle-btn.track { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
+        .vehicle-btn.maintenance { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+        .vehicle-btn.fuel { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
+
+        .vehicle-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .trips-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #f5f6fa;
+        }
+
+        .trips-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .trips-table th {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: right;
+        }
+
+        .trips-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .trip-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-completed { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .status-ongoing { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
+        .status-scheduled { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
+
+        .maintenance-alerts {
+            background: linear-gradient(to right, rgba(243, 156, 18, 0.1), transparent);
+            border-right: 4px solid var(--warning);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(243, 156, 18, 0.2);
+        }
+
+        .alert-item:last-child {
+            border-bottom: none;
+        }
+
+        .fuel-consumption {
+            background: linear-gradient(to right, rgba(231, 76, 60, 0.1), transparent);
+            border-right: 4px solid var(--danger);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .fuel-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 150px;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 8px;
+        }
+
+        .fuel-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--danger), #ff7675);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .fuel-bar:hover {
+            transform: scaleY(1.1);
+        }
+
+        .fuel-bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .add-vehicle-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--success), var(--info));
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(46, 204, 113, 0.3);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .add-vehicle-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(46, 204, 113, 0.4);
+        }
+
+        .driver-assignment {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .driver-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .driver-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary), var(--info));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .driver-info h4 {
+            color: var(--primary);
+            margin-bottom: 3px;
+            font-size: 14px;
+        }
+
+        .driver-info p {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .vehicles-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .vehicle-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .fuel-chart {
+                flex-direction: column;
+                height: auto;
+                align-items: stretch;
+            }
+            
+            .fuel-bar {
+                height: 30px;
+                width: 100%;
+            }
+            
+            .fuel-bar-label {
+                position: static;
+                margin-top: 5px;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- نفس شريط التنقل والشريط الجانبي من dashboard.html -->
+    
+    <main class="main-content">
+        <div class="page-header">
+            <div class="page-title">
+                <i class="fas fa-truck"></i>
+                <h1>إدارة السيارات والنقل</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="showAllTrips()">
+                    <i class="fas fa-route"></i> خريطة الرحلات
+                </button>
+                <button class="btn btn-success" onclick="showMaintenanceReport()">
+                    <i class="fas fa-wrench"></i> تقرير الصيانة
+                </button>
+            </div>
+        </div>
+
+        <div class="vehicles-container">
+            <div class="vehicles-stats">
+                <div class="vehicle-stat total">
+                    <h3 id="totalVehicles">3</h3>
+                    <p>إجمالي السيارات</p>
+                </div>
+                <div class="vehicle-stat active">
+                    <h3 id="activeVehicles">2</h3>
+                    <p>سيارات نشطة</p>
+                </div>
+                <div class="vehicle-stat maintenance">
+                    <h3 id="maintenanceCount">1</h3>
+                    <p>تحت الصيانة</p>
+                </div>
+                <div class="vehicle-stat fuel">
+                    <h3 id="avgFuel">12.5 لتر/100كم</h3>
+                    <p>متوسط استهلاك الوقود</p>
+                </div>
+            </div>
+
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <label>بحث عن سيارة</label>
+                    <input type="text" id="searchVehicle" placeholder="رقم السيارة أو النوع">
+                </div>
+                <div class="filter-item">
+                    <label>حالة السيارة</label>
+                    <select id="filterStatus">
+                        <option value="">جميع الحالات</option>
+                        <option value="active">نشطة</option>
+                        <option value="maintenance">صيانة</option>
+                        <option value="trip">في رحلة</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>نوع السيارة</label>
+                    <select id="filterType">
+                        <option value="">جميع الأنواع</option>
+                        <option value="truck">نقل</option>
+                        <option value="refrigerated">ثلاجة</option>
+                        <option value="van">فان</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="applyVehicleFilters()">
+                        <i class="fas fa-filter"></i> تطبيق
+                    </button>
+                    <button class="btn" onclick="resetVehicleFilters()">
+                        <i class="fas fa-redo"></i> إعادة تعيين
+                    </button>
+                </div>
+            </div>
+
+            <div class="vehicles-grid" id="vehiclesGrid">
+                <!-- سيتم تعبئته بالبيانات -->
+            </div>
+
+            <div class="maintenance-alerts">
+                <h4><i class="fas fa-exclamation-triangle"></i> تنبيهات الصيانة القادمة</h4>
+                <div id="maintenanceAlerts">
+                    <!-- سيتم تعبئته بالبيانات -->
+                </div>
+            </div>
+
+            <div class="fuel-consumption">
+                <h4><i class="fas fa-gas-pump"></i> استهلاك الوقود الأسبوعي</h4>
+                <div class="fuel-chart" id="fuelChart">
+                    <!-- سيتم تعبئته بالبيانات -->
+                </div>
+            </div>
+
+            <div class="trips-section">
+                <h3><i class="fas fa-route"></i> رحلات اليوم</h3>
+                <table class="trips-table">
+                    <thead>
+                        <tr>
+                            <th>السيارة</th>
+                            <th>السائق</th>
+                            <th>الوجهة</th>
+                            <th>وقت الانطلاق</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tripsTable">
+                        <!-- سيتم تعبئته بالبيانات -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- زر إضافة سيارة جديدة -->
+    <button class="add-vehicle-btn" onclick="showAddVehicleModal()">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- نافذة إضافة سيارة جديدة -->
+    <div id="addVehicleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-truck"></i> إضافة سيارة جديدة</h3>
+                <button class="close-modal" onclick="closeAddVehicleModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label>رقم اللوحة</label>
+                <input type="text" id="vehiclePlate" placeholder="مثال: أ ب ج ١٢٣٤" style="text-align: center; font-size: 18px; letter-spacing: 2px;">
+            </div>
+            
+            <div class="form-group">
+                <label>نوع السيارة</label>
+                <select id="vehicleType">
+                    <option value="truck">سيارة نقل</option>
+                    <option value="refrigerated">سيارة ثلاجة</option>
+                    <option value="van">فان</option>
+                    <option value="pickup">بيك أب</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>الموديل والماركة</label>
+                <input type="text" id="vehicleModel" placeholder="مثال: تويوتا هايس ٢٠٢٣">
+            </div>
+            
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>سعة الحمولة</label>
+                    <input type="number" id="vehicleCapacity" placeholder="بالكيلو">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>سنة الصنع</label>
+                    <input type="number" id="vehicleYear" placeholder="مثال: ٢٠٢٣" min="2000" max="2024">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>رقم الشاسيه</label>
+                <input type="text" id="vehicleChassis" placeholder="رقم الشاسيه">
+            </div>
+            
+            <div class="form-group">
+                <label>رقم المحرك</label>
+                <input type="text" id="vehicleEngine" placeholder="رقم المحرك">
+            </div>
+            
+            <div class="form-group">
+                <label>لون السيارة</label>
+                <input type="color" id="vehicleColor" value="#3498db" style="width: 100%; height: 40px;">
+            </div>
+            
+            <div class="form-group">
+                <label>السائق المسؤول</label>
+                <select id="vehicleDriver">
+                    <option value="">بدون سائق</option>
+                    <option value="1">أحمد محمود</option>
+                    <option value="2">خالد عمرو</option>
+                    <option value="3">وليد حسن</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea id="vehicleNotes" placeholder="ملاحظات حول السيارة"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-success" style="flex: 1;" onclick="saveNewVehicle()">
+                    <i class="fas fa-save"></i> حفظ السيارة
+                </button>
+                <button class="btn" style="flex: 1;" onclick="closeAddVehicleModal()">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تفاصيل الرحلة -->
+    <div id="tripDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-route"></i> تفاصيل الرحلة</h3>
+                <button class="close-modal" onclick="closeTripDetails()">×</button>
+            </div>
+            
+            <div class="modal-body" id="tripDetailsContent">
+                <!-- سيتم تعبئته بالبيانات -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // بيانات السيارات
+        const vehiclesData = [
+            {
+                id: 1,
+                plate: "أ ب ج ١٢٣٤",
+                type: "truck",
+                model: "تويوتا هايس ٢٠٢٢",
+                capacity: 1000,
+                year: 2022,
+                color: "#3498db",
+                driver: "أحمد محمود",
+                driverId: 1,
+                status: "active",
+                fuelConsumption: 12.5,
+                lastMaintenance: "2024-01-10",
+                nextMaintenance: "2024-02-10",
+                totalTrips: 156,
+                totalDistance: 12500,
+                currentLocation: "المنطقة الشرقية",
+                fuelLevel: 65,
+                issues: []
+            },
+            {
+                id: 2,
+                plate: "د هـ و ٥٦٧٨",
+                type: "refrigerated",
+                model: "مرسيدس سبرينتر ثلاجة ٢٠٢٣",
+                capacity: 800,
+                year: 2023,
+                color: "#2ecc71",
+                driver: "خالد عمرو",
+                driverId: 2,
+                status: "trip",
+                fuelConsumption: 14.2,
+                lastMaintenance: "2024-01-05",
+                nextMaintenance: "2024-02-05",
+                totalTrips: 89,
+                totalDistance: 8900,
+                currentLocation: "طريق المدينة",
+                fuelLevel: 45,
+                issues: ["تنبيه: درجة الحرارة +2°C"]
+            },
+            {
+                id: 3,
+                plate: "س ع ف ٩١٠١",
+                type: "van",
+                model: "هيونداي إتش ١ ٢٠٢١",
+                capacity: 500,
+                year: 2021,
+                color: "#e74c3c",
+                driver: "وليد حسن",
+                driverId: 3,
+                status: "maintenance",
+                fuelConsumption: 10.8,
+                lastMaintenance: "2023-12-20",
+                nextMaintenance: "2024-01-25",
+                totalTrips: 210,
+                totalDistance: 18500,
+                currentLocation: "ورشة الصيانة",
+                fuelLevel: 20,
+                issues: ["صيانة دورية", "تغيير زيت المحرك"]
+            }
+        ];
+
+        // بيانات الرحلات
+        const tripsData = [
+            {
+                id: 1,
+                vehicleId: 1,
+                vehiclePlate: "أ ب ج ١٢٣٤",
+                driver: "أحمد محمود",
+                destination: "المنطقة الشرقية - ١٠ عملاء",
+                startTime: "08:00 ص",
+                endTime: "14:00 م",
+                status: "completed",
+                distance: 85,
+                fuelUsed: 10.6,
+                deliveries: 10,
+                returns: 2
+            },
+            {
+                id: 2,
+                vehicleId: 2,
+                vehiclePlate: "د هـ و ٥٦٧٨",
+                driver: "خالد عمرو",
+                destination: "المنطقة الغربية - ٨ عملاء",
+                startTime: "09:30 ص",
+                endTime: null,
+                status: "ongoing",
+                distance: 45,
+                fuelUsed: 6.3,
+                deliveries: 5,
+                returns: 0
+            },
+            {
+                id: 3,
+                vehicleId: 1,
+                vehiclePlate: "أ ب ج ١٢٣٤",
+                driver: "أحمد محمود",
+                destination: "وسط المدينة - ١٢ عميل",
+                startTime: "15:00 م",
+                endTime: null,
+                status: "scheduled",
+                distance: 60,
+                fuelUsed: null,
+                deliveries: 12,
+                returns: null
+            }
+        ];
+
+        // تحميل البيانات
+        document.addEventListener('DOMContentLoaded', function() {
+            loadVehiclesData();
+            loadTripsData();
+            loadMaintenanceAlerts();
+            loadFuelChart();
+            updateVehicleStats();
+        });
+
+        // تحميل بيانات السيارات
+        function loadVehiclesData() {
+            const vehiclesGrid = document.getElementById('vehiclesGrid');
+            vehiclesGrid.innerHTML = '';
+            
+            vehiclesData.forEach(vehicle => {
+                const statusClass = vehicle.status === 'active' ? 'status-active' : 
+                                  vehicle.status === 'maintenance' ? 'status-maintenance' : 
+                                  vehicle.status === 'trip' ? 'status-trip' : 'status-inactive';
+                
+                const statusText = vehicle.status === 'active' ? 'نشطة' : 
+                                 vehicle.status === 'maintenance' ? 'صيانة' : 
+                                 vehicle.status === 'trip' ? 'في رحلة' : 'غير نشطة';
+                
+                const typeText = vehicle.type === 'truck' ? 'نقل' : 
+                               vehicle.type === 'refrigerated' ? 'ثلاجة' : 'فان';
+                
+                const typeIcon = vehicle.type === 'truck' ? 'fa-truck' : 
+                               vehicle.type === 'refrigerated' ? 'fa-snowflake' : 'fa-van-shuttle';
+                
+                // تحذيرات
+                let warningHTML = '';
+                if (vehicle.issues.length > 0) {
+                    warningHTML = `
+                        <div style="margin-top: 10px; padding: 8px; background: rgba(243, 156, 18, 0.1); border-radius: 6px; font-size: 12px;">
+                            <i class="fas fa-exclamation-triangle"></i> ${vehicle.issues[0]}
+                        </div>
+                    `;
+                }
+                
+                vehiclesGrid.innerHTML += `
+                    <div class="vehicle-card">
+                        <div class="vehicle-status ${statusClass}">
+                            <i class="fas fa-circle"></i> ${statusText}
+                        </div>
+                        
+                        <div class="vehicle-header">
+                            <div class="vehicle-icon" style="background: ${vehicle.color}">
+                                <i class="fas ${typeIcon}"></i>
+                            </div>
+                            <div class="vehicle-info">
+                                <h3>${vehicle.plate}</h3>
+                                <p><i class="fas fa-car"></i> ${vehicle.model}</p>
+                                <p><i class="fas fa-user"></i> ${vehicle.driver}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="vehicle-details">
+                            <div class="detail-item">
+                                <div class="detail-value">${vehicle.capacity} كج</div>
+                                <div class="detail-label">سعة الحمولة</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${vehicle.fuelLevel}%</div>
+                                <div class="detail-label">مستوى الوقود</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${vehicle.totalTrips}</div>
+                                <div class="detail-label">رحلات</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">${typeText}</div>
+                                <div class="detail-label">النوع</div>
+                            </div>
+                        </div>
+                        
+                        ${warningHTML}
+                        
+                        <div class="vehicle-actions">
+                            <button class="vehicle-btn track" onclick="trackVehicle(${vehicle.id})">
+                                <i class="fas fa-map-marker-alt"></i> تتبع
+                            </button>
+                            <button class="vehicle-btn maintenance" onclick="scheduleMaintenance(${vehicle.id})">
+                                <i class="fas fa-wrench"></i> صيانة
+                            </button>
+                            <button class="vehicle-btn fuel" onclick="addFuel(${vehicle.id})">
+                                <i class="fas fa-gas-pump"></i> وقود
+                            </button>
+                        </div>
+                        
+                        <div class="driver-assignment">
+                            <div class="driver-item">
+                                <div class="driver-avatar">${vehicle.driver.charAt(0)}</div>
+                                <div class="driver-info">
+                                    <h4>${vehicle.driver}</h4>
+                                    <p>${vehicle.currentLocation}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // تحديث إحصائيات السيارات
+        function updateVehicleStats() {
+            const totalVehicles = vehiclesData.length;
+            const activeVehicles = vehiclesData.filter(v => v.status === 'active' || v.status === 'trip').length;
+            const maintenanceCount = vehiclesData.filter(v => v.status === 'maintenance').length;
+            const avgFuel = (vehiclesData.reduce((sum, v) => sum + v.fuelConsumption, 0) / vehiclesData.length).toFixed(1);
+            
+            document.getElementById('totalVehicles').textContent = totalVehicles;
+            document.getElementById('activeVehicles').textContent = activeVehicles;
+            document.getElementById('maintenanceCount').textContent = maintenanceCount;
+            document.getElementById('avgFuel').textContent = avgFuel + ' لتر/100كم';
+        }
+
+        // تحميل بيانات الرحلات
+        function loadTripsData() {
+            const tripsTable = document.getElementById('tripsTable');
+            tripsTable.innerHTML = '';
+            
+            tripsData.forEach(trip => {
+                const statusClass = trip.status === 'completed' ? 'status-completed' : 
+                                  trip.status === 'ongoing' ? 'status-ongoing' : 'status-scheduled';
+                
+                const statusText = trip.status === 'completed' ? 'مكتملة' : 
+                                 trip.status === 'ongoing' ? 'جارية' : 'مجدولة';
+                
+                const endTime = trip.endTime || '--:--';
+                const fuelUsed = trip.fuelUsed ? trip.fuelUsed + ' لتر' : '--';
+                
+                tripsTable.innerHTML += `
+                    <tr>
+                        <td><strong>${trip.vehiclePlate}</strong></td>
+                        <td>${trip.driver}</td>
+                        <td>${trip.destination}</td>
+                        <td>${trip.startTime}</td>
+                        <td><span class="trip-status ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn btn-sm" onclick="viewTripDetails(${trip.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm" onclick="${trip.status === 'ongoing' ? 'endTrip(' + trip.id + ')' : 'startTrip(' + trip.id + ')'}">
+                                <i class="fas ${trip.status === 'ongoing' ? 'fa-stop' : 'fa-play'}"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // تحميل تنبيهات الصيانة
+        function loadMaintenanceAlerts() {
+            const alertsContainer = document.getElementById('maintenanceAlerts');
+            alertsContainer.innerHTML = '';
+            
+            const today = new Date();
+            const maintenanceAlerts = vehiclesData.filter(vehicle => {
+                const nextDate = new Date(vehicle.nextMaintenance);
+                const diffTime = nextDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays <= 7 && diffDays > 0;
+            });
+            
+            if (maintenanceAlerts.length === 0) {
+                alertsContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d;">لا توجد تنبيهات صيانة قادمة</p>';
+                return;
+            }
+            
+            maintenanceAlerts.forEach(vehicle => {
+                const nextDate = new Date(vehicle.nextMaintenance);
+                const diffTime = nextDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                alertsContainer.innerHTML += `
+                    <div class="alert-item">
+                        <div>
+                            <strong>${vehicle.plate}</strong>
+                            <div style="font-size: 12px; color: #7f8c8d;">${vehicle.model}</div>
+                        </div>
+                        <div>
+                            <span style="color: ${diffDays <= 3 ? 'var(--danger)' : 'var(--warning)'}">
+                                ${diffDays} يوم متبقي
+                            </span>
+                            <button class="btn btn-sm" onclick="rescheduleMaintenance(${vehicle.id})" style="margin-right: 10px;">
+                                تأجيل
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // تحميل مخطط استهلاك الوقود
+        function loadFuelChart() {
+            const fuelChart = document.getElementById('fuelChart');
+            fuelChart.innerHTML = '';
+            
+            const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+            const consumption = [14.2, 13.8, 12.5, 15.1, 11.9, 13.2, 12.8];
+            
+            const maxConsumption = Math.max(...consumption);
+            
+            days.forEach((day, index) => {
+                const height = (consumption[index] / maxConsumption) * 100;
+                const color = consumption[index] > 14 ? '#e74c3c' : 
+                             consumption[index] > 13 ? '#f39c12' : '#2ecc71';
+                
+                fuelChart.innerHTML += `
+                    <div class="fuel-bar" style="height: ${height}%; background: linear-gradient(to top, ${color}, ${color}dd);">
+                        <div class="fuel-bar-label">${day}<br>${consumption[index]} لتر</div>
+                    </div>
+                `;
+            });
+        }
+
+        // تطبيق فلاتر السيارات
+        function applyVehicleFilters() {
+            const searchTerm = document.getElementById('searchVehicle').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            const typeFilter = document.getElementById('filterType').value;
+            
+            let filteredVehicles = vehiclesData;
+            
+            if (searchTerm) {
+                filteredVehicles = filteredVehicles.filter(vehicle => 
+                    vehicle.plate.includes(searchTerm) || 
+                    vehicle.model.includes(searchTerm)
+                );
+            }
+            
+            if (statusFilter) {
+                filteredVehicles = filteredVehicles.filter(vehicle => vehicle.status === statusFilter);
+            }
+            
+            if (typeFilter) {
+                filteredVehicles = filteredVehicles.filter(vehicle => vehicle.type === typeFilter);
+            }
+            
+            alert(`تم العثور على ${filteredVehicles.length} سيارة`);
+        }
+
+        // إعادة تعيين الفلاتر
+        function resetVehicleFilters() {
+            document.getElementById('searchVehicle').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterType').value = '';
+            loadVehiclesData();
+        }
+
+        // تتبع سيارة
+        function trackVehicle(vehicleId) {
+            const vehicle = vehiclesData.find(v => v.id === vehicleId);
+            alert(`🚗 تتبع السيارة:\n\nرقم اللوحة: ${vehicle.plate}\nالنوع: ${vehicle.model}\nالسائق: ${vehicle.driver}\nالموقع الحالي: ${vehicle.currentLocation}\nمستوى الوقود: ${vehicle.fuelLevel}%`);
+        }
+
+        // جدولة صيانة
+        function scheduleMaintenance(vehicleId) {
+            const vehicle = vehiclesData.find(v => v.id === vehicleId);
+            const date = prompt(`جدولة صيانة للسيارة ${vehicle.plate}\n\nأدخل تاريخ الصيانة القادمة (YYYY-MM-DD):`, vehicle.nextMaintenance);
+            
+            if (date) {
+                vehiclesData.find(v => v.id === vehicleId).nextMaintenance = date;
+                loadVehiclesData();
+                loadMaintenanceAlerts();
+                alert(`تم جدولة صيانة السيارة ${vehicle.plate} بتاريخ ${date}`);
+            }
+        }
+
+        // إضافة وقود
+        function addFuel(vehicleId) {
+            const vehicle = vehiclesData.find(v => v.id === vehicleId);
+            const liters = prompt(`إضافة وقود للسيارة ${vehicle.plate}\n\nالمستوى الحالي: ${vehicle.fuelLevel}%\n\nأدخل عدد اللترات:`, "20");
+            
+            if (liters && !isNaN(liters)) {
+                const newLevel = Math.min(100, vehicle.fuelLevel + (parseInt(liters) * 100 / 60)); // افترض أن الخزان 60 لتر
+                vehiclesData.find(v => v.id === vehicleId).fuelLevel = Math.round(newLevel);
+                loadVehiclesData();
+                alert(`تم إضافة ${liters} لتر وقود للسيارة ${vehicle.plate}\nالمستوى الجديد: ${Math.round(newLevel)}%`);
+            }
+        }
+
+        // تأجيل الصيانة
+        function rescheduleMaintenance(vehicleId) {
+            const vehicle = vehiclesData.find(v => v.id === vehicleId);
+            const days = prompt(`تأجيل صيانة السيارة ${vehicle.plate}\n\nأدخل عدد الأيام للتأجيل:`, "7");
+            
+            if (days && !isNaN(days)) {
+                const currentDate = new Date(vehicle.nextMaintenance);
+                currentDate.setDate(currentDate.getDate() + parseInt(days));
+                const newDate = currentDate.toISOString().split('T')[0];
+                
+                vehiclesData.find(v => v.id === vehicleId).nextMaintenance = newDate;
+                loadVehiclesData();
+                loadMaintenanceAlerts();
+                alert(`تم تأجيل صيانة السيارة ${vehicle.plate} إلى ${newDate}`);
+            }
+        }
+
+        // عرض تفاصيل الرحلة
+        function viewTripDetails(tripId) {
+            const trip = tripsData.find(t => t.id === tripId);
+            const vehicle = vehiclesData.find(v => v.id === trip.vehicleId);
+            
+            document.getElementById('tripDetailsContent').innerHTML = `
+                <div style="padding: 20px;">
+                    <h3>رحلة ${trip.vehiclePlate}</h3>
+                    <p><strong>السائق:</strong> ${trip.driver}</p>
+                    <p><strong>الوجهة:</strong> ${trip.destination}</p>
+                    <p><strong>وقت الانطلاق:</strong> ${trip.startTime}</p>
+                    <p><strong>وقت الانتهاء:</strong> ${trip.endTime || 'لم ينته بعد'}</p>
+                    <p><strong>المسافة:</strong> ${trip.distance} كم</p>
+                    <p><strong>الوقود المستخدم:</strong> ${trip.fuelUsed || '--'} لتر</p>
+                    <p><strong>التوصيلات:</strong> ${trip.deliveries}</p>
+                    <p><strong>المرتجعات:</strong> ${trip.returns || '--'}</p>
+                    <p><strong>حالة الرحلة:</strong> ${trip.status === 'completed' ? 'مكتملة' : trip.status === 'ongoing' ? 'جارية' : 'مجدولة'}</p>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <strong>معلومات السيارة:</strong>
+                        <p>النوع: ${vehicle.model}</p>
+                        <p>سعة الحمولة: ${vehicle.capacity} كج</p>
+                        <p>مستوى الوقود: ${vehicle.fuelLevel}%</p>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-primary" style="flex: 1;" onclick="trackVehicle(${trip.vehicleId})">
+                            <i class="fas fa-map-marker-alt"></i> تتبع الرحلة
+                        </button>
+                        <button class="btn" style="flex: 1;" onclick="closeTripDetails()">
+                            <i class="fas fa-times"></i> إغلاق
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('tripDetailsModal').style.display = 'flex';
+        }
+
+        // بدء رحلة
+        function startTrip(tripId) {
+            const trip = tripsData.find(t => t.id === tripId);
+            const confirmStart = confirm(`بدء الرحلة:\n\nالسيارة: ${trip.vehiclePlate}\nالسائق: ${trip.driver}\nالوجهة: ${trip.destination}\n\nهل تريد بدء الرحلة الآن؟`);
+            
+            if (confirmStart) {
+                tripsData.find(t => t.id === tripId).status = 'ongoing';
+                tripsData.find(t => t.id === tripId).startTime = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'});
+                loadTripsData();
+                alert(`بدأت رحلة السيارة ${trip.vehiclePlate}`);
+            }
+        }
+
+        // إنهاء رحلة
+        function endTrip(tripId) {
+            const trip = tripsData.find(t => t.id === tripId);
+            const fuelUsed = prompt(`إنهاء الرحلة:\n\nالسيارة: ${trip.vehiclePlate}\n\nأدخل كمية الوقود المستخدمة (لتر):`, "8.5");
+            
+            if (fuelUsed && !isNaN(fuelUsed)) {
+                tripsData.find(t => t.id === tripId).status = 'completed';
+                tripsData.find(t => t.id === tripId).endTime = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'});
+                tripsData.find(t => t.id === tripId).fuelUsed = parseFloat(fuelUsed);
+                loadTripsData();
+                alert(`تم إنهاء رحلة السيارة ${trip.vehiclePlate}\nالوقود المستخدم: ${fuelUsed} لتر`);
+            }
+        }
+
+        // إغلاق تفاصيل الرحلة
+        function closeTripDetails() {
+            document.getElementById('tripDetailsModal').style.display = 'none';
+        }
+
+        // عرض نافذة إضافة سيارة
+        function showAddVehicleModal() {
+            document.getElementById('addVehicleModal').style.display = 'flex';
+        }
+
+        // إغلاق نافذة إضافة سيارة
+        function closeAddVehicleModal() {
+            document.getElementById('addVehicleModal').style.display = 'none';
+            // إعادة تعيين الحقول
+            document.getElementById('vehiclePlate').value = '';
+            document.getElementById('vehicleType').value = 'truck';
+            document.getElementById('vehicleModel').value = '';
+            document.getElementById('vehicleCapacity').value = '';
+            document.getElementById('vehicleYear').value = '';
+            document.getElementById('vehicleChassis').value = '';
+            document.getElementById('vehicleEngine').value = '';
+            document.getElementById('vehicleColor').value = '#3498db';
+            document.getElementById('vehicleDriver').value = '';
+            document.getElementById('vehicleNotes').value = '';
+        }
+
+        // حفظ سيارة جديدة
+        function saveNewVehicle() {
+            const plate = document.getElementById('vehiclePlate').value;
+            const type = document.getElementById('vehicleType').value;
+            const model = document.getElementById('vehicleModel').value;
+            const capacity = document.getElementById('vehicleCapacity').value;
+            const year = document.getElementById('vehicleYear').value;
+            const color = document.getElementById('vehicleColor').value;
+            const driver = document.getElementById('vehicleDriver').value;
+            
+            if (!plate || !model || !capacity || !year) {
+                alert('يرجى ملء الحقول المطلوبة');
+                return;
+            }
+            
+            const driverName = driver === '1' ? 'أحمد محمود' : 
+                             driver === '2' ? 'خالد عمرو' : 
+                             driver === '3' ? 'وليد حسن' : 'بدون سائق';
+            
+            const typeText = type === 'truck' ? 'نقل' : 
+                           type === 'refrigerated' ? 'ثلاجة' : 
+                           type === 'van' ? 'فان' : 'بيك أب';
+            
+            const newVehicle = {
+                id: vehiclesData.length + 1,
+                plate: plate,
+                type: type,
+                model: model,
+                capacity: parseInt(capacity),
+                year: parseInt(year),
+                color: color,
+                driver: driverName,
+                driverId: parseInt(driver) || 0,
+                status: "active",
+                fuelConsumption: 12.5,
+                lastMaintenance: new Date().toISOString().split('T')[0],
+                nextMaintenance: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+                totalTrips: 0,
+                totalDistance: 0,
+                currentLocation: "المرآب",
+                fuelLevel: 100,
+                issues: []
+            };
+            
+            vehiclesData.push(newVehicle);
+            loadVehiclesData();
+            updateVehicleStats();
+            loadMaintenanceAlerts();
+            closeAddVehicleModal();
+            
+            alert(`✅ تم إضافة السيارة بنجاح:\n\nرقم اللوحة: ${plate}\nالنوع: ${typeText}\nالموديل: ${model}\nالسائق: ${driverName}`);
+        }
+
+        // عرض جميع الرحلات
+        function showAllTrips() {
+            alert('خريطة الرحلات الشاملة\nسيتم عرض جميع رحلات السيارات في الوقت الحقيقي على الخريطة');
+        }
+
+        // عرض تقرير الصيانة
+        function showMaintenanceReport() {
+            const reportData = {
+                date: new Date().toLocaleDateString('ar-EG'),
+                totalVehicles: vehiclesData.length,
+                maintenanceDue: vehiclesData.filter(v => new Date(v.nextMaintenance) <= new Date(new Date().setDate(new Date().getDate() + 7))).length,
+                maintenanceCost: 8500,
+                nextMaintenance: vehiclesData.sort((a, b) => new Date(a.nextMaintenance) - new Date(b.nextMaintenance))[0],
+                fuelConsumption: (vehiclesData.reduce((sum, v) => sum + v.fuelConsumption, 0) / vehiclesData.length).toFixed(1)
+            };
+            
+            alert(`🔧 تقرير الصيانة:\n\n` +
+                  `📅 التاريخ: ${reportData.date}\n` +
+                  `🚗 عدد السيارات: ${reportData.totalVehicles}\n` +
+                  `⚠️  سيارات تحتاج صيانة: ${reportData.maintenanceDue}\n` +
+                  `💰 تكلفة الصيانة الشهرية: ${reportData.maintenanceCost.toLocaleString()} ج\n` +
+                  `⏰ أقرب صيانة: ${reportData.nextMaintenance.plate} - ${reportData.nextMaintenance.nextMaintenance}\n` +
+                  `⛽ متوسط استهلاك الوقود: ${reportData.fuelConsumption} لتر/100كم\n\n` +
+                  `سيتم إنشاء ملف PDF في الإصدار القادم`);
+        }
+    </script>
+</body>
+</html>
