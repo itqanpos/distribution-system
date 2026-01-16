@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التكامل بين الأنظمة - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f5f6fa;
+        }
+
+        .integration-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        .integration-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f5f6fa;
+        }
+
+        .integration-header h1 {
+            color: var(--primary);
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .integration-header p {
+            color: #7f8c8d;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .connection-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 40px 0;
+            position: relative;
+        }
+
+        .connection-node {
+            background: white;
+            border: 3px solid;
+            border-radius: 15px;
+            padding: 25px;
+            width: 300px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            position: relative;
+            z-index: 2;
+        }
+
+        .connection-node:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .connection-node.debt {
+            border-color: var(--danger);
+        }
+
+        .connection-node.reps {
+            border-color: var(--secondary);
+        }
+
+        .connection-node.inventory {
+            border-color: var(--warning);
+        }
+
+        .connection-node.customers {
+            border-color: var(--info);
+        }
+
+        .connection-node.center {
+            background: linear-gradient(135deg, var(--secondary), var(--info));
+            color: white;
+            width: 350px;
+        }
+
+        .node-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .node-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .node-desc {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .connection-node.center .node-desc {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .connection-line {
+            position: absolute;
+            height: 60px;
+            width: 4px;
+            background: linear-gradient(to bottom, var(--secondary), var(--info));
+            z-index: 1;
+        }
+
+        .connection-line.horizontal {
+            width: 100px;
+            height: 4px;
+            background: linear-gradient(to right, var(--secondary), var(--info));
+        }
+
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border-top: 5px solid;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.sync { border-color: var(--success); }
+        .stat-card.errors { border-color: var(--danger); }
+        .stat-card.automation { border-color: var(--info); }
+        .stat-card.efficiency { border-color: var(--warning); }
+
+        .stat-card h3 {
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .stat-card p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .integration-features {
+            margin-top: 40px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-right: 5px solid var(--secondary);
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateX(-5px);
+            border-right-color: var(--info);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            color: var(--secondary);
+            margin-bottom: 15px;
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: rgba(52, 152, 219, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feature-card h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .automation-rules {
+            margin-top: 40px;
+        }
+
+        .rules-list {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .rule-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-right: 4px solid var(--success);
+        }
+
+        .rule-item.disabled {
+            border-right-color: #95a5a6;
+            opacity: 0.7;
+        }
+
+        .rule-check {
+            margin-left: 15px;
+            color: var(--success);
+            font-size: 18px;
+        }
+
+        .rule-content {
+            flex: 1;
+        }
+
+        .rule-content h4 {
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .rule-content p {
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .rule-toggle {
+            background: none;
+            border: none;
+            color: var(--secondary);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .real-time-updates {
+            margin-top: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            color: white;
+        }
+
+        .updates-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .updates-header h3 {
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .update-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .update-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .update-content h4 {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .update-content p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .update-time {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .integration-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: white;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .action-btn.sync {
+            background: linear-gradient(135deg, var(--success), #27ae60);
+            color: white;
+        }
+
+        .action-btn.backup {
+            background: linear-gradient(135deg, var(--info), #16a085);
+            color: white;
+        }
+
+        .action-btn.report {
+            background: linear-gradient(135deg, var(--warning), #e67e22);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .connection-diagram {
+                transform: scale(0.8);
+            }
+            
+            .connection-node {
+                width: 250px;
+            }
+            
+            .connection-node.center {
+                width: 280px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .integration-actions {
+                flex-direction: column;
+            }
+            
+            .action-btn {
+                min-width: 100%;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- نفس شريط التنقل والشريط الجانبي من dashboard.html -->
+    
+    <main class="main-content">
+        <div class="page-header">
+            <div class="page-title">
+                <i class="fas fa-link"></i>
+                <h1>التكامل بين الأنظمة</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-success" onclick="runFullSync()">
+                    <i class="fas fa-sync-alt"></i> مزامنة كاملة
+                </button>
+                <button class="btn btn-primary" onclick="showIntegrationReport()">
+                    <i class="fas fa-chart-network"></i> تقرير التكامل
+                </button>
+            </div>
+        </div>
+
+        <div class="integration-container">
+            <div class="integration-header">
+                <h1><i class="fas fa-network-wired"></i> نظام التكامل المتكامل</h1>
+                <p>ربط نظام الديون، المندوبين، العملاء والمخزون في نظام واحد متكامل يعمل في الوقت الحقيقي</p>
+            </div>
+
+            <!-- مخطط التكامل -->
+            <div class="connection-diagram">
+                <div class="connection-node debt">
+                    <div class="node-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="node-title">نظام الديون</div>
+                    <div class="node-desc">متابعة ديون العملاء والتحصيلات</div>
+                </div>
+                
+                <div class="connection-line"></div>
+                
+                <div class="connection-node reps">
+                    <div class="node-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="node-title">نظام المندوبين</div>
+                    <div class="node-desc">إدارة المندوبين وتتبع أدائهم</div>
+                </div>
+                
+                <div class="connection-line"></div>
+                
+                <div class="connection-node center">
+                    <div class="node-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="node-title">نظام التكامل المركزي</div>
+                    <div class="node-desc">الربط الذكي والتحديث التلقائي</div>
+                </div>
+                
+                <div class="connection-line"></div>
+                
+                <div class="connection-node inventory">
+                    <div class="node-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="node-title">نظام المخزون</div>
+                    <div class="node-desc">إدارة المنتجات والمخزون</div>
+                </div>
+                
+                <div class="connection-line"></div>
+                
+                <div class="connection-node customers">
+                    <div class="node-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <div class="node-title">نظام العملاء</div>
+                    <div class="node-desc">إدارة بيانات العملاء وتاريخ التعامل</div>
+                </div>
+            </div>
+
+            <!-- إحصائيات التكامل -->
+            <div class="stats-cards">
+                <div class="stat-card sync">
+                    <h3 id="syncRate">98%</h3>
+                    <p>معدل المزامنة</p>
+                </div>
+                <div class="stat-card errors">
+                    <h3 id="errorCount">2</h3>
+                    <p>أخطاء التكامل</p>
+                </div>
+                <div class="stat-card automation">
+                    <h3 id="autoTasks">15</h3>
+                    <p>مهام آلية نشطة</p>
+                </div>
+                <div class="stat-card efficiency">
+                    <h3 id="efficiencyRate">40%</h3>
+                    <p>تحسين الكفاءة</p>
+                </div>
+            </div>
+
+            <!-- ميزات التكامل -->
+            <div class="integration-features">
+                <h2><i class="fas fa-star"></i> ميزات التكامل المتقدم</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3>تحديثات فورية</h3>
+                        <p>تحديث البيانات بين جميع الأنظام بشكل فوري عند أي تغيير</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>أتمتة المهام</h3>
+                        <p>أتمتة العمليات الروتينية مثل توزيع العملاء وحساب العمولات</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>تقارير ذكية</h3>
+                        <p>تقارير متكاملة تشمل جميع جوانب العمل في تقرير واحد</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <h3>تنبيهات ذكية</h3>
+                        <p>تنبيهات تلقائية للديون المتأخرة وأهداف المبيعات</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قواعد الأتمتة -->
+            <div class="automation-rules">
+                <h2><i class="fas fa-cogs"></i> قواعد الأتمتة المطبقة</h2>
+                <div class="rules-list">
+                    <div class="rule-item">
+                        <div class="rule-check">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="rule-content">
+                            <h4>ربط التحصيلات بالمندوبين</h4>
+                            <p>تسجيل تحصيل الديون يضاف تلقائياً لإحصائيات المندوب</p>
+                        </div>
+                        <button class="rule-toggle" onclick="toggleRule(1)">
+                            <i class="fas fa-toggle-on"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="rule-item">
+                        <div class="rule-check">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="rule-content">
+                            <h4>تحديث المخزون التلقائي</h4>
+                            <p>تحديث كميات المنتجات مع كل عملية بيع</p>
+                        </div>
+                        <button class="rule-toggle" onclick="toggleRule(2)">
+                            <i class="fas fa-toggle-on"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="rule-item">
+                        <div class="rule-check">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="rule-content">
+                            <h4>حساب العمولات الآلي</h4>
+                            <p>حساب عمولات المندوبين تلقائياً بنهاية كل يوم</p>
+                        </div>
+                        <button class="rule-toggle" onclick="toggleRule(3)">
+                            <i class="fas fa-toggle-on"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="rule-item">
+                        <div class="rule-check">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="rule-content">
+                            <h4>توزيع العملاء الذكي</h4>
+                            <p>توزيع العملاء الجدد على المندوبين حسب المنطقة والأداء</p>
+                        </div>
+                        <button class="rule-toggle" onclick="toggleRule(4)">
+                            <i class="fas fa-toggle-on"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- التحديثات الفورية -->
+            <div class="real-time-updates">
+                <div class="updates-header">
+                    <h3><i class="fas fa-broadcast-tower pulse"></i> التحديثات الفورية</h3>
+                    <span id="lastUpdate">قبل 2 دقيقة</span>
+                </div>
+                
+                <div id="liveUpdates">
+                    <div class="update-item">
+                        <div class="update-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="update-content">
+                            <h4>تحصيل دين جديد</h4>
+                            <p>المندوب أحمد محمود قام بتحصيل 5,000 ج من مطعم الشيف</p>
+                        </div>
+                        <div class="update-time">منذ 5 دقائق</div>
+                    </div>
+                    
+                    <div class="update-item">
+                        <div class="update-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="update-content">
+                            <h4>عملية بيع جديدة</h4>
+                            <p>المندوب خالد عمرو سجل بيع بقيمة 12,000 ج لسوبرماركت النور</p>
+                        </div>
+                        <div class="update-time">منذ 15 دقيقة</div>
+                    </div>
+                    
+                    <div class="update-item">
+                        <div class="update-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="update-content">
+                            <h4>عميل جديد</h4>
+                            <p>تم تسجيل عميل جديد (مخبز الفردوس) وتوزيعه على المندوب وليد حسن</p>
+                        </div>
+                        <div class="update-time">منذ 30 دقيقة</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- إجراءات التكامل -->
+            <div class="integration-actions">
+                <button class="action-btn sync" onclick="runDataSync()">
+                    <i class="fas fa-sync-alt spinner" id="syncSpinner" style="display: none;"></i>
+                    <span id="syncText">مزامنة البيانات الآن</span>
+                </button>
+                
+                <button class="action-btn backup" onclick="createBackup()">
+                    <i class="fas fa-database"></i>
+                    إنشاء نسخة احتياطية
+                </button>
+                
+                <button class="action-btn report" onclick="generateIntegrationReport()">
+                    <i class="fas fa-file-alt"></i>
+                    إنشاء تقرير التكامل
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // بيانات التكامل
+        const integrationData = {
+            syncRate: 98,
+            errorCount: 2,
+            autoTasks: 15,
+            efficiencyRate: 40,
+            lastSync: new Date(),
+            rules: [true, true, true, true],
+            liveUpdates: []
+        };
+
+        // تحميل البيانات
+        document.addEventListener('DOMContentLoaded', function() {
+            updateIntegrationStats();
+            startLiveUpdates();
+            
+            // تحديث الوقت آخر تحديث كل دقيقة
+            setInterval(updateLastSyncTime, 60000);
+        });
+
+        // تحديث إحصائيات التكامل
+        function updateIntegrationStats() {
+            document.getElementById('syncRate').textContent = integrationData.syncRate + '%';
+            document.getElementById('errorCount').textContent = integrationData.errorCount;
+            document.getElementById('autoTasks').textContent = integrationData.autoTasks;
+            document.getElementById('efficiencyRate').textContent = integrationData.efficiencyRate + '%';
+            
+            // تحديث وقت آخر مزامنة
+            updateLastSyncTime();
+        }
+
+        // تحديث وقت آخر مزامنة
+        function updateLastSyncTime() {
+            const now = new Date();
+            const diffMs = now - integrationData.lastSync;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            let timeText = '';
+            if (diffMins < 1) {
+                timeText = 'الآن';
+            } else if (diffMins < 60) {
+                timeText = `قبل ${diffMins} دقيقة`;
+            } else {
+                const diffHours = Math.floor(diffMins / 60);
+                timeText = `قبل ${diffHours} ساعة`;
+            }
+            
+            document.getElementById('lastUpdate').textContent = timeText;
+        }
+
+        // بدء التحديثات الحية
+        function startLiveUpdates() {
+            // تحديث التحديثات الحية كل 30 ثانية
+            setInterval(addLiveUpdate, 30000);
+            
+            // تحديث عشوائي للإحصائيات كل دقيقة
+            setInterval(updateRandomStats, 60000);
+        }
+
+        // إضافة تحديث حي
+        function addLiveUpdate() {
+            const updates = [
+                {
+                    icon: 'fa-money-bill-wave',
+                    title: 'تحصيل دين',
+                    desc: 'تحصيل دين من عميل متأخر',
+                    amount: Math.floor(Math.random() * 10000) + 1000
+                },
+                {
+                    icon: 'fa-shopping-cart',
+                    title: 'عملية بيع',
+                    desc: 'بيع منتجات لعملاء جدد',
+                    amount: Math.floor(Math.random() * 20000) + 5000
+                },
+                {
+                    icon: 'fa-user-check',
+                    title: 'زيارة عملاء',
+                    desc: 'مندوب أتم زيارة عملاء',
+                    count: Math.floor(Math.random() * 5) + 1
+                },
+                {
+                    icon: 'fa-box',
+                    title: 'تحديث مخزون',
+                    desc: 'تحديث كميات المنتجات',
+                    products: Math.floor(Math.random() * 3) + 1
+                }
+            ];
+            
+            const update = updates[Math.floor(Math.random() * updates.length)];
+            const reps = ['أحمد محمود', 'خالد عمرو', 'وليد حسن'];
+            const rep = reps[Math.floor(Math.random() * reps.length)];
+            
+            let desc = '';
+            if (update.icon === 'fa-money-bill-wave') {
+                desc = `المندوب ${rep} قام بتحصيل ${update.amount.toLocaleString()} ج`;
+            } else if (update.icon === 'fa-shopping-cart') {
+                desc = `المندوب ${rep} سجل بيع بقيمة ${update.amount.toLocaleString()} ج`;
+            } else if (update.icon === 'fa-user-check') {
+                desc = `المندوب ${rep} أتم ${update.count} زيارة لعملاء`;
+            } else {
+                desc = `تم تحديث ${update.products} منتج في المخزون`;
+            }
+            
+            const updateHTML = `
+                <div class="update-item">
+                    <div class="update-icon">
+                        <i class="fas ${update.icon}"></i>
+                    </div>
+                    <div class="update-content">
+                        <h4>${update.title}</h4>
+                        <p>${desc}</p>
+                    </div>
+                    <div class="update-time">الآن</div>
+                </div>
+            `;
+            
+            const updatesContainer = document.getElementById('liveUpdates');
+            updatesContainer.insertAdjacentHTML('afterbegin', updateHTML);
+            
+            // حفظ فقط آخر 3 تحديثات
+            const allUpdates = updatesContainer.querySelectorAll('.update-item');
+            if (allUpdates.length > 3) {
+                allUpdates[allUpdates.length - 1].remove();
+            }
+            
+            // تحديث وقت آخر تحديث
+            integrationData.lastSync = new Date();
+            updateLastSyncTime();
+        }
+
+        // تحديث عشوائي للإحصائيات
+        function updateRandomStats() {
+            // زيادة عشوائية في معدل المزامنة
+            if (integrationData.syncRate < 100) {
+                integrationData.syncRate += Math.random() * 0.5;
+                if (integrationData.syncRate > 100) integrationData.syncRate = 100;
+            }
+            
+            // تقليل عشوائي في عدد الأخطاء
+            if (integrationData.errorCount > 0 && Math.random() > 0.7) {
+                integrationData.errorCount--;
+            }
+            
+            // زيادة عشوائية في الكفاءة
+            if (integrationData.efficiencyRate < 60) {
+                integrationData.efficiencyRate += Math.random() * 0.3;
+            }
+            
+            updateIntegrationStats();
+        }
+
+        // تبديل قاعدة أتمتة
+        function toggleRule(ruleId) {
+            const index = ruleId - 1;
+            integrationData.rules[index] = !integrationData.rules[index];
+            
+            const toggleBtn = event.target.closest('.rule-toggle');
+            const ruleItem = event.target.closest('.rule-item');
+            
+            if (integrationData.rules[index]) {
+                toggleBtn.innerHTML = '<i class="fas fa-toggle-on"></i>';
+                ruleItem.classList.remove('disabled');
+                alert(`تم تفعيل قاعدة الأتمتة رقم ${ruleId}`);
+            } else {
+                toggleBtn.innerHTML = '<i class="fas fa-toggle-off"></i>';
+                ruleItem.classList.add('disabled');
+                alert(`تم إيقاف قاعدة الأتمتة رقم ${ruleId}`);
+            }
+            
+            // تحديث عدد المهام الآلية
+            integrationData.autoTasks = integrationData.rules.filter(r => r).length * 3 + 3;
+            updateIntegrationStats();
+        }
+
+        // تشغيل مزامنة البيانات
+        function runDataSync() {
+            const syncBtn = document.getElementById('syncText');
+            const spinner = document.getElementById('syncSpinner');
+            
+            // عرض المؤشر
+            syncBtn.textContent = 'جاري المزامنة...';
+            spinner.style.display = 'inline-block';
+            
+            // محاكاة عملية المزامنة
+            setTimeout(() => {
+                // تحديث البيانات
+                integrationData.syncRate = 100;
+                integrationData.errorCount = 0;
+                integrationData.lastSync = new Date();
+                
+                // إضافة تحديث حي
+                addLiveUpdate();
+                
+                // إعادة تعيين الزر
+                syncBtn.textContent = 'تمت المزامنة بنجاح!';
+                spinner.style.display = 'none';
+                
+                // تحديث الإحصائيات
+                updateIntegrationStats();
+                
+                // إعادة تعيين النص بعد 3 ثوان
+                setTimeout(() => {
+                    syncBtn.textContent = 'مزامنة البيانات الآن';
+                }, 3000);
+                
+                // إشعار
+                alert('✅ تمت مزامنة جميع البيانات بنجاح');
+            }, 2000);
+        }
+
+        // تشغيل مزامنة كاملة
+        function runFullSync() {
+            if (confirm('هل تريد تشغيل مزامنة كاملة لجميع الأنظمة؟\nهذه العملية قد تستغرق دقائق قليلة.')) {
+                runDataSync();
+                
+                // محاكاة مزامنة الأنظمة المختلفة
+                setTimeout(() => {
+                    alert('✅ تمت مزامنة جميع الأنظام:\n\n' +
+                          '1. ✅ نظام الديون\n' +
+                          '2. ✅ نظام المندوبين\n' +
+                          '3. ✅ نظام المخزون\n' +
+                          '4. ✅ نظام العملاء\n' +
+                          '5. ✅ النظام المحاسبي');
+                }, 3000);
+            }
+        }
+
+        // إنشاء نسخة احتياطية
+        function createBackup() {
+            const now = new Date();
+            const backupName = `backup_${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}_${now.getHours()}-${now.getMinutes()}`;
+            
+            alert(`📦 جاري إنشاء نسخة احتياطية...\n\nاسم الملف: ${backupName}.zip\nالحجم التقريبي: 15 MB\nالوقت المقدّر: 30 ثانية`);
+            
+            setTimeout(() => {
+                alert(`✅ تم إنشاء النسخة الاحتياطية بنجاح\n\nتم حفظ الملف في: /backups/${backupName}.zip\nيمكنك استعادتها في أي وقت من إعدادات النظام.`);
+            }, 2000);
+        }
+
+        // إنشاء تقرير التكامل
+        function generateIntegrationReport() {
+            const reportData = {
+                date: new Date().toLocaleDateString('ar-EG'),
+                time: new Date().toLocaleTimeString('ar-EG'),
+                stats: integrationData,
+                rules: integrationData.rules.map((r, i) => ({
+                    id: i + 1,
+                    active: r,
+                    name: ['ربط التحصيلات', 'تحديث المخزون', 'حساب العمولات', 'توزيع العملاء'][i]
+                })),
+                recommendations: [
+                    'تحسين سرعة المزامنة بين الأنظمة',
+                    'إضافة المزيد من قواعد الأتمتة',
+                    'ربط النظام مع تطبيق الموبايل للمندوبين'
+                ]
+            };
+            
+            alert(`📄 تقرير حالة التكامل:\n\n` +
+                  `📅 التاريخ: ${reportData.date}\n` +
+                  `⏰ الوقت: ${reportData.time}\n` +
+                  `📊 معدل المزامنة: ${reportData.stats.syncRate}%\n` +
+                  `❗ عدد الأخطاء: ${reportData.stats.errorCount}\n` +
+                  `⚡ المهام الآلية: ${reportData.stats.autoTasks}\n` +
+                  `🎯 تحسين الكفاءة: ${reportData.stats.efficiencyRate}%\n\n` +
+                  `سيتم إنشاء ملف PDF في الإصدار القادم`);
+        }
+
+        // عرض تقرير التكامل
+        function showIntegrationReport() {
+            const reportWindow = window.open('', '_blank', 'width=800,height=600');
+            reportWindow.document.write(`
+                <html dir="rtl">
+                <head>
+                    <title>تقرير حالة التكامل</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        h1 { color: #2c3e50; }
+                        .stat { margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+                        .stat-value { font-size: 24px; font-weight: bold; color: #3498db; }
+                    </style>
+                </head>
+                <body>
+                    <h1>📊 تقرير حالة التكامل</h1>
+                    <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    
+                    <div class="stat">
+                        <h3>معدل المزامنة</h3>
+                        <div class="stat-value">${integrationData.syncRate}%</div>
+                    </div>
+                    
+                    <div class="stat">
+                        <h3>عدد الأخطاء</h3>
+                        <div class="stat-value">${integrationData.errorCount}</div>
+                    </div>
+                    
+                    <div class="stat">
+                        <h3>المهام الآلية النشطة</h3>
+                        <div class="stat-value">${integrationData.autoTasks}</div>
+                    </div>
+                    
+                    <div class="stat">
+                        <h3>تحسين الكفاءة</h3>
+                        <div class="stat-value">${integrationData.efficiencyRate}%</div>
+                    </div>
+                    
+                    <h3>قواعد الأتمتة:</h3>
+                    <ul>
+                        ${integrationData.rules.map((r, i) => 
+                            `<li>${['ربط التحصيلات بالمندوبين', 'تحديث المخزون التلقائي', 'حساب العمولات الآلي', 'توزيع العملاء الذكي'][i]}: ${r ? '✅ نشطة' : '❌ متوقفة'}</li>`
+                        ).join('')}
+                    </ul>
+                    
+                    <h3>التوصيات:</h3>
+                    <ul>
+                        <li>تحسين سرعة المزامنة بين الأنظمة</li>
+                        <li>إضافة المزيد من قواعد الأتمتة</li>
+                        <li>ربط النظام مع تطبيق الموبايل للمندوبين</li>
+                    </ul>
+                </body>
+                </html>
+            `);
+        }
+    </script>
+</body>
+</html>
