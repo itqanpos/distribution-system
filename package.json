@@ -1,0 +1,3 @@
+# في مجلد المشروع الرئيسي
+npm init -y
+npm install express cors body-parser
