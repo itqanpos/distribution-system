@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة التوزيع الغذائي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 450px;
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(to right, #2c3e50, #4a6491);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .logo {
+            background: #e74c3c;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin: 0 auto 15px;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .login-form {
+            padding: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            border-color: #3498db;
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 15px;
+            top: 40px;
+            color: #95a5a6;
+        }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .remember input {
+            margin-left: 8px;
+        }
+
+        .remember label {
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .login-btn {
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid #eee;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .company-name {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .demo-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-right: 4px solid #3498db;
+        }
+
+        .demo-info h4 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .demo-info p {
+            color: #7f8c8d;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .feature-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feature-item i {
+            color: #3498db;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                max-width: 100%;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="header">
+            <div class="logo pulse">
+                <i class="fas fa-truck"></i>
+            </div>
+            <h1><i class="fas fa-chart-line"></i> نظام إدارة التوزيع الغذائي</h1>
+            <p>إدارة متكاملة للديون، المندوبين، المخزون والتوزيع</p>
+        </div>
+
+        <div class="login-form">
+            <div class="demo-info">
+                <h4><i class="fas fa-info-circle"></i> بيانات الدخول التجريبية</h4>
+                <p><strong>اسم المستخدم:</strong> admin</p>
+                <p><strong>كلمة المرور:</strong> 123456</p>
+                <p><strong>الدور:</strong> مدير النظام</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username"><i class="fas fa-user"></i> اسم المستخدم</label>
+                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="password"><i class="fas fa-lock"></i> كلمة المرور</label>
+                    <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="role"><i class="fas fa-user-tag"></i> الدور</label>
+                    <select id="role" required>
+                        <option value="">اختر دور الدخول</option>
+                        <option value="admin">مدير النظام</option>
+                        <option value="rep">مندوب توزيع</option>
+                        <option value="sales">مدير مبيعات</option>
+                        <option value="accountant">محاسب</option>
+                    </select>
+                </div>
+
+                <div class="remember">
+                    <input type="checkbox" id="remember">
+                    <label for="remember">تذكرني</label>
+                </div>
+
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                </button>
+            </form>
+
+            <div class="features">
+                <div class="feature-item">
+                    <i class="fas fa-hand-holding-usd"></i> متابعة الديون
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-users"></i> إدارة المندوبين
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-boxes"></i> التحكم في المخزون
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-truck"></i> إدارة النقل
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 <span class="company-name">شركة التوزيع الغذائي</span>. جميع الحقوق محفوظة</p>
+            <p>الإصدار: 1.0.0 | آخر تحديث: يناير 2024</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+            
+            if (!username || !password || !role) {
+                alert('❌ يرجى ملء جميع الحقول');
+                return;
+            }
+            
+            // بيانات الدخول الافتراضية
+            if (username === 'admin' && password === '123456') {
+                // حفظ بيانات الجلسة
+                sessionStorage.setItem('user', JSON.stringify({
+                    username: username,
+                    role: role,
+                    name: 'مدير النظام',
+                    loginTime: new Date().toLocaleString('ar-EG')
+                }));
+                
+                // الانتقال للوحة التحكم
+                window.location.href = 'dashboard.html';
+            } else if (username === 'rep' && password === '123456') {
+                // دخول مندوب
+                sessionStorage.setItem('user', JSON.stringify({
+                    username: username,
+                    role: 'rep',
+                    name: 'مندوب توزيع',
+                    repId: 1,
+                    loginTime: new Date().toLocaleString('ar-EG')
+                }));
+                
+                // الانتقال لصفحة المندوب
+                window.location.href = 'reps.html?view=rep';
+            } else {
+                alert('❌ اسم المستخدم أو كلمة المرور غير صحيحة');
+            }
+        });
+
+        // تعبئة الحقول تلقائياً للاختبار
+        window.addEventListener('load', function() {
+            document.getElementById('username').value = 'admin';
+            document.getElementById('password').value = '123456';
+            document.getElementById('role').value = 'admin';
+        });
+    </script>
+</body>
+</html>
