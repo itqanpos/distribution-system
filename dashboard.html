@@ -211,18 +211,13 @@
             color: var(--secondary);
         }
 
-        .page-actions {
-            display: flex;
-            gap: 10px;
-        }
-
         .btn {
             padding: 10px 20px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
             transition: all 0.3s;
@@ -375,6 +370,9 @@
         .status-unpaid { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
         .status-partial { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
 
+        .type-income { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .type-expense { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
+
         /* التنبيهات */
         .alerts-container {
             background: white;
@@ -443,19 +441,13 @@
             .sidebar {
                 width: 70px;
             }
-            
-            .sidebar .menu-text {
-                display: none;
-            }
-            
+            .sidebar .menu-text,
             .sidebar .menu-section {
                 display: none;
             }
-            
             .main-content {
                 margin-right: 70px;
             }
-            
             .menu-item {
                 justify-content: center;
                 padding: 15px;
@@ -466,19 +458,15 @@
             .stats-cards {
                 grid-template-columns: 1fr 1fr;
             }
-            
             .tables-container {
                 grid-template-columns: 1fr;
             }
-            
             .navbar {
                 padding: 0 10px;
             }
-            
             .logo-text h2 {
                 font-size: 16px;
             }
-            
             .user-details {
                 display: none;
             }
@@ -489,24 +477,19 @@
     <!-- شريط التنقل -->
     <nav class="navbar">
         <div class="logo">
-            <div class="logo-icon">
-                <i class="fas fa-truck"></i>
-            </div>
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
             <div class="logo-text">
                 <h2>نظام التوزيع الغذائي</h2>
                 <p>إدارة متكاملة للتوزيع والمبيعات</p>
             </div>
         </div>
-        
         <div class="user-info">
             <div class="user-details">
                 <h4 id="userName">مدير النظام</h4>
                 <p id="loginTime"></p>
             </div>
             <div class="user-avatar" id="userAvatar">م</div>
-            <button class="logout-btn" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i> خروج
-            </button>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </div>
     </nav>
 
@@ -514,20 +497,19 @@
     <aside class="sidebar">
         <ul class="menu">
             <div class="menu-section">القائمة الرئيسية</div>
-            <li><a class="menu-item active" onclick="navigateTo('dashboard')"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('sales')"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('pos')"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('invoices')"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('purchases')"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('cashbox')"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('reports')"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('accounting')"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            
+            <li><a class="menu-item active" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" onclick="navigateTo('customers')"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('reps')"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('products')"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" onclick="navigateTo('settings')"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
     </aside>
 
@@ -539,7 +521,7 @@
                 <h1>لوحة التحكم الرئيسية</h1>
             </div>
             <div class="page-actions">
-                <button class="btn btn-primary" onclick="refreshData()">
+                <button class="btn btn-primary" onclick="refreshDashboard()">
                     <i class="fas fa-sync-alt"></i> تحديث البيانات
                 </button>
                 <button class="btn btn-success" onclick="window.location.href='reports.html'">
@@ -550,60 +532,40 @@
 
         <!-- بطاقات الإحصائيات -->
         <div class="stats-cards">
-            <div class="stat-card sales" onclick="navigateTo('sales')">
+            <div class="stat-card sales" onclick="window.location.href='sales.html'">
                 <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
                 <div class="stat-info">
-                    <h3 id="todaySales">28,500 ج</h3>
+                    <h3 id="todaySales">0 ج</h3>
                     <p>مبيعات اليوم</p>
                 </div>
             </div>
-            <div class="stat-card purchases" onclick="navigateTo('purchases')">
+            <div class="stat-card purchases" onclick="window.location.href='purchases.html'">
                 <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
                 <div class="stat-info">
-                    <h3 id="todayPurchases">12,800 ج</h3>
+                    <h3 id="todayPurchases">0 ج</h3>
                     <p>مشتريات اليوم</p>
                 </div>
             </div>
-            <div class="stat-card customers" onclick="navigateTo('customers')">
+            <div class="stat-card customers" onclick="window.location.href='customers.html'">
                 <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
                 <div class="stat-info">
-                    <h3 id="customersCount">24</h3>
+                    <h3 id="customersCount">0</h3>
                     <p>عميل نشط</p>
                 </div>
             </div>
-            <div class="stat-card cash" onclick="navigateTo('cashbox')">
+            <div class="stat-card cash" onclick="window.location.href='cashbox.html'">
                 <div class="stat-icon"><i class="fas fa-wallet"></i></div>
                 <div class="stat-info">
-                    <h3 id="cashBalance">15,700 ج</h3>
+                    <h3 id="cashBalance">0 ج</h3>
                     <p>رصيد الصندوق</p>
                 </div>
             </div>
         </div>
 
         <!-- التنبيهات العاجلة -->
-        <div class="alerts-container">
+        <div class="alerts-container" id="alertsContainer">
             <h3><i class="fas fa-bell"></i> تنبيهات مهمة</h3>
-            <div class="alert-item alert-danger" onclick="navigateTo('invoices')">
-                <div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="alert-content">
-                    <h4>فواتير مستحقة الدفع</h4>
-                    <p>لديك 3 فواتير شراء مستحقة بقيمة 7,300 ج</p>
-                </div>
-            </div>
-            <div class="alert-item alert-warning" onclick="navigateTo('products')">
-                <div class="alert-icon"><i class="fas fa-box"></i></div>
-                <div class="alert-content">
-                    <h4>منتجات قاربت على النفاذ</h4>
-                    <p>5 منتجات وصلت للحد الأدنى من المخزون</p>
-                </div>
-            </div>
-            <div class="alert-item alert-info" onclick="navigateTo('customers')">
-                <div class="alert-icon"><i class="fas fa-user-clock"></i></div>
-                <div class="alert-content">
-                    <h4>عملاء لم يسددوا منذ 30 يوم</h4>
-                    <p>2 عملاء تجاوزوا فترة السداد</p>
-                </div>
-            </div>
+            <div id="alertsList"></div>
         </div>
 
         <!-- جداول سريعة -->
@@ -611,7 +573,7 @@
             <div class="table-card">
                 <div class="table-header">
                     <h3><i class="fas fa-file-invoice"></i> آخر الفواتير</h3>
-                    <button class="btn btn-primary btn-sm" onclick="navigateTo('invoices')">عرض الكل</button>
+                    <button class="btn btn-primary btn-sm" onclick="window.location.href='invoices.html'">عرض الكل</button>
                 </div>
                 <div class="table-container">
                     <table>
@@ -623,7 +585,7 @@
             <div class="table-card">
                 <div class="table-header">
                     <h3><i class="fas fa-exchange-alt"></i> آخر حركات الصندوق</h3>
-                    <button class="btn btn-primary btn-sm" onclick="navigateTo('cashbox')">عرض الكل</button>
+                    <button class="btn btn-primary btn-sm" onclick="window.location.href='cashbox.html'">عرض الكل</button>
                 </div>
                 <div class="table-container">
                     <table>
@@ -639,51 +601,182 @@
         </div>
     </main>
 
+    <script src="js/auth.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ui.js"></script>
     <script>
-        let currentUser = null;
-
         document.addEventListener('DOMContentLoaded', function() {
-            const userData = sessionStorage.getItem('user');
-            if (!userData) {
-                window.location.href = 'index.html';
-                return;
-            }
-            currentUser = JSON.parse(userData);
-            document.getElementById('userName').textContent = currentUser.name;
-            document.getElementById('loginTime').textContent = `دخل النظام: ${currentUser.loginTime || 'اليوم'}`;
-            document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
+            // تهيئة الصفحة مع المصادقة
+            if (!UI.initPage('لوحة التحكم')) return;
             
+            // تحميل البيانات
             loadDashboardData();
+            
+            // تحديث البيانات كل 30 ثانية
             setInterval(loadDashboardData, 30000);
         });
 
         function loadDashboardData() {
-            // بيانات افتراضية (في الواقع تجلب من API)
-            document.getElementById('todaySales').textContent = '28,500 ج';
-            document.getElementById('todayPurchases').textContent = '12,800 ج';
-            document.getElementById('customersCount').textContent = '24';
-            document.getElementById('cashBalance').textContent = '15,700 ج';
+            // جلب البيانات الحقيقية من Storage
+            const products = Storage.getProducts();
+            const customers = Storage.getCustomers();
+            const suppliers = Storage.getSuppliers();
+            const invoices = Storage.getInvoices();
+            const purchases = Storage.getPurchases();
+            const transactions = Storage.getTransactions();
+            const reps = Storage.getReps();
 
-            // آخر الفواتير
-            const invoices = [
-                { id: 'INV-001', customer: 'مطعم الشيف', amount: '1,250 ج', status: 'مدفوعة' },
-                { id: 'INV-002', customer: 'سوبرماركت النور', amount: '3,400 ج', status: 'متبقي' },
-                { id: 'PUR-001', customer: 'مورد المواد', amount: '12,500 ج', status: 'مدفوعة' }
-            ];
-            const invBody = document.getElementById('recentInvoices');
-            invBody.innerHTML = invoices.map(inv => `<tr><td>${inv.id}</td><td>${inv.customer}</td><td>${inv.amount}</td><td><span class="status-badge ${inv.status === 'مدفوعة' ? 'status-paid' : 'status-partial'}">${inv.status}</span></td></tr>`).join('');
-
-            // آخر حركات الصندوق
-            const transactions = [
-                { desc: 'بيع نقدي', amount: '2,500 ج', type: 'income' },
-                { desc: 'مصروفات نقل', amount: '450 ج', type: 'expense' },
-                { desc: 'تحصيل من عميل', amount: '3,800 ج', type: 'income' }
-            ];
-            const transBody = document.getElementById('recentTransactions');
-            transBody.innerHTML = transactions.map(t => `<tr><td>${t.desc}</td><td style="color:${t.type === 'income' ? 'var(--success)' : 'var(--danger)'}">${t.amount}</td><td><span class="type-badge ${t.type === 'income' ? 'type-income' : 'type-expense'}" style="padding:4px 10px; border-radius:20px; font-size:12px;">${t.type === 'income' ? 'إيداع' : 'سحب'}</span></td></tr>`).join('');
+            // تحديث البطاقات
+            updateStatsCards(invoices, purchases, customers, transactions);
+            
+            // تحديث التنبيهات
+            updateAlerts(invoices, purchases, products);
+            
+            // تحديث الجداول
+            updateRecentInvoices(invoices);
+            updateRecentTransactions(transactions);
         }
 
-        function refreshData() {
+        function updateStatsCards(invoices, purchases, customers, transactions) {
+            const today = Utils.getToday();
+            
+            // مبيعات اليوم
+            const todaySales = invoices
+                .filter(i => i.type === 'sale' && i.date === today)
+                .reduce((sum, i) => sum + i.total, 0);
+            document.getElementById('todaySales').textContent = Utils.formatMoney(todaySales);
+            
+            // مشتريات اليوم
+            const todayPurchases = purchases
+                .filter(p => p.date === today)
+                .reduce((sum, p) => sum + p.total, 0);
+            document.getElementById('todayPurchases').textContent = Utils.formatMoney(todayPurchases);
+            
+            // عدد العملاء
+            document.getElementById('customersCount').textContent = customers.length;
+            
+            // رصيد الصندوق
+            const balance = Utils.calculateBalance(transactions);
+            document.getElementById('cashBalance').textContent = Utils.formatMoney(balance);
+        }
+
+        function updateAlerts(invoices, purchases, products) {
+            const alertsList = document.getElementById('alertsList');
+            const alerts = [];
+            
+            // فواتير مستحقة (غير مدفوعة)
+            const unpaidInvoices = invoices.filter(i => i.remaining > 0);
+            if (unpaidInvoices.length > 0) {
+                const totalUnpaid = unpaidInvoices.reduce((s, i) => s + i.remaining, 0);
+                alerts.push({
+                    type: 'danger',
+                    icon: 'exclamation-triangle',
+                    title: 'فواتير مستحقة',
+                    message: `${unpaidInvoices.length} فواتير بقيمة ${Utils.formatMoney(totalUnpaid)}`,
+                    action: () => window.location.href = 'invoices.html'
+                });
+            }
+            
+            // فواتير شراء مستحقة
+            const unpaidPurchases = purchases.filter(p => p.remaining > 0);
+            if (unpaidPurchases.length > 0) {
+                const totalUnpaid = unpaidPurchases.reduce((s, p) => s + p.remaining, 0);
+                alerts.push({
+                    type: 'danger',
+                    icon: 'exclamation-triangle',
+                    title: 'فواتير شراء مستحقة',
+                    message: `${unpaidPurchases.length} فواتير بقيمة ${Utils.formatMoney(totalUnpaid)}`,
+                    action: () => window.location.href = 'purchases.html'
+                });
+            }
+            
+            // منتجات منخفضة المخزون
+            const settings = Storage.getSettings();
+            const lowStockThreshold = settings.system?.lowStockAlert || 10;
+            const lowStockProducts = [];
+            products.forEach(p => {
+                p.units.forEach(u => {
+                    if (u.stock <= lowStockThreshold) {
+                        lowStockProducts.push(`${p.name} (${u.unit})`);
+                    }
+                });
+            });
+            if (lowStockProducts.length > 0) {
+                alerts.push({
+                    type: 'warning',
+                    icon: 'box',
+                    title: 'منتجات منخفضة المخزون',
+                    message: `${lowStockProducts.length} منتجات تحت الحد الأدنى`,
+                    action: () => window.location.href = 'products.html'
+                });
+            }
+            
+            // عرض التنبيهات
+            if (alerts.length === 0) {
+                alertsList.innerHTML = '<p style="text-align:center; padding:20px; color:#7f8c8d;">لا توجد تنبيهات حالياً</p>';
+            } else {
+                alertsList.innerHTML = alerts.map(alert => `
+                    <div class="alert-item alert-${alert.type}" onclick="(${alert.action.toString()})()">
+                        <div class="alert-icon"><i class="fas fa-${alert.icon}"></i></div>
+                        <div class="alert-content">
+                            <h4>${alert.title}</h4>
+                            <p>${alert.message}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateRecentInvoices(invoices) {
+            const tbody = document.getElementById('recentInvoices');
+            // آخر 5 فواتير
+            const recent = [...invoices].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            
+            if (recent.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">لا توجد فواتير</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = recent.map(inv => {
+                const statusClass = inv.status === 'paid' ? 'status-paid' : (inv.status === 'partial' ? 'status-partial' : 'status-unpaid');
+                const statusText = inv.status === 'paid' ? 'مدفوعة' : (inv.status === 'partial' ? 'متبقي' : 'غير مدفوعة');
+                return `
+                    <tr style="cursor:pointer;" onclick="window.location.href='invoices.html'">
+                        <td>${inv.id}</td>
+                        <td>${inv.customer || inv.supplier || '-'}</td>
+                        <td>${Utils.formatMoney(inv.total)}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateRecentTransactions(transactions) {
+            const tbody = document.getElementById('recentTransactions');
+            // آخر 5 حركات
+            const recent = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            
+            if (recent.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">لا توجد حركات</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = recent.map(t => {
+                const typeClass = t.type === 'income' ? 'type-income' : 'type-expense';
+                const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
+                const amountPrefix = t.type === 'income' ? '+' : '-';
+                return `
+                    <tr style="cursor:pointer;" onclick="window.location.href='cashbox.html'">
+                        <td>${t.description}</td>
+                        <td style="color:${t.type === 'income' ? 'var(--success)' : 'var(--danger)'}">${amountPrefix} ${Utils.formatMoney(t.amount)}</td>
+                        <td><span class="type-badge ${typeClass}" style="padding:4px 10px; border-radius:20px;">${typeText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function refreshDashboard() {
             loadDashboardData();
             const btn = document.querySelector('.btn-primary');
             btn.innerHTML = '<i class="fas fa-check"></i> تم التحديث';
@@ -694,46 +787,29 @@
             }, 2000);
         }
 
-        function navigateTo(page) {
-            // إزالة active من الكل
-            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-            // إضافة active للعنصر المناسب
-            event?.target?.closest('.menu-item')?.classList.add('active');
-
-            const routes = {
-                'dashboard': 'dashboard.html',
-                'sales': 'sales.html',
-                'pos': 'pos.html',
-                'invoices': 'invoices.html',
-                'purchases': 'purchases.html',
-                'cashbox': 'cashbox.html',
-                'reports': 'reports.html',
-                'accounting': 'accounting.html',
-                'customers': 'customers.html',
-                'reps': 'reps.html',
-                'products': 'products.html',
-                'settings': 'settings.html'
+        // تعريف UI.logout إذا لم يتم تحميل ui.js
+        if (typeof UI === 'undefined') {
+            window.UI = {
+                logout: function() {
+                    if (confirm('تسجيل الخروج؟')) {
+                        sessionStorage.removeItem('foodDist_user');
+                        window.location.href = 'index.html';
+                    }
+                },
+                initPage: function(title) {
+                    const user = JSON.parse(sessionStorage.getItem('foodDist_user') || '{}');
+                    if (!user.name) {
+                        window.location.href = 'index.html';
+                        return false;
+                    }
+                    document.getElementById('userName').textContent = user.name;
+                    document.getElementById('loginTime').textContent = `دخل النظام: ${user.loginTime || 'اليوم'}`;
+                    document.getElementById('userAvatar').textContent = user.avatar || user.name.charAt(0);
+                    document.title = `${title} - نظام التوزيع الغذائي`;
+                    return true;
+                }
             };
-
-            if (page === 'dashboard') return;
-            if (routes[page]) {
-                window.location.href = routes[page];
-            } else {
-                alert('الصفحة قيد التطوير');
-            }
         }
-
-        function logout() {
-            if (confirm('هل تريد تسجيل الخروج؟')) {
-                sessionStorage.removeItem('user');
-                window.location.href = 'index.html';
-            }
-        }
-
-        // إضافة تنسيق للـ type-badge
-        const style = document.createElement('style');
-        style.textContent = `.type-income { background: rgba(46,204,113,0.1); color: var(--success); } .type-expense { background: rgba(231,76,60,0.1); color: var(--danger); }`;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
