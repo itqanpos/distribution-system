@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نقطة البيع - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* نفس التنسيقات الأساسية + تنسيقات خاصة بـ POS */
+        :root { --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71; --danger: #e74c3c; --warning: #f39c12; --info: #1abc9c; --light: #ecf0f1; --dark: #34495e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f5f6fa; }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .main-content { margin-top: 70px; padding: 20px; }
+        .pos-container { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
+        .products-section { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .cart-section { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+        .product-card { border: 1px solid #eee; border-radius: 10px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .product-card:hover { background: var(--light); }
+        .product-card h4 { margin-bottom: 5px; }
+        .product-card p { color: var(--secondary); font-weight: bold; }
+        .cart-items { flex: 1; overflow-y: auto; max-height: 400px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .cart-total { margin-top: 20px; border-top: 2px solid #eee; padding-top: 15px; }
+        .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: var(--secondary); color: white; width: 100%; }
+        .btn-success { background: var(--success); color: white; }
+        .quantity-control { display: flex; align-items: center; gap: 10px; }
+        .quantity-control button { width: 30px; height: 30px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer; }
+        @media (max-width: 992px) {
+            .pos-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><!-- نفس navbar --></nav>
+    <main class="main-content">
+        <div class="pos-container">
+            <div class="products-section">
+                <h3><i class="fas fa-boxes"></i> المنتجات</h3>
+                <div class="search-box" style="margin:15px 0;"><i class="fas fa-search"></i><input type="text" placeholder="بحث عن منتج..." id="productSearch"></div>
+                <div class="product-grid" id="productGrid"></div>
+            </div>
+            <div class="cart-section">
+                <h3><i class="fas fa-shopping-cart"></i> الفاتورة</h3>
+                <div style="margin:15px 0;">
+                    <label>العميل</label>
+                    <select id="customerSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                        <option value="1">مطعم الشيف</option>
+                        <option value="2">سوبرماركت النور</option>
+                        <option value="3">نقدي (بدون عميل)</option>
+                    </select>
+                </div>
+                <div class="cart-items" id="cartItems"></div>
+                <div class="cart-total">
+                    <div style="display:flex; justify-content:space-between;"><span>الإجمالي:</span><span id="subtotal">0 ج</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span>الخصم:</span><input type="number" id="discount" value="0" style="width:80px; text-align:left;"> ج</div>
+                    <div style="display:flex; justify-content:space-between; font-size:1.2rem; font-weight:bold; margin-top:10px;"><span>الصافي:</span><span id="netTotal">0 ج</span></div>
+                </div>
+                <div style="margin-top:15px;">
+                    <label>طريقة الدفع</label>
+                    <select id="paymentMethod" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                        <option value="cash">نقدي</option>
+                        <option value="credit">آجل</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="completeSale()" style="margin-top:20px;"><i class="fas fa-check"></i> إتمام البيع</button>
+            </div>
+        </div>
+    </main>
+    <script>
+        // بيانات افتراضية للمنتجات مع الأسعار (أدنى، أقصى، سعر البيع)
+        const products = [
+            { id: 1, name: 'خبز', price: 5, min: 4, max: 6 },
+            { id: 2, name: 'حليب', price: 10, min: 9, max: 12 },
+            { id: 3, name: 'جبنة', price: 25, min: 22, max: 28 },
+            { id: 4, name: 'زيت', price: 40, min: 38, max: 45 }
+        ];
+        let cart = [];
+
+        function renderProducts(filter = '') {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = '';
+            products.filter(p => p.name.includes(filter)).forEach(p => {
+                grid.innerHTML += `<div class="product-card" onclick="addToCart(${p.id})">
+                    <h4>${p.name}</h4>
+                    <p>${p.price} ج</p>
+                    <small>الحدود: ${p.min} - ${p.max} ج</small>
+                </div>`;
+            });
+        }
+
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            const existing = cart.find(item => item.id === productId);
+            if (existing) {
+                if (existing.price < product.max) {
+                    // يمكن تعديل السعر بين الحدين
+                    existing.quantity++;
+                } else {
+                    alert('لا يمكن تجاوز السعر الأقصى');
+                }
+            } else {
+                cart.push({ ...product, quantity: 1 });
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            let subtotal = 0;
+            container.innerHTML = '';
+            cart.forEach((item, index) => {
+                subtotal += item.price * item.quantity;
+                container.innerHTML += `<div class="cart-item">
+                    <span>${item.name}</span>
+                    <div class="quantity-control">
+                        <button onclick="changeQuantity(${index}, -1)">-</button>
+                        <span>${item.quantity}</span>
+                        <button onclick="changeQuantity(${index}, 1)">+</button>
+                    </div>
+                    <span>${item.price * item.quantity} ج</span>
+                    <i class="fas fa-trash" style="color:var(--danger); cursor:pointer;" onclick="removeItem(${index})"></i>
+                </div>`;
+            });
+            document.getElementById('subtotal').textContent = subtotal + ' ج';
+            updateNetTotal();
+        }
+
+        function changeQuantity(index, delta) {
+            const item = cart[index];
+            const newQty = item.quantity + delta;
+            if (newQty > 0) {
+                item.quantity = newQty;
+            } else {
+                cart.splice(index, 1);
+            }
+            renderCart();
+        }
+
+        function removeItem(index) { cart.splice(index, 1); renderCart(); }
+
+        function updateNetTotal() {
+            const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const net = subtotal - discount;
+            document.getElementById('netTotal').textContent = net + ' ج';
+        }
+
+        document.getElementById('discount').addEventListener('input', updateNetTotal);
+
+        function completeSale() {
+            if (cart.length === 0) { alert('أضف منتجات للفاتورة'); return; }
+            const customer = document.getElementById('customerSelect').options[document.getElementById('customerSelect').selectedIndex].text;
+            const payment = document.getElementById('paymentMethod').value;
+            const net = document.getElementById('netTotal').textContent;
+            alert(`تمت عملية البيع للعميل ${customer} بقيمة ${net} بطريقة ${payment}`);
+            cart = [];
+            renderCart();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(sessionStorage.getItem('user') || '{"name":"مدير"}');
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+            renderProducts();
+            document.getElementById('productSearch').addEventListener('input', (e) => renderProducts(e.target.value));
+        });
+
+        function logout() { sessionStorage.removeItem('user'); window.location.href = 'index.html'; }
+    </script>
+</body>
+</html>
