@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الفواتير - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f5f6fa;
+            color: #333;
+        }
+
+        /* شريط التنقل */
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info));
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text h2 {
+            color: var(--primary);
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        .logo-text p {
+            color: var(--secondary);
+            font-size: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-details h4 {
+            color: var(--primary);
+            margin-bottom: 3px;
+        }
+
+        .user-details p {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* الشريط الجانبي */
+        .sidebar {
+            background: white;
+            width: 250px;
+            height: calc(100vh - 70px);
+            position: fixed;
+            top: 70px;
+            right: 0;
+            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.05);
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .menu {
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--dark);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-right: 4px solid transparent;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: var(--light);
+            color: var(--secondary);
+            border-right-color: var(--secondary);
+        }
+
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52, 152, 219, 0.1), transparent);
+            color: var(--secondary);
+            border-right-color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .menu-section {
+            padding: 20px 25px 10px;
+            color: #7f8c8d;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* المحتوى الرئيسي */
+        .main-content {
+            margin-right: 250px;
+            margin-top: 70px;
+            padding: 25px;
+            min-height: calc(100vh - 70px);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .page-title {
+            color: var(--primary);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-title i {
+            color: var(--secondary);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* فلاتر */
+        .filters-section {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 150px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        /* جدول الفواتير */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .table-header h3 {
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-box {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+        }
+
+        .search-box i {
+            color: #95a5a6;
+        }
+
+        .search-box input {
+            border: none;
+            outline: none;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: var(--primary);
+            font-weight: 600;
+            text-align: right;
+            padding: 12px 15px;
+            border-bottom: 2px solid #eee;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            color: #555;
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .type-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-sale { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .type-purchase { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
+        .type-return { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-paid { background: rgba(46, 204, 113, 0.1); color: var(--success); }
+        .status-unpaid { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
+        .status-partial { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+        .status-cancelled { background: rgba(149, 165, 166, 0.1); color: #7f8c8d; }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn.view { color: var(--secondary); }
+        .action-btn.print { color: var(--primary); }
+        .action-btn:hover { background: var(--light); }
+
+        /* Modal تفاصيل الفاتورة */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h3 {
+            color: var(--primary);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .invoice-details {
+            margin-bottom: 20px;
+        }
+
+        .details-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .items-table {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .items-table th {
+            background: #f8f9fa;
+        }
+
+        .totals {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .totals div {
+            margin-bottom: 5px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        /* التذييل */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+            margin-top: 30px;
+        }
+
+        /* استجابة للجوال */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .sidebar .menu-text {
+                display: none;
+            }
+            
+            .sidebar .menu-section {
+                display: none;
+            }
+            
+            .main-content {
+                margin-right: 70px;
+            }
+            
+            .menu-item {
+                justify-content: center;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filters-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .table-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .search-box input {
+                width: 100%;
+            }
+            
+            .navbar {
+                padding: 0 10px;
+            }
+            
+            .logo-text h2 {
+                font-size: 16px;
+            }
+            
+            .user-details {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- شريط التنقل -->
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-truck"></i>
+            </div>
+            <div class="logo-text">
+                <h2>نظام التوزيع الغذائي</h2>
+                <p>إدارة متكاملة للتوزيع والمبيعات</p>
+            </div>
+        </div>
+        
+        <div class="user-info">
+            <div class="user-details">
+                <h4 id="userName">مدير النظام</h4>
+                <p id="loginTime"></p>
+            </div>
+            <div class="user-avatar" id="userAvatar">م</div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> خروج
+            </button>
+        </div>
+    </nav>
+
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar">
+        <ul class="menu">
+            <div class="menu-section">القائمة الرئيسية</div>
+            <li><a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a href="sales.html" class="menu-item"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a href="pos.html" class="menu-item"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a href="invoices.html" class="menu-item active"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a href="purchases.html" class="menu-item"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a href="cashbox.html" class="menu-item"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a href="accounting.html" class="menu-item"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            
+            <div class="menu-section">الإدارة</div>
+            <li><a href="customers.html" class="menu-item"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء</span></a></li>
+            <li><a href="reps.html" class="menu-item"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a href="products.html" class="menu-item"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="main-content">
+        <!-- رأس الصفحة -->
+        <div class="page-header">
+            <div class="page-title">
+                <i class="fas fa-file-invoice"></i>
+                <h1>إدارة الفواتير</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="window.location.href='pos.html'">
+                    <i class="fas fa-plus"></i> فاتورة بيع جديدة
+                </button>
+                <button class="btn btn-success" onclick="window.location.href='purchases.html'">
+                    <i class="fas fa-plus"></i> فاتورة شراء جديدة
+                </button>
+            </div>
+        </div>
+
+        <!-- فلاتر -->
+        <div class="filters-section">
+            <div class="filter-group">
+                <label>نوع الفاتورة</label>
+                <select id="filterType">
+                    <option value="all">الكل</option>
+                    <option value="sale">مبيعات</option>
+                    <option value="purchase">مشتريات</option>
+                    <option value="return">مرتجعات</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>الحالة</label>
+                <select id="filterStatus">
+                    <option value="all">الكل</option>
+                    <option value="paid">مدفوعة</option>
+                    <option value="partial">مدفوعة جزئياً</option>
+                    <option value="unpaid">غير مدفوعة</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>من تاريخ</label>
+                <input type="date" id="filterFromDate">
+            </div>
+            <div class="filter-group">
+                <label>إلى تاريخ</label>
+                <input type="date" id="filterToDate">
+            </div>
+            <button class="btn btn-primary" onclick="applyFilters()">
+                <i class="fas fa-filter"></i> تصفية
+            </button>
+            <button class="btn btn-outline" onclick="resetFilters()">
+                <i class="fas fa-redo"></i> إعادة تعيين
+            </button>
+        </div>
+
+        <!-- جدول الفواتير -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3><i class="fas fa-list"></i> قائمة الفواتير</h3>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="بحث برقم الفاتورة أو العميل..." id="searchInput">
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>رقم الفاتورة</th>
+                            <th>النوع</th>
+                            <th>العميل / المورد</th>
+                            <th>التاريخ</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>الحالة</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesTableBody">
+                        <!-- يتم تعبئته بـ JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- التذييل -->
+        <div class="footer">
+            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
+        </div>
+    </main>
+
+    <!-- Modal تفاصيل الفاتورة -->
+    <div class="modal" id="invoiceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalInvoiceTitle">تفاصيل الفاتورة</h3>
+                <button class="close-btn" onclick="closeInvoiceModal()">&times;</button>
+            </div>
+            <div id="invoiceDetailsContent">
+                <!-- يتم تعبئته ديناميكياً -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeInvoiceModal()">إغلاق</button>
+                <button class="btn btn-primary" onclick="printInvoice()"><i class="fas fa-print"></i> طباعة</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // بيانات افتراضية للفواتير (مبيعات ومشتريات)
+        let invoices = [
+            { id: 'INV-001', type: 'sale', customer: 'مطعم الشيف', date: '2024-01-15', total: 1250, paid: 1250, remaining: 0, status: 'paid', items: [{ name: 'خبز', qty: 10, price: 5, total: 50 }, { name: 'زيت', qty: 30, price: 40, total: 1200 }] },
+            { id: 'INV-002', type: 'sale', customer: 'سوبرماركت النور', date: '2024-01-16', total: 3400, paid: 2000, remaining: 1400, status: 'partial', items: [{ name: 'أرز', qty: 20, price: 95, total: 1900 }, { name: 'سكر', qty: 15, price: 100, total: 1500 }] },
+            { id: 'PUR-001', type: 'purchase', customer: 'مورد المواد الغذائية', date: '2024-01-10', total: 12500, paid: 12500, remaining: 0, status: 'paid', items: [{ name: 'دقيق', qty: 100, price: 120, total: 12000 }, { name: 'ملح', qty: 50, price: 10, total: 500 }] },
+            { id: 'PUR-002', type: 'purchase', customer: 'مخبز الأمل', date: '2024-01-12', total: 3400, paid: 0, remaining: 3400, status: 'unpaid', items: [{ name: 'خميرة', qty: 20, price: 170, total: 3400 }] },
+            { id: 'INV-003', type: 'sale', customer: 'مخبز الفردوس', date: '2024-01-18', total: 850, paid: 0, remaining: 850, status: 'unpaid', items: [{ name: 'طحين', qty: 5, price: 170, total: 850 }] },
+            { id: 'RET-001', type: 'return', customer: 'مطعم الشيف', date: '2024-01-20', total: 200, paid: 0, remaining: 0, status: 'paid', items: [{ name: 'زيت', qty: 5, price: 40, total: 200 }] }
+        ];
+
+        let currentInvoice = null;
+
+        // تهيئة الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            const userData = sessionStorage.getItem('user');
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = `دخل النظام: ${user.loginTime || 'اليوم'}`;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+            
+            // تعيين تاريخ افتراضي للفلاتر
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('filterFromDate').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('filterToDate').value = today.toISOString().split('T')[0];
+            
+            renderInvoicesTable();
+            
+            // البحث
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                applyFilters(e.target.value);
+            });
+        });
+
+        // عرض جدول الفواتير
+        function renderInvoicesTable(data = null) {
+            const filtered = data || invoices;
+            const tbody = document.getElementById('invoicesTableBody');
+            tbody.innerHTML = '';
+            
+            // ترتيب تنازلي حسب التاريخ
+            const sorted = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            sorted.forEach(inv => {
+                const typeClass = getTypeClass(inv.type);
+                const typeText = getTypeText(inv.type);
+                const statusClass = getStatusClass(inv.status);
+                const statusText = getStatusText(inv.status);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${inv.id}</strong></td>
+                    <td><span class="type-badge ${typeClass}">${typeText}</span></td>
+                    <td><i class="fas ${inv.type === 'purchase' ? 'fa-truck' : 'fa-user'}"></i> ${inv.customer}</td>
+                    <td>${inv.date}</td>
+                    <td><strong>${inv.total.toLocaleString()} ج</strong></td>
+                    <td>${inv.paid.toLocaleString()} ج</td>
+                    <td>${inv.remaining.toLocaleString()} ج</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td class="action-buttons">
+                        <button class="action-btn view" onclick="viewInvoice('${inv.id}')"><i class="fas fa-eye"></i></button>
+                        <button class="action-btn print" onclick="printInvoice('${inv.id}')"><i class="fas fa-print"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getTypeClass(type) {
+            const classes = { 'sale': 'type-sale', 'purchase': 'type-purchase', 'return': 'type-return' };
+            return classes[type] || '';
+        }
+
+        function getTypeText(type) {
+            const texts = { 'sale': 'بيع', 'purchase': 'شراء', 'return': 'مرتجع' };
+            return texts[type] || type;
+        }
+
+        function getStatusClass(status) {
+            const classes = { 'paid': 'status-paid', 'partial': 'status-partial', 'unpaid': 'status-unpaid', 'cancelled': 'status-cancelled' };
+            return classes[status] || '';
+        }
+
+        function getStatusText(status) {
+            const texts = { 'paid': 'مدفوعة', 'partial': 'مدفوعة جزئياً', 'unpaid': 'غير مدفوعة', 'cancelled': 'ملغية' };
+            return texts[status] || status;
+        }
+
+        // تطبيق الفلاتر
+        function applyFilters(searchTerm = null) {
+            const type = document.getElementById('filterType').value;
+            const status = document.getElementById('filterStatus').value;
+            const fromDate = document.getElementById('filterFromDate').value;
+            const toDate = document.getElementById('filterToDate').value;
+            const term = searchTerm || document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = invoices.filter(inv => {
+                // فلتر النوع
+                if (type !== 'all' && inv.type !== type) return false;
+                
+                // فلتر الحالة
+                if (status !== 'all' && inv.status !== status) return false;
+                
+                // فلتر التاريخ
+                if (fromDate && inv.date < fromDate) return false;
+                if (toDate && inv.date > toDate) return false;
+                
+                // فلتر البحث
+                if (term && !inv.id.toLowerCase().includes(term) && !inv.customer.toLowerCase().includes(term)) return false;
+                
+                return true;
+            });
+            
+            renderInvoicesTable(filtered);
+        }
+
+        function resetFilters() {
+            document.getElementById('filterType').value = 'all';
+            document.getElementById('filterStatus').value = 'all';
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('filterFromDate').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('filterToDate').value = today.toISOString().split('T')[0];
+            document.getElementById('searchInput').value = '';
+            renderInvoicesTable();
+        }
+
+        // عرض تفاصيل الفاتورة
+        function viewInvoice(id) {
+            const invoice = invoices.find(inv => inv.id === id);
+            if (!invoice) return;
+            
+            currentInvoice = invoice;
+            
+            const modalTitle = document.getElementById('modalInvoiceTitle');
+            const content = document.getElementById('invoiceDetailsContent');
+            
+            modalTitle.innerHTML = `فاتورة ${invoice.type === 'sale' ? 'بيع' : invoice.type === 'purchase' ? 'شراء' : 'مرتجع'} #${invoice.id}`;
+            
+            let itemsHtml = '';
+            invoice.items.forEach(item => {
+                itemsHtml += `<tr><td>${item.name}</td><td>${item.qty}</td><td>${item.price} ج</td><td>${item.total} ج</td></tr>`;
+            });
+            
+            content.innerHTML = `
+                <div class="invoice-details">
+                    <div class="details-row"><span><strong>العميل / المورد:</strong></span><span>${invoice.customer}</span></div>
+                    <div class="details-row"><span><strong>التاريخ:</strong></span><span>${invoice.date}</span></div>
+                    <div class="details-row"><span><strong>الحالة:</strong></span><span><span class="status-badge ${getStatusClass(invoice.status)}">${getStatusText(invoice.status)}</span></span></div>
+                </div>
+                <h4>الأصناف</h4>
+                <table class="items-table">
+                    <thead><tr><th>الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div class="totals">
+                    <div><strong>الإجمالي:</strong> ${invoice.total.toLocaleString()} ج</div>
+                    <div><strong>المدفوع:</strong> ${invoice.paid.toLocaleString()} ج</div>
+                    <div><strong>المتبقي:</strong> ${invoice.remaining.toLocaleString()} ج</div>
+                </div>
+            `;
+            
+            document.getElementById('invoiceModal').style.display = 'flex';
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invoiceModal').style.display = 'none';
+            currentInvoice = null;
+        }
+
+        function printInvoice(id = null) {
+            const invoice = id ? invoices.find(inv => inv.id === id) : currentInvoice;
+            if (!invoice) {
+                if (currentInvoice) invoice = currentInvoice;
+                else return;
+            }
+            
+            let printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html dir="rtl">
+                    <head><title>فاتورة ${invoice.id}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+                        h2 { color: #2c3e50; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                        th { background: #f2f2f2; }
+                        .totals { margin-top: 20px; text-align: left; }
+                    </style>
+                    </head>
+                    <body>
+                        <h2>${invoice.type === 'sale' ? 'فاتورة بيع' : invoice.type === 'purchase' ? 'فاتورة شراء' : 'فاتورة مرتجع'} - ${invoice.id}</h2>
+                        <p><strong>العميل / المورد:</strong> ${invoice.customer}</p>
+                        <p><strong>التاريخ:</strong> ${invoice.date}</p>
+                        <table>
+                            <thead><tr><th>الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
+                            <tbody>
+                                ${invoice.items.map(i => `<tr><td>${i.name}</td><td>${i.qty}</td><td>${i.price} ج</td><td>${i.total} ج</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                        <div class="totals">
+                            <p><strong>الإجمالي:</strong> ${invoice.total.toLocaleString()} ج</p>
+                            <p><strong>المدفوع:</strong> ${invoice.paid.toLocaleString()} ج</p>
+                            <p><strong>المتبقي:</strong> ${invoice.remaining.toLocaleString()} ج</p>
+                        </div>
+                        <p>شكراً لتعاملكم معنا</p>
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function logout() {
+            if (confirm('هل تريد تسجيل الخروج؟')) {
+                sessionStorage.removeItem('user');
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>
