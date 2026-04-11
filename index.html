@@ -616,4 +616,48 @@
         });
     </script>
 </body>
+    <!-- في نهاية body -->
+<script src="js/auth.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/ui.js"></script>
+<script>
+    // تهيئة الصفحة
+    Auth.redirectIfAuth('dashboard.html');
+    
+    function handleLogin(event) {
+        event.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        const result = Auth.login(username, password);
+        if (result.success) {
+            window.location.href = 'dashboard.html';
+        } else {
+            alert(result.message);
+        }
+    }
+    
+    function openLoginModal() {
+        document.getElementById('loginModal').style.display = 'flex';
+    }
+    
+    function closeLoginModal() {
+        document.getElementById('loginModal').style.display = 'none';
+    }
+    
+    // إغلاق المودال بالنقر خارجه
+    window.onclick = function(event) {
+        const modal = document.getElementById('loginModal');
+        if (event.target === modal) {
+            closeLoginModal();
+        }
+    }
+    
+    // ملء تجريبي
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('username').value = 'مدير النظام';
+        document.getElementById('password').value = '123456';
+    });
+</script>
 </html>
