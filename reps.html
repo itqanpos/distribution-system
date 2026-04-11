@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة المندوبين - نظام التوزيع</title>
+    <title>المندوبين - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary: #2c3e50;
@@ -13,6 +14,8 @@
             --danger: #e74c3c;
             --warning: #f39c12;
             --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
         }
 
         * {
@@ -24,409 +27,538 @@
 
         body {
             background: #f5f6fa;
+            color: #333;
         }
 
-        /* تنسيقات عامة - نفس التصميم السابق */
-        .navbar, .sidebar, .main-content, .page-header, .btn {
-            /* نفس تنسيقات dashboard.html */
-        }
-
-        .reps-container {
+        /* شريط التنقل */
+        .navbar {
             background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            margin-bottom: 25px;
-        }
-
-        .reps-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .rep-stat {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            border-left: 4px solid;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .rep-stat:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .rep-stat.active { border-color: var(--success); }
-        .rep-stat.inactive { border-color: var(--warning); }
-        .rep-stat.on-trip { border-color: var(--info); }
-        .rep-stat.target { border-color: var(--danger); }
-
-        .rep-stat h3 {
-            font-size: 28px;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-
-        .rep-stat p {
-            color: #7f8c8d;
-            font-size: 14px;
-        }
-
-        .rep-stat small {
-            color: #95a5a6;
-            font-size: 12px;
-        }
-
-        .reps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 25px;
-        }
-
-        .rep-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            border-top: 5px solid var(--secondary);
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .rep-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .rep-card::before {
-            content: '';
-            position: absolute;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 0 20px;
+            position: fixed;
             top: 0;
             right: 0;
-            width: 100%;
-            height: 5px;
-            background: linear-gradient(to left, var(--secondary), var(--info));
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
         }
 
-        .rep-header {
+        .logo {
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
         }
 
-        .rep-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+        .logo-icon {
             background: linear-gradient(135deg, var(--secondary), var(--info));
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text h2 {
+            color: var(--primary);
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        .logo-text p {
+            color: var(--secondary);
+            font-size: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 24px;
             font-weight: bold;
-        }
-
-        .rep-info h3 {
-            color: var(--primary);
-            margin-bottom: 5px;
             font-size: 18px;
         }
 
-        .rep-info p {
+        .user-details h4 {
+            color: var(--primary);
+            margin-bottom: 3px;
+        }
+
+        .user-details p {
             color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
             font-size: 14px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            transition: all 0.3s;
         }
 
-        .rep-status {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
+        .logout-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* الشريط الجانبي */
+        .sidebar {
+            background: white;
+            width: 250px;
+            height: calc(100vh - 70px);
+            position: fixed;
+            top: 70px;
+            right: 0;
+            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.05);
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .menu {
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--dark);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-right: 4px solid transparent;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .menu-item:hover {
+            background: var(--light);
+            color: var(--secondary);
+            border-right-color: var(--secondary);
+        }
+
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52, 152, 219, 0.1), transparent);
+            color: var(--secondary);
+            border-right-color: var(--secondary);
             font-weight: 600;
         }
 
-        .status-active { background: rgba(46, 204, 113, 0.1); color: var(--success); }
-        .status-on-trip { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
-        .status-inactive { background: rgba(149, 165, 166, 0.1); color: #95a5a6; }
-
-        .rep-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 15px 0;
+        .menu-item i {
+            width: 22px;
+            text-align: center;
+            font-size: 18px;
         }
 
-        .detail-item {
+        .menu-section {
+            padding: 20px 25px 10px;
+            color: #7f8c8d;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* المحتوى الرئيسي */
+        .main-content {
+            margin-right: 250px;
+            margin-top: 70px;
+            padding: 25px;
+            min-height: calc(100vh - 70px);
+        }
+
+        .page-header {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
             align-items: center;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
         }
 
-        .detail-value {
-            font-size: 20px;
+        .page-title {
+            color: var(--primary);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-title i {
+            color: var(--secondary);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* بطاقات الملخص */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border-top: 5px solid;
+        }
+
+        .summary-card.count { border-top-color: var(--secondary); }
+        .summary-card.sales { border-top-color: var(--success); }
+        .summary-card.collections { border-top-color: var(--warning); }
+        .summary-card.target { border-top-color: var(--primary); }
+
+        .summary-icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .summary-card.count .summary-icon { color: var(--secondary); }
+        .summary-card.sales .summary-icon { color: var(--success); }
+        .summary-card.collections .summary-icon { color: var(--warning); }
+        .summary-card.target .summary-icon { color: var(--primary); }
+
+        .summary-value {
+            font-size: 26px;
             font-weight: bold;
             color: var(--primary);
             margin-bottom: 5px;
         }
 
-        .detail-label {
-            font-size: 12px;
+        .summary-label {
             color: #7f8c8d;
-            text-align: center;
+            font-size: 14px;
         }
 
-        .rep-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .rep-btn {
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: all 0.3s;
-        }
-
-        .rep-btn.track { background: rgba(52, 152, 219, 0.1); color: var(--secondary); }
-        .rep-btn.sales { background: rgba(46, 204, 113, 0.1); color: var(--success); }
-        .rep-btn.assign { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
-
-        .rep-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .rep-performance {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-        }
-
-        .performance-bar {
-            height: 8px;
-            background: #ecf0f1;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-
-        .performance-fill {
-            height: 100%;
-            border-radius: 4px;
-            background: linear-gradient(to right, var(--success), var(--info));
-            transition: width 1s ease-out;
-        }
-
-        .performance-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #7f8c8d;
-        }
-
-        .map-container {
+        /* جدول المندوبين */
+        .table-container {
             background: white;
             border-radius: 12px;
-            padding: 25px;
+            padding: 20px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            margin-top: 25px;
-            height: 400px;
-            position: relative;
-            overflow: hidden;
+            margin-bottom: 30px;
         }
 
-        .map-placeholder {
-            background: linear-gradient(45deg, #f5f7fa, #c3cfe2);
-            height: 100%;
-            border-radius: 8px;
+        .table-header {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            color: #7f8c8d;
+            margin-bottom: 20px;
         }
 
-        .map-placeholder i {
-            font-size: 72px;
-            margin-bottom: 15px;
-            opacity: 0.5;
+        .table-header h3 {
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .rep-details-modal {
+        .search-box {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+        }
+
+        .search-box i {
+            color: #95a5a6;
+        }
+
+        .search-box input {
+            border: none;
+            outline: none;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: var(--primary);
+            font-weight: 600;
+            text-align: right;
+            padding: 12px 15px;
+            border-bottom: 2px solid #eee;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            color: #555;
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .progress-container {
+            width: 100px;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 10px;
+        }
+
+        .performance-high { color: var(--success); font-weight: bold; }
+        .performance-mid { color: var(--warning); font-weight: bold; }
+        .performance-low { color: var(--danger); font-weight: bold; }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn.view { color: var(--secondary); }
+        .action-btn.edit { color: var(--warning); }
+        .action-btn.sale { color: var(--success); }
+        .action-btn.collect { color: var(--info); }
+        .action-btn:hover { background: var(--light); }
+
+        /* Modal */
+        .modal {
             display: none;
             position: fixed;
             top: 0;
+            left: 0;
             right: 0;
             bottom: 0;
-            left: 0;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            z-index: 2000;
         }
 
-        .details-modal-content {
+        .modal-content {
             background: white;
-            border-radius: 15px;
+            padding: 25px;
+            border-radius: 12px;
             width: 90%;
-            max-width: 800px;
+            max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
-            animation: slideIn 0.3s ease-out;
         }
 
-        .modal-tabs {
+        .modal-header {
             display: flex;
-            background: #f8f9fa;
-            border-radius: 15px 15px 0 0;
-            overflow: hidden;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
         }
 
-        .tab-btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
+        .modal-header h3 {
+            color: var(--primary);
+        }
+
+        .close-btn {
             background: none;
-            cursor: pointer;
-            font-weight: 600;
-            color: #7f8c8d;
-            transition: all 0.3s;
-        }
-
-        .tab-btn.active {
-            background: white;
-            color: var(--primary);
-            border-bottom: 3px solid var(--secondary);
-        }
-
-        .modal-body {
-            padding: 25px;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .detail-row {
-            display: flex;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .detail-label {
-            flex: 1;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .detail-value {
-            flex: 2;
-            color: #555;
-        }
-
-        .schedule-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        .schedule-table th {
-            background: var(--primary);
-            color: white;
-            padding: 12px;
-            text-align: right;
-        }
-
-        .schedule-table td {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .add-rep-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--success), var(--info));
-            color: white;
             border: none;
             font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 5px 20px rgba(46, 204, 113, 0.3);
-            transition: all 0.3s;
-            z-index: 100;
+            color: #7f8c8d;
         }
 
-        .add-rep-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 8px 25px rgba(46, 204, 113, 0.4);
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        /* التذييل */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+            margin-top: 30px;
+        }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+            }
+            .sidebar .menu-text,
+            .sidebar .menu-section {
+                display: none;
+            }
+            .main-content {
+                margin-right: 70px;
+            }
+            .menu-item {
+                justify-content: center;
+                padding: 15px;
+            }
         }
 
         @media (max-width: 768px) {
-            .reps-grid {
-                grid-template-columns: 1fr;
+            .summary-cards {
+                grid-template-columns: 1fr 1fr;
             }
-            
-            .rep-details {
-                grid-template-columns: 1fr;
+            .table-header {
+                flex-direction: column;
+                gap: 10px;
             }
-            
-            .details-modal-content {
-                width: 95%;
-                max-height: 80vh;
+            .search-box input {
+                width: 100%;
             }
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
+            .navbar {
+                padding: 0 10px;
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            .logo-text h2 {
+                font-size: 16px;
+            }
+            .user-details {
+                display: none;
             }
         }
     </style>
 </head>
 <body>
-    <!-- نفس شريط التنقل والشريط الجانبي من dashboard.html -->
-    
+    <!-- شريط التنقل -->
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <div class="logo-text">
+                <h2>نظام التوزيع الغذائي</h2>
+                <p>إدارة متكاملة للتوزيع والمبيعات</p>
+            </div>
+        </div>
+        <div class="user-info">
+            <div class="user-details">
+                <h4 id="userName">مدير النظام</h4>
+                <p id="loginTime"></p>
+            </div>
+            <div class="user-avatar" id="userAvatar">م</div>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </div>
+    </nav>
+
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar">
+        <ul class="menu">
+            <div class="menu-section">القائمة الرئيسية</div>
+            <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الإدارة</div>
+            <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء</span></a></li>
+            <li><a class="menu-item active" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
             <div class="page-title">
@@ -434,812 +566,343 @@
                 <h1>إدارة المندوبين</h1>
             </div>
             <div class="page-actions">
-                <button class="btn btn-primary" onclick="showAllTrips()">
-                    <i class="fas fa-map-marked-alt"></i> خريطة الرحلات
-                </button>
-                <button class="btn btn-success" onclick="generatePerformanceReport()">
-                    <i class="fas fa-chart-bar"></i> تقرير الأداء
+                <button class="btn btn-primary" onclick="openRepModal()">
+                    <i class="fas fa-plus"></i> مندوب جديد
                 </button>
             </div>
         </div>
 
-        <div class="reps-container">
-            <div class="reps-stats">
-                <div class="rep-stat active" onclick="filterReps('active')">
-                    <h3 id="activeReps">3</h3>
-                    <p>مندوب نشط</p>
-                    <small>يعمل الآن</small>
-                </div>
-                <div class="rep-stat on-trip" onclick="filterReps('on-trip')">
-                    <h3 id="onTrip">1</h3>
-                    <p>في رحلة</p>
-                    <small>جاري التوصيل</small>
-                </div>
-                <div class="rep-stat inactive" onclick="filterReps('inactive')">
-                    <h3 id="inactiveReps">0</h3>
-                    <p>غير نشط</p>
-                    <small>خارج الخدمة</small>
-                </div>
-                <div class="rep-stat target" onclick="showTargets()">
-                    <h3 id="avgPerformance">85%</h3>
-                    <p>متوسط الأداء</p>
-                    <small>لهذا الشهر</small>
-                </div>
+        <!-- بطاقات ملخص -->
+        <div class="summary-cards">
+            <div class="summary-card count">
+                <div class="summary-icon"><i class="fas fa-user-tie"></i></div>
+                <div class="summary-value" id="totalReps">4</div>
+                <div class="summary-label">عدد المندوبين</div>
             </div>
-
-            <div class="filter-bar">
-                <div class="filter-item">
-                    <label>بحث عن مندوب</label>
-                    <input type="text" id="searchRep" placeholder="اسم المندوب أو المنطقة">
-                </div>
-                <div class="filter-item">
-                    <label>ترتيب حسب</label>
-                    <select id="sortReps">
-                        <option value="performance">الأداء</option>
-                        <option value="sales">المبيعات</option>
-                        <option value="collection">التحصيل</option>
-                        <option value="name">الاسم</option>
-                    </select>
-                </div>
-                <div class="filter-item">
-                    <label>المدينة/المنطقة</label>
-                    <select id="filterArea">
-                        <option value="">جميع المناطق</option>
-                        <option value="east">المنطقة الشرقية</option>
-                        <option value="west">المنطقة الغربية</option>
-                        <option value="north">المنطقة الشمالية</option>
-                        <option value="south">المنطقة الجنوبية</option>
-                    </select>
-                </div>
-                <div class="filter-actions">
-                    <button class="btn btn-primary" onclick="applyRepFilters()">
-                        <i class="fas fa-filter"></i> تطبيق
-                    </button>
-                    <button class="btn" onclick="resetRepFilters()">
-                        <i class="fas fa-redo"></i> إعادة تعيين
-                    </button>
-                </div>
+            <div class="summary-card sales">
+                <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="summary-value" id="totalSales">48,500 ج</div>
+                <div class="summary-label">إجمالي المبيعات</div>
             </div>
-
-            <div class="reps-grid" id="repsGrid">
-                <!-- سيتم تعبئته بالبيانات -->
+            <div class="summary-card collections">
+                <div class="summary-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                <div class="summary-value" id="totalCollections">35,200 ج</div>
+                <div class="summary-label">إجمالي التحصيلات</div>
+            </div>
+            <div class="summary-card target">
+                <div class="summary-icon"><i class="fas fa-bullseye"></i></div>
+                <div class="summary-value" id="avgPerformance">82%</div>
+                <div class="summary-label">متوسط تحقيق الهدف</div>
             </div>
         </div>
 
-        <div class="map-container">
-            <h3><i class="fas fa-map-marked-alt"></i> خريطة تتبع المندوبين</h3>
-            <div class="map-placeholder">
-                <i class="fas fa-map-marked-alt"></i>
-                <p>خريطة تتبع المندوبين في الوقت الحقيقي</p>
-                <small>سيتم تفعيل هذه الميزة في الإصدار القادم</small>
+        <!-- جدول المندوبين -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3><i class="fas fa-list"></i> قائمة المندوبين</h3>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="بحث..." id="searchInput">
+                </div>
             </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المندوب</th>
+                            <th>المنطقة</th>
+                            <th>المبيعات</th>
+                            <th>التحصيلات</th>
+                            <th>الهدف</th>
+                            <th>نسبة الإنجاز</th>
+                            <th>المستحقات</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
         </div>
     </main>
 
-    <!-- زر إضافة مندوب جديد -->
-    <button class="add-rep-btn" onclick="showAddRepModal()">
-        <i class="fas fa-plus"></i>
-    </button>
-
-    <!-- نافذة تفاصيل المندوب -->
-    <div id="repDetailsModal" class="rep-details-modal">
-        <div class="details-modal-content">
-            <div class="modal-tabs">
-                <button class="tab-btn active" onclick="switchTab('info')">المعلومات الأساسية</button>
-                <button class="tab-btn" onclick="switchTab('performance')">الأداء</button>
-                <button class="tab-btn" onclick="switchTab('schedule')">الجدول الزمني</button>
-                <button class="tab-btn" onclick="switchTab('customers')">العملاء</button>
+    <!-- Modal إضافة / تعديل مندوب -->
+    <div class="modal" id="repModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"><i class="fas fa-plus"></i> مندوب جديد</h3>
+                <button class="close-btn" onclick="closeRepModal()">&times;</button>
             </div>
-            
-            <div class="modal-body">
-                <div id="tab-info" class="tab-content active">
-                    <!-- محتوى المعلومات الأساسية -->
+            <form id="repForm" onsubmit="saveRep(event)">
+                <input type="hidden" id="repId">
+                <div class="form-group">
+                    <label>اسم المندوب</label>
+                    <input type="text" id="repName" required>
                 </div>
-                
-                <div id="tab-performance" class="tab-content">
-                    <!-- محتوى الأداء -->
+                <div class="form-group">
+                    <label>رقم الهاتف</label>
+                    <input type="tel" id="repPhone">
                 </div>
-                
-                <div id="tab-schedule" class="tab-content">
-                    <!-- محتوى الجدول الزمني -->
+                <div class="form-group">
+                    <label>المنطقة</label>
+                    <input type="text" id="repRegion">
                 </div>
-                
-                <div id="tab-customers" class="tab-content">
-                    <!-- محتوى العملاء -->
+                <div class="form-group">
+                    <label>الهدف الشهري (ج)</label>
+                    <input type="number" id="repTarget" min="0" step="1000" value="15000">
                 </div>
-            </div>
-            
-            <div style="padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px;">
-                <button class="btn btn-primary" style="flex: 1;" onclick="editRep()">
-                    <i class="fas fa-edit"></i> تعديل
-                </button>
-                <button class="btn btn-success" style="flex: 1;" onclick="assignCustomers()">
-                    <i class="fas fa-user-plus"></i> توزيع عملاء
-                </button>
-                <button class="btn" style="flex: 1;" onclick="closeRepDetails()">
-                    <i class="fas fa-times"></i> إغلاق
-                </button>
-            </div>
+                <div class="form-group">
+                    <label>نسبة العمولة (%)</label>
+                    <input type="number" id="repCommission" min="0" max="100" step="0.5" value="5">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeRepModal()">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- نافذة إضافة مندوب جديد -->
-    <div id="addRepModal" class="modal">
+    <!-- Modal إضافة حركة (مبيعات أو تحصيل) -->
+    <div class="modal" id="transactionModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-user-plus"></i> إضافة مندوب جديد</h3>
-                <button class="close-modal" onclick="closeAddRepModal()">×</button>
+                <h3 id="transModalTitle">تسجيل حركة</h3>
+                <button class="close-btn" onclick="closeTransactionModal()">&times;</button>
             </div>
-            
-            <div class="form-group">
-                <label>اسم المندوب</label>
-                <input type="text" id="repName" placeholder="الاسم الكامل">
-            </div>
-            
-            <div class="form-group">
-                <label>رقم الهاتف</label>
-                <input type="tel" id="repPhone" placeholder="مثال: 01012345678">
-            </div>
-            
-            <div class="form-group">
-                <label>البريد الإلكتروني</label>
-                <input type="email" id="repEmail" placeholder="email@example.com">
-            </div>
-            
-            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div class="form-group" style="flex: 1;">
-                    <label>الراتب الأساسي</label>
-                    <input type="number" id="repSalary" placeholder="المبلغ بالجنيه">
+            <form id="transactionForm" onsubmit="saveRepTransaction(event)">
+                <input type="hidden" id="transRepId">
+                <div class="form-group">
+                    <label>نوع الحركة</label>
+                    <select id="transType" required>
+                        <option value="sale">مبيعات</option>
+                        <option value="collection">تحصيل</option>
+                    </select>
                 </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>نسبة العمولة (%)</label>
-                    <input type="number" id="repCommission" placeholder="مثال: 5" min="0" max="100" step="0.5">
+                <div class="form-group">
+                    <label>المبلغ (ج)</label>
+                    <input type="number" id="transAmount" min="0.01" step="0.01" required>
                 </div>
-            </div>
-            
-            <div class="form-group">
-                <label>المنطقة</label>
-                <select id="repArea">
-                    <option value="">اختر المنطقة</option>
-                    <option value="east">المنطقة الشرقية</option>
-                    <option value="west">المنطقة الغربية</option>
-                    <option value="north">المنطقة الشمالية</option>
-                    <option value="south">المنطقة الجنوبية</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>السيارة المخصصة</label>
-                <select id="repVehicle">
-                    <option value="">بدون سيارة</option>
-                    <option value="car1">سيارة ١ - أ ب ج ١٢٣٤</option>
-                    <option value="car2">سيارة ٢ - د هـ و ٥٦٧٨</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>ملاحظات</label>
-                <textarea id="repNotes" placeholder="ملاحظات إضافية"></textarea>
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-success" style="flex: 1;" onclick="saveNewRep()">
-                    <i class="fas fa-save"></i> حفظ
-                </button>
-                <button class="btn" style="flex: 1;" onclick="closeAddRepModal()">
-                    <i class="fas fa-times"></i> إلغاء
-                </button>
-            </div>
+                <div class="form-group">
+                    <label>التاريخ</label>
+                    <input type="date" id="transDate" required>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <input type="text" id="transNotes" placeholder="رقم الفاتورة / تفاصيل">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // بيانات المندوبين
-        const repsData = [
-            {
-                id: 1,
-                name: "أحمد محمود",
-                phone: "01011112222",
-                email: "ahmed@company.com",
-                area: "المنطقة الشرقية",
-                status: "active",
-                salary: 3000,
-                commission: 5,
-                vehicle: "سيارة ١ - أ ب ج ١٢٣٤",
-                todaySales: 12000,
-                todayCollection: 8000,
-                totalSales: 150000,
-                totalCollection: 120000,
-                customersCount: 25,
-                performance: 85,
-                joinDate: "2023-01-15",
-                targets: {
-                    monthly: 50000,
-                    achieved: 45000,
-                    remaining: 5000
-                },
-                schedule: [
-                    { day: "السبت", visits: 12, completed: 10 },
-                    { day: "الأحد", visits: 15, completed: 12 },
-                    { day: "الاثنين", visits: 10, completed: 8 },
-                    { day: "الثلاثاء", visits: 14, completed: 12 },
-                    { day: "الأربعاء", visits: 8, completed: 8 },
-                    { day: "الخميس", visits: 12, completed: 9 },
-                    { day: "الجمعة", visits: 6, completed: 6 }
-                ]
-            },
-            {
-                id: 2,
-                name: "خالد عمرو",
-                phone: "01022223333",
-                email: "khaled@company.com",
-                area: "المنطقة الغربية",
-                status: "on-trip",
-                salary: 3000,
-                commission: 5,
-                vehicle: "سيارة ١ - أ ب ج ١٢٣٤",
-                todaySales: 10000,
-                todayCollection: 7500,
-                totalSales: 120000,
-                totalCollection: 100000,
-                customersCount: 20,
-                performance: 90,
-                joinDate: "2023-03-20",
-                targets: {
-                    monthly: 45000,
-                    achieved: 42000,
-                    remaining: 3000
-                },
-                schedule: [
-                    { day: "السبت", visits: 10, completed: 8 },
-                    { day: "الأحد", visits: 12, completed: 10 },
-                    { day: "الاثنين", visits: 15, completed: 12 },
-                    { day: "الثلاثاء", visits: 8, completed: 7 },
-                    { day: "الأربعاء", visits: 12, completed: 10 },
-                    { day: "الخميس", visits: 14, completed: 12 },
-                    { day: "الجمعة", visits: 5, completed: 5 }
-                ]
-            },
-            {
-                id: 3,
-                name: "وليد حسن",
-                phone: "01033334444",
-                email: "waleed@company.com",
-                area: "المنطقة الجنوبية",
-                status: "active",
-                salary: 3000,
-                commission: 5,
-                vehicle: "بدون سيارة",
-                todaySales: 6000,
-                todayCollection: 4500,
-                totalSales: 80000,
-                totalCollection: 60000,
-                customersCount: 15,
-                performance: 75,
-                joinDate: "2023-06-10",
-                targets: {
-                    monthly: 40000,
-                    achieved: 30000,
-                    remaining: 10000
-                },
-                schedule: [
-                    { day: "السبت", visits: 8, completed: 6 },
-                    { day: "الأحد", visits: 10, completed: 8 },
-                    { day: "الاثنين", visits: 12, completed: 9 },
-                    { day: "الثلاثاء", visits: 8, completed: 7 },
-                    { day: "الأربعاء", visits: 10, completed: 8 },
-                    { day: "الخميس", visits: 8, completed: 6 },
-                    { day: "الجمعة", visits: 4, completed: 4 }
-                ]
-            }
+        // بيانات المندوبين (افتراضية)
+        let reps = [
+            { id: 1, name: 'أحمد محمود', phone: '0100123456', region: 'وسط البلد', target: 15000, commission: 5, sales: 12500, collections: 8500 },
+            { id: 2, name: 'خالد عمرو', phone: '0100654321', region: 'شرق المدينة', target: 12000, commission: 5, sales: 10800, collections: 9200 },
+            { id: 3, name: 'وليد حسن', phone: '0111222333', region: 'غرب المدينة', target: 10000, commission: 4, sales: 6800, collections: 4500 },
+            { id: 4, name: 'سمير علي', phone: '0122333444', region: 'جنوب المدينة', target: 18000, commission: 6, sales: 18400, collections: 13000 }
         ];
 
-        let selectedRepId = null;
+        let currentEditId = null;
 
-        // تحميل بيانات المندوبين
         document.addEventListener('DOMContentLoaded', function() {
-            loadRepsData();
-            updateStats();
-        });
-
-        // تحميل بيانات المندوبين
-        function loadRepsData() {
-            const repsGrid = document.getElementById('repsGrid');
-            repsGrid.innerHTML = '';
-            
-            repsData.forEach(rep => {
-                const statusClass = rep.status === 'active' ? 'status-active' : 
-                                  rep.status === 'on-trip' ? 'status-on-trip' : 'status-inactive';
-                const statusText = rep.status === 'active' ? 'نشط' : 
-                                 rep.status === 'on-trip' ? 'في رحلة' : 'غير نشط';
-                
-                const avatarLetter = rep.name.charAt(0);
-                const performanceColor = rep.performance >= 90 ? 'var(--success)' :
-                                       rep.performance >= 70 ? 'var(--warning)' : 'var(--danger)';
-                
-                repsGrid.innerHTML += `
-                    <div class="rep-card" onclick="showRepDetails(${rep.id})">
-                        <div class="rep-status ${statusClass}">
-                            <i class="fas fa-circle"></i> ${statusText}
-                        </div>
-                        
-                        <div class="rep-header">
-                            <div class="rep-avatar">${avatarLetter}</div>
-                            <div class="rep-info">
-                                <h3>${rep.name}</h3>
-                                <p><i class="fas fa-map-marker-alt"></i> ${rep.area}</p>
-                                <p><i class="fas fa-phone"></i> ${rep.phone}</p>
-                            </div>
-                        </div>
-                        
-                        <div class="rep-details">
-                            <div class="detail-item">
-                                <div class="detail-value">${rep.todaySales.toLocaleString()} ج</div>
-                                <div class="detail-label">مبيعات اليوم</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-value">${rep.todayCollection.toLocaleString()} ج</div>
-                                <div class="detail-label">تحصيل اليوم</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-value">${rep.customersCount}</div>
-                                <div class="detail-label">عدد العملاء</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-value">${rep.performance}%</div>
-                                <div class="detail-label">الأداء</div>
-                            </div>
-                        </div>
-                        
-                        <div class="rep-performance">
-                            <div class="performance-labels">
-                                <span>تحقيق الهدف</span>
-                                <span>${rep.performance}%</span>
-                            </div>
-                            <div class="performance-bar">
-                                <div class="performance-fill" style="width: ${rep.performance}%; background: ${performanceColor};"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="rep-actions">
-                            <button class="rep-btn track" onclick="event.stopPropagation(); trackRep(${rep.id})">
-                                <i class="fas fa-map-marker-alt"></i> تتبع
-                            </button>
-                            <button class="rep-btn sales" onclick="event.stopPropagation(); viewSales(${rep.id})">
-                                <i class="fas fa-chart-line"></i> المبيعات
-                            </button>
-                            <button class="rep-btn assign" onclick="event.stopPropagation(); assignTasks(${rep.id})">
-                                <i class="fas fa-tasks"></i> مهام
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        // تحديث الإحصائيات
-        function updateStats() {
-            const activeReps = repsData.filter(rep => rep.status === 'active').length;
-            const onTripReps = repsData.filter(rep => rep.status === 'on-trip').length;
-            const inactiveReps = repsData.filter(rep => rep.status === 'inactive').length;
-            const avgPerformance = Math.round(repsData.reduce((sum, rep) => sum + rep.performance, 0) / repsData.length);
-            
-            document.getElementById('activeReps').textContent = activeReps;
-            document.getElementById('onTrip').textContent = onTripReps;
-            document.getElementById('inactiveReps').textContent = inactiveReps;
-            document.getElementById('avgPerformance').textContent = avgPerformance + '%';
-        }
-
-        // تطبيق الفلاتر
-        function applyRepFilters() {
-            const searchTerm = document.getElementById('searchRep').value.toLowerCase();
-            const sortBy = document.getElementById('sortReps').value;
-            const area = document.getElementById('filterArea').value;
-            
-            let filteredReps = repsData;
-            
-            // فلترة حسب البحث
-            if (searchTerm) {
-                filteredReps = filteredReps.filter(rep => 
-                    rep.name.toLowerCase().includes(searchTerm) || 
-                    rep.area.toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            // فلترة حسب المنطقة
-            if (area) {
-                const areaMap = {
-                    'east': 'المنطقة الشرقية',
-                    'west': 'المنطقة الغربية',
-                    'north': 'المنطقة الشمالية',
-                    'south': 'المنطقة الجنوبية'
-                };
-                filteredReps = filteredReps.filter(rep => rep.area === areaMap[area]);
-            }
-            
-            // ترتيب النتائج
-            filteredReps.sort((a, b) => {
-                switch(sortBy) {
-                    case 'performance':
-                        return b.performance - a.performance;
-                    case 'sales':
-                        return b.todaySales - a.todaySales;
-                    case 'collection':
-                        return b.todayCollection - a.todayCollection;
-                    case 'name':
-                        return a.name.localeCompare(b.name, 'ar');
-                    default:
-                        return 0;
-                }
-            });
-            
-            // عرض النتائج المفلترة
-            const repsGrid = document.getElementById('repsGrid');
-            repsGrid.innerHTML = '';
-            
-            filteredReps.forEach(rep => {
-                // نفس كود العرض السابق...
-                // (للتقليل من التكرار، في التطبيق الحقيقي يتم استخدام دالة منفصلة)
-                loadRepsData(); // عرض مؤقت
-            });
-            
-            alert(`تم العثور على ${filteredReps.length} مندوب`);
-        }
-
-        // إعادة تعيين الفلاتر
-        function resetRepFilters() {
-            document.getElementById('searchRep').value = '';
-            document.getElementById('sortReps').value = 'performance';
-            document.getElementById('filterArea').value = '';
-            loadRepsData();
-        }
-
-        // فلترة حسب النوع
-        function filterReps(type) {
-            let filteredReps = [];
-            switch(type) {
-                case 'active':
-                    filteredReps = repsData.filter(rep => rep.status === 'active');
-                    break;
-                case 'on-trip':
-                    filteredReps = repsData.filter(rep => rep.status === 'on-trip');
-                    break;
-                case 'inactive':
-                    filteredReps = repsData.filter(rep => rep.status === 'inactive');
-                    break;
-            }
-            
-            if (filteredReps.length === 0) {
-                alert('لا توجد نتائج');
+            const userData = sessionStorage.getItem('user');
+            if (!userData) {
+                window.location.href = 'index.html';
                 return;
             }
-            
-            // عرض النتائج المفلترة
-            const repsGrid = document.getElementById('repsGrid');
-            repsGrid.innerHTML = '';
-            
-            filteredReps.forEach(rep => {
-                // نفس كود العرض...
-                loadRepsData(); // عرض مؤقت
-            });
-        }
+            const user = JSON.parse(userData);
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = `دخل النظام: ${user.loginTime || 'اليوم'}`;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
 
-        // عرض تفاصيل المندوب
-        function showRepDetails(repId) {
-            selectedRepId = repId;
-            const rep = repsData.find(r => r.id === repId);
-            
-            // تعبئة علامة المعلومات الأساسية
-            document.getElementById('tab-info').innerHTML = `
-                <div class="detail-row">
-                    <div class="detail-label">الاسم الكامل</div>
-                    <div class="detail-value">${rep.name}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">رقم الهاتف</div>
-                    <div class="detail-value">${rep.phone}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">البريد الإلكتروني</div>
-                    <div class="detail-value">${rep.email}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">المنطقة</div>
-                    <div class="detail-value">${rep.area}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">الراتب الأساسي</div>
-                    <div class="detail-value">${rep.salary.toLocaleString()} ج</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">نسبة العمولة</div>
-                    <div class="detail-value">${rep.commission}%</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">السيارة المخصصة</div>
-                    <div class="detail-value">${rep.vehicle}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">تاريخ التعيين</div>
-                    <div class="detail-value">${rep.joinDate}</div>
-                </div>
-            `;
-            
-            // تعبئة علامة الأداء
-            const commissionAmount = (rep.totalSales * rep.commission / 100).toFixed(0);
-            const totalEarnings = parseInt(rep.salary) + parseInt(commissionAmount);
-            
-            document.getElementById('tab-performance').innerHTML = `
-                <h4 style="margin-bottom: 15px;">إحصائيات الأداء</h4>
-                <div class="detail-row">
-                    <div class="detail-label">المبيعات الإجمالية</div>
-                    <div class="detail-value">${rep.totalSales.toLocaleString()} ج</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">التحصيل الإجمالي</div>
-                    <div class="detail-value">${rep.totalCollection.toLocaleString()} ج</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">عدد العملاء</div>
-                    <div class="detail-value">${rep.customersCount} عميل</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">معدل الأداء</div>
-                    <div class="detail-value">${rep.performance}%</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">العمولة المستحقة</div>
-                    <div class="detail-value">${commissionAmount.toLocaleString()} ج</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">إجمالي الدخل</div>
-                    <div class="detail-value"><strong>${totalEarnings.toLocaleString()} ج</strong></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">هدف المبيعات الشهري</div>
-                    <div class="detail-value">${rep.targets.monthly.toLocaleString()} ج</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">المحقق من الهدف</div>
-                    <div class="detail-value">${rep.targets.achieved.toLocaleString()} ج (${((rep.targets.achieved/rep.targets.monthly)*100).toFixed(1)}%)</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">المتبقي لتحقيق الهدف</div>
-                    <div class="detail-value">${rep.targets.remaining.toLocaleString()} ج</div>
-                </div>
-            `;
-            
-            // تعبئة علامة الجدول الزمني
-            let scheduleRows = '';
-            rep.schedule.forEach(day => {
-                const completionRate = ((day.completed / day.visits) * 100).toFixed(0);
-                scheduleRows += `
+            document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
+            renderReps();
+            updateSummary();
+            document.getElementById('searchInput').addEventListener('input', filterReps);
+        });
+
+        function renderReps(data = reps) {
+            const tbody = document.getElementById('repsTableBody');
+            tbody.innerHTML = data.map(rep => {
+                const performance = (rep.sales / rep.target) * 100;
+                let perfClass = 'performance-high';
+                if (performance < 70) perfClass = 'performance-low';
+                else if (performance < 90) perfClass = 'performance-mid';
+
+                const commissionAmount = (rep.sales * rep.commission / 100);
+                const dueAmount = commissionAmount - (rep.collections || 0);
+
+                return `
                     <tr>
-                        <td>${day.day}</td>
-                        <td>${day.visits}</td>
-                        <td>${day.completed}</td>
+                        <td><i class="fas fa-user"></i> ${rep.name}</td>
+                        <td>${rep.region || '-'}</td>
+                        <td>${rep.sales.toLocaleString()} ج</td>
+                        <td>${rep.collections.toLocaleString()} ج</td>
+                        <td>${rep.target.toLocaleString()} ج</td>
                         <td>
-                            <span style="color: ${completionRate >= 90 ? 'var(--success)' : completionRate >= 70 ? 'var(--warning)' : 'var(--danger)'}">
-                                ${completionRate}%
-                            </span>
+                            <div style="display: flex; align-items: center;">
+                                <span class="${perfClass}">${Math.round(performance)}%</span>
+                                <div class="progress-container">
+                                    <div class="progress-fill" style="width: ${Math.min(performance, 100)}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="color: ${dueAmount > 0 ? 'var(--danger)' : 'var(--success)'}">${dueAmount.toLocaleString()} ج</td>
+                        <td class="action-buttons">
+                            <button class="action-btn view" onclick="viewRepDetails(${rep.id})" title="تفاصيل"><i class="fas fa-eye"></i></button>
+                            <button class="action-btn edit" onclick="editRep(${rep.id})" title="تعديل"><i class="fas fa-edit"></i></button>
+                            <button class="action-btn sale" onclick="openTransactionModal(${rep.id}, 'sale')" title="تسجيل مبيعات"><i class="fas fa-cart-plus"></i></button>
+                            <button class="action-btn collect" onclick="openTransactionModal(${rep.id}, 'collection')" title="تسجيل تحصيل"><i class="fas fa-money-bill"></i></button>
                         </td>
                     </tr>
                 `;
-            });
-            
-            document.getElementById('tab-schedule').innerHTML = `
-                <h4 style="margin-bottom: 15px;">جدول الزيارات الأسبوعي</h4>
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>اليوم</th>
-                            <th>الزيارات المخطط لها</th>
-                            <th>الزيارات المكتملة</th>
-                            <th>نسبة الإنجاز</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${scheduleRows}
-                    </tbody>
-                </table>
-            `;
-            
-            // تعبئة علامة العملاء
-            document.getElementById('tab-customers').innerHTML = `
-                <h4 style="margin-bottom: 15px;">قائمة عملاء المندوب</h4>
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-users" style="font-size: 48px; color: #ddd; margin-bottom: 15px;"></i>
-                    <p>قائمة عملاء المندوب</p>
-                    <small>سيتم دمج هذه الميزة مع نظام العملاء في الإصدار القادم</small>
-                </div>
-            `;
-            
-            // عرض النافذة
-            document.getElementById('repDetailsModal').style.display = 'flex';
+            }).join('');
         }
 
-        // تبديل علامات التبويب
-        function switchTab(tabName) {
-            // إزالة النشاط من جميع الأزرار
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // إضافة النشاط للزر المحدد
-            event.target.classList.add('active');
-            
-            // إخفاء جميع المحتويات
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // عرض المحتوى المحدد
-            document.getElementById(`tab-${tabName}`).classList.add('active');
+        function updateSummary() {
+            const totalReps = reps.length;
+            const totalSales = reps.reduce((sum, r) => sum + r.sales, 0);
+            const totalCollections = reps.reduce((sum, r) => sum + r.collections, 0);
+            const avgPerf = reps.reduce((sum, r) => sum + (r.sales / r.target), 0) / reps.length * 100;
+
+            document.getElementById('totalReps').textContent = totalReps;
+            document.getElementById('totalSales').textContent = totalSales.toLocaleString() + ' ج';
+            document.getElementById('totalCollections').textContent = totalCollections.toLocaleString() + ' ج';
+            document.getElementById('avgPerformance').textContent = Math.round(avgPerf) + '%';
         }
 
-        // إغلاق تفاصيل المندوب
-        function closeRepDetails() {
-            document.getElementById('repDetailsModal').style.display = 'none';
+        function filterReps() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = reps.filter(r => r.name.toLowerCase().includes(term) || (r.region && r.region.includes(term)));
+            renderReps(filtered);
         }
 
-        // تتبع المندوب
-        function trackRep(repId) {
-            const rep = repsData.find(r => r.id === repId);
-            alert(`جاري تتبع المندوب ${rep.name}\nالمنطقة: ${rep.area}\nالحالة: ${rep.status === 'on-trip' ? 'في رحلة' : 'نشط'}`);
+        // إدارة المندوبين
+        function openRepModal() {
+            currentEditId = null;
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus"></i> مندوب جديد';
+            document.getElementById('repForm').reset();
+            document.getElementById('repId').value = '';
+            document.getElementById('repModal').style.display = 'flex';
         }
 
-        // عرض مبيعات المندوب
-        function viewSales(repId) {
-            const rep = repsData.find(r => r.id === repId);
-            alert(`مبيعات المندوب ${rep.name}:\n- اليوم: ${rep.todaySales.toLocaleString()} ج\n- الإجمالي: ${rep.totalSales.toLocaleString()} ج\n- العمولة: ${(rep.totalSales * rep.commission / 100).toLocaleString()} ج`);
+        function editRep(id) {
+            const rep = reps.find(r => r.id === id);
+            if (!rep) return;
+            currentEditId = id;
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> تعديل مندوب';
+            document.getElementById('repId').value = rep.id;
+            document.getElementById('repName').value = rep.name;
+            document.getElementById('repPhone').value = rep.phone || '';
+            document.getElementById('repRegion').value = rep.region || '';
+            document.getElementById('repTarget').value = rep.target;
+            document.getElementById('repCommission').value = rep.commission;
+            document.getElementById('repModal').style.display = 'flex';
         }
 
-        // تعيين مهام للمندوب
-        function assignTasks(repId) {
-            const rep = repsData.find(r => r.id === repId);
-            const taskCount = prompt(`كم مهمة تريد تعيينها للمندوب ${rep.name}؟`);
-            if (taskCount && !isNaN(taskCount)) {
-                alert(`تم تعيين ${taskCount} مهمة جديدة للمندوب ${rep.name}`);
-            }
+        function closeRepModal() {
+            document.getElementById('repModal').style.display = 'none';
         }
 
-        // عرض نافذة إضافة مندوب
-        function showAddRepModal() {
-            document.getElementById('addRepModal').style.display = 'flex';
-        }
-
-        // إغلاق نافذة إضافة مندوب
-        function closeAddRepModal() {
-            document.getElementById('addRepModal').style.display = 'none';
-            // إعادة تعيين الحقول
-            document.getElementById('repName').value = '';
-            document.getElementById('repPhone').value = '';
-            document.getElementById('repEmail').value = '';
-            document.getElementById('repSalary').value = '';
-            document.getElementById('repCommission').value = '';
-            document.getElementById('repArea').value = '';
-            document.getElementById('repVehicle').value = '';
-            document.getElementById('repNotes').value = '';
-        }
-
-        // حفظ مندوب جديد
-        function saveNewRep() {
+        function saveRep(event) {
+            event.preventDefault();
+            const id = document.getElementById('repId').value;
             const name = document.getElementById('repName').value;
             const phone = document.getElementById('repPhone').value;
-            const email = document.getElementById('repEmail').value;
-            const salary = document.getElementById('repSalary').value;
-            const commission = document.getElementById('repCommission').value;
-            const area = document.getElementById('repArea').value;
-            const vehicle = document.getElementById('repVehicle').value;
-            
-            if (!name || !phone || !area) {
-                alert('يرجى ملء الحقول المطلوبة');
-                return;
+            const region = document.getElementById('repRegion').value;
+            const target = parseFloat(document.getElementById('repTarget').value) || 15000;
+            const commission = parseFloat(document.getElementById('repCommission').value) || 5;
+
+            if (id) {
+                const rep = reps.find(r => r.id == id);
+                if (rep) {
+                    rep.name = name;
+                    rep.phone = phone;
+                    rep.region = region;
+                    rep.target = target;
+                    rep.commission = commission;
+                }
+            } else {
+                const newId = Math.max(...reps.map(r => r.id), 0) + 1;
+                reps.push({
+                    id: newId,
+                    name,
+                    phone,
+                    region,
+                    target,
+                    commission,
+                    sales: 0,
+                    collections: 0
+                });
             }
-            
-            // في التطبيق الحقيقي، سيتم حفظ البيانات في قاعدة البيانات
-            const newRep = {
-                id: repsData.length + 1,
-                name: name,
-                phone: phone,
-                email: email || 'لا يوجد',
-                area: area === 'east' ? 'المنطقة الشرقية' :
-                      area === 'west' ? 'المنطقة الغربية' :
-                      area === 'north' ? 'المنطقة الشمالية' : 'المنطقة الجنوبية',
-                status: 'active',
-                salary: parseInt(salary) || 3000,
-                commission: parseFloat(commission) || 5,
-                vehicle: vehicle || 'بدون سيارة',
-                todaySales: 0,
-                todayCollection: 0,
-                totalSales: 0,
-                totalCollection: 0,
-                customersCount: 0,
-                performance: 0,
-                joinDate: new Date().toISOString().split('T')[0],
-                targets: {
-                    monthly: 40000,
-                    achieved: 0,
-                    remaining: 40000
-                },
-                schedule: [
-                    { day: "السبت", visits: 0, completed: 0 },
-                    { day: "الأحد", visits: 0, completed: 0 },
-                    { day: "الاثنين", visits: 0, completed: 0 },
-                    { day: "الثلاثاء", visits: 0, completed: 0 },
-                    { day: "الأربعاء", visits: 0, completed: 0 },
-                    { day: "الخميس", visits: 0, completed: 0 },
-                    { day: "الجمعة", visits: 0, completed: 0 }
-                ]
-            };
-            
-            repsData.push(newRep);
-            loadRepsData();
-            updateStats();
-            closeAddRepModal();
-            
-            alert(`تم إضافة المندوب ${name} بنجاح!`);
+            renderReps();
+            updateSummary();
+            closeRepModal();
         }
 
-        // تعديل المندوب
-        function editRep() {
-            if (!selectedRepId) return;
-            alert('خاصية التعديل قيد التطوير');
+        function viewRepDetails(id) {
+            // يمكن إنشاء صفحة تفاصيل لاحقاً
+            const rep = reps.find(r => r.id === id);
+            alert(`تفاصيل المندوب: ${rep.name}\nالمنطقة: ${rep.region || 'غير محدد'}\nالمبيعات: ${rep.sales} ج\nالتحصيلات: ${rep.collections} ج\nالهدف: ${rep.target} ج\nالعمولة: ${rep.commission}%`);
         }
 
-        // توزيع عملاء على المندوب
-        function assignCustomers() {
-            if (!selectedRepId) return;
-            const rep = repsData.find(r => r.id === selectedRepId);
-            alert(`سيتم فتح صفحة توزيع العملاء على المندوب ${rep.name}`);
+        // حركات المندوب
+        function openTransactionModal(repId, type) {
+            const rep = reps.find(r => r.id === repId);
+            if (!rep) return;
+
+            document.getElementById('transRepId').value = repId;
+            document.getElementById('transType').value = type;
+            document.getElementById('transAmount').value = '';
+            document.getElementById('transNotes').value = '';
+            document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
+
+            const title = type === 'sale' ? 'تسجيل مبيعات' : 'تسجيل تحصيل';
+            document.getElementById('transModalTitle').innerHTML = `<i class="fas fa-${type === 'sale' ? 'cart-plus' : 'money-bill'}"></i> ${title} - ${rep.name}`;
+            document.getElementById('transactionModal').style.display = 'flex';
         }
 
-        // عرض جميع الرحلات
-        function showAllTrips() {
-            alert('خريطة الرحلات الشاملة\nسيتم عرض جميع رحلات المندوبين في الوقت الحقيقي');
+        function closeTransactionModal() {
+            document.getElementById('transactionModal').style.display = 'none';
         }
 
-        // إنشاء تقرير الأداء
-        function generatePerformanceReport() {
-            const reportData = {
-                date: new Date().toLocaleDateString('ar-EG'),
-                totalReps: repsData.length,
-                activeReps: repsData.filter(rep => rep.status === 'active').length,
-                totalSales: repsData.reduce((sum, rep) => sum + rep.todaySales, 0),
-                totalCollection: repsData.reduce((sum, rep) => sum + rep.todayCollection, 0),
-                avgPerformance: Math.round(repsData.reduce((sum, rep) => sum + rep.performance, 0) / repsData.length)
-            };
-            
-            alert(`تقرير أداء المندوبين:\n\n` +
-                  `📅 التاريخ: ${reportData.date}\n` +
-                  `👥 عدد المندوبين: ${reportData.totalReps}\n` +
-                  `✅ النشطين: ${reportData.activeReps}\n` +
-                  `💰 إجمالي المبيعات: ${reportData.totalSales.toLocaleString()} ج\n` +
-                  `💵 إجمالي التحصيل: ${reportData.totalCollection.toLocaleString()} ج\n` +
-                  `📊 متوسط الأداء: ${reportData.avgPerformance}%\n\n` +
-                  `سيتم إنشاء ملف PDF في الإصدار القادم`);
+        function saveRepTransaction(event) {
+            event.preventDefault();
+            const repId = parseInt(document.getElementById('transRepId').value);
+            const type = document.getElementById('transType').value;
+            const amount = parseFloat(document.getElementById('transAmount').value);
+            const date = document.getElementById('transDate').value;
+            const notes = document.getElementById('transNotes').value;
+
+            const rep = reps.find(r => r.id === repId);
+            if (!rep) return;
+
+            if (type === 'sale') {
+                rep.sales += amount;
+            } else {
+                rep.collections += amount;
+            }
+
+            renderReps();
+            updateSummary();
+            closeTransactionModal();
+            alert(`تم تسجيل ${type === 'sale' ? 'مبيعات' : 'تحصيل'} بقيمة ${amount.toLocaleString()} ج للمندوب ${rep.name}`);
         }
 
-        // عرض الأهداف
-        function showTargets() {
-            let targetsHTML = '<h4 style="margin-bottom: 15px;">أهداف المندوبين لهذا الشهر</h4>';
-            
-            repsData.forEach(rep => {
-                const achievedPercent = ((rep.targets.achieved / rep.targets.monthly) * 100).toFixed(1);
-                targetsHTML += `
-                    <div class="detail-row">
-                        <div class="detail-label">${rep.name}</div>
-                        <div class="detail-value">
-                            ${rep.targets.achieved.toLocaleString()} / ${rep.targets.monthly.toLocaleString()} ج
-                            <span style="color: ${achievedPercent >= 90 ? 'var(--success)' : achievedPercent >= 70 ? 'var(--warning)' : 'var(--danger)'}">
-                                (${achievedPercent}%)
-                            </span>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            alert('أهداف المندوبين');
+        function logout() {
+            if (confirm('تسجيل الخروج؟')) {
+                sessionStorage.removeItem('user');
+                window.location.href = 'index.html';
+            }
         }
     </script>
 </body>
