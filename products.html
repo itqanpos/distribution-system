@@ -244,6 +244,46 @@
             color: var(--secondary);
         }
 
+        /* علامات التبويب */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--light);
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 12px 25px;
+            background: none;
+            border: none;
+            color: #7f8c8d;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-size: 16px;
+        }
+
+        .tab-btn:hover {
+            color: var(--secondary);
+        }
+
+        .tab-btn.active {
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         /* جدول المنتجات */
         .table-container {
             background: white;
@@ -329,6 +369,7 @@
         .action-btn.edit { color: var(--warning); }
         .action-btn.delete { color: var(--danger); }
         .action-btn.units { color: var(--secondary); }
+        .action-btn.split { color: var(--success); }
         .action-btn:hover { background: var(--light); }
 
         /* مودال */
@@ -422,6 +463,29 @@
             margin-top: 25px;
         }
 
+        /* تقسيم المنتجات */
+        .split-product-selector {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .split-preview {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .inventory-badge {
+            background: var(--info);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
         /* التذييل */
         .footer {
             text-align: center;
@@ -446,6 +510,8 @@
             .navbar { padding: 0 10px; }
             .logo-text h2 { font-size: 16px; }
             .user-details { display: none; }
+            .tabs { flex-direction: column; }
+            .tab-btn { justify-content: center; }
         }
     </style>
 </head>
@@ -501,27 +567,88 @@
             </div>
         </div>
 
-        <div class="table-container">
-            <div class="table-header">
-                <h3><i class="fas fa-list"></i> قائمة المنتجات</h3>
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="بحث..." id="searchInput" oninput="filterProducts()">
+        <!-- علامات التبويب -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('productsTab')"><i class="fas fa-list"></i> قائمة المنتجات</button>
+            <button class="tab-btn" onclick="switchTab('splitTab')"><i class="fas fa-code-branch"></i> التقسيم / التعبئة</button>
+        </div>
+
+        <!-- تبويب المنتجات -->
+        <div id="productsTab" class="tab-content active">
+            <div class="table-container">
+                <div class="table-header">
+                    <h3><i class="fas fa-box"></i> المنتجات والوحدات</h3>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="بحث..." id="searchInput" oninput="filterProducts()">
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>المنتج</th>
+                                <th>التصنيف</th>
+                                <th>الوحدات والمخزون</th>
+                                <th>سعر البيع الأساسي</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody"></tbody>
+                    </table>
                 </div>
             </div>
-            <div style="overflow-x: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>المنتج</th>
-                            <th>التصنيف</th>
-                            <th>الوحدات</th>
-                            <th>سعر البيع الأساسي</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="productsTableBody"></tbody>
-                </table>
+        </div>
+
+        <!-- تبويب التقسيم / التعبئة -->
+        <div id="splitTab" class="tab-content">
+            <div class="table-container">
+                <h3 style="margin-bottom:20px;"><i class="fas fa-code-branch"></i> تقسيم المنتجات (تحويل الوحدات الكبيرة إلى صغيرة)</h3>
+                
+                <div class="split-product-selector">
+                    <div class="form-group">
+                        <label>اختر المنتج المراد تقسيمه</label>
+                        <select id="splitProductSelect" onchange="loadProductUnitsForSplit()">
+                            <option value="">-- اختر منتج --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="splitFormContainer" style="display:none;">
+                    <div class="form-group">
+                        <label>الوحدة المصدر (التي سيتم التقسيم منها)</label>
+                        <select id="splitSourceUnit" onchange="updateSplitPreview()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>الكمية المراد تقسيمها من الوحدة المصدر</label>
+                        <input type="number" id="splitQuantity" min="0.001" step="0.001" value="1" oninput="updateSplitPreview()">
+                        <small id="sourceStockInfo"></small>
+                    </div>
+                    <div class="form-group">
+                        <label>الوحدة الهدف (الناتجة عن التقسيم)</label>
+                        <select id="splitTargetUnit"></select>
+                        <small>إذا كانت الوحدة غير موجودة، يمكنك إضافتها من <a href="#" onclick="switchTab('productsTab'); setTimeout(() => openProductModal(), 100);">إدارة المنتجات</a></small>
+                    </div>
+                    <div class="form-group">
+                        <label>عدد الوحدات الناتجة عن كل وحدة مصدر</label>
+                        <input type="number" id="splitConversionRate" min="1" value="12" oninput="updateSplitPreview()">
+                        <small>مثال: الكرتونة تحتوي على 12 قطعة</small>
+                    </div>
+                    <div class="form-group">
+                        <label>سعر البيع للوحدة الناتجة</label>
+                        <input type="number" id="splitTargetPrice" min="0.01" step="0.01" oninput="validateTargetPrice()">
+                        <small id="priceLimits"></small>
+                    </div>
+
+                    <div class="split-preview" id="splitPreview">
+                        <!-- معاينة -->
+                    </div>
+
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-success" onclick="executeSplit()"><i class="fas fa-check"></i> تنفيذ التقسيم</button>
+                        <button class="btn btn-outline" onclick="resetSplitForm()">إلغاء</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -560,7 +687,7 @@
                 </div>
 
                 <div class="units-container">
-                    <label style="font-weight:600; margin-bottom:10px; display:block;">وحدات القياس والأسعار</label>
+                    <label style="font-weight:600; margin-bottom:10px; display:block;">وحدات القياس والأسعار والمخزون</label>
                     <div id="unitsList"></div>
                     <div class="add-unit-btn" onclick="addUnitRow()"><i class="fas fa-plus"></i> إضافة وحدة</div>
                 </div>
@@ -574,18 +701,18 @@
     </div>
 
     <script>
-        // بيانات المنتجات (محاكاة)
+        // بيانات المنتجات (محاكاة) - أضفنا حقل stock (كمية المخزون) لكل وحدة
         let products = [
             { id: 1, name: 'خبز', category: 'مخبوزات', description: 'خبز طازج', units: [
-                { unit: 'قطعة', price: 5, min: 4, max: 6, barcode: '111' },
-                { unit: 'ربطة (10 قطع)', price: 45, min: 40, max: 50, barcode: '112' }
+                { unit: 'قطعة', price: 5, min: 4, max: 6, barcode: '111', stock: 150 },
+                { unit: 'ربطة (10 قطع)', price: 45, min: 40, max: 50, barcode: '112', stock: 20 }
             ]},
             { id: 2, name: 'زيت ذرة', category: 'زيوت', description: 'زيت نباتي', units: [
-                { unit: 'لتر', price: 40, min: 38, max: 45, barcode: '221' },
-                { unit: 'كرتونة (12 لتر)', price: 450, min: 430, max: 480, barcode: '222' }
+                { unit: 'لتر', price: 40, min: 38, max: 45, barcode: '221', stock: 85 },
+                { unit: 'كرتونة (12 لتر)', price: 450, min: 430, max: 480, barcode: '222', stock: 15 }
             ]},
             { id: 3, name: 'أرز', category: 'بقوليات', description: 'أرز بسمتي', units: [
-                { unit: 'كيلو', price: 18, min: 16, max: 20, barcode: '331' }
+                { unit: 'كيلو', price: 18, min: 16, max: 20, barcode: '331', stock: 200 }
             ]}
         ];
 
@@ -601,9 +728,24 @@
             const user = JSON.parse(userData);
             document.getElementById('userName').textContent = user.name;
             document.getElementById('userAvatar').textContent = user.name.charAt(0);
+            
             renderProductsTable();
+            populateSplitProductSelect();
         });
 
+        // === وظائف التبويب ===
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            event.target.closest('.tab-btn').classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            
+            if (tabId === 'splitTab') {
+                populateSplitProductSelect();
+            }
+        }
+
+        // === وظائف المنتجات ===
         function renderProductsTable(filteredProducts = null) {
             const data = filteredProducts || products;
             const tbody = document.getElementById('productsTableBody');
@@ -616,20 +758,17 @@
             );
 
             tbody.innerHTML = filtered.map(p => {
+                const unitsSummary = p.units.map(u => `${u.unit} (${u.stock})`).join('، ');
                 const mainUnit = p.units[0];
-                const unitsCount = p.units.length;
                 return `
                     <tr>
                         <td><i class="fas fa-box"></i> ${p.name}</td>
                         <td>${p.category}</td>
-                        <td>
-                            ${mainUnit.unit}
-                            ${unitsCount > 1 ? `<span class="units-badge">+${unitsCount-1} وحدة</span>` : ''}
-                        </td>
+                        <td>${unitsSummary}</td>
                         <td><strong>${mainUnit.price} ج</strong> (${mainUnit.min} - ${mainUnit.max})</td>
                         <td class="action-buttons">
                             <button class="action-btn edit" onclick="editProduct(${p.id})" title="تعديل"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn units" onclick="manageUnits(${p.id})" title="إدارة الوحدات"><i class="fas fa-balance-scale"></i></button>
+                            <button class="action-btn split" onclick="quickSplit(${p.id})" title="تقسيم"><i class="fas fa-code-branch"></i></button>
                             <button class="action-btn delete" onclick="deleteProduct(${p.id})" title="حذف"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
@@ -646,7 +785,7 @@
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus"></i> منتج جديد';
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
-            tempUnits = [{ unit: '', price: 0, min: 0, max: 0, barcode: '' }];
+            tempUnits = [{ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 }];
             renderUnitsList();
             document.getElementById('productModal').style.display = 'flex';
         }
@@ -660,14 +799,9 @@
             document.getElementById('productName').value = product.name;
             document.getElementById('productCategory').value = product.category;
             document.getElementById('productDescription').value = product.description || '';
-            tempUnits = JSON.parse(JSON.stringify(product.units)); // نسخة عميقة
+            tempUnits = JSON.parse(JSON.stringify(product.units));
             renderUnitsList();
             document.getElementById('productModal').style.display = 'flex';
-        }
-
-        function manageUnits(id) {
-            editProduct(id);
-            // تركيز على قسم الوحدات
         }
 
         function closeProductModal() {
@@ -678,23 +812,24 @@
             const container = document.getElementById('unitsList');
             container.innerHTML = tempUnits.map((unit, index) => `
                 <div class="unit-row">
-                    <input type="text" placeholder="الوحدة (مثلاً: قطعة)" value="${unit.unit}" onchange="updateTempUnit(${index}, 'unit', this.value)">
+                    <input type="text" placeholder="الوحدة" value="${unit.unit}" onchange="updateTempUnit(${index}, 'unit', this.value)">
                     <input type="number" placeholder="السعر" value="${unit.price}" step="0.01" onchange="updateTempUnit(${index}, 'price', this.value)">
                     <input type="number" placeholder="الحد الأدنى" value="${unit.min}" step="0.01" onchange="updateTempUnit(${index}, 'min', this.value)">
                     <input type="number" placeholder="الحد الأقصى" value="${unit.max}" step="0.01" onchange="updateTempUnit(${index}, 'max', this.value)">
                     <input type="text" placeholder="باركود" value="${unit.barcode}" onchange="updateTempUnit(${index}, 'barcode', this.value)">
+                    <input type="number" placeholder="المخزون" value="${unit.stock}" step="0.001" onchange="updateTempUnit(${index}, 'stock', this.value)">
                     <button type="button" class="action-btn delete" onclick="removeUnitRow(${index})"><i class="fas fa-trash"></i></button>
                 </div>
             `).join('');
         }
 
         function addUnitRow() {
-            tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '' });
+            tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 });
             renderUnitsList();
         }
 
         function updateTempUnit(index, field, value) {
-            if (field === 'price' || field === 'min' || field === 'max') {
+            if (['price', 'min', 'max', 'stock'].includes(field)) {
                 tempUnits[index][field] = parseFloat(value) || 0;
             } else {
                 tempUnits[index][field] = value;
@@ -717,7 +852,6 @@
             const category = document.getElementById('productCategory').value;
             const description = document.getElementById('productDescription').value;
 
-            // التحقق من صحة الوحدات
             for (let unit of tempUnits) {
                 if (!unit.unit || unit.price <= 0 || unit.min <= 0 || unit.max <= 0) {
                     alert('جميع حقول الوحدات مطلوبة ويجب أن تكون الأسعار أكبر من صفر');
@@ -743,13 +877,7 @@
                 }
             } else {
                 const newId = Math.max(...products.map(p => p.id), 0) + 1;
-                products.push({
-                    id: newId,
-                    name,
-                    category,
-                    description,
-                    units: JSON.parse(JSON.stringify(tempUnits))
-                });
+                products.push({ id: newId, name, category, description, units: JSON.parse(JSON.stringify(tempUnits)) });
             }
             renderProductsTable();
             closeProductModal();
@@ -760,6 +888,136 @@
                 products = products.filter(p => p.id !== id);
                 renderProductsTable();
             }
+        }
+
+        // === وظائف التقسيم ===
+        function populateSplitProductSelect() {
+            const select = document.getElementById('splitProductSelect');
+            select.innerHTML = '<option value="">-- اختر منتج --</option>';
+            products.forEach(p => {
+                if (p.units.length >= 1) {
+                    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                }
+            });
+        }
+
+        function loadProductUnitsForSplit() {
+            const productId = document.getElementById('splitProductSelect').value;
+            if (!productId) {
+                document.getElementById('splitFormContainer').style.display = 'none';
+                return;
+            }
+            const product = products.find(p => p.id == productId);
+            const sourceSelect = document.getElementById('splitSourceUnit');
+            const targetSelect = document.getElementById('splitTargetUnit');
+            
+            sourceSelect.innerHTML = product.units.map((u, i) => `<option value="${i}">${u.unit} (المخزون: ${u.stock})</option>`).join('');
+            targetSelect.innerHTML = product.units.map((u, i) => `<option value="${i}">${u.unit}</option>`).join('');
+            
+            document.getElementById('splitFormContainer').style.display = 'block';
+            updateSplitPreview();
+        }
+
+        function updateSplitPreview() {
+            const productId = document.getElementById('splitProductSelect').value;
+            if (!productId) return;
+            const product = products.find(p => p.id == productId);
+            const sourceIndex = parseInt(document.getElementById('splitSourceUnit').value);
+            const targetIndex = parseInt(document.getElementById('splitTargetUnit').value);
+            const quantity = parseFloat(document.getElementById('splitQuantity').value) || 0;
+            const conversionRate = parseFloat(document.getElementById('splitConversionRate').value) || 1;
+            
+            const sourceUnit = product.units[sourceIndex];
+            const targetUnit = product.units[targetIndex];
+            
+            document.getElementById('sourceStockInfo').textContent = `المخزون الحالي: ${sourceUnit.stock} ${sourceUnit.unit}`;
+            
+            if (quantity > sourceUnit.stock) {
+                document.getElementById('splitPreview').innerHTML = `<p style="color: var(--danger);">الكمية المطلوبة أكبر من المخزون المتاح!</p>`;
+                return;
+            }
+            
+            const resultingQuantity = quantity * conversionRate;
+            const currentTargetStock = targetUnit.stock;
+            const newTargetStock = currentTargetStock + resultingQuantity;
+            const newSourceStock = sourceUnit.stock - quantity;
+            
+            // تحديث حدود السعر للوحدة الهدف
+            document.getElementById('splitTargetPrice').value = targetUnit.price;
+            document.getElementById('splitTargetPrice').min = targetUnit.min;
+            document.getElementById('splitTargetPrice').max = targetUnit.max;
+            document.getElementById('priceLimits').textContent = `السعر بين ${targetUnit.min} و ${targetUnit.max} ج`;
+            
+            document.getElementById('splitPreview').innerHTML = `
+                <p><strong>معاينة التقسيم:</strong></p>
+                <p>سيتم خصم ${quantity} ${sourceUnit.unit} من المخزون.</p>
+                <p>سينتج ${resultingQuantity} ${targetUnit.unit} جديدة.</p>
+                <p>المخزون بعد التقسيم:</p>
+                <ul>
+                    <li>${sourceUnit.unit}: ${newSourceStock.toFixed(3)} (كان ${sourceUnit.stock})</li>
+                    <li>${targetUnit.unit}: ${newTargetStock.toFixed(3)} (كان ${currentTargetStock})</li>
+                </ul>
+            `;
+        }
+
+        function validateTargetPrice() {
+            const price = parseFloat(document.getElementById('splitTargetPrice').value);
+            const min = parseFloat(document.getElementById('splitTargetPrice').min);
+            const max = parseFloat(document.getElementById('splitTargetPrice').max);
+            if (price < min || price > max) {
+                document.getElementById('splitTargetPrice').style.borderColor = 'var(--danger)';
+            } else {
+                document.getElementById('splitTargetPrice').style.borderColor = '#ddd';
+            }
+        }
+
+        function executeSplit() {
+            const productId = document.getElementById('splitProductSelect').value;
+            if (!productId) return;
+            const product = products.find(p => p.id == productId);
+            const sourceIndex = parseInt(document.getElementById('splitSourceUnit').value);
+            const targetIndex = parseInt(document.getElementById('splitTargetUnit').value);
+            const quantity = parseFloat(document.getElementById('splitQuantity').value);
+            const conversionRate = parseFloat(document.getElementById('splitConversionRate').value);
+            const newPrice = parseFloat(document.getElementById('splitTargetPrice').value);
+            
+            if (quantity <= 0) { alert('الكمية يجب أن تكون أكبر من صفر'); return; }
+            if (conversionRate <= 0) { alert('عدد الوحدات الناتجة يجب أن يكون أكبر من صفر'); return; }
+            
+            const sourceUnit = product.units[sourceIndex];
+            const targetUnit = product.units[targetIndex];
+            
+            if (quantity > sourceUnit.stock) {
+                alert('الكمية المطلوبة أكبر من المخزون المتاح');
+                return;
+            }
+            
+            if (newPrice < targetUnit.min || newPrice > targetUnit.max) {
+                alert(`السعر يجب أن يكون بين ${targetUnit.min} و ${targetUnit.max}`);
+                return;
+            }
+            
+            // تنفيذ التقسيم
+            sourceUnit.stock -= quantity;
+            targetUnit.stock += quantity * conversionRate;
+            targetUnit.price = newPrice; // تحديث سعر البيع للوحدة الهدف حسب رغبة المستخدم
+            
+            renderProductsTable();
+            populateSplitProductSelect();
+            loadProductUnitsForSplit();
+            
+            alert(`تم تقسيم ${quantity} ${sourceUnit.unit} إلى ${(quantity * conversionRate).toFixed(3)} ${targetUnit.unit} بنجاح.\nالسعر الجديد للوحدة: ${newPrice} ج`);
+        }
+
+        function quickSplit(productId) {
+            switchTab('splitTab');
+            document.getElementById('splitProductSelect').value = productId;
+            loadProductUnitsForSplit();
+        }
+
+        function resetSplitForm() {
+            document.getElementById('splitProductSelect').value = '';
+            document.getElementById('splitFormContainer').style.display = 'none';
         }
 
         function logout() {
