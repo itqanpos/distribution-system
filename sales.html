@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المبيعات - نظام التوزيع</title>
+    <title>المبيعات - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
-            --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71;
-            --danger: #e74c3c; --warning: #f39c12; --info: #1abc9c;
-            --light: #ecf0f1; --dark: #34495e;
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: #f5f6fa; color: #333; }
@@ -25,17 +31,16 @@
         .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
         .menu { list-style: none; }
-        .menu-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; }
+        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
         .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
         .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
-        .menu-item i { width: 20px; text-align: center; font-size: 18px; }
+        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
         .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
         .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
         .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--secondary); color: white; }
-        .btn-success { background: var(--success); color: white; }
         .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f8f9fa; color: var(--primary); padding: 12px 15px; text-align: right; }
@@ -56,81 +61,126 @@
     </style>
 </head>
 <body>
-    <nav class="navbar"><!-- كما في السابق --></nav>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <div class="logo-text">
+                <h2>نظام التوزيع الغذائي</h2>
+                <p>إدارة المبيعات</p>
+            </div>
+        </div>
+        <div class="user-info">
+            <div class="user-details">
+                <h4 id="userName">مدير النظام</h4>
+                <p id="loginTime"></p>
+            </div>
+            <div class="user-avatar" id="userAvatar">م</div>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </div>
+    </nav>
+
     <aside class="sidebar">
         <ul class="menu">
             <div class="menu-section">القائمة الرئيسية</div>
-            <li><a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a href="sales.html" class="menu-item active"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a href="pos.html" class="menu-item"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a href="invoices.html" class="menu-item"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a href="purchases.html" class="menu-item"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a href="cashbox.html" class="menu-item"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a href="accounting.html" class="menu-item"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item active" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a href="customers.html" class="menu-item"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء</span></a></li>
-            <li><a href="reps.html" class="menu-item"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a href="products.html" class="menu-item"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
     </aside>
+
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><i class="fas fa-chart-line"></i><h1>المبيعات</h1></div>
-            <div style="display: flex; gap: 10px;">
-                <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div>
+            <div>
                 <button class="btn btn-primary" onclick="window.location.href='pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
             </div>
         </div>
+
         <div class="table-container">
-            <table id="salesTable">
-                <thead><tr><th>رقم الفاتورة</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <h3><i class="fas fa-list"></i> فواتير المبيعات</h3>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="بحث..." id="searchInput">
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>العميل</th>
+                        <th>التاريخ</th>
+                        <th>الإجمالي</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>الحالة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
                 <tbody id="salesTableBody"></tbody>
             </table>
         </div>
-        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي</p></div>
+
+        <div class="footer">
+            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
+        </div>
     </main>
+
+    <script src="js/auth.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ui.js"></script>
     <script>
-        // بيانات افتراضية
-        let salesData = [
-            { id: 'INV-001', customer: 'مطعم الشيف', date: '2024-01-15', total: 1250, paid: 1250, remaining: 0, status: 'مدفوع' },
-            { id: 'INV-002', customer: 'سوبرماركت النور', date: '2024-01-16', total: 3400, paid: 2000, remaining: 1400, status: 'متبقي' },
-            { id: 'INV-003', customer: 'مخبز الفردوس', date: '2024-01-14', total: 850, paid: 0, remaining: 850, status: 'غير مدفوع' }
-        ];
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!UI.initPage('المبيعات')) return;
+            
+            const invoices = Storage.getInvoices().filter(inv => inv.type === 'sale');
+            renderTable(invoices);
+            
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                const term = e.target.value;
+                const filtered = Utils.search(invoices, term, ['id', 'customer']);
+                renderTable(filtered);
+            });
+        });
 
         function renderTable(data) {
             const tbody = document.getElementById('salesTableBody');
-            tbody.innerHTML = '';
-            data.forEach(sale => {
-                let statusClass = sale.status === 'مدفوع' ? 'status-paid' : (sale.status === 'متبقي' ? 'status-partial' : 'status-unpaid');
-                tbody.innerHTML += `<tr>
-                    <td>${sale.id}</td>
-                    <td>${sale.customer}</td>
-                    <td>${sale.date}</td>
-                    <td>${sale.total.toLocaleString()} ج</td>
-                    <td>${sale.paid.toLocaleString()} ج</td>
-                    <td>${sale.remaining.toLocaleString()} ج</td>
-                    <td><span class="status-badge ${statusClass}">${sale.status}</span></td>
-                    <td><i class="fas fa-eye" style="cursor:pointer;" onclick="alert('تفاصيل الفاتورة ${sale.id}')"></i></td>
-                </tr>`;
-            });
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد فواتير</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.sort((a,b) => new Date(b.date) - new Date(a.date)).map(inv => {
+                const statusClass = inv.status === 'paid' ? 'status-paid' : (inv.status === 'partial' ? 'status-partial' : 'status-unpaid');
+                const statusText = inv.status === 'paid' ? 'مدفوعة' : (inv.status === 'partial' ? 'متبقي' : 'غير مدفوعة');
+                return `
+                    <tr>
+                        <td>${inv.id}</td>
+                        <td>${inv.customer || '-'}</td>
+                        <td>${inv.date}</td>
+                        <td>${Utils.formatMoney(inv.total)}</td>
+                        <td>${Utils.formatMoney(inv.paid)}</td>
+                        <td>${Utils.formatMoney(inv.remaining)}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td><i class="fas fa-eye" style="cursor:pointer;" onclick="viewInvoice('${inv.id}')"></i></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const user = JSON.parse(sessionStorage.getItem('user') || '{"name":"مدير"}');
-            document.getElementById('userName').textContent = user.name;
-            document.getElementById('userAvatar').textContent = user.name.charAt(0);
-            renderTable(salesData);
-        });
-
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = salesData.filter(s => s.customer.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
-            renderTable(filtered);
-        });
-
-        function logout() { sessionStorage.removeItem('user'); window.location.href = 'index.html'; }
+        function viewInvoice(id) {
+            window.location.href = `invoices.html?id=${id}`;
+        }
     </script>
 </body>
 </html>
