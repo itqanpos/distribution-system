@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المبيعات - نظام التوزيع</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71;
+            --danger: #e74c3c; --warning: #f39c12; --info: #1abc9c;
+            --light: #ecf0f1; --dark: #34495e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f5f6fa; color: #333; }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
+        .menu { list-style: none; }
+        .menu-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
+        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
+        .menu-item i { width: 20px; text-align: center; font-size: 18px; }
+        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
+        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .btn-primary { background: var(--secondary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; color: var(--primary); padding: 12px 15px; text-align: right; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-paid { background: rgba(46,204,113,0.1); color: var(--success); }
+        .status-unpaid { background: rgba(231,76,60,0.1); color: var(--danger); }
+        .status-partial { background: rgba(243,156,18,0.1); color: var(--warning); }
+        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; background: white; }
+        .search-box input { border: none; outline: none; font-size: 14px; }
+        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
+        @media (max-width: 992px) {
+            .sidebar { width: 70px; }
+            .sidebar .menu-text, .sidebar .menu-section { display: none; }
+            .main-content { margin-right: 70px; }
+            .menu-item { justify-content: center; padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><!-- كما في السابق --></nav>
+    <aside class="sidebar">
+        <ul class="menu">
+            <div class="menu-section">القائمة الرئيسية</div>
+            <li><a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a href="sales.html" class="menu-item active"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a href="pos.html" class="menu-item"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a href="invoices.html" class="menu-item"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a href="purchases.html" class="menu-item"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a href="cashbox.html" class="menu-item"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a href="accounting.html" class="menu-item"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الإدارة</div>
+            <li><a href="customers.html" class="menu-item"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء</span></a></li>
+            <li><a href="reps.html" class="menu-item"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a href="products.html" class="menu-item"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+    <main class="main-content">
+        <div class="page-header">
+            <div class="page-title"><i class="fas fa-chart-line"></i><h1>المبيعات</h1></div>
+            <div style="display: flex; gap: 10px;">
+                <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div>
+                <button class="btn btn-primary" onclick="window.location.href='pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table id="salesTable">
+                <thead><tr><th>رقم الفاتورة</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                <tbody id="salesTableBody"></tbody>
+            </table>
+        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي</p></div>
+    </main>
+    <script>
+        // بيانات افتراضية
+        let salesData = [
+            { id: 'INV-001', customer: 'مطعم الشيف', date: '2024-01-15', total: 1250, paid: 1250, remaining: 0, status: 'مدفوع' },
+            { id: 'INV-002', customer: 'سوبرماركت النور', date: '2024-01-16', total: 3400, paid: 2000, remaining: 1400, status: 'متبقي' },
+            { id: 'INV-003', customer: 'مخبز الفردوس', date: '2024-01-14', total: 850, paid: 0, remaining: 850, status: 'غير مدفوع' }
+        ];
+
+        function renderTable(data) {
+            const tbody = document.getElementById('salesTableBody');
+            tbody.innerHTML = '';
+            data.forEach(sale => {
+                let statusClass = sale.status === 'مدفوع' ? 'status-paid' : (sale.status === 'متبقي' ? 'status-partial' : 'status-unpaid');
+                tbody.innerHTML += `<tr>
+                    <td>${sale.id}</td>
+                    <td>${sale.customer}</td>
+                    <td>${sale.date}</td>
+                    <td>${sale.total.toLocaleString()} ج</td>
+                    <td>${sale.paid.toLocaleString()} ج</td>
+                    <td>${sale.remaining.toLocaleString()} ج</td>
+                    <td><span class="status-badge ${statusClass}">${sale.status}</span></td>
+                    <td><i class="fas fa-eye" style="cursor:pointer;" onclick="alert('تفاصيل الفاتورة ${sale.id}')"></i></td>
+                </tr>`;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(sessionStorage.getItem('user') || '{"name":"مدير"}');
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+            renderTable(salesData);
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = salesData.filter(s => s.customer.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
+            renderTable(filtered);
+        });
+
+        function logout() { sessionStorage.removeItem('user'); window.location.href = 'index.html'; }
+    </script>
+</body>
+</html>
