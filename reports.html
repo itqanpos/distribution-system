@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التقارير - نظام التوزيع</title>
+    <title>التقارير - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary: #2c3e50;
@@ -13,6 +14,8 @@
             --danger: #e74c3c;
             --warning: #f39c12;
             --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
         }
 
         * {
@@ -24,8 +27,224 @@
 
         body {
             background: #f5f6fa;
+            color: #333;
         }
 
+        /* شريط التنقل */
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info));
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text h2 {
+            color: var(--primary);
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        .logo-text p {
+            color: var(--secondary);
+            font-size: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-details h4 {
+            color: var(--primary);
+            margin-bottom: 3px;
+        }
+
+        .user-details p {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* الشريط الجانبي */
+        .sidebar {
+            background: white;
+            width: 250px;
+            height: calc(100vh - 70px);
+            position: fixed;
+            top: 70px;
+            right: 0;
+            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.05);
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .menu {
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--dark);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-right: 4px solid transparent;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .menu-item:hover {
+            background: var(--light);
+            color: var(--secondary);
+            border-right-color: var(--secondary);
+        }
+
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52, 152, 219, 0.1), transparent);
+            color: var(--secondary);
+            border-right-color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .menu-item i {
+            width: 22px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .menu-section {
+            padding: 20px 25px 10px;
+            color: #7f8c8d;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* المحتوى الرئيسي */
+        .main-content {
+            margin-right: 250px;
+            margin-top: 70px;
+            padding: 25px;
+            min-height: calc(100vh - 70px);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .page-title {
+            color: var(--primary);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-title i {
+            color: var(--secondary);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        /* محتوى التقارير */
         .reports-container {
             background: white;
             border-radius: 12px;
@@ -280,19 +499,13 @@
             gap: 10px;
         }
 
-        @media (max-width: 768px) {
-            .reports-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .period-selector {
-                flex-direction: column;
-            }
-            
-            .date-range {
-                flex-direction: column;
-                align-items: stretch;
-            }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+            margin-top: 30px;
         }
 
         .loading {
@@ -317,11 +530,89 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+            }
+            .sidebar .menu-text,
+            .sidebar .menu-section {
+                display: none;
+            }
+            .main-content {
+                margin-right: 70px;
+            }
+            .menu-item {
+                justify-content: center;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .reports-grid {
+                grid-template-columns: 1fr;
+            }
+            .period-selector {
+                flex-direction: column;
+            }
+            .date-range {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .navbar {
+                padding: 0 10px;
+            }
+            .logo-text h2 {
+                font-size: 16px;
+            }
+            .user-details {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- نفس شريط التنقل والشريط الجانبي من dashboard.html -->
-    
+    <!-- شريط التنقل -->
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <div class="logo-text">
+                <h2>نظام التوزيع الغذائي</h2>
+                <p>إدارة متكاملة للتوزيع والمبيعات</p>
+            </div>
+        </div>
+        <div class="user-info">
+            <div class="user-details">
+                <h4 id="userName">مدير النظام</h4>
+                <p id="loginTime"></p>
+            </div>
+            <div class="user-avatar" id="userAvatar">م</div>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </div>
+    </nav>
+
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar">
+        <ul class="menu">
+            <div class="menu-section">القائمة الرئيسية</div>
+            <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item active" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الإدارة</div>
+            <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء</span></a></li>
+            <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
             <div class="page-title">
@@ -340,24 +631,12 @@
 
         <div class="reports-container">
             <div class="period-selector">
-                <button class="period-btn active" onclick="setPeriod('today')">
-                    <i class="fas fa-calendar-day"></i> اليوم
-                </button>
-                <button class="period-btn" onclick="setPeriod('week')">
-                    <i class="fas fa-calendar-week"></i> هذا الأسبوع
-                </button>
-                <button class="period-btn" onclick="setPeriod('month')">
-                    <i class="fas fa-calendar-alt"></i> هذا الشهر
-                </button>
-                <button class="period-btn" onclick="setPeriod('quarter')">
-                    <i class="fas fa-calendar"></i> هذا الربع
-                </button>
-                <button class="period-btn" onclick="setPeriod('year')">
-                    <i class="fas fa-calendar-star"></i> هذا العام
-                </button>
-                <button class="period-btn" onclick="setPeriod('custom')">
-                    <i class="fas fa-calendar-check"></i> مخصص
-                </button>
+                <button class="period-btn active" onclick="setPeriod('today')"><i class="fas fa-calendar-day"></i> اليوم</button>
+                <button class="period-btn" onclick="setPeriod('week')"><i class="fas fa-calendar-week"></i> هذا الأسبوع</button>
+                <button class="period-btn" onclick="setPeriod('month')"><i class="fas fa-calendar-alt"></i> هذا الشهر</button>
+                <button class="period-btn" onclick="setPeriod('quarter')"><i class="fas fa-calendar"></i> هذا الربع</button>
+                <button class="period-btn" onclick="setPeriod('year')"><i class="fas fa-calendar-star"></i> هذا العام</button>
+                <button class="period-btn" onclick="setPeriod('custom')"><i class="fas fa-calendar-check"></i> مخصص</button>
             </div>
 
             <div class="date-range" id="dateRange" style="display: none;">
@@ -369,584 +648,189 @@
                     <label>إلى تاريخ</label>
                     <input type="date" id="endDate" class="date-input">
                 </div>
-                <button class="btn btn-primary" onclick="applyCustomDate()">
-                    <i class="fas fa-check"></i> تطبيق
-                </button>
+                <button class="btn btn-primary" onclick="applyCustomDate()"><i class="fas fa-check"></i> تطبيق</button>
             </div>
 
             <div class="quick-stats">
-                <div class="quick-stat">
-                    <h3 id="reportSales">85,500 ج</h3>
-                    <p>إجمالي المبيعات</p>
-                </div>
-                <div class="quick-stat">
-                    <h3 id="reportCollections">62,000 ج</h3>
-                    <p>إجمالي التحصيلات</p>
-                </div>
-                <div class="quick-stat">
-                    <h3 id="reportInvoices">1,250</h3>
-                    <p>عدد الفواتير</p>
-                </div>
-                <div class="quick-stat">
-                    <h3 id="reportCustomers">350</h3>
-                    <p>عدد العملاء</p>
-                </div>
+                <div class="quick-stat"><h3 id="reportSales">85,500 ج</h3><p>إجمالي المبيعات</p></div>
+                <div class="quick-stat"><h3 id="reportCollections">62,000 ج</h3><p>إجمالي التحصيلات</p></div>
+                <div class="quick-stat"><h3 id="reportInvoices">1,250</h3><p>عدد الفواتير</p></div>
+                <div class="quick-stat"><h3 id="reportCustomers">350</h3><p>عدد العملاء</p></div>
             </div>
 
-            <div class="reports-grid" id="reportsGrid">
-                <!-- سيتم تعبئته بالبيانات -->
-            </div>
+            <div class="reports-grid" id="reportsGrid"></div>
 
             <div class="report-preview" id="reportPreview">
                 <div class="preview-header">
                     <h3 id="previewTitle">معاينة التقرير</h3>
                     <div>
-                        <button class="btn btn-primary" onclick="downloadReport()">
-                            <i class="fas fa-download"></i> تحميل PDF
-                        </button>
-                        <button class="btn" onclick="closePreview()">
-                            <i class="fas fa-times"></i> إغلاق
-                        </button>
+                        <button class="btn btn-primary" onclick="downloadReport()"><i class="fas fa-download"></i> تحميل PDF</button>
+                        <button class="btn" onclick="closePreview()"><i class="fas fa-times"></i> إغلاق</button>
                     </div>
                 </div>
-                <div class="preview-content" id="previewContent">
-                    <!-- محتوى المعاينة -->
-                </div>
+                <div class="preview-content" id="previewContent"></div>
             </div>
 
             <div class="scheduled-reports">
                 <h3><i class="fas fa-clock"></i> التقارير المجدولة</h3>
-                <div class="scheduled-list" id="scheduledList">
-                    <!-- سيتم تعبئته بالبيانات -->
-                </div>
+                <div class="scheduled-list" id="scheduledList"></div>
             </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
         </div>
     </main>
 
     <script>
         // بيانات التقارير
         const reportsData = [
-            {
-                id: 1,
-                title: "تقرير المبيعات اليومي",
-                description: "تقرير مفصل عن جميع المبيعات اليومية مع تحليل لكل مندوب",
-                icon: "fa-chart-line",
-                category: "sales",
-                features: ["مبيعات كل مندوب", "أفضل المنتجات", "مقارنة مع الأمس", "تحليل جغرافي"],
-                frequency: "daily",
-                badge: "new",
-                lastRun: "2024-01-15"
-            },
-            {
-                id: 2,
-                title: "تقرير تحصيل الديون",
-                description: "تقرير متابعة الديون والتحصيلات والعملاء المتأخرين",
-                icon: "fa-hand-holding-usd",
-                category: "debt",
-                features: ["ديون متأخرة", "نسبة التحصيل", "توزيع الديون", "تنبيهات"],
-                frequency: "daily",
-                badge: "important",
-                lastRun: "2024-01-15"
-            },
-            {
-                id: 3,
-                title: "تقرير أداء المندوبين",
-                description: "تحليل أداء المندوبين ومقارنة النتائج والأهداف",
-                icon: "fa-users",
-                category: "reps",
-                features: ["مقارنة الأداء", "تحقيق الأهداف", "ترتيب المندوبين", "العمولات"],
-                frequency: "weekly",
-                badge: "popular",
-                lastRun: "2024-01-14"
-            },
-            {
-                id: 4,
-                title: "تقرير حركة المخزون",
-                description: "تقرير حركة المنتجات والمخزون والمنتجات الأكثر مبيعاً",
-                icon: "fa-boxes",
-                category: "inventory",
-                features: ["حركة المخزون", "منتجات قليلة", "منتهية الصلاحية", "أفضل المبيعات"],
-                frequency: "weekly",
-                badge: null,
-                lastRun: "2024-01-13"
-            },
-            {
-                id: 5,
-                title: "تقرير العملاء",
-                description: "تحليل بيانات العملاء وتصنيفهم حسب القيمة والشراء",
-                icon: "fa-user-tie",
-                category: "customers",
-                features: ["أفضل العملاء", "عملاء جدد", "عملاء متأخرين", "تحليل الشراء"],
-                frequency: "monthly",
-                badge: null,
-                lastRun: "2024-01-10"
-            },
-            {
-                id: 6,
-                title: "تقرير أرباح وخسائر",
-                description: "تقرير مالي شامل بالإيرادات والمصروفات والأرباح",
-                icon: "fa-money-bill-wave",
-                category: "finance",
-                features: ["الإيرادات", "المصروفات", "الأرباح", "الضرائب"],
-                frequency: "monthly",
-                badge: "important",
-                lastRun: "2024-01-01"
-            },
-            {
-                id: 7,
-                title: "تقرير التكامل الشامل",
-                description: "تقرير يربط بين جميع الأنظمة لرؤية شاملة للأداء",
-                icon: "fa-network-wired",
-                category: "integration",
-                features: ["مؤشرات الأداء", "مقارنات تاريخية", "توقعات", "توصيات"],
-                frequency: "quarterly",
-                badge: "new",
-                lastRun: "2024-01-05"
-            },
-            {
-                id: 8,
-                title: "تقرير الرحلات والتوزيع",
-                description: "تحليل فعالية الرحلات والتوزيع الجغرافي",
-                icon: "fa-truck",
-                category: "logistics",
-                features: ["كفاءة الرحلات", "تحليل المناطق", "تكاليف النقل", "تحسين المسارات"],
-                frequency: "monthly",
-                badge: null,
-                lastRun: "2023-12-30"
-            }
+            { id: 1, title: "تقرير المبيعات اليومي", description: "تقرير مفصل عن جميع المبيعات اليومية مع تحليل لكل مندوب", icon: "fa-chart-line", category: "sales", features: ["مبيعات كل مندوب", "أفضل المنتجات", "مقارنة مع الأمس", "تحليل جغرافي"], frequency: "daily", badge: "new", lastRun: "2024-01-15" },
+            { id: 2, title: "تقرير تحصيل الديون", description: "تقرير متابعة الديون والتحصيلات والعملاء المتأخرين", icon: "fa-hand-holding-usd", category: "debt", features: ["ديون متأخرة", "نسبة التحصيل", "توزيع الديون", "تنبيهات"], frequency: "daily", badge: "important", lastRun: "2024-01-15" },
+            { id: 3, title: "تقرير أداء المندوبين", description: "تحليل أداء المندوبين ومقارنة النتائج والأهداف", icon: "fa-users", category: "reps", features: ["مقارنة الأداء", "تحقيق الأهداف", "ترتيب المندوبين", "العمولات"], frequency: "weekly", badge: "popular", lastRun: "2024-01-14" },
+            { id: 4, title: "تقرير حركة المخزون", description: "تقرير حركة المنتجات والمخزون والمنتجات الأكثر مبيعاً", icon: "fa-boxes", category: "inventory", features: ["حركة المخزون", "منتجات قليلة", "منتهية الصلاحية", "أفضل المبيعات"], frequency: "weekly", badge: null, lastRun: "2024-01-13" },
+            { id: 5, title: "تقرير العملاء", description: "تحليل بيانات العملاء وتصنيفهم حسب القيمة والشراء", icon: "fa-user-tie", category: "customers", features: ["أفضل العملاء", "عملاء جدد", "عملاء متأخرين", "تحليل الشراء"], frequency: "monthly", badge: null, lastRun: "2024-01-10" },
+            { id: 6, title: "تقرير أرباح وخسائر", description: "تقرير مالي شامل بالإيرادات والمصروفات والأرباح", icon: "fa-money-bill-wave", category: "finance", features: ["الإيرادات", "المصروفات", "الأرباح", "الضرائب"], frequency: "monthly", badge: "important", lastRun: "2024-01-01" },
+            { id: 7, title: "تقرير التكامل الشامل", description: "تقرير يربط بين جميع الأنظمة لرؤية شاملة للأداء", icon: "fa-network-wired", category: "integration", features: ["مؤشرات الأداء", "مقارنات تاريخية", "توقعات", "توصيات"], frequency: "quarterly", badge: "new", lastRun: "2024-01-05" },
+            { id: 8, title: "تقرير الرحلات والتوزيع", description: "تحليل فعالية الرحلات والتوزيع الجغرافي", icon: "fa-truck", category: "logistics", features: ["كفاءة الرحلات", "تحليل المناطق", "تكاليف النقل", "تحسين المسارات"], frequency: "monthly", badge: null, lastRun: "2023-12-30" }
         ];
 
-        // التقارير المجدولة
-        const scheduledReports = [
-            {
-                id: 1,
-                reportId: 2,
-                title: "تقرير تحصيل الديون اليومي",
-                frequency: "يومياً",
-                time: "07:00 ص",
-                recipients: ["admin@company.com", "sales@company.com"],
-                nextRun: "غداً 07:00 ص",
-                active: true
-            },
-            {
-                id: 2,
-                reportId: 3,
-                title: "تقرير أداء المندوبين الأسبوعي",
-                frequency: "أسبوعياً",
-                time: "السبت 08:00 ص",
-                recipients: ["manager@company.com"],
-                nextRun: "السبت القادم 08:00 ص",
-                active: true
-            },
-            {
-                id: 3,
-                reportId: 6,
-                title: "تقرير الأرباح الشهري",
-                frequency: "شهرياً",
-                time: "أول الشهر 09:00 ص",
-                recipients: ["admin@company.com", "accounting@company.com", "director@company.com"],
-                nextRun: "١ فبراير 2024 09:00 ص",
-                active: true
-            }
+        let scheduledReports = [
+            { id: 1, reportId: 2, title: "تقرير تحصيل الديون اليومي", frequency: "يومياً", time: "07:00 ص", recipients: ["admin@company.com", "sales@company.com"], nextRun: "غداً 07:00 ص", active: true },
+            { id: 2, reportId: 3, title: "تقرير أداء المندوبين الأسبوعي", frequency: "أسبوعياً", time: "السبت 08:00 ص", recipients: ["manager@company.com"], nextRun: "السبت القادم 08:00 ص", active: true },
+            { id: 3, reportId: 6, title: "تقرير الأرباح الشهري", frequency: "شهرياً", time: "أول الشهر 09:00 ص", recipients: ["admin@company.com", "accounting@company.com", "director@company.com"], nextRun: "١ فبراير 2024 09:00 ص", active: true }
         ];
 
         let currentPeriod = 'today';
         let currentReport = null;
 
-        // تحميل البيانات
         document.addEventListener('DOMContentLoaded', function() {
+            const userData = sessionStorage.getItem('user');
+            if (!userData) {
+                window.location.href = 'index.html';
+                return;
+            }
+            const user = JSON.parse(userData);
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = `دخل النظام: ${user.loginTime || 'اليوم'}`;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+
             loadReports();
             loadScheduledReports();
             updateQuickStats();
         });
 
-        // تحميل التقارير
         function loadReports() {
-            const reportsGrid = document.getElementById('reportsGrid');
-            reportsGrid.innerHTML = '';
-            
-            reportsData.forEach(report => {
-                const badgeHTML = report.badge ? 
-                    `<div class="report-badge badge-${report.badge}">
-                        ${report.badge === 'new' ? 'جديد' : report.badge === 'popular' ? 'شائع' : 'مهم'}
-                    </div>` : '';
-                
-                reportsGrid.innerHTML += `
+            const grid = document.getElementById('reportsGrid');
+            grid.innerHTML = reportsData.map(report => {
+                const badge = report.badge ? `<div class="report-badge badge-${report.badge}">${report.badge === 'new' ? 'جديد' : report.badge === 'popular' ? 'شائع' : 'مهم'}</div>` : '';
+                return `
                     <div class="report-card" onclick="showReportPreview(${report.id})">
-                        ${badgeHTML}
-                        
-                        <div class="report-icon">
-                            <i class="fas ${report.icon}"></i>
-                        </div>
-                        
+                        ${badge}
+                        <div class="report-icon"><i class="fas ${report.icon}"></i></div>
                         <h3>${report.title}</h3>
                         <p>${report.description}</p>
-                        
-                        <ul class="report-features">
-                            ${report.features.map(feature => `
-                                <li><i class="fas fa-check"></i> ${feature}</li>
-                            `).join('')}
-                        </ul>
-                        
+                        <ul class="report-features">${report.features.map(f => `<li><i class="fas fa-check"></i> ${f}</li>`).join('')}</ul>
                         <div class="report-actions">
-                            <button class="report-btn view" onclick="event.stopPropagation(); showReportPreview(${report.id})">
-                                <i class="fas fa-eye"></i> معاينة
-                            </button>
-                            <button class="report-btn download" onclick="event.stopPropagation(); downloadReportById(${report.id})">
-                                <i class="fas fa-download"></i> تحميل
-                            </button>
-                            <button class="report-btn schedule" onclick="event.stopPropagation(); scheduleReport(${report.id})">
-                                <i class="fas fa-calendar-plus"></i> جدولة
-                            </button>
+                            <button class="report-btn view" onclick="event.stopPropagation();showReportPreview(${report.id})"><i class="fas fa-eye"></i> معاينة</button>
+                            <button class="report-btn download" onclick="event.stopPropagation();downloadReportById(${report.id})"><i class="fas fa-download"></i> تحميل</button>
+                            <button class="report-btn schedule" onclick="event.stopPropagation();scheduleReport(${report.id})"><i class="fas fa-calendar-plus"></i> جدولة</button>
                         </div>
                     </div>
                 `;
-            });
+            }).join('');
         }
 
-        // تحميل التقارير المجدولة
         function loadScheduledReports() {
-            const scheduledList = document.getElementById('scheduledList');
-            scheduledList.innerHTML = '';
-            
+            const list = document.getElementById('scheduledList');
             if (scheduledReports.length === 0) {
-                scheduledList.innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: #7f8c8d;">
-                        <i class="fas fa-calendar-times" style="font-size: 48px; margin-bottom: 15px;"></i>
-                        <p>لا توجد تقارير مجدولة حالياً</p>
-                    </div>
-                `;
+                list.innerHTML = `<div style="text-align:center;padding:20px;"><i class="fas fa-calendar-times" style="font-size:48px;"></i><p>لا توجد تقارير مجدولة</p></div>`;
                 return;
             }
-            
-            scheduledReports.forEach(schedule => {
-                const report = reportsData.find(r => r.id === schedule.reportId);
-                const statusHTML = schedule.active ? 
-                    `<span style="color: var(--success);"><i class="fas fa-circle"></i> نشط</span>` :
-                    `<span style="color: #95a5a6;"><i class="fas fa-circle"></i> متوقف</span>`;
-                
-                scheduledList.innerHTML += `
+            list.innerHTML = scheduledReports.map(s => {
+                const status = s.active ? `<span style="color:var(--success);"><i class="fas fa-circle"></i> نشط</span>` : `<span style="color:#95a5a6;"><i class="fas fa-circle"></i> متوقف</span>`;
+                return `
                     <div class="scheduled-item">
                         <div class="scheduled-info">
-                            <h4>${schedule.title}</h4>
-                            <p>
-                                <i class="fas fa-sync-alt"></i> ${schedule.frequency} | 
-                                <i class="fas fa-clock"></i> ${schedule.time} | 
-                                ${statusHTML}
-                            </p>
-                            <small><i class="fas fa-users"></i> ${schedule.recipients.length} مستلم</small>
+                            <h4>${s.title}</h4>
+                            <p><i class="fas fa-sync-alt"></i> ${s.frequency} | <i class="fas fa-clock"></i> ${s.time} | ${status}</p>
+                            <small><i class="fas fa-users"></i> ${s.recipients.length} مستلم</small>
                         </div>
-                        
                         <div class="scheduled-actions">
-                            <button class="btn btn-sm" onclick="runScheduledReport(${schedule.id})">
-                                <i class="fas fa-play"></i> تشغيل الآن
-                            </button>
-                            <button class="btn btn-sm" onclick="editSchedule(${schedule.id})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm" onclick="toggleSchedule(${schedule.id})">
-                                <i class="fas fa-power-off"></i>
-                            </button>
+                            <button class="btn btn-sm" onclick="runScheduledReport(${s.id})"><i class="fas fa-play"></i></button>
+                            <button class="btn btn-sm" onclick="editSchedule(${s.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm" onclick="toggleSchedule(${s.id})"><i class="fas fa-power-off"></i></button>
                         </div>
                     </div>
                 `;
-            });
+            }).join('');
         }
 
-        // تحديث الإحصائيات السريعة
         function updateQuickStats() {
-            // محاكاة بيانات عشوائية حسب الفترة
-            let sales = 0, collections = 0, invoices = 0, customers = 0;
-            
-            switch(currentPeriod) {
-                case 'today':
-                    sales = 8500;
-                    collections = 6200;
-                    invoices = 45;
-                    customers = 15;
-                    break;
-                case 'week':
-                    sales = 85500;
-                    collections = 62000;
-                    invoices = 1250;
-                    customers = 350;
-                    break;
-                case 'month':
-                    sales = 385500;
-                    collections = 262000;
-                    invoices = 5250;
-                    customers = 1350;
-                    break;
-                case 'quarter':
-                    sales = 1255500;
-                    collections = 862000;
-                    invoices = 15250;
-                    customers = 3350;
-                    break;
-                case 'year':
-                    sales = 5125500;
-                    collections = 3862000;
-                    invoices = 61250;
-                    customers = 8350;
-                    break;
-            }
-            
+            let sales, collections, invoices, customers;
+            if (currentPeriod === 'today') { sales=8500; collections=6200; invoices=45; customers=15; }
+            else if (currentPeriod === 'week') { sales=85500; collections=62000; invoices=1250; customers=350; }
+            else if (currentPeriod === 'month') { sales=385500; collections=262000; invoices=5250; customers=1350; }
+            else if (currentPeriod === 'quarter') { sales=1255500; collections=862000; invoices=15250; customers=3350; }
+            else if (currentPeriod === 'year') { sales=5125500; collections=3862000; invoices=61250; customers=8350; }
+            else { sales=85500; collections=62000; invoices=1250; customers=350; }
             document.getElementById('reportSales').textContent = sales.toLocaleString() + ' ج';
             document.getElementById('reportCollections').textContent = collections.toLocaleString() + ' ج';
             document.getElementById('reportInvoices').textContent = invoices.toLocaleString();
             document.getElementById('reportCustomers').textContent = customers.toLocaleString();
         }
 
-        // تعيين الفترة الزمنية
         function setPeriod(period) {
-            // تحديث أزرار الفترة
-            document.querySelectorAll('.period-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
-            
             currentPeriod = period;
-            
-            // إظهار/إخفاء نطاق التواريخ المخصص
-            if (period === 'custom') {
-                document.getElementById('dateRange').style.display = 'flex';
-            } else {
-                document.getElementById('dateRange').style.display = 'none';
-            }
-            
+            document.getElementById('dateRange').style.display = period === 'custom' ? 'flex' : 'none';
             updateQuickStats();
         }
 
-        // تطبيق التاريخ المخصص
         function applyCustomDate() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            
-            if (!startDate || !endDate) {
-                alert('يرجى تحديد تاريخ البدء والانتهاء');
-                return;
-            }
-            
-            // هنا سيتم جلب البيانات حسب النطاق الزمني
-            alert(`سيتم عرض التقارير للفترة من ${startDate} إلى ${endDate}`);
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            if (!start || !end) { alert('حدد التاريخين'); return; }
+            alert(`عرض تقارير من ${start} إلى ${end}`);
             currentPeriod = 'custom';
             updateQuickStats();
         }
 
-        // عرض معاينة التقرير
         function showReportPreview(reportId) {
             currentReport = reportId;
             const report = reportsData.find(r => r.id === reportId);
-            
-            // إظهار قسم المعاينة
             document.getElementById('reportPreview').style.display = 'block';
             document.getElementById('previewTitle').textContent = report.title;
-            
-            // محاكاة تحميل المحتوى
-            document.getElementById('previewContent').innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>جاري تحميل التقرير...</p>
-                </div>
-            `;
-            
-            // محاكاة تحميل البيانات
+            document.getElementById('previewContent').innerHTML = `<div class="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>`;
             setTimeout(() => {
                 document.getElementById('previewContent').innerHTML = `
-                    <h3>${report.title}</h3>
-                    <p>${report.description}</p>
-                    
-                    <div style="margin: 20px 0; padding: 15px; background: white; border-radius: 8px;">
+                    <h3>${report.title}</h3><p>${report.description}</p>
+                    <div style="margin:20px 0;padding:15px;background:white;border-radius:8px;">
                         <strong>تفاصيل التقرير:</strong>
-                        <ul style="margin-top: 10px;">
-                            <li>الفترة الزمنية: ${currentPeriod === 'today' ? 'اليوم' : 
-                                                 currentPeriod === 'week' ? 'هذا الأسبوع' :
-                                                 currentPeriod === 'month' ? 'هذا الشهر' :
-                                                 currentPeriod === 'quarter' ? 'هذا الربع' :
-                                                 currentPeriod === 'year' ? 'هذا العام' : 'مخصص'}</li>
-                            <li>آخر تشغيل: ${report.lastRun}</li>
-                            <li>الفئة: ${report.category === 'sales' ? 'المبيعات' :
-                                       report.category === 'debt' ? 'الديون' :
-                                       report.category === 'reps' ? 'المندوبين' :
-                                       report.category === 'inventory' ? 'المخزون' :
-                                       report.category === 'customers' ? 'العملاء' :
-                                       report.category === 'finance' ? 'المالية' :
-                                       report.category === 'integration' ? 'التكامل' : 'اللوجستيات'}</li>
-                            <li>التكرار: ${report.frequency === 'daily' ? 'يومي' :
-                                         report.frequency === 'weekly' ? 'أسبوعي' :
-                                         report.frequency === 'monthly' ? 'شهري' : 'ربع سنوي'}</li>
-                        </ul>
+                        <ul><li>الفترة: ${currentPeriod}</li><li>آخر تشغيل: ${report.lastRun}</li><li>التكرار: ${report.frequency}</li></ul>
                     </div>
-                    
-                    <div style="margin: 20px 0; padding: 15px; background: white; border-radius: 8px;">
-                        <strong>مؤشرات الأداء:</strong>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${Math.floor(Math.random() * 1000).toLocaleString()}</div>
-                                <div style="font-size: 12px; color: #7f8c8d;">إجمالي العمليات</div>
-                            </div>
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: var(--success);">${Math.floor(Math.random() * 100)}%</div>
-                                <div style="font-size: 12px; color: #7f8c8d;">معدل النمو</div>
-                            </div>
-                            <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: var(--warning);">${Math.floor(Math.random() * 50)}</div>
-                                <div style="font-size: 12px; color: #7f8c8d;">تحتاج متابعة</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: center; padding: 40px; color: #7f8c8d;">
-                        <i class="fas fa-chart-bar" style="font-size: 48px; margin-bottom: 15px;"></i>
-                        <p>هذه معاينة مبسطة للتقرير</p>
-                        <small>التقرير الكامل سيحتوي على رسوم بيانية وجداول مفصلة</small>
-                    </div>
+                    <div style="text-align:center;padding:40px;"><i class="fas fa-chart-bar" style="font-size:48px;"></i><p>معاينة مبسطة للتقرير</p></div>
                 `;
-                
-                // التمرير إلى قسم المعاينة
                 document.getElementById('reportPreview').scrollIntoView({ behavior: 'smooth' });
             }, 1500);
         }
 
-        // إغلاق المعاينة
-        function closePreview() {
-            document.getElementById('reportPreview').style.display = 'none';
-        }
+        function closePreview() { document.getElementById('reportPreview').style.display = 'none'; }
+        function downloadReport() { if(currentReport) downloadReportById(currentReport); }
+        function downloadReportById(id) { const r = reportsData.find(rep => rep.id === id); alert(`تحميل ${r.title}`); }
+        function scheduleReport(id) { const r = reportsData.find(rep => rep.id === id); alert(`جدولة ${r.title}`); }
+        function runScheduledReport(id) { alert(`تشغيل تقرير مجدول ${id}`); }
+        function editSchedule(id) { alert(`تعديل جدولة ${id}`); }
+        function toggleSchedule(id) { const s = scheduledReports.find(sc => sc.id === id); s.active = !s.active; loadScheduledReports(); }
+        function generateAllReports() { alert('إنشاء جميع التقارير...'); }
+        function showScheduleModal() { alert('فتح نافذة الجدولة'); }
 
-        // تحميل التقرير
-        function downloadReport() {
-            if (!currentReport) {
-                alert('يرجى اختيار تقرير أولاً');
-                return;
+        function logout() {
+            if (confirm('تسجيل الخروج؟')) {
+                sessionStorage.removeItem('user');
+                window.location.href = 'index.html';
             }
-            
-            const report = reportsData.find(r => r.id === currentReport);
-            alert(`جاري تحميل التقرير: ${report.title}\n\nسيتم تنزيل ملف PDF في الإصدار القادم`);
-        }
-
-        // تحميل التقرير حسب المعرف
-        function downloadReportById(reportId) {
-            const report = reportsData.find(r => r.id === reportId);
-            const fileName = `${report.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-            
-            alert(`📥 تحميل التقرير:\n\nالتقرير: ${report.title}\nاسم الملف: ${fileName}\nالحجم: ~2 MB\n\nسيتم بدء التنزيل تلقائياً`);
-        }
-
-        // جدولة تقرير
-        function scheduleReport(reportId) {
-            const report = reportsData.find(r => r.id === reportId);
-            const frequency = prompt(`جدولة تقرير: ${report.title}\n\nاختر التكرار:\n1. يومياً\n2. أسبوعياً\n3. شهرياً\n4. ربع سنوي\n\nأدخل الرقم المناسب:`, '2');
-            
-            if (frequency) {
-                let freqText = '';
-                switch(frequency) {
-                    case '1': freqText = 'يومياً'; break;
-                    case '2': freqText = 'أسبوعياً'; break;
-                    case '3': freqText = 'شهرياً'; break;
-                    case '4': freqText = 'ربع سنوي'; break;
-                    default: freqText = 'أسبوعياً';
-                }
-                
-                const email = prompt('أدخل البريد الإلكتروني للمستلم (افصل بينهم بفاصلة لأكثر من مستلم):', 'admin@company.com');
-                
-                if (email) {
-                    const newSchedule = {
-                        id: scheduledReports.length + 1,
-                        reportId: reportId,
-                        title: `جدولة ${report.title}`,
-                        frequency: freqText,
-                        time: "08:00 ص",
-                        recipients: email.split(',').map(e => e.trim()),
-                        nextRun: "غداً 08:00 ص",
-                        active: true
-                    };
-                    
-                    scheduledReports.push(newSchedule);
-                    loadScheduledReports();
-                    
-                    alert(`✅ تم جدولة التقرير:\n\nالتقرير: ${report.title}\nالتكرار: ${freqText}\nالمستلمون: ${email}\n\nسيتم إرسال التقرير تلقائياً حسب الجدول`);
-                }
-            }
-        }
-
-        // تشغيل تقرير مجدول
-        function runScheduledReport(scheduleId) {
-            const schedule = scheduledReports.find(s => s.id === scheduleId);
-            const report = reportsData.find(r => r.id === schedule.reportId);
-            
-            alert(`جاري تشغيل التقرير المجدول:\n\n${schedule.title}\n\nسيتم إرساله إلى:\n${schedule.recipients.join('\n')}`);
-        }
-
-        // تعديل جدولة
-        function editSchedule(scheduleId) {
-            alert('خاصية تعديل الجدولة قيد التطوير');
-        }
-
-        // تبديل حالة الجدولة
-        function toggleSchedule(scheduleId) {
-            const schedule = scheduledReports.find(s => s.id === scheduleId);
-            schedule.active = !schedule.active;
-            
-            loadScheduledReports();
-            
-            alert(`تم ${schedule.active ? 'تفعيل' : 'إيقاف'} الجدولة: ${schedule.title}`);
-        }
-
-        // إنشاء جميع التقارير
-        function generateAllReports() {
-            if (confirm('هل تريد إنشاء جميع التقارير للفترة الحالية؟\nقد تستغرق هذه العملية عدة دقائق.')) {
-                document.getElementById('previewContent').innerHTML = `
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>جاري إنشاء جميع التقارير...</p>
-                        <small>الرجاء الانتظار</small>
-                    </div>
-                `;
-                
-                document.getElementById('reportPreview').style.display = 'block';
-                document.getElementById('previewTitle').textContent = 'إنشاء جميع التقارير';
-                
-                setTimeout(() => {
-                    document.getElementById('previewContent').innerHTML = `
-                        <h3>✅ تم إنشاء جميع التقارير بنجاح</h3>
-                        <p>تم إنشاء ${reportsData.length} تقرير للفترة الحالية</p>
-                        
-                        <div style="margin: 20px 0; padding: 15px; background: var(--success); color: white; border-radius: 8px;">
-                            <strong>التقارير المنجزة:</strong>
-                            <ul style="margin-top: 10px;">
-                                ${reportsData.map(r => `<li>${r.title}</li>`).join('')}
-                            </ul>
-                        </div>
-                        
-                        <div style="text-align: center; margin-top: 20px;">
-                            <button class="btn btn-success" onclick="downloadAllReports()">
-                                <i class="fas fa-download"></i> تحميل جميع التقارير (ZIP)
-                            </button>
-                            <button class="btn btn-primary" onclick="emailAllReports()">
-                                <i class="fas fa-envelope"></i> إرسال بالبريد
-                            </button>
-                        </div>
-                    `;
-                }, 3000);
-            }
-        }
-
-        // تحميل جميع التقارير
-        function downloadAllReports() {
-            alert('جاري تجميع جميع التقارير في ملف مضغوط (ZIP)\n\nسيبدأ التنزيل تلقائياً...');
-        }
-
-        // إرسال جميع التقارير بالبريد
-        function emailAllReports() {
-            const email = prompt('أدخل البريد الإلكتروني:', 'admin@company.com');
-            if (email) {
-                alert(`سيتم إرسال جميع التقارير إلى: ${email}\n\nسيتم إعلامك عند اكتمال الإرسال.`);
-            }
-        }
-
-        // عرض نافذة الجدولة
-        function showScheduleModal() {
-            alert('نافذة جدولة التقارير\n\nسيتم تفعيل هذه الميزة في الإصدار القادم');
         }
     </script>
 </body>
