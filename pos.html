@@ -581,6 +581,7 @@
     <script src="js/storage.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/print.js"></script>
     <script>
         // المتغيرات العامة
         let cart = [];
@@ -954,36 +955,34 @@
             // إعادة تحميل المنتجات لتحديث المخزون المعروض
             renderProducts();
         }
+        // داخل pos.html، استبدل دالة printInvoice الموجودة بهذه:
+function printReceipt() {
+    if (cart.length === 0) {
+        alert('لا توجد عناصر للطباعة');
+        return;
+    }
+    
+    const totals = {
+        subtotal: cart.reduce((s, i) => s + i.price * i.quantity, 0),
+        discount: parseFloat(document.getElementById('discountAmount').value) || 0,
+        tax: 0,
+        net: parseFloat(document.getElementById('netTotal').textContent) || 0
+    };
+    totals.tax = (totals.subtotal - totals.discount) * 0.14;
+    
+    const customerSelect = document.getElementById('customerSelect');
+    const customerId = customerSelect.value;
+    const customers = Storage.getCustomers();
+    const customer = customers.find(c => c.id == customerId);
+    
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    
+    PrintSystem.printThermalReceipt(cart, totals, customer, paymentMethod);
+}
 
-        function printInvoice() {
-            if (cart.length === 0) {
-                alert('لا توجد عناصر للطباعة');
-                return;
-            }
-            const printWindow = window.open('', '_blank');
-            const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
-            printWindow.document.write(`
-                <html dir="rtl">
-                    <head><title>فاتورة بيع</title>
-                    <style>
-                        body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
-                        h2 { color: #2c3e50; }
-                        table { width: 100%; border-collapse: collapse; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
-                        th { background: #f2f2f2; }
-                    </style>
-                    </head>
-                    <body>
-                        <h2>فاتورة بيع</h2>
-                        <p>التاريخ: ${Utils.getToday()}</p>
-                        <table>
-                            <thead><tr><th>المنتج</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-                            <tbody>
-                                ${cart.map(item => `<tr><td>${item.productName}</td><td>${item.unitName}</td><td>${item.quantity}</td><td>${item.price}</td><td>${(item.price * item.quantity).toFixed(2)}</td></tr>`).join('')}
-                            </tbody>
-                        </table>
-                        <p style="text-align:left; font-size:18px;">الصافي: ${document.getElementById('netTotal').textContent}</p>
-                    </body>
+// في completeSale()، بعد حفظ الفاتورة، يمكن إضافة سؤال للطباعة:
+// if (confirm('هل تريد طباعة الإيصال؟')) printReceipt();
+body>
                 </html>
             `);
             printWindow.document.close();
@@ -1023,5 +1022,11 @@
             alert('لم يتم العثور على منتج بهذا الباركود');
         }
     </script>
+    <link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
+</script>
 </body>
 </html>
