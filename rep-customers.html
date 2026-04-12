@@ -85,7 +85,6 @@
         <div class="customers-list" id="customersList"></div>
     </div>
 
-    <!-- مودال إضافة عميل -->
     <div class="modal" id="customerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -103,19 +102,6 @@
         </div>
     </div>
 
-    <!-- مودال تفاصيل العميل -->
-    <div class="modal" id="detailsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="detailsTitle">تفاصيل العميل</h3>
-                <button class="close-btn" onclick="closeDetailsModal()">&times;</button>
-            </div>
-            <div id="detailsBody"></div>
-            <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="goToCustomerOrders()">عرض الطلبات</button>
-            <button class="btn" style="width:100%; margin-top:10px; background:#eee;" onclick="closeDetailsModal()">إغلاق</button>
-        </div>
-    </div>
-
     <div class="bottom-nav">
         <a href="rep-dashboard.html" class="nav-item"><i class="fas fa-home"></i><span>الرئيسية</span></a>
         <a href="rep-pos.html" class="nav-item"><i class="fas fa-cash-register"></i><span>بيع</span></a>
@@ -130,13 +116,12 @@
     <script src="js/ui.js"></script>
     <script>
         let customers = [];
-        let selectedCustomerId = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
-            const user = Auth.getUser();
-            document.getElementById('userAvatar').textContent = user.avatar;
-
+            if (!Auth.requireRole(['rep', 'admin'])) return;
+            await UI.initPage('عملاء المندوب');
+            document.getElementById('userAvatar').textContent = Auth.getUser().avatar;
             await loadCustomers();
             document.getElementById('searchInput').addEventListener('input', filterCustomers);
         });
@@ -155,7 +140,7 @@
             container.innerHTML = list.map(c => {
                 const balanceClass = c.balance >= 0 ? 'balance-positive' : 'balance-negative';
                 return `
-                    <div class="customer-item" onclick="showCustomerDetails(${c.id})">
+                    <div class="customer-item" onclick="editCustomer(${c.id})">
                         <div class="customer-info">
                             <h4>${c.name}</h4>
                             <p>${c.phone || 'بدون هاتف'}</p>
@@ -203,23 +188,7 @@
             closeCustomerModal();
         }
 
-        function showCustomerDetails(id) {
-            const customer = customers.find(c => c.id === id);
-            if (!customer) return;
-            selectedCustomerId = id;
-            document.getElementById('detailsTitle').textContent = customer.name;
-            document.getElementById('detailsBody').innerHTML = `
-                <p><strong>الهاتف:</strong> ${customer.phone || '-'}</p>
-                <p><strong>العنوان:</strong> ${customer.address || '-'}</p>
-                <p><strong>الرصيد:</strong> ${Utils.formatMoney(customer.balance)} ${customer.balance < 0 ? '(مدين)' : '(دائن)'}</p>
-                <p><strong>آخر تعامل:</strong> ${customer.lastTransaction || '-'}</p>
-                <button class="btn" style="margin-top:10px; width:100%;" onclick="editCustomer(${id})"><i class="fas fa-edit"></i> تعديل</button>
-            `;
-            document.getElementById('detailsModal').style.display = 'flex';
-        }
-
         function editCustomer(id) {
-            closeDetailsModal();
             const c = customers.find(c => c.id === id);
             if (!c) return;
             document.getElementById('modalTitle').textContent = 'تعديل عميل';
@@ -228,15 +197,6 @@
             document.getElementById('customerPhone').value = c.phone || '';
             document.getElementById('customerAddress').value = c.address || '';
             document.getElementById('customerModal').style.display = 'flex';
-        }
-
-        function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
-
-        function goToCustomerOrders() {
-            if (selectedCustomerId) {
-                sessionStorage.setItem('selectedCustomerId', selectedCustomerId);
-                window.location.href = 'rep-orders.html';
-            }
         }
     </script>
 </body>
