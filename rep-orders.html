@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>الطلبات - مندوب</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71; --danger: #e74c3c; --warning: #f39c12;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f5f6fa; }
+        .navbar { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 0 15px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 60px; }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), #1abc9c); color: white; width: 35px; height: 35px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .logo-text h2 { color: var(--primary); font-size: 18px; }
+        .user-avatar { width: 40px; height: 40px; background: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+
+        .container { margin-top: 60px; padding: 15px 15px 80px; }
+        .page-header { margin-bottom: 15px; }
+        .page-header h1 { font-size: 22px; color: var(--primary); }
+
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .filter-tab { flex: 1; padding: 10px; border: none; border-radius: 20px; background: white; cursor: pointer; font-weight: 600; }
+        .filter-tab.active { background: var(--secondary); color: white; }
+
+        .orders-list { background: white; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); overflow: hidden; }
+        .order-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .order-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .order-customer { font-weight: bold; color: var(--primary); }
+        .order-total { font-weight: bold; }
+        .order-details { display: flex; justify-content: space-between; font-size: 13px; color: #7f8c8d; }
+        .status-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; }
+        .status-paid { background: rgba(46,204,113,0.1); color: var(--success); }
+        .status-pending { background: rgba(243,156,18,0.1); color: var(--warning); }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 999; }
+        .nav-item { text-align: center; color: #7f8c8d; text-decoration: none; font-size: 11px; }
+        .nav-item i { font-size: 20px; display: block; margin-bottom: 3px; }
+        .nav-item.active { color: var(--secondary); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <div class="logo-text"><h2>الطلبات</h2></div>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">م</div>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-shopping-cart"></i> طلباتي</h1>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterOrders('all')">الكل</button>
+            <button class="filter-tab" onclick="filterOrders('paid')">مدفوعة</button>
+            <button class="filter-tab" onclick="filterOrders('pending')">معلقة</button>
+        </div>
+
+        <div class="orders-list" id="ordersList"></div>
+    </div>
+
+    <!-- مودال تفاصيل الطلب -->
+    <div class="modal" id="orderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="orderTitle">تفاصيل الطلب</h3>
+                <button class="close-btn" onclick="closeOrderModal()">&times;</button>
+            </div>
+            <div id="orderBody"></div>
+            <button class="btn" style="width:100%; margin-top:15px; background:var(--secondary); color:white; padding:12px; border:none; border-radius:8px;" onclick="printOrder()"><i class="fas fa-print"></i> طباعة</button>
+            <button class="btn" style="width:100%; margin-top:10px; background:#eee;" onclick="closeOrderModal()">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="rep-dashboard.html" class="nav-item"><i class="fas fa-home"></i><span>الرئيسية</span></a>
+        <a href="rep-pos.html" class="nav-item"><i class="fas fa-cash-register"></i><span>بيع</span></a>
+        <a href="rep-customers.html" class="nav-item"><i class="fas fa-users"></i><span>العملاء</span></a>
+        <a href="rep-orders.html" class="nav-item active"><i class="fas fa-shopping-cart"></i><span>الطلبات</span></a>
+        <a href="rep-collections.html" class="nav-item"><i class="fas fa-money-bill"></i><span>تحصيل</span></a>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/print.js"></script>
+    <script>
+        let allOrders = [];
+        let currentFilter = 'all';
+        let selectedOrder = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!Auth.requireAuth()) return;
+            const user = Auth.getUser();
+            document.getElementById('userAvatar').textContent = user.avatar;
+
+            await loadOrders();
+            
+            const customerId = sessionStorage.getItem('selectedCustomerId');
+            if (customerId) {
+                sessionStorage.removeItem('selectedCustomerId');
+                filterByCustomer(customerId);
+            }
+        });
+
+        async function loadOrders() {
+            const invoices = await Storage.getInvoices();
+            const user = Auth.getUser();
+            const repId = user.repId || user.id;
+            allOrders = invoices.filter(inv => inv.type === 'sale' && (inv.repId == repId || !inv.repId));
+            renderOrders(allOrders);
+        }
+
+        function renderOrders(orders) {
+            const container = document.getElementById('ordersList');
+            let filtered = orders;
+            if (currentFilter === 'paid') filtered = orders.filter(o => o.status === 'paid');
+            else if (currentFilter === 'pending') filtered = orders.filter(o => o.status !== 'paid');
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p style="text-align:center; padding:30px;">لا توجد طلبات</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.sort((a,b) => new Date(b.date) - new Date(a.date)).map(order => `
+                <div class="order-item" onclick="showOrderDetails('${order.id}')">
+                    <div class="order-header">
+                        <span class="order-customer">${order.customer}</span>
+                        <span class="order-total">${Utils.formatMoney(order.total)}</span>
+                    </div>
+                    <div class="order-details">
+                        <span>${order.id} - ${order.date}</span>
+                        <span class="status-badge ${order.status === 'paid' ? 'status-paid' : 'status-pending'}">${order.status === 'paid' ? 'مدفوع' : 'معلق'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterOrders(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            renderOrders(allOrders);
+        }
+
+        function filterByCustomer(customerId) {
+            const customer = customers?.find(c => c.id == customerId);
+            if (customer) {
+                allOrders = allOrders.filter(o => o.customerId == customerId);
+                renderOrders(allOrders);
+            }
+        }
+
+        function showOrderDetails(orderId) {
+            selectedOrder = allOrders.find(o => o.id === orderId);
+            if (!selectedOrder) return;
+
+            document.getElementById('orderTitle').textContent = `طلب ${selectedOrder.id}`;
+            let itemsHtml = '';
+            if (selectedOrder.items) {
+                itemsHtml = selectedOrder.items.map(i => `
+                    <tr><td>${i.productName}</td><td>${i.quantity} ${i.unitName || ''}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.total || i.price * i.quantity)}</td></tr>
+                `).join('');
+            }
+
+            document.getElementById('orderBody').innerHTML = `
+                <p><strong>العميل:</strong> ${selectedOrder.customer}</p>
+                <p><strong>التاريخ:</strong> ${selectedOrder.date}</p>
+                <p><strong>طريقة الدفع:</strong> ${selectedOrder.paymentMethod === 'cash' ? 'نقدي' : 'آجل'}</p>
+                <table style="width:100%; margin:15px 0; border-collapse:collapse;">
+                    <thead><tr><th>الصنف</th><th>كم</th><th>سعر</th><th>إجمالي</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(selectedOrder.total)}</p>
+                <p><strong>المدفوع:</strong> ${Utils.formatMoney(selectedOrder.paid)}</p>
+                <p><strong>المتبقي:</strong> ${Utils.formatMoney(selectedOrder.remaining)}</p>
+            `;
+            document.getElementById('orderModal').style.display = 'flex';
+        }
+
+        function closeOrderModal() { document.getElementById('orderModal').style.display = 'none'; }
+
+        function printOrder() {
+            if (selectedOrder) {
+                PrintSystem.printInvoice(selectedOrder, selectedOrder.items || []);
+            }
+        }
+
+        let customers = [];
+        (async () => { customers = await Storage.getCustomers(); })();
+    </script>
+</body>
+</html>
