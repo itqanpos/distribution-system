@@ -3,7 +3,7 @@
 
 const UI = {
     // تهيئة الصفحة الأساسية (شريط التنقل، الشريط الجانبي، معلومات المستخدم)
-    initPage(title) {
+    async initPage(title) {
         // التحقق من المصادقة
         if (!Auth.requireAuth()) return false;
 
@@ -26,7 +26,19 @@ const UI = {
         // تحديد العنصر النشط في القائمة الجانبية (بناءً على اسم الصفحة)
         this.highlightCurrentMenuItem();
         
+        // تسجيل Service Worker للعمل Offline
+        this.registerServiceWorker();
+        
         return true;
+    },
+
+    // تسجيل Service Worker
+    registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker failed', err));
+        }
     },
 
     // تحديد رابط القائمة النشط
@@ -43,54 +55,6 @@ const UI = {
         });
     },
 
-    // إنشاء شريط التنقل (يمكن استخدامه في الصفحات التي لا تحتويه)
-    renderNavbar() {
-        const user = Auth.getUser();
-        return `
-            <nav class="navbar">
-                <div class="logo">
-                    <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                    <div class="logo-text">
-                        <h2>نظام التوزيع الغذائي</h2>
-                        <p>إدارة متكاملة للتوزيع والمبيعات</p>
-                    </div>
-                </div>
-                <div class="user-info">
-                    <div class="user-details">
-                        <h4>${user.name}</h4>
-                        <p>${user.loginTime}</p>
-                    </div>
-                    <div class="user-avatar">${user.avatar}</div>
-                    <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
-                </div>
-            </nav>
-        `;
-    },
-
-    // إنشاء الشريط الجانبي
-    renderSidebar() {
-        return `
-            <aside class="sidebar">
-                <ul class="menu">
-                    <div class="menu-section">القائمة الرئيسية</div>
-                    <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-                    <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-                    <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-                    <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-                    <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-                    <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-                    <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-                    <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-                    <div class="menu-section">الإدارة</div>
-                    <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-                    <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-                    <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-                    <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
-                </ul>
-            </aside>
-        `;
-    },
-
     // تسجيل الخروج
     logout() {
         Utils.confirmAction('هل تريد تسجيل الخروج؟', () => {
@@ -104,8 +68,8 @@ const UI = {
         const container = document.getElementById(containerId);
         if (container) {
             container.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
+                <div class="loading" style="text-align:center; padding:40px;">
+                    <div class="spinner" style="width:40px; height:40px; border:4px solid #f3f3f3; border-top:4px solid var(--secondary); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 15px;"></div>
                     <p>${message}</p>
                 </div>
             `;
@@ -132,7 +96,39 @@ const UI = {
             option.textContent = opt[textField];
             select.appendChild(option);
         });
+    },
+
+    // التنقل بين الصفحات مع مراعاة الدور
+    navigateTo(page) {
+        const user = Auth.getUser();
+        const basePath = user && user.role === 'admin' ? '' : 'rep-';
+        
+        const routes = {
+            'dashboard': basePath + 'dashboard.html',
+            'pos': basePath + 'pos.html',
+            'customers': basePath + 'customers.html',
+            'orders': basePath + 'orders.html',
+            'collections': basePath + 'collections.html',
+            'sales': 'sales.html',
+            'invoices': 'invoices.html',
+            'purchases': 'purchases.html',
+            'cashbox': 'cashbox.html',
+            'reports': 'reports.html',
+            'accounting': 'accounting.html',
+            'reps': 'reps.html',
+            'products': 'products.html',
+            'settings': 'settings.html'
+        };
+        
+        if (routes[page]) {
+            window.location.href = routes[page];
+        }
     }
 };
+
+// إضافة animation للـ spinner
+const style = document.createElement('style');
+style.textContent = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+document.head.appendChild(style);
 
 window.UI = UI;
