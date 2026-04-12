@@ -18,384 +18,74 @@
             --dark: #34495e;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #f5f6fa; color: #333; }
 
-        body {
-            background: #f5f6fa;
-            color: #333;
-        }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-        /* شريط التنقل */
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 0 20px;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
-        }
+        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
+        .menu { list-style: none; }
+        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
+        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
+        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
+        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .logo-text h2 {
-            color: var(--primary);
-            font-size: 20px;
-        }
-
-        .logo-text p {
-            color: var(--secondary);
-            font-size: 12px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            background: linear-gradient(135deg, var(--success), var(--info));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .user-details h4 {
-            color: var(--primary);
-        }
-
-        .user-details p {
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-
-        .logout-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* الشريط الجانبي */
-        .sidebar {
-            background: white;
-            width: 250px;
-            height: calc(100vh - 70px);
-            position: fixed;
-            top: 70px;
-            right: 0;
-            box-shadow: 2px 0 15px rgba(0,0,0,0.05);
-            padding: 20px 0;
-            overflow-y: auto;
-        }
-
-        .menu {
-            list-style: none;
-        }
-
-        .menu-item {
-            padding: 12px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--dark);
-            text-decoration: none;
-            border-right: 4px solid transparent;
-            cursor: pointer;
-            font-size: 15px;
-        }
-
-        .menu-item:hover {
-            background: var(--light);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-        }
-
-        .menu-item.active {
-            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .menu-item i {
-            width: 22px;
-            text-align: center;
-            font-size: 18px;
-        }
-
-        .menu-section {
-            padding: 20px 25px 10px;
-            color: #7f8c8d;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* المحتوى الرئيسي */
-        .main-content {
-            margin-right: 250px;
-            margin-top: 70px;
-            padding: 25px;
-            min-height: calc(100vh - 70px);
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .page-title {
-            color: var(--primary);
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
+        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--secondary); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        /* بطاقات ملخص */
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .summary-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border-top: 5px solid;
-        }
-
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .summary-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 5px solid; }
         .summary-card.count { border-top-color: var(--secondary); }
         .summary-card.sales { border-top-color: var(--success); }
         .summary-card.collections { border-top-color: var(--warning); }
         .summary-card.target { border-top-color: var(--primary); }
+        .summary-icon { font-size: 22px; margin-bottom: 8px; }
+        .summary-value { font-size: 22px; font-weight: bold; color: var(--primary); }
+        .summary-label { color: #7f8c8d; font-size: 12px; }
 
-        .summary-icon {
-            font-size: 22px;
-            margin-bottom: 8px;
-        }
+        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; }
+        .search-box input { border: none; outline: none; font-size: 14px; width: 200px; }
 
-        .summary-value {
-            font-size: 22px;
-            font-weight: bold;
-            color: var(--primary);
-        }
-
-        .summary-label {
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-
-        /* جدول */
-        .table-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .search-box {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .search-box input {
-            border: none;
-            outline: none;
-            font-size: 14px;
-            width: 200px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f8f9fa;
-            color: var(--primary);
-            font-weight: 600;
-            text-align: right;
-            padding: 12px 15px;
-        }
-
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .progress-container {
-            width: 80px;
-            height: 6px;
-            background: #e0e0e0;
-            border-radius: 10px;
-            overflow: hidden;
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--success);
-            border-radius: 10px;
-        }
-
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .progress-container { width: 80px; height: 6px; background: #e0e0e0; border-radius: 10px; overflow: hidden; display: inline-block; margin-right: 8px; }
+        .progress-fill { height: 100%; background: var(--success); border-radius: 10px; }
         .performance-high { color: var(--success); }
         .performance-mid { color: var(--warning); }
         .performance-low { color: var(--danger); }
 
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 5px;
-        }
-
+        .action-buttons { display: flex; gap: 5px; }
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; }
         .action-btn.view { color: var(--secondary); }
         .action-btn.edit { color: var(--warning); }
         .action-btn.sale { color: var(--success); }
         .action-btn.collect { color: var(--info); }
 
-        /* مودال */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 25px;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
-            border-top: 1px solid #eee;
-            margin-top: 30px;
-        }
+        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
 
         @media (max-width: 992px) {
             .sidebar { width: 70px; }
@@ -403,28 +93,16 @@
             .main-content { margin-right: 70px; }
             .menu-item { justify-content: center; padding: 15px; }
         }
-
-        @media (max-width: 768px) {
-            .navbar { padding: 0 10px; }
-            .logo-text h2 { font-size: 16px; }
-            .user-details { display: none; }
-        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">
             <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text">
-                <h2>نظام التوزيع الغذائي</h2>
-                <p>إدارة المندوبين</p>
-            </div>
+            <div class="logo-text"><h2>نظام التوزيع الغذائي</h2><p>إدارة المندوبين</p></div>
         </div>
         <div class="user-info">
-            <div class="user-details">
-                <h4 id="userName">مدير النظام</h4>
-                <p id="loginTime"></p>
-            </div>
+            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
             <div class="user-avatar" id="userAvatar">م</div>
             <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </div>
@@ -451,13 +129,8 @@
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title">
-                <i class="fas fa-users"></i>
-                <h1>المندوبين</h1>
-            </div>
-            <div>
-                <button class="btn btn-primary" onclick="openRepModal()"><i class="fas fa-plus"></i> مندوب جديد</button>
-            </div>
+            <div class="page-title"><i class="fas fa-users"></i><h1>المندوبين</h1></div>
+            <div><button class="btn btn-primary" onclick="openRepModal()"><i class="fas fa-plus"></i> مندوب جديد</button></div>
         </div>
 
         <div class="summary-cards">
@@ -468,57 +141,24 @@
         </div>
 
         <div class="table-container">
-            <div class="table-header">
-                <h3>قائمة المندوبين</h3>
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="بحث..." id="searchInput">
-                </div>
-            </div>
-            <table>
-                <thead><tr><th>المندوب</th><th>المنطقة</th><th>المبيعات</th><th>التحصيلات</th><th>الهدف</th><th>نسبة الإنجاز</th><th>المستحقات</th><th>إجراءات</th></tr></thead>
-                <tbody id="repsTableBody"></tbody>
-            </table>
+            <div class="table-header"><h3>قائمة المندوبين</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div></div>
+            <table><thead><tr><th>المندوب</th><th>المنطقة</th><th>المبيعات</th><th>التحصيلات</th><th>الهدف</th><th>نسبة الإنجاز</th><th>المستحقات</th><th>إجراءات</th></tr></thead><tbody id="repsTableBody"></tbody></table>
         </div>
-
-        <div class="footer">
-            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
-        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <!-- مودال إضافة/تعديل مندوب -->
     <div class="modal" id="repModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">مندوب جديد</h3>
-                <button class="close-btn" onclick="closeRepModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3 id="modalTitle">مندوب جديد</h3><button class="close-btn" onclick="closeRepModal()">&times;</button></div>
             <form id="repForm" onsubmit="saveRep(event)">
                 <input type="hidden" id="repId">
-                <div class="form-group">
-                    <label>اسم المندوب</label>
-                    <input type="text" id="repName" required>
-                </div>
-                <div class="form-group">
-                    <label>الهاتف</label>
-                    <input type="tel" id="repPhone">
-                </div>
-                <div class="form-group">
-                    <label>المنطقة</label>
-                    <input type="text" id="repRegion">
-                </div>
-                <div class="form-group">
-                    <label>الهدف الشهري (ج)</label>
-                    <input type="number" id="repTarget" min="0" value="15000">
-                </div>
-                <div class="form-group">
-                    <label>نسبة العمولة (%)</label>
-                    <input type="number" id="repCommission" min="0" max="100" step="0.5" value="5">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeRepModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
+                <div class="form-group"><label>اسم المندوب</label><input type="text" id="repName" required></div>
+                <div class="form-group"><label>الهاتف</label><input type="tel" id="repPhone"></div>
+                <div class="form-group"><label>المنطقة</label><input type="text" id="repRegion"></div>
+                <div class="form-group"><label>الهدف الشهري (ج)</label><input type="number" id="repTarget" min="0" value="15000"></div>
+                <div class="form-group"><label>نسبة العمولة (%)</label><input type="number" id="repCommission" min="0" max="100" step="0.5" value="5"></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closeRepModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
@@ -526,35 +166,14 @@
     <!-- مودال حركة (مبيعات/تحصيل) -->
     <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="transModalTitle">تسجيل حركة</h3>
-                <button class="close-btn" onclick="closeTransactionModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3 id="transModalTitle">تسجيل حركة</h3><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
             <form id="transactionForm" onsubmit="saveRepTransaction(event)">
                 <input type="hidden" id="transRepId">
-                <div class="form-group">
-                    <label>نوع الحركة</label>
-                    <select id="transType" required>
-                        <option value="sale">مبيعات</option>
-                        <option value="collection">تحصيل</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>المبلغ (ج)</label>
-                    <input type="number" id="transAmount" min="0.01" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="transDate" required>
-                </div>
-                <div class="form-group">
-                    <label>ملاحظات</label>
-                    <input type="text" id="transNotes">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
+                <div class="form-group"><label>نوع الحركة</label><select id="transType" required><option value="sale">مبيعات</option><option value="collection">تحصيل</option></select></div>
+                <div class="form-group"><label>المبلغ (ج)</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
+                <div class="form-group"><label>ملاحظات</label><input type="text" id="transNotes"></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
@@ -566,72 +185,49 @@
     <script>
         let reps = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!UI.initPage('المندوبين')) return;
-
-            reps = Storage.getReps();
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Auth.requireAuth()) return;
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('المندوبين');
+            reps = await Storage.getReps();
             document.getElementById('transDate').value = Utils.getToday();
             renderAll();
             document.getElementById('searchInput').addEventListener('input', filterReps);
         });
 
-        function renderAll() {
-            renderTable(reps);
-            updateSummary();
-        }
-
+        function renderAll() { renderTable(reps); updateSummary(); }
         function renderTable(data) {
             const tbody = document.getElementById('repsTableBody');
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا يوجد مندوبين</td></tr>';
-                return;
-            }
+            if (!data.length) { tbody.innerHTML = '<tr><td colspan="8">لا يوجد مندوبين</td></tr>'; return; }
             tbody.innerHTML = data.map(rep => {
-                const performance = rep.target > 0 ? (rep.sales / rep.target) * 100 : 0;
-                let perfClass = performance >= 90 ? 'performance-high' : (performance >= 70 ? 'performance-mid' : 'performance-low');
-                const commission = rep.sales * rep.commission / 100;
-                const due = commission - (rep.collections || 0);
-                return `
-                    <tr>
-                        <td>${rep.name}</td>
-                        <td>${rep.region || '-'}</td>
-                        <td>${Utils.formatMoney(rep.sales)}</td>
-                        <td>${Utils.formatMoney(rep.collections)}</td>
-                        <td>${Utils.formatMoney(rep.target)}</td>
-                        <td>
-                            <div style="display:flex;align-items:center;">
-                                <span class="${perfClass}">${Math.round(performance)}%</span>
-                                <div class="progress-container"><div class="progress-fill" style="width:${Math.min(performance,100)}%"></div></div>
-                            </div>
-                        </td>
-                        <td style="color:${due > 0 ? 'var(--danger)' : 'var(--success)'}">${Utils.formatMoney(due)}</td>
-                        <td class="action-buttons">
-                            <button class="action-btn view" onclick="viewRep(${rep.id})"><i class="fas fa-eye"></i></button>
-                            <button class="action-btn edit" onclick="editRep(${rep.id})"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn sale" onclick="openTransactionModal(${rep.id}, 'sale')"><i class="fas fa-cart-plus"></i></button>
-                            <button class="action-btn collect" onclick="openTransactionModal(${rep.id}, 'collection')"><i class="fas fa-money-bill"></i></button>
-                        </td>
-                    </tr>
-                `;
+                const perf = rep.target ? (rep.sales/rep.target)*100 : 0;
+                let cls = perf >= 90 ? 'performance-high' : (perf >= 70 ? 'performance-mid' : 'performance-low');
+                const comm = rep.sales * rep.commission / 100;
+                const due = comm - (rep.collections||0);
+                return `<tr><td>${rep.name}</td><td>${rep.region||'-'}</td><td>${Utils.formatMoney(rep.sales)}</td><td>${Utils.formatMoney(rep.collections)}</td><td>${Utils.formatMoney(rep.target)}</td>
+                <td><div style="display:flex;align-items:center;"><span class="${cls}">${Math.round(perf)}%</span><div class="progress-container"><div class="progress-fill" style="width:${Math.min(perf,100)}%"></div></div></div></td>
+                <td style="color:${due>0?'var(--danger)':'var(--success)'}">${Utils.formatMoney(due)}</td>
+                <td class="action-buttons"><button class="action-btn view" onclick="viewRep(${rep.id})"><i class="fas fa-eye"></i></button>
+                <button class="action-btn edit" onclick="editRep(${rep.id})"><i class="fas fa-edit"></i></button>
+                <button class="action-btn sale" onclick="openTransactionModal(${rep.id},'sale')"><i class="fas fa-cart-plus"></i></button>
+                <button class="action-btn collect" onclick="openTransactionModal(${rep.id},'collection')"><i class="fas fa-money-bill"></i></button></td></tr>`;
             }).join('');
         }
 
         function filterReps() {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = reps.filter(r => r.name.toLowerCase().includes(term) || (r.region && r.region.includes(term)));
-            renderTable(filtered);
+            renderTable(reps.filter(r => r.name.toLowerCase().includes(term) || (r.region||'').includes(term)));
         }
 
         function updateSummary() {
-            const count = reps.length;
-            const sales = reps.reduce((s, r) => s + r.sales, 0);
-            const collections = reps.reduce((s, r) => s + r.collections, 0);
-            const avgPerf = reps.length > 0 ? reps.reduce((s, r) => s + (r.target > 0 ? r.sales / r.target : 0), 0) / reps.length * 100 : 0;
-
-            document.getElementById('totalReps').textContent = count;
+            const cnt = reps.length;
+            const sales = reps.reduce((s,r)=>s+r.sales,0);
+            const coll = reps.reduce((s,r)=>s+r.collections,0);
+            const avg = reps.length ? reps.reduce((s,r)=>s+(r.target?r.sales/r.target:0),0)/reps.length*100 : 0;
+            document.getElementById('totalReps').textContent = cnt;
             document.getElementById('totalSales').textContent = Utils.formatMoney(sales);
-            document.getElementById('totalCollections').textContent = Utils.formatMoney(collections);
-            document.getElementById('avgPerformance').textContent = Math.round(avgPerf) + '%';
+            document.getElementById('totalCollections').textContent = Utils.formatMoney(coll);
+            document.getElementById('avgPerformance').textContent = Math.round(avg)+'%';
         }
 
         function openRepModal() {
@@ -642,100 +238,74 @@
         }
 
         function editRep(id) {
-            const rep = reps.find(r => r.id === id);
-            if (!rep) return;
+            const rep = reps.find(r=>r.id===id); if(!rep)return;
             document.getElementById('modalTitle').textContent = 'تعديل مندوب';
             document.getElementById('repId').value = rep.id;
             document.getElementById('repName').value = rep.name;
-            document.getElementById('repPhone').value = rep.phone || '';
-            document.getElementById('repRegion').value = rep.region || '';
+            document.getElementById('repPhone').value = rep.phone||'';
+            document.getElementById('repRegion').value = rep.region||'';
             document.getElementById('repTarget').value = rep.target;
             document.getElementById('repCommission').value = rep.commission;
             document.getElementById('repModal').style.display = 'flex';
         }
 
-        function closeRepModal() {
-            document.getElementById('repModal').style.display = 'none';
-        }
+        function closeRepModal() { document.getElementById('repModal').style.display = 'none'; }
 
-        function saveRep(event) {
+        async function saveRep(event) {
             event.preventDefault();
             const id = document.getElementById('repId').value;
             const name = document.getElementById('repName').value;
             const phone = document.getElementById('repPhone').value;
             const region = document.getElementById('repRegion').value;
-            const target = parseFloat(document.getElementById('repTarget').value) || 15000;
-            const commission = parseFloat(document.getElementById('repCommission').value) || 5;
-
+            const target = parseFloat(document.getElementById('repTarget').value)||15000;
+            const commission = parseFloat(document.getElementById('repCommission').value)||5;
             if (id) {
-                const index = reps.findIndex(r => r.id == id);
-                if (index >= 0) {
-                    reps[index] = { ...reps[index], name, phone, region, target, commission };
-                }
+                const idx = reps.findIndex(r=>r.id==id);
+                if(idx>=0) reps[idx] = {...reps[idx], name, phone, region, target, commission};
             } else {
-                const newId = Date.now();
-                reps.push({ id: newId, name, phone, region, target, commission, sales: 0, collections: 0 });
+                reps.push({ id: Date.now(), name, phone, region, target, commission, sales:0, collections:0 });
             }
-
-            Storage.saveReps(reps);
+            await Storage.saveReps(reps);
             renderAll();
             closeRepModal();
         }
 
         function viewRep(id) {
-            const rep = reps.find(r => r.id === id);
-            alert(`المندوب: ${rep.name}\nالمبيعات: ${Utils.formatMoney(rep.sales)}\nالتحصيلات: ${Utils.formatMoney(rep.collections)}\nالهدف: ${Utils.formatMoney(rep.target)}\nالعمولة: ${rep.commission}%`);
+            const r = reps.find(x=>x.id===id);
+            alert(`المندوب: ${r.name}\nالمبيعات: ${Utils.formatMoney(r.sales)}\nالتحصيلات: ${Utils.formatMoney(r.collections)}\nالهدف: ${Utils.formatMoney(r.target)}\nالعمولة: ${r.commission}%`);
         }
 
         function openTransactionModal(id, type) {
-            const rep = reps.find(r => r.id === id);
-            if (!rep) return;
+            const rep = reps.find(r=>r.id===id); if(!rep)return;
             document.getElementById('transRepId').value = id;
             document.getElementById('transType').value = type;
             document.getElementById('transAmount').value = '';
             document.getElementById('transNotes').value = '';
-            document.getElementById('transDate').value = Utils.getToday();
-            document.getElementById('transModalTitle').textContent = `${type === 'sale' ? 'مبيعات' : 'تحصيل'} - ${rep.name}`;
+            document.getElementById('transModalTitle').textContent = `${type==='sale'?'مبيعات':'تحصيل'} - ${rep.name}`;
             document.getElementById('transactionModal').style.display = 'flex';
         }
 
-        function closeTransactionModal() {
-            document.getElementById('transactionModal').style.display = 'none';
-        }
+        function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
 
-        function saveRepTransaction(event) {
+        async function saveRepTransaction(event) {
             event.preventDefault();
             const id = parseInt(document.getElementById('transRepId').value);
             const type = document.getElementById('transType').value;
             const amount = parseFloat(document.getElementById('transAmount').value);
             const date = document.getElementById('transDate').value;
             const notes = document.getElementById('transNotes').value;
-
-            const rep = reps.find(r => r.id === id);
-            if (!rep) return;
-
-            if (type === 'sale') {
-                rep.sales += amount;
-            } else {
+            const rep = reps.find(r=>r.id===id); if(!rep)return;
+            if (type === 'sale') rep.sales += amount;
+            else {
                 rep.collections += amount;
-                // إضافة حركة للصندوق عند التحصيل
-                const transactions = Storage.getTransactions();
-                transactions.push({
-                    id: Date.now(),
-                    date,
-                    type: 'income',
-                    amount,
-                    description: `تحصيل من مندوب ${rep.name} - ${notes}`,
-                    paymentMethod: 'cash',
-                    reference: ''
-                });
-                Storage.saveTransactions(transactions);
+                const trans = await Storage.getTransactions();
+                trans.push({ id: Date.now(), date, type:'income', amount, description:`تحصيل من مندوب ${rep.name} - ${notes}`, paymentMethod:'cash' });
+                await Storage.saveTransactions(trans);
             }
-
-            Storage.saveReps(reps);
+            await Storage.saveReps(reps);
             renderAll();
             closeTransactionModal();
-            alert(`تم تسجيل ${type === 'sale' ? 'مبيعات' : 'تحصيل'} بقيمة ${Utils.formatMoney(amount)}`);
+            alert(`تم تسجيل ${type==='sale'?'مبيعات':'تحصيل'} بقيمة ${Utils.formatMoney(amount)}`);
         }
     </script>
 </body>
