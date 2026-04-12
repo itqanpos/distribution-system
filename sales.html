@@ -101,39 +101,21 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><i class="fas fa-chart-line"></i><h1>المبيعات</h1></div>
-            <div>
-                <button class="btn btn-primary" onclick="window.location.href='pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
-            </div>
+            <div><button class="btn btn-primary" onclick="window.location.href='pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button></div>
         </div>
 
         <div class="table-container">
             <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                 <h3><i class="fas fa-list"></i> فواتير المبيعات</h3>
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="بحث..." id="searchInput">
-                </div>
+                <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div>
             </div>
             <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>العميل</th>
-                        <th>التاريخ</th>
-                        <th>الإجمالي</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي</th>
-                        <th>الحالة</th>
-                        <th>إجراءات</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>رقم الفاتورة</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
                 <tbody id="salesTableBody"></tbody>
             </table>
         </div>
 
-        <div class="footer">
-            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
-        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <script src="js/auth.js"></script>
@@ -141,15 +123,18 @@
     <script src="js/utils.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!UI.initPage('المبيعات')) return;
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Auth.requireAuth()) return;
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('المبيعات');
             
-            const invoices = Storage.getInvoices().filter(inv => inv.type === 'sale');
-            renderTable(invoices);
+            const invoices = await Storage.getInvoices();
+            const salesInvoices = invoices.filter(inv => inv.type === 'sale');
+            renderTable(salesInvoices);
             
             document.getElementById('searchInput').addEventListener('input', function(e) {
                 const term = e.target.value;
-                const filtered = Utils.search(invoices, term, ['id', 'customer']);
+                const filtered = Utils.search(salesInvoices, term, ['id', 'customer']);
                 renderTable(filtered);
             });
         });
