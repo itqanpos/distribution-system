@@ -211,6 +211,21 @@
             display: none;
         }
 
+        #installBtn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 3000;
+            display: none;
+        }
+
         @media (max-width: 480px) {
             .login-container {
                 padding: 30px 20px;
@@ -268,6 +283,8 @@
         </div>
     </div>
 
+    <button id="installBtn"><i class="fas fa-download"></i> تثبيت التطبيق</button>
+
     <script src="js/auth.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/utils.js"></script>
@@ -275,9 +292,7 @@
     <script>
         // التحقق مما إذا كان المستخدم مسجلاً مسبقاً وتوجيهه
         (function() {
-            if (Auth.redirectIfAuth && typeof Auth.redirectIfAuth === 'function') {
-                Auth.redirectIfAuth();
-            } else if (Auth.isAuthenticated && Auth.isAuthenticated()) {
+            if (Auth.isAuthenticated && Auth.isAuthenticated()) {
                 const user = Auth.getUser();
                 if (user) {
                     window.location.href = user.role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
@@ -331,6 +346,32 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('username').value = 'admin';
             document.getElementById('password').value = '123456';
+        });
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('تم تثبيت التطبيق');
+                installBtn.style.display = 'none';
+            }
+            deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+            deferredPrompt = null;
         });
     </script>
 </body>
