@@ -36,7 +36,7 @@ const Auth = {
                 repId: user.repId || null,
                 loginTime: new Date().toLocaleString('ar-EG', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }),
                 avatar: user.fullName.charAt(0).toUpperCase(),
-                permissions: user.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'reports_basic']
+                permissions: user.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
             };
         } else {
             // للتجربة: إذا لم يكن المستخدم موجوداً، ننشئ حساباً افتراضياً بناءً على اسم المستخدم
