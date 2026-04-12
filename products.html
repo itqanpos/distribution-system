@@ -18,396 +18,71 @@
             --dark: #34495e;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #f5f6fa; color: #333; }
 
-        body {
-            background: #f5f6fa;
-            color: #333;
-        }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-        /* شريط التنقل */
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 0 20px;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
-        }
+        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
+        .menu { list-style: none; }
+        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
+        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
+        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
+        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .logo-text h2 {
-            color: var(--primary);
-            font-size: 20px;
-        }
-
-        .logo-text p {
-            color: var(--secondary);
-            font-size: 12px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            background: linear-gradient(135deg, var(--success), var(--info));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .user-details h4 {
-            color: var(--primary);
-        }
-
-        .user-details p {
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-
-        .logout-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* الشريط الجانبي */
-        .sidebar {
-            background: white;
-            width: 250px;
-            height: calc(100vh - 70px);
-            position: fixed;
-            top: 70px;
-            right: 0;
-            box-shadow: 2px 0 15px rgba(0,0,0,0.05);
-            padding: 20px 0;
-            overflow-y: auto;
-        }
-
-        .menu {
-            list-style: none;
-        }
-
-        .menu-item {
-            padding: 12px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--dark);
-            text-decoration: none;
-            border-right: 4px solid transparent;
-            cursor: pointer;
-            font-size: 15px;
-        }
-
-        .menu-item:hover {
-            background: var(--light);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-        }
-
-        .menu-item.active {
-            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .menu-item i {
-            width: 22px;
-            text-align: center;
-            font-size: 18px;
-        }
-
-        .menu-section {
-            padding: 20px 25px 10px;
-            color: #7f8c8d;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* المحتوى الرئيسي */
-        .main-content {
-            margin-right: 250px;
-            margin-top: 70px;
-            padding: 25px;
-            min-height: calc(100vh - 70px);
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .page-title {
-            color: var(--primary);
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
+        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--secondary); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        /* علامات التبويب */
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid var(--light);
-            margin-bottom: 20px;
-        }
+        .tabs { display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
+        .tab-btn { padding: 12px 25px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent; }
+        .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        .tab-btn {
-            padding: 12px 25px;
-            background: none;
-            border: none;
-            color: #7f8c8d;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 3px solid transparent;
-        }
+        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; }
+        .search-box input { border: none; outline: none; font-size: 14px; width: 200px; }
 
-        .tab-btn.active {
-            color: var(--secondary);
-            border-bottom-color: var(--secondary);
-        }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .units-badge { background: var(--light); padding: 2px 8px; border-radius: 20px; font-size: 11px; margin-right: 5px; }
 
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* جدول */
-        .table-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .search-box {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .search-box input {
-            border: none;
-            outline: none;
-            font-size: 14px;
-            width: 200px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f8f9fa;
-            color: var(--primary);
-            font-weight: 600;
-            text-align: right;
-            padding: 12px 15px;
-        }
-
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .units-badge {
-            background: var(--light);
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-size: 11px;
-            margin-right: 5px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 5px;
-        }
-
+        .action-buttons { display: flex; gap: 5px; }
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; }
         .action-btn.edit { color: var(--warning); }
         .action-btn.delete { color: var(--danger); }
         .action-btn.split { color: var(--success); }
 
-        /* مودال */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
 
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
+        .units-container { margin: 15px 0; }
+        .unit-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.5fr; gap: 8px; margin-bottom: 10px; align-items: center; }
+        .add-unit-btn { background: var(--light); border: 1px dashed var(--secondary); padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-
-        .units-container {
-            margin: 15px 0;
-        }
-
-        .unit-row {
-            display: grid;
-            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.5fr;
-            gap: 8px;
-            margin-bottom: 10px;
-            align-items: center;
-        }
-
-        .add-unit-btn {
-            background: var(--light);
-            border: 1px dashed var(--secondary);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 25px;
-        }
-
-        /* تقسيم المنتج */
-        .split-preview {
-            background: #f0f7ff;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
-            border-top: 1px solid #eee;
-            margin-top: 30px;
-        }
+        .split-preview { background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
 
         @media (max-width: 992px) {
             .sidebar { width: 70px; }
@@ -415,12 +90,8 @@
             .main-content { margin-right: 70px; }
             .menu-item { justify-content: center; padding: 15px; }
         }
-
         @media (max-width: 768px) {
             .unit-row { grid-template-columns: 1fr; }
-            .navbar { padding: 0 10px; }
-            .logo-text h2 { font-size: 16px; }
-            .user-details { display: none; }
         }
     </style>
 </head>
@@ -428,16 +99,10 @@
     <nav class="navbar">
         <div class="logo">
             <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text">
-                <h2>نظام التوزيع الغذائي</h2>
-                <p>إدارة المنتجات</p>
-            </div>
+            <div class="logo-text"><h2>نظام التوزيع الغذائي</h2><p>إدارة المنتجات</p></div>
         </div>
         <div class="user-info">
-            <div class="user-details">
-                <h4 id="userName">مدير النظام</h4>
-                <p id="loginTime"></p>
-            </div>
+            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
             <div class="user-avatar" id="userAvatar">م</div>
             <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </div>
@@ -464,13 +129,8 @@
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title">
-                <i class="fas fa-boxes"></i>
-                <h1>المنتجات</h1>
-            </div>
-            <div>
-                <button class="btn btn-primary" onclick="openProductModal()"><i class="fas fa-plus"></i> منتج جديد</button>
-            </div>
+            <div class="page-title"><i class="fas fa-boxes"></i><h1>المنتجات</h1></div>
+            <div><button class="btn btn-primary" onclick="openProductModal()"><i class="fas fa-plus"></i> منتج جديد</button></div>
         </div>
 
         <div class="tabs">
@@ -480,103 +140,41 @@
 
         <div id="productsTab" class="tab-content active">
             <div class="table-container">
-                <div class="table-header">
-                    <h3>المنتجات والوحدات</h3>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="بحث..." id="searchInput">
-                    </div>
-                </div>
-                <table>
-                    <thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات والمخزون</th><th>السعر الأساسي</th><th>إجراءات</th></tr></thead>
-                    <tbody id="productsTableBody"></tbody>
-                </table>
+                <div class="table-header"><h3>المنتجات والوحدات</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div></div>
+                <table><thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات والمخزون</th><th>السعر الأساسي</th><th>إجراءات</th></tr></thead><tbody id="productsTableBody"></tbody></table>
             </div>
         </div>
 
         <div id="splitTab" class="tab-content">
             <div class="table-container">
                 <h3 style="margin-bottom:20px;"><i class="fas fa-code-branch"></i> تقسيم المنتجات</h3>
-                <div class="form-group">
-                    <label>اختر المنتج</label>
-                    <select id="splitProductSelect" onchange="loadProductUnitsForSplit()">
-                        <option value="">-- اختر منتج --</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>اختر المنتج</label><select id="splitProductSelect" onchange="loadProductUnitsForSplit()"><option value="">-- اختر منتج --</option></select></div>
                 <div id="splitFormContainer" style="display:none;">
-                    <div class="form-group">
-                        <label>الوحدة المصدر</label>
-                        <select id="splitSourceUnit" onchange="updateSplitPreview()"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>الكمية المراد تقسيمها</label>
-                        <input type="number" id="splitQuantity" min="0.001" step="0.001" value="1" oninput="updateSplitPreview()">
-                        <small id="sourceStockInfo"></small>
-                    </div>
-                    <div class="form-group">
-                        <label>الوحدة الهدف</label>
-                        <select id="splitTargetUnit"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>عدد الوحدات الناتجة من كل وحدة مصدر</label>
-                        <input type="number" id="splitConversionRate" min="1" value="12" oninput="updateSplitPreview()">
-                    </div>
-                    <div class="form-group">
-                        <label>سعر البيع للوحدة الناتجة</label>
-                        <input type="number" id="splitTargetPrice" min="0.01" step="0.01" oninput="validateTargetPrice()">
-                        <small id="priceLimits"></small>
-                    </div>
+                    <div class="form-group"><label>الوحدة المصدر</label><select id="splitSourceUnit" onchange="updateSplitPreview()"></select></div>
+                    <div class="form-group"><label>الكمية المراد تقسيمها</label><input type="number" id="splitQuantity" min="0.001" step="0.001" value="1" oninput="updateSplitPreview()"><small id="sourceStockInfo"></small></div>
+                    <div class="form-group"><label>الوحدة الهدف</label><select id="splitTargetUnit"></select></div>
+                    <div class="form-group"><label>عدد الوحدات الناتجة من كل وحدة مصدر</label><input type="number" id="splitConversionRate" min="1" value="12" oninput="updateSplitPreview()"></div>
+                    <div class="form-group"><label>سعر البيع للوحدة الناتجة</label><input type="number" id="splitTargetPrice" min="0.01" step="0.01" oninput="validateTargetPrice()"><small id="priceLimits"></small></div>
                     <div class="split-preview" id="splitPreview"></div>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn btn-success" onclick="executeSplit()"><i class="fas fa-check"></i> تنفيذ التقسيم</button>
-                        <button class="btn btn-outline" onclick="resetSplitForm()">إلغاء</button>
-                    </div>
+                    <div style="display:flex; gap:10px;"><button class="btn btn-success" onclick="executeSplit()"><i class="fas fa-check"></i> تنفيذ التقسيم</button><button class="btn btn-outline" onclick="resetSplitForm()">إلغاء</button></div>
                 </div>
             </div>
         </div>
 
-        <div class="footer">
-            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
-        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <!-- مودال إضافة/تعديل منتج -->
     <div class="modal" id="productModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">منتج جديد</h3>
-                <button class="close-btn" onclick="closeProductModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3 id="modalTitle">منتج جديد</h3><button class="close-btn" onclick="closeProductModal()">&times;</button></div>
             <form id="productForm" onsubmit="saveProduct(event)">
                 <input type="hidden" id="productId">
-                <div class="form-group">
-                    <label>اسم المنتج</label>
-                    <input type="text" id="productName" required>
-                </div>
-                <div class="form-group">
-                    <label>التصنيف</label>
-                    <select id="productCategory">
-                        <option value="مخبوزات">مخبوزات</option>
-                        <option value="زيوت">زيوت</option>
-                        <option value="بقوليات">بقوليات</option>
-                        <option value="ألبان">ألبان</option>
-                        <option value="مشروبات">مشروبات</option>
-                        <option value="أخرى">أخرى</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>الوصف</label>
-                    <textarea id="productDescription" rows="2"></textarea>
-                </div>
-                <div class="units-container">
-                    <label>وحدات القياس والأسعار والمخزون</label>
-                    <div id="unitsList"></div>
-                    <div class="add-unit-btn" onclick="addUnitRow()"><i class="fas fa-plus"></i> إضافة وحدة</div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeProductModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
+                <div class="form-group"><label>اسم المنتج</label><input type="text" id="productName" required></div>
+                <div class="form-group"><label>التصنيف</label><select id="productCategory"><option value="مخبوزات">مخبوزات</option><option value="زيوت">زيوت</option><option value="بقوليات">بقوليات</option><option value="ألبان">ألبان</option><option value="مشروبات">مشروبات</option><option value="أخرى">أخرى</option></select></div>
+                <div class="form-group"><label>الوصف</label><textarea id="productDescription" rows="2"></textarea></div>
+                <div class="units-container"><label>وحدات القياس والأسعار والمخزون</label><div id="unitsList"></div><div class="add-unit-btn" onclick="addUnitRow()"><i class="fas fa-plus"></i> إضافة وحدة</div></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closeProductModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
@@ -586,226 +184,144 @@
     <script src="js/utils.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        let products = [];
-        let tempUnits = [];
-        let currentEditId = null;
+        let products = [], tempUnits = [], currentEditId = null;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!UI.initPage('المنتجات')) return;
-
-            products = Storage.getProducts();
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Auth.requireAuth()) return;
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('المنتجات');
+            products = await Storage.getProducts();
             renderAll();
             document.getElementById('searchInput').addEventListener('input', filterProducts);
         });
 
-        function renderAll() {
-            renderProductsTable(products);
-            populateSplitProductSelect();
-        }
-
+        function renderAll() { renderProductsTable(products); populateSplitProductSelect(); }
         function renderProductsTable(data) {
             const tbody = document.getElementById('productsTableBody');
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد منتجات</td></tr>';
-                return;
-            }
-            tbody.innerHTML = data.map(p => {
+            tbody.innerHTML = data.length ? data.map(p => {
                 const unitsSummary = p.units.map(u => `${u.unit} (${u.stock})`).join('، ');
-                const mainUnit = p.units[0];
-                return `
-                    <tr>
-                        <td>${p.name}</td>
-                        <td>${p.category}</td>
-                        <td>${unitsSummary}</td>
-                        <td>${Utils.formatMoney(mainUnit.price)} (${mainUnit.min}-${mainUnit.max})</td>
-                        <td class="action-buttons">
-                            <button class="action-btn edit" onclick="editProduct(${p.id})"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn split" onclick="quickSplit(${p.id})"><i class="fas fa-code-branch"></i></button>
-                            <button class="action-btn delete" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                const main = p.units[0];
+                return `<tr><td>${p.name}</td><td>${p.category}</td><td>${unitsSummary}</td><td>${Utils.formatMoney(main.price)} (${main.min}-${main.max})</td>
+                <td class="action-buttons"><button class="action-btn edit" onclick="editProduct(${p.id})"><i class="fas fa-edit"></i></button>
+                <button class="action-btn split" onclick="quickSplit(${p.id})"><i class="fas fa-code-branch"></i></button>
+                <button class="action-btn delete" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+            }).join('') : '<tr><td colspan="5">لا توجد منتجات</td></tr>';
         }
 
         function filterProducts() {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = products.filter(p => p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term));
-            renderProductsTable(filtered);
+            renderProductsTable(products.filter(p => p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term)));
         }
 
         function openProductModal() {
             currentEditId = null;
             document.getElementById('modalTitle').textContent = 'منتج جديد';
             document.getElementById('productForm').reset();
-            document.getElementById('productId').value = '';
             tempUnits = [{ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 }];
             renderUnitsList();
             document.getElementById('productModal').style.display = 'flex';
         }
 
         function editProduct(id) {
-            const product = products.find(p => p.id === id);
-            if (!product) return;
+            const p = products.find(x => x.id === id); if (!p) return;
             currentEditId = id;
             document.getElementById('modalTitle').textContent = 'تعديل منتج';
-            document.getElementById('productId').value = product.id;
-            document.getElementById('productName').value = product.name;
-            document.getElementById('productCategory').value = product.category;
-            document.getElementById('productDescription').value = product.description || '';
-            tempUnits = JSON.parse(JSON.stringify(product.units));
+            document.getElementById('productId').value = p.id;
+            document.getElementById('productName').value = p.name;
+            document.getElementById('productCategory').value = p.category;
+            document.getElementById('productDescription').value = p.description || '';
+            tempUnits = JSON.parse(JSON.stringify(p.units));
             renderUnitsList();
             document.getElementById('productModal').style.display = 'flex';
         }
 
-        function closeProductModal() {
-            document.getElementById('productModal').style.display = 'none';
-        }
+        function closeProductModal() { document.getElementById('productModal').style.display = 'none'; }
 
         function renderUnitsList() {
-            const container = document.getElementById('unitsList');
-            container.innerHTML = tempUnits.map((u, i) => `
+            document.getElementById('unitsList').innerHTML = tempUnits.map((u,i) => `
                 <div class="unit-row">
-                    <input type="text" placeholder="الوحدة" value="${u.unit}" onchange="updateTempUnit(${i}, 'unit', this.value)">
-                    <input type="number" placeholder="السعر" value="${u.price}" step="0.01" onchange="updateTempUnit(${i}, 'price', this.value)">
-                    <input type="number" placeholder="الحد الأدنى" value="${u.min}" step="0.01" onchange="updateTempUnit(${i}, 'min', this.value)">
-                    <input type="number" placeholder="الحد الأقصى" value="${u.max}" step="0.01" onchange="updateTempUnit(${i}, 'max', this.value)">
-                    <input type="text" placeholder="باركود" value="${u.barcode}" onchange="updateTempUnit(${i}, 'barcode', this.value)">
-                    <input type="number" placeholder="المخزون" value="${u.stock}" step="0.001" onchange="updateTempUnit(${i}, 'stock', this.value)">
+                    <input type="text" placeholder="الوحدة" value="${u.unit}" onchange="updateTempUnit(${i},'unit',this.value)">
+                    <input type="number" placeholder="السعر" value="${u.price}" step="0.01" onchange="updateTempUnit(${i},'price',this.value)">
+                    <input type="number" placeholder="الحد الأدنى" value="${u.min}" step="0.01" onchange="updateTempUnit(${i},'min',this.value)">
+                    <input type="number" placeholder="الحد الأقصى" value="${u.max}" step="0.01" onchange="updateTempUnit(${i},'max',this.value)">
+                    <input type="text" placeholder="باركود" value="${u.barcode}" onchange="updateTempUnit(${i},'barcode',this.value)">
+                    <input type="number" placeholder="المخزون" value="${u.stock}" step="0.001" onchange="updateTempUnit(${i},'stock',this.value)">
                     <button type="button" class="action-btn delete" onclick="removeUnitRow(${i})"><i class="fas fa-trash"></i></button>
-                </div>
-            `).join('');
+                </div>`).join('');
         }
 
-        function addUnitRow() {
-            tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 });
-            renderUnitsList();
-        }
+        function addUnitRow() { tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 }); renderUnitsList(); }
+        function updateTempUnit(i, f, v) { if (['price','min','max','stock'].includes(f)) tempUnits[i][f] = parseFloat(v)||0; else tempUnits[i][f] = v; }
+        function removeUnitRow(i) { if (tempUnits.length > 1) { tempUnits.splice(i,1); renderUnitsList(); } else alert('يجب وجود وحدة واحدة على الأقل'); }
 
-        function updateTempUnit(index, field, value) {
-            if (['price', 'min', 'max', 'stock'].includes(field)) {
-                tempUnits[index][field] = parseFloat(value) || 0;
-            } else {
-                tempUnits[index][field] = value;
-            }
-        }
-
-        function removeUnitRow(index) {
-            if (tempUnits.length > 1) {
-                tempUnits.splice(index, 1);
-                renderUnitsList();
-            } else {
-                alert('يجب وجود وحدة واحدة على الأقل');
-            }
-        }
-
-        function saveProduct(event) {
+        async function saveProduct(event) {
             event.preventDefault();
             const id = document.getElementById('productId').value;
             const name = document.getElementById('productName').value;
-            const category = document.getElementById('productCategory').value;
-            const description = document.getElementById('productDescription').value;
-
+            const cat = document.getElementById('productCategory').value;
+            const desc = document.getElementById('productDescription').value;
             for (let u of tempUnits) {
-                if (!u.unit || u.price <= 0 || u.min <= 0 || u.max <= 0) {
-                    alert('جميع حقول الوحدات مطلوبة والأسعار أكبر من صفر');
-                    return;
-                }
-                if (u.min > u.max) {
-                    alert('الحد الأدنى يجب أن يكون ≤ الحد الأقصى');
-                    return;
-                }
-                if (u.price < u.min || u.price > u.max) {
-                    alert('السعر يجب أن يكون بين الحدين');
-                    return;
-                }
+                if (!u.unit || u.price<=0 || u.min<=0 || u.max<=0) return alert('جميع حقول الوحدات مطلوبة');
+                if (u.min > u.max) return alert('الحد الأدنى ≤ الأقصى');
+                if (u.price < u.min || u.price > u.max) return alert('السعر بين الحدين');
             }
-
             if (id) {
-                const index = products.findIndex(p => p.id == id);
-                if (index >= 0) {
-                    products[index] = { ...products[index], name, category, description, units: JSON.parse(JSON.stringify(tempUnits)) };
-                }
+                const idx = products.findIndex(p => p.id == id);
+                if (idx >= 0) products[idx] = { ...products[idx], name, category: cat, description: desc, units: JSON.parse(JSON.stringify(tempUnits)) };
             } else {
-                const newId = Date.now();
-                products.push({ id: newId, name, category, description, units: JSON.parse(JSON.stringify(tempUnits)) });
+                products.push({ id: Date.now(), name, category: cat, description: desc, units: JSON.parse(JSON.stringify(tempUnits)) });
             }
-
-            Storage.saveProducts(products);
+            await Storage.saveProducts(products);
             renderAll();
             closeProductModal();
         }
 
-        function deleteProduct(id) {
-            if (confirm('حذف المنتج؟')) {
-                products = products.filter(p => p.id !== id);
-                Storage.saveProducts(products);
-                renderAll();
-            }
-        }
+        async function deleteProduct(id) { if (confirm('حذف المنتج؟')) { products = products.filter(p => p.id !== id); await Storage.saveProducts(products); renderAll(); } }
 
-        // === التقسيم ===
+        // التقسيم
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
-            document.getElementById('productsTab').classList.toggle('active', tab === 'productsTab');
-            document.getElementById('splitTab').classList.toggle('active', tab === 'splitTab');
+            document.getElementById(tab).classList.add('active');
             if (tab === 'splitTab') populateSplitProductSelect();
         }
 
         function populateSplitProductSelect() {
-            const select = document.getElementById('splitProductSelect');
-            select.innerHTML = '<option value="">-- اختر منتج --</option>';
-            products.forEach(p => {
-                if (p.units.length >= 1) {
-                    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-                }
-            });
+            const sel = document.getElementById('splitProductSelect');
+            sel.innerHTML = '<option value="">-- اختر منتج --</option>';
+            products.forEach(p => { if (p.units.length >= 1) sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
         }
 
         function loadProductUnitsForSplit() {
             const id = document.getElementById('splitProductSelect').value;
             if (!id) { document.getElementById('splitFormContainer').style.display = 'none'; return; }
-            const product = products.find(p => p.id == id);
-            const sourceSelect = document.getElementById('splitSourceUnit');
-            const targetSelect = document.getElementById('splitTargetUnit');
-            sourceSelect.innerHTML = targetSelect.innerHTML = product.units.map((u, i) => `<option value="${i}">${u.unit} (المخزون: ${u.stock})</option>`).join('');
+            const p = products.find(x => x.id == id);
+            const src = document.getElementById('splitSourceUnit'), tgt = document.getElementById('splitTargetUnit');
+            src.innerHTML = tgt.innerHTML = p.units.map((u,i) => `<option value="${i}">${u.unit} (المخزون: ${u.stock})</option>`).join('');
             document.getElementById('splitFormContainer').style.display = 'block';
             updateSplitPreview();
         }
 
         function updateSplitPreview() {
-            const id = document.getElementById('splitProductSelect').value;
-            if (!id) return;
-            const product = products.find(p => p.id == id);
+            const id = document.getElementById('splitProductSelect').value; if (!id) return;
+            const p = products.find(x => x.id == id);
             const srcIdx = document.getElementById('splitSourceUnit').value;
             const tgtIdx = document.getElementById('splitTargetUnit').value;
             const qty = parseFloat(document.getElementById('splitQuantity').value) || 0;
             const rate = parseFloat(document.getElementById('splitConversionRate').value) || 1;
-
-            const srcUnit = product.units[srcIdx];
-            const tgtUnit = product.units[tgtIdx];
-
-            document.getElementById('sourceStockInfo').textContent = `المخزون الحالي: ${srcUnit.stock} ${srcUnit.unit}`;
-            document.getElementById('splitTargetPrice').value = tgtUnit.price;
-            document.getElementById('splitTargetPrice').min = tgtUnit.min;
-            document.getElementById('splitTargetPrice').max = tgtUnit.max;
-            document.getElementById('priceLimits').textContent = `السعر بين ${tgtUnit.min} و ${tgtUnit.max} ج`;
-
-            if (qty > srcUnit.stock) {
-                document.getElementById('splitPreview').innerHTML = `<p style="color:var(--danger);">الكمية المطلوبة أكبر من المخزون!</p>`;
-                return;
+            const srcU = p.units[srcIdx], tgtU = p.units[tgtIdx];
+            document.getElementById('sourceStockInfo').textContent = `المخزون الحالي: ${srcU.stock} ${srcU.unit}`;
+            document.getElementById('splitTargetPrice').value = tgtU.price;
+            document.getElementById('splitTargetPrice').min = tgtU.min;
+            document.getElementById('splitTargetPrice').max = tgtU.max;
+            document.getElementById('priceLimits').textContent = `السعر بين ${tgtU.min} و ${tgtU.max} ج`;
+            if (qty > srcU.stock) document.getElementById('splitPreview').innerHTML = `<p style="color:var(--danger);">الكمية المطلوبة أكبر من المخزون!</p>`;
+            else {
+                const res = qty * rate;
+                document.getElementById('splitPreview').innerHTML = `<p><strong>معاينة التقسيم:</strong></p><p>سيتم خصم ${qty} ${srcU.unit} وإنتاج ${res} ${tgtU.unit}</p>
+                <p>المخزون بعد: ${srcU.unit}: ${(srcU.stock - qty).toFixed(3)}، ${tgtU.unit}: ${(tgtU.stock + res).toFixed(3)}</p>`;
             }
-
-            const resultQty = qty * rate;
-            const newSrcStock = srcUnit.stock - qty;
-            const newTgtStock = tgtUnit.stock + resultQty;
-
-            document.getElementById('splitPreview').innerHTML = `
-                <p><strong>معاينة التقسيم:</strong></p>
-                <p>سيتم خصم ${qty} ${srcUnit.unit} وإنتاج ${resultQty} ${tgtUnit.unit}</p>
-                <p>المخزون بعد التقسيم: ${srcUnit.unit}: ${newSrcStock.toFixed(3)}، ${tgtUnit.unit}: ${newTgtStock.toFixed(3)}</p>
-            `;
         }
 
         function validateTargetPrice() {
@@ -815,42 +331,29 @@
             document.getElementById('splitTargetPrice').style.borderColor = (price >= min && price <= max) ? '#ddd' : 'var(--danger)';
         }
 
-        function executeSplit() {
-            const id = document.getElementById('splitProductSelect').value;
-            if (!id) return;
-            const product = products.find(p => p.id == id);
+        async function executeSplit() {
+            const id = document.getElementById('splitProductSelect').value; if (!id) return;
+            const p = products.find(x => x.id == id);
             const srcIdx = document.getElementById('splitSourceUnit').value;
             const tgtIdx = document.getElementById('splitTargetUnit').value;
             const qty = parseFloat(document.getElementById('splitQuantity').value);
             const rate = parseFloat(document.getElementById('splitConversionRate').value);
             const newPrice = parseFloat(document.getElementById('splitTargetPrice').value);
-
-            if (qty <= 0 || rate <= 0) { alert('قيم غير صالحة'); return; }
-            const srcUnit = product.units[srcIdx];
-            const tgtUnit = product.units[tgtIdx];
-            if (qty > srcUnit.stock) { alert('المخزون غير كاف'); return; }
-            if (newPrice < tgtUnit.min || newPrice > tgtUnit.max) { alert('السعر خارج الحدود'); return; }
-
-            srcUnit.stock -= qty;
-            tgtUnit.stock += qty * rate;
-            tgtUnit.price = newPrice;
-
-            Storage.saveProducts(products);
+            if (qty <= 0 || rate <= 0) return alert('قيم غير صالحة');
+            const srcU = p.units[srcIdx], tgtU = p.units[tgtIdx];
+            if (qty > srcU.stock) return alert('المخزون غير كاف');
+            if (newPrice < tgtU.min || newPrice > tgtU.max) return alert('السعر خارج الحدود');
+            srcU.stock -= qty;
+            tgtU.stock += qty * rate;
+            tgtU.price = newPrice;
+            await Storage.saveProducts(products);
             renderAll();
             loadProductUnitsForSplit();
-            alert(`تم تقسيم ${qty} ${srcUnit.unit} إلى ${(qty * rate).toFixed(3)} ${tgtUnit.unit}`);
+            alert(`تم تقسيم ${qty} ${srcU.unit} إلى ${(qty*rate).toFixed(3)} ${tgtU.unit}`);
         }
 
-        function quickSplit(productId) {
-            switchTab('splitTab');
-            document.getElementById('splitProductSelect').value = productId;
-            loadProductUnitsForSplit();
-        }
-
-        function resetSplitForm() {
-            document.getElementById('splitProductSelect').value = '';
-            document.getElementById('splitFormContainer').style.display = 'none';
-        }
+        function quickSplit(productId) { switchTab('splitTab'); document.getElementById('splitProductSelect').value = productId; loadProductUnitsForSplit(); }
+        function resetSplitForm() { document.getElementById('splitProductSelect').value = ''; document.getElementById('splitFormContainer').style.display = 'none'; }
     </script>
 </body>
 </html>
