@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>التحصيلات - مندوب</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71; --danger: #e74c3c; --warning: #f39c12;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f5f6fa; }
+        .navbar { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 0 15px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 60px; }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), #1abc9c); color: white; width: 35px; height: 35px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .logo-text h2 { color: var(--primary); font-size: 18px; }
+        .user-avatar { width: 40px; height: 40px; background: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+
+        .container { margin-top: 60px; padding: 15px 15px 80px; }
+        .page-header { margin-bottom: 15px; }
+        .page-header h1 { font-size: 22px; color: var(--primary); }
+        .summary-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
+        .summary-card .value { font-size: 28px; font-weight: bold; color: var(--success); }
+        .summary-card .label { color: #7f8c8d; }
+
+        .search-box { margin-bottom: 15px; }
+        .search-box input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; }
+
+        .customers-list { background: white; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); overflow: hidden; }
+        .customer-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .customer-info h4 { font-size: 16px; margin-bottom: 4px; }
+        .customer-debt { color: var(--danger); font-weight: bold; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 999; }
+        .nav-item { text-align: center; color: #7f8c8d; text-decoration: none; font-size: 11px; }
+        .nav-item i { font-size: 20px; display: block; margin-bottom: 3px; }
+        .nav-item.active { color: var(--secondary); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <div class="logo-text"><h2>التحصيلات</h2></div>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">م</div>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-money-bill"></i> تحصيل المدفوعات</h1>
+        </div>
+
+        <div class="summary-card">
+            <div class="value" id="totalCollected">0 ج</div>
+            <div class="label">إجمالي التحصيلات اليوم</div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="بحث عن عميل...">
+        </div>
+
+        <div class="customers-list" id="debtorsList"></div>
+    </div>
+
+    <!-- مودال تسجيل دفعة -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="paymentTitle">تسجيل دفعة</h3>
+                <button class="close-btn" onclick="closePaymentModal()">&times;</button>
+            </div>
+            <form id="paymentForm" onsubmit="recordPayment(event)">
+                <input type="hidden" id="paymentCustomerId">
+                <p id="customerDebtInfo"></p>
+                <div class="form-group">
+                    <label>المبلغ</label>
+                    <input type="number" id="paymentAmount" min="0.01" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات (اختياري)</label>
+                    <input type="text" id="paymentNotes">
+                </div>
+                <button type="submit" class="btn" style="width:100%; background:var(--success); color:white; padding:12px; border:none; border-radius:8px;">تسجيل الدفعة</button>
+                <button type="button" class="btn" style="width:100%; margin-top:10px; background:#eee;" onclick="closePaymentModal()">إلغاء</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="rep-dashboard.html" class="nav-item"><i class="fas fa-home"></i><span>الرئيسية</span></a>
+        <a href="rep-pos.html" class="nav-item"><i class="fas fa-cash-register"></i><span>بيع</span></a>
+        <a href="rep-customers.html" class="nav-item"><i class="fas fa-users"></i><span>العملاء</span></a>
+        <a href="rep-orders.html" class="nav-item"><i class="fas fa-shopping-cart"></i><span>الطلبات</span></a>
+        <a href="rep-collections.html" class="nav-item active"><i class="fas fa-money-bill"></i><span>تحصيل</span></a>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        let customers = [];
+        let totalToday = 0;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!Auth.requireAuth()) return;
+            const user = Auth.getUser();
+            document.getElementById('userAvatar').textContent = user.avatar;
+
+            await loadData();
+            document.getElementById('searchInput').addEventListener('input', filterDebtors);
+        });
+
+        async function loadData() {
+            customers = await Storage.getCustomers();
+            
+            // حساب تحصلات اليوم
+            const today = Utils.getToday();
+            const transactions = await Storage.getTransactions();
+            totalToday = transactions
+                .filter(t => t.type === 'income' && t.date === today && t.description.includes('تحصيل'))
+                .reduce((s, t) => s + t.amount, 0);
+            document.getElementById('totalCollected').textContent = Utils.formatMoney(totalToday);
+
+            renderDebtors(customers);
+        }
+
+        function renderDebtors(list) {
+            const debtors = list.filter(c => c.balance < 0);
+            const container = document.getElementById('debtorsList');
+            
+            if (debtors.length === 0) {
+                container.innerHTML = '<p style="text-align:center; padding:30px;">لا يوجد عملاء مدينون</p>';
+                return;
+            }
+
+            container.innerHTML = debtors.map(c => `
+                <div class="customer-item" onclick="openPaymentModal(${c.id})">
+                    <div class="customer-info">
+                        <h4>${c.name}</h4>
+                        <p>${c.phone || ''}</p>
+                    </div>
+                    <div class="customer-debt">${Utils.formatMoney(Math.abs(c.balance))}</div>
+                </div>
+            `).join('');
+        }
+
+        function filterDebtors() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = customers.filter(c => c.name.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
+            renderDebtors(filtered);
+        }
+
+        function openPaymentModal(customerId) {
+            const customer = customers.find(c => c.id === customerId);
+            if (!customer) return;
+            
+            document.getElementById('paymentCustomerId').value = customerId;
+            document.getElementById('paymentTitle').textContent = `دفعة من ${customer.name}`;
+            document.getElementById('customerDebtInfo').innerHTML = `المديونية الحالية: <strong>${Utils.formatMoney(Math.abs(customer.balance))}</strong>`;
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+            document.getElementById('paymentForm').reset();
+        }
+
+        async function recordPayment(event) {
+            event.preventDefault();
+            const customerId = parseInt(document.getElementById('paymentCustomerId').value);
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const notes = document.getElementById('paymentNotes').value;
+
+            const customer = customers.find(c => c.id === customerId);
+            if (!customer) return;
+
+            if (amount <= 0) { alert('المبلغ غير صحيح'); return; }
+            if (amount > Math.abs(customer.balance)) { alert('المبلغ أكبر من المديونية'); return; }
+
+            // تحديث رصيد العميل
+            customer.balance += amount;
+            customer.lastTransaction = Utils.getToday();
+            await Storage.saveCustomer(customer);
+
+            // إضافة حركة صندوق
+            const transaction = {
+                id: Date.now(),
+                date: Utils.getToday(),
+                type: 'income',
+                amount: amount,
+                description: `تحصيل من ${customer.name}${notes ? ' - ' + notes : ''}`,
+                paymentMethod: 'cash',
+                reference: ''
+            };
+            await Storage.saveTransaction(transaction);
+
+            // تحديث تحصلات المندوب
+            const user = Auth.getUser();
+            const reps = await Storage.getReps();
+            const rep = reps.find(r => r.id == (user.repId || user.id));
+            if (rep) {
+                rep.collections = (rep.collections || 0) + amount;
+                await Storage.saveRep(rep);
+            }
+
+            alert(`تم تسجيل دفعة بقيمة ${Utils.formatMoney(amount)}`);
+            closePaymentModal();
+            await loadData();
+        }
+    </script>
+</body>
+</html>
