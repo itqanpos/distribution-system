@@ -75,7 +75,6 @@
         <div class="customers-list" id="debtorsList"></div>
     </div>
 
-    <!-- مودال تسجيل دفعة -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -117,9 +116,9 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
-            const user = Auth.getUser();
-            document.getElementById('userAvatar').textContent = user.avatar;
-
+            if (!Auth.requireRole(['rep', 'admin'])) return;
+            await UI.initPage('تحصيلات المندوب');
+            document.getElementById('userAvatar').textContent = Auth.getUser().avatar;
             await loadData();
             document.getElementById('searchInput').addEventListener('input', filterDebtors);
         });
@@ -127,7 +126,6 @@
         async function loadData() {
             customers = await Storage.getCustomers();
             
-            // حساب تحصلات اليوم
             const today = Utils.getToday();
             const transactions = await Storage.getTransactions();
             totalToday = transactions
@@ -191,12 +189,10 @@
             if (amount <= 0) { alert('المبلغ غير صحيح'); return; }
             if (amount > Math.abs(customer.balance)) { alert('المبلغ أكبر من المديونية'); return; }
 
-            // تحديث رصيد العميل
             customer.balance += amount;
             customer.lastTransaction = Utils.getToday();
             await Storage.saveCustomer(customer);
 
-            // إضافة حركة صندوق
             const transaction = {
                 id: Date.now(),
                 date: Utils.getToday(),
@@ -208,7 +204,6 @@
             };
             await Storage.saveTransaction(transaction);
 
-            // تحديث تحصلات المندوب
             const user = Auth.getUser();
             const reps = await Storage.getReps();
             const rep = reps.find(r => r.id == (user.repId || user.id));
