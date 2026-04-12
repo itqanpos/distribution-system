@@ -73,7 +73,6 @@
         <div class="orders-list" id="ordersList"></div>
     </div>
 
-    <!-- مودال تفاصيل الطلب -->
     <div class="modal" id="orderModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -106,16 +105,10 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
-            const user = Auth.getUser();
-            document.getElementById('userAvatar').textContent = user.avatar;
-
+            if (!Auth.requireRole(['rep', 'admin'])) return;
+            await UI.initPage('طلبات المندوب');
+            document.getElementById('userAvatar').textContent = Auth.getUser().avatar;
             await loadOrders();
-            
-            const customerId = sessionStorage.getItem('selectedCustomerId');
-            if (customerId) {
-                sessionStorage.removeItem('selectedCustomerId');
-                filterByCustomer(customerId);
-            }
         });
 
         async function loadOrders() {
@@ -158,14 +151,6 @@
             renderOrders(allOrders);
         }
 
-        function filterByCustomer(customerId) {
-            const customer = customers?.find(c => c.id == customerId);
-            if (customer) {
-                allOrders = allOrders.filter(o => o.customerId == customerId);
-                renderOrders(allOrders);
-            }
-        }
-
         function showOrderDetails(orderId) {
             selectedOrder = allOrders.find(o => o.id === orderId);
             if (!selectedOrder) return;
@@ -200,9 +185,6 @@
                 PrintSystem.printInvoice(selectedOrder, selectedOrder.items || []);
             }
         }
-
-        let customers = [];
-        (async () => { customers = await Storage.getCustomers(); })();
     </script>
 </body>
 </html>
