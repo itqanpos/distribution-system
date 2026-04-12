@@ -275,6 +275,10 @@
         .nav-item.active {
             color: var(--secondary);
         }
+
+        @media (min-width: 768px) {
+            .container { max-width: 600px; margin-left: auto; margin-right: auto; }
+        }
     </style>
 </head>
 <body>
@@ -282,7 +286,7 @@
         <div class="logo">
             <div class="logo-icon"><i class="fas fa-truck"></i></div>
             <div class="logo-text">
-                <h2>نظام التوزيع - مندوب</h2>
+                <h2>لوحة المندوب</h2>
             </div>
         </div>
         <div class="user-info">
@@ -374,12 +378,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             if (!Auth.requireAuth()) return;
-            const user = Auth.getUser();
-            if (user.role !== 'rep' && user.role !== 'admin') {
-                window.location.href = 'index.html';
-                return;
-            }
+            if (!Auth.requireRole(['rep', 'admin'])) return;
+            await UI.initPage('لوحة المندوب');
 
+            const user = Auth.getUser();
             document.getElementById('userAvatar').textContent = user.avatar;
             document.getElementById('repName').textContent = user.name;
             document.getElementById('todayDate').textContent = Utils.formatDate(new Date());
@@ -389,9 +391,8 @@
 
         async function loadDashboardData() {
             const user = Auth.getUser();
-            const repId = user.repId || user.id; // في حالة عدم وجود repId نستخدم id
+            const repId = user.repId || user.id;
 
-            // جلب بيانات المندوب
             const reps = await Storage.getReps();
             const currentRep = reps.find(r => r.id == repId) || reps[0];
             
@@ -407,11 +408,9 @@
                 document.getElementById('targetBar').style.width = Math.min(progress, 100) + '%';
             }
 
-            // عدد العملاء
             const customers = await Storage.getCustomers();
             document.getElementById('customersCount').textContent = customers.length;
 
-            // آخر الطلبات (فواتير البيع الخاصة بهذا المندوب)
             const invoices = await Storage.getInvoices();
             const myInvoices = invoices.filter(inv => inv.type === 'sale' && (inv.repId == repId || !inv.repId)).slice(0, 5);
             
@@ -427,7 +426,6 @@
                 </div>
             `).join('') : '<p style="text-align:center;color:#7f8c8d;">لا توجد طلبات</p>';
 
-            // آخر التحصيلات (حركات الصندوق من نوع تحصيل)
             const transactions = await Storage.getTransactions();
             const myCollections = transactions.filter(t => t.type === 'income' && t.description.includes('تحصيل')).slice(0, 5);
             
