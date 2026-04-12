@@ -1,5 +1,4 @@
-// js/auth.js
-// إدارة المصادقة والجلسات
+// js/auth.js - إدارة المصادقة والجلسات مع دعم الأدوار
 
 const Auth = {
     STORAGE_KEY: 'foodDist_user',
@@ -16,29 +15,76 @@ const Auth = {
     },
 
     // تسجيل الدخول
-    login(username, password) {
-        // في النسخة الحقيقية: استدعاء API
-        // هنا نسمح بأي مدخلات للعرض التجريبي
+    async login(username, password) {
         if (!username || !password) {
             return { success: false, message: 'اسم المستخدم وكلمة المرور مطلوبان' };
         }
 
-        const now = new Date();
-        const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true };
-        const loginTime = now.toLocaleDateString('ar-EG', options);
+        // البحث عن المستخدم في قاعدة البيانات
+        const users = await Storage.getUsers();
+        const user = users.find(u => u.username === username && u.password === password);
 
-        const user = {
-            id: 1,
-            username: username,
-            name: username,
-            role: username.toLowerCase() === 'admin' ? 'مدير النظام' : 'مستخدم',
-            loginTime: loginTime,
-            avatar: username.charAt(0).toUpperCase(),
-            permissions: ['all']
-        };
+        let userData;
+        
+        if (user) {
+            // مستخدم موجود مسبقاً في النظام
+            userData = {
+                id: user.id,
+                username: user.username,
+                name: user.fullName,
+                role: user.role,
+                repId: user.repId || null,
+                loginTime: new Date().toLocaleString('ar-EG', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }),
+                avatar: user.fullName.charAt(0).toUpperCase(),
+                permissions: user.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'reports_basic']
+            };
+        } else {
+            // للتجربة: إذا لم يكن المستخدم موجوداً، ننشئ حساباً افتراضياً بناءً على اسم المستخدم
+            let role = 'admin';
+            let fullName = username;
+            let repId = null;
 
-        this.setUser(user);
-        return { success: true, user };
+            if (username.toLowerCase().includes('مندوب') || username.toLowerCase().includes('rep')) {
+                role = 'rep';
+                fullName = username;
+                // البحث عن مندوب بنفس الاسم وربطه
+                const reps = await Storage.getReps();
+                const matchingRep = reps.find(r => r.name.includes(username) || username.includes(r.name));
+                if (matchingRep) {
+                    repId = matchingRep.id;
+                    fullName = matchingRep.name;
+                }
+            } else if (username.toLowerCase().includes('admin') || username === 'مدير النظام') {
+                role = 'admin';
+                fullName = 'مدير النظام';
+            }
+
+            userData = {
+                id: Date.now(),
+                username: username,
+                name: fullName,
+                role: role,
+                repId: repId,
+                loginTime: new Date().toLocaleString('ar-EG', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }),
+                avatar: fullName.charAt(0).toUpperCase(),
+                permissions: role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
+            };
+        }
+
+        this.setUser(userData);
+        
+        const redirectUrl = this.getRedirectUrl(userData.role);
+        return { success: true, user: userData, redirectUrl };
+    },
+
+    // الحصول على رابط التوجيه حسب الدور
+    getRedirectUrl(role) {
+        return role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
+    },
+
+    // التوجيه بعد تسجيل الدخول
+    redirectAfterLogin(role) {
+        window.location.href = this.getRedirectUrl(role);
     },
 
     // تسجيل الخروج
@@ -60,10 +106,26 @@ const Auth = {
         return true;
     },
 
-    // توجيه إذا كان مسجلاً بالفعل
-    redirectIfAuth(redirectUrl = 'dashboard.html') {
-        if (this.isAuthenticated()) {
+    // التحقق من أن المستخدم لديه الدور المطلوب
+    requireRole(allowedRoles, redirectUrl = 'index.html') {
+        const user = this.getUser();
+        if (!user) {
             window.location.href = redirectUrl;
+            return false;
+        }
+        if (!allowedRoles.includes(user.role)) {
+            // توجيه إلى الصفحة المناسبة لدوره
+            window.location.href = this.getRedirectUrl(user.role);
+            return false;
+        }
+        return true;
+    },
+
+    // توجيه إذا كان مسجلاً بالفعل
+    redirectIfAuth() {
+        const user = this.getUser();
+        if (user) {
+            window.location.href = this.getRedirectUrl(user.role);
             return true;
         }
         return false;
@@ -75,6 +137,12 @@ const Auth = {
         if (!user) return false;
         if (user.permissions.includes('all')) return true;
         return user.permissions.includes(permission);
+    },
+
+    // الحصول على معرف المندوب المرتبط بالمستخدم
+    getRepId() {
+        const user = this.getUser();
+        return user?.repId || user?.id || null;
     }
 };
 
