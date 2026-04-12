@@ -18,409 +18,75 @@
             --dark: #34495e;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #f5f6fa; color: #333; }
 
-        body {
-            background: #f5f6fa;
-            color: #333;
-        }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-        /* شريط التنقل */
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 0 20px;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
-        }
+        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
+        .menu { list-style: none; }
+        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
+        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
+        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
+        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .logo-text h2 {
-            color: var(--primary);
-            font-size: 20px;
-        }
-
-        .logo-text p {
-            color: var(--secondary);
-            font-size: 12px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            background: linear-gradient(135deg, var(--success), var(--info));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .user-details h4 {
-            color: var(--primary);
-        }
-
-        .user-details p {
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-
-        .logout-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* الشريط الجانبي */
-        .sidebar {
-            background: white;
-            width: 250px;
-            height: calc(100vh - 70px);
-            position: fixed;
-            top: 70px;
-            right: 0;
-            box-shadow: 2px 0 15px rgba(0,0,0,0.05);
-            padding: 20px 0;
-            overflow-y: auto;
-        }
-
-        .menu {
-            list-style: none;
-        }
-
-        .menu-item {
-            padding: 12px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--dark);
-            text-decoration: none;
-            border-right: 4px solid transparent;
-            cursor: pointer;
-            font-size: 15px;
-        }
-
-        .menu-item:hover {
-            background: var(--light);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-        }
-
-        .menu-item.active {
-            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .menu-item i {
-            width: 22px;
-            text-align: center;
-            font-size: 18px;
-        }
-
-        .menu-section {
-            padding: 20px 25px 10px;
-            color: #7f8c8d;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* المحتوى الرئيسي */
-        .main-content {
-            margin-right: 250px;
-            margin-top: 70px;
-            padding: 25px;
-            min-height: calc(100vh - 70px);
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .page-title {
-            color: var(--primary);
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
+        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--secondary); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-danger { background: var(--danger); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        /* بطاقات ملخص */
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .summary-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border-top: 5px solid;
-            text-align: center;
-        }
-
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .summary-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 5px solid; text-align: center; }
         .summary-card.balance { border-top-color: var(--primary); }
         .summary-card.income { border-top-color: var(--success); }
         .summary-card.expense { border-top-color: var(--danger); }
         .summary-card.count { border-top-color: var(--warning); }
+        .summary-icon { font-size: 28px; margin-bottom: 8px; }
+        .summary-value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .summary-label { color: #7f8c8d; font-size: 13px; }
 
-        .summary-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
+        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; background: white; }
+        .search-box input { border: none; outline: none; font-size: 14px; width: 200px; }
 
-        .summary-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--primary);
-            margin-bottom: 3px;
-        }
-
-        .summary-label {
-            color: #7f8c8d;
-            font-size: 13px;
-        }
-
-        /* جدول الحركات */
-        .table-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .search-box {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: white;
-        }
-
-        .search-box input {
-            border: none;
-            outline: none;
-            font-size: 14px;
-            width: 200px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f8f9fa;
-            color: var(--primary);
-            font-weight: 600;
-            text-align: right;
-            padding: 12px 15px;
-            border-bottom: 2px solid #eee;
-            font-size: 14px;
-        }
-
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            color: #555;
-            font-size: 14px;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        .type-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .type-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .type-income { background: rgba(46,204,113,0.1); color: var(--success); }
         .type-expense { background: rgba(231,76,60,0.1); color: var(--danger); }
-
         .amount-income { color: var(--success); font-weight: bold; }
         .amount-expense { color: var(--danger); font-weight: bold; }
 
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 5px;
-            border-radius: 4px;
-        }
-
-        .action-btn.view { color: var(--secondary); }
-
-        /* مودال */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #7f8c8d;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 25px;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
-            border-top: 1px solid #eee;
-            margin-top: 30px;
-        }
+        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
 
         @media (max-width: 992px) {
             .sidebar { width: 70px; }
             .sidebar .menu-text, .sidebar .menu-section { display: none; }
             .main-content { margin-right: 70px; }
             .menu-item { justify-content: center; padding: 15px; }
-        }
-
-        @media (max-width: 768px) {
-            .table-header { flex-direction: column; gap: 10px; }
-            .navbar { padding: 0 10px; }
-            .logo-text h2 { font-size: 16px; }
-            .user-details { display: none; }
         }
     </style>
 </head>
@@ -464,10 +130,7 @@
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title">
-                <i class="fas fa-cash-register"></i>
-                <h1>الصندوق</h1>
-            </div>
+            <div class="page-title"><i class="fas fa-cash-register"></i><h1>الصندوق</h1></div>
             <div>
                 <button class="btn btn-success" onclick="openTransactionModal('income')"><i class="fas fa-plus-circle"></i> إيداع</button>
                 <button class="btn btn-danger" onclick="openTransactionModal('expense')"><i class="fas fa-minus-circle"></i> سحب</button>
@@ -475,107 +138,42 @@
         </div>
 
         <div class="summary-cards">
-            <div class="summary-card balance">
-                <div class="summary-icon"><i class="fas fa-wallet"></i></div>
-                <div class="summary-value" id="currentBalance">0 ج</div>
-                <div class="summary-label">الرصيد الحالي</div>
-            </div>
-            <div class="summary-card income">
-                <div class="summary-icon"><i class="fas fa-arrow-up"></i></div>
-                <div class="summary-value" id="totalIncome">0 ج</div>
-                <div class="summary-label">إجمالي الإيداعات</div>
-            </div>
-            <div class="summary-card expense">
-                <div class="summary-icon"><i class="fas fa-arrow-down"></i></div>
-                <div class="summary-value" id="totalExpense">0 ج</div>
-                <div class="summary-label">إجمالي السحوبات</div>
-            </div>
-            <div class="summary-card count">
-                <div class="summary-icon"><i class="fas fa-exchange-alt"></i></div>
-                <div class="summary-value" id="transactionCount">0</div>
-                <div class="summary-label">عدد الحركات</div>
-            </div>
+            <div class="summary-card balance"><div class="summary-icon"><i class="fas fa-wallet"></i></div><div class="summary-value" id="currentBalance">0 ج</div><div class="summary-label">الرصيد الحالي</div></div>
+            <div class="summary-card income"><div class="summary-icon"><i class="fas fa-arrow-up"></i></div><div class="summary-value" id="totalIncome">0 ج</div><div class="summary-label">إجمالي الإيداعات</div></div>
+            <div class="summary-card expense"><div class="summary-icon"><i class="fas fa-arrow-down"></i></div><div class="summary-value" id="totalExpense">0 ج</div><div class="summary-label">إجمالي السحوبات</div></div>
+            <div class="summary-card count"><div class="summary-icon"><i class="fas fa-exchange-alt"></i></div><div class="summary-value" id="transactionCount">0</div><div class="summary-label">عدد الحركات</div></div>
         </div>
 
         <div class="table-container">
             <div class="table-header">
                 <h3><i class="fas fa-history"></i> حركات الصندوق</h3>
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="بحث..." id="searchInput">
-                </div>
+                <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div>
             </div>
-            <div style="overflow-x: auto;">
+            <div style="overflow-x:auto;">
                 <table>
-                    <thead>
-                        <tr>
-                            <th>التاريخ</th>
-                            <th>النوع</th>
-                            <th>المبلغ</th>
-                            <th>البيان</th>
-                            <th>طريقة الدفع</th>
-                            <th>المرجع</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>البيان</th><th>طريقة الدفع</th><th>المرجع</th><th>إجراءات</th></tr></thead>
                     <tbody id="transactionsTableBody"></tbody>
                 </table>
             </div>
         </div>
 
-        <div class="footer">
-            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
-        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <!-- مودال إضافة حركة -->
     <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle"><i class="fas fa-plus-circle"></i> إضافة حركة</h3>
-                <button class="close-btn" onclick="closeTransactionModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3 id="modalTitle"><i class="fas fa-plus-circle"></i> إضافة حركة</h3><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
             <form id="transactionForm" onsubmit="saveTransaction(event)">
                 <input type="hidden" id="transType" value="income">
-                <div class="form-group">
-                    <label>النوع</label>
-                    <select id="typeSelect" onchange="updateModalTitle()" required>
-                        <option value="income">إيداع (قبض)</option>
-                        <option value="expense">سحب (صرف)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>المبلغ (ج)</label>
-                    <input type="number" id="amount" min="0.01" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>البيان</label>
-                    <input type="text" id="description" placeholder="سبب الحركة" required>
-                </div>
-                <div class="form-group">
-                    <label>طريقة الدفع</label>
-                    <select id="paymentMethod">
-                        <option value="cash">نقدي</option>
-                        <option value="bank">تحويل بنكي</option>
-                        <option value="check">شيك</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>المرجع (اختياري)</label>
-                    <input type="text" id="reference" placeholder="رقم فاتورة / شيك">
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="transDate" required>
-                </div>
-                <div class="form-group">
-                    <label>ملاحظات</label>
-                    <textarea id="notes" rows="2"></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
+                <div class="form-group"><label>النوع</label><select id="typeSelect" onchange="updateModalTitle()" required><option value="income">إيداع (قبض)</option><option value="expense">سحب (صرف)</option></select></div>
+                <div class="form-group"><label>المبلغ (ج)</label><input type="number" id="amount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>البيان</label><input type="text" id="description" placeholder="سبب الحركة" required></div>
+                <div class="form-group"><label>طريقة الدفع</label><select id="paymentMethod"><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="check">شيك</option></select></div>
+                <div class="form-group"><label>المرجع (اختياري)</label><input type="text" id="reference" placeholder="رقم فاتورة / شيك"></div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
+                <div class="form-group"><label>ملاحظات</label><textarea id="notes" rows="2"></textarea></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
@@ -583,14 +181,9 @@
     <!-- مودال تفاصيل -->
     <div class="modal" id="detailsModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3>تفاصيل الحركة</h3>
-                <button class="close-btn" onclick="closeDetailsModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3>تفاصيل الحركة</h3><button class="close-btn" onclick="closeDetailsModal()">&times;</button></div>
             <div id="detailsBody"></div>
-            <div class="modal-footer">
-                <button class="btn" onclick="closeDetailsModal()">إغلاق</button>
-            </div>
+            <div class="modal-footer"><button class="btn" onclick="closeDetailsModal()">إغلاق</button></div>
         </div>
     </div>
 
@@ -601,58 +194,36 @@
     <script>
         let transactions = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!UI.initPage('الصندوق')) return;
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Auth.requireAuth()) return;
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('الصندوق');
 
-            transactions = Storage.getTransactions();
+            transactions = await Storage.getTransactions();
             document.getElementById('transDate').value = Utils.getToday();
 
             renderTable(transactions);
             updateSummary();
-
             document.getElementById('searchInput').addEventListener('input', applyFilters);
         });
 
         function renderTable(data) {
             const tbody = document.getElementById('transactionsTableBody');
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد حركات</td></tr>';
-                return;
-            }
-
-            const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-            tbody.innerHTML = sorted.map(t => {
+            if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="7">لا توجد حركات</td></tr>'; return; }
+            tbody.innerHTML = data.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(t => {
                 const typeClass = t.type === 'income' ? 'type-income' : 'type-expense';
                 const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
                 const amountClass = t.type === 'income' ? 'amount-income' : 'amount-expense';
-                const prefix = t.type === 'income' ? '+' : '-';
-                return `
-                    <tr>
-                        <td>${t.date}</td>
-                        <td><span class="type-badge ${typeClass}">${typeText}</span></td>
-                        <td class="${amountClass}">${prefix} ${Utils.formatMoney(t.amount)}</td>
-                        <td>${t.description}</td>
-                        <td>${getMethodName(t.paymentMethod)}</td>
-                        <td>${t.reference || '-'}</td>
-                        <td class="action-buttons">
-                            <button class="action-btn view" onclick="showDetails(${t.id})"><i class="fas fa-eye"></i></button>
-                        </td>
-                    </tr>
-                `;
+                return `<tr><td>${t.date}</td><td><span class="type-badge ${typeClass}">${typeText}</span></td><td class="${amountClass}">${t.type==='income'?'+':'-'} ${Utils.formatMoney(t.amount)}</td><td>${t.description}</td><td>${getMethodName(t.paymentMethod)}</td><td>${t.reference||'-'}</td><td><button class="action-btn view" onclick="showDetails(${t.id})"><i class="fas fa-eye"></i></button></td></tr>`;
             }).join('');
         }
 
-        function getMethodName(method) {
-            const names = { cash: 'نقدي', bank: 'تحويل', check: 'شيك' };
-            return names[method] || method;
-        }
+        function getMethodName(m) { return { cash: 'نقدي', bank: 'تحويل', check: 'شيك' }[m] || m; }
 
         function updateSummary() {
-            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-            const balance = income - expense;
-
-            document.getElementById('currentBalance').textContent = Utils.formatMoney(balance);
+            const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+            const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+            document.getElementById('currentBalance').textContent = Utils.formatMoney(income - expense);
             document.getElementById('totalIncome').textContent = Utils.formatMoney(income);
             document.getElementById('totalExpense').textContent = Utils.formatMoney(expense);
             document.getElementById('transactionCount').textContent = transactions.length;
@@ -660,10 +231,7 @@
 
         function applyFilters() {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = transactions.filter(t => 
-                t.description.toLowerCase().includes(term) || 
-                (t.reference && t.reference.toLowerCase().includes(term))
-            );
+            const filtered = transactions.filter(t => t.description.toLowerCase().includes(term) || (t.reference||'').toLowerCase().includes(term));
             renderTable(filtered);
         }
 
@@ -676,18 +244,14 @@
             document.getElementById('transactionModal').style.display = 'flex';
         }
 
-        function closeTransactionModal() {
-            document.getElementById('transactionModal').style.display = 'none';
-        }
+        function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
 
         function updateModalTitle() {
             const type = document.getElementById('typeSelect').value;
-            document.getElementById('modalTitle').innerHTML = type === 'income' ? 
-                '<i class="fas fa-plus-circle"></i> إضافة إيداع' : 
-                '<i class="fas fa-minus-circle"></i> إضافة سحب';
+            document.getElementById('modalTitle').innerHTML = type === 'income' ? '<i class="fas fa-plus-circle"></i> إضافة إيداع' : '<i class="fas fa-minus-circle"></i> إضافة سحب';
         }
 
-        function saveTransaction(event) {
+        async function saveTransaction(event) {
             event.preventDefault();
             const type = document.getElementById('typeSelect').value;
             const amount = parseFloat(document.getElementById('amount').value);
@@ -699,49 +263,31 @@
 
             if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
 
-            const newTrans = {
-                id: Date.now(),
-                date,
-                type,
-                amount,
-                description,
-                paymentMethod,
-                reference,
-                notes
-            };
-
+            const newTrans = { id: Date.now(), date, type, amount, description, paymentMethod, reference, notes };
             transactions.push(newTrans);
-            Storage.saveTransactions(transactions);
+            await Storage.saveTransactions(transactions);
             renderTable(transactions);
             updateSummary();
             closeTransactionModal();
-            alert(`تم ${type === 'income' ? 'إيداع' : 'سحب'} ${Utils.formatMoney(amount)}`);
+            alert(`تم ${type==='income'?'إيداع':'سحب'} ${Utils.formatMoney(amount)}`);
         }
 
         function showDetails(id) {
             const t = transactions.find(tr => tr.id === id);
             if (!t) return;
-            const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
             document.getElementById('detailsBody').innerHTML = `
-                <p><strong>النوع:</strong> ${typeText}</p>
+                <p><strong>النوع:</strong> ${t.type==='income'?'إيداع':'سحب'}</p>
                 <p><strong>المبلغ:</strong> ${Utils.formatMoney(t.amount)}</p>
                 <p><strong>البيان:</strong> ${t.description}</p>
                 <p><strong>طريقة الدفع:</strong> ${getMethodName(t.paymentMethod)}</p>
-                <p><strong>المرجع:</strong> ${t.reference || '-'}</p>
+                <p><strong>المرجع:</strong> ${t.reference||'-'}</p>
                 <p><strong>التاريخ:</strong> ${t.date}</p>
-                <p><strong>ملاحظات:</strong> ${t.notes || '-'}</p>
+                <p><strong>ملاحظات:</strong> ${t.notes||'-'}</p>
             `;
             document.getElementById('detailsModal').style.display = 'flex';
         }
 
-        function closeDetailsModal() {
-            document.getElementById('detailsModal').style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            if (event.target === document.getElementById('transactionModal')) closeTransactionModal();
-            if (event.target === document.getElementById('detailsModal')) closeDetailsModal();
-        }
+        function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
     </script>
 </body>
 </html>
