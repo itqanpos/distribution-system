@@ -18,400 +18,78 @@
             --dark: #34495e;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #f5f6fa; color: #333; }
 
-        body {
-            background: #f5f6fa;
-            color: #333;
-        }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-        /* شريط التنقل */
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 0 20px;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
-        }
+        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
+        .menu { list-style: none; }
+        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
+        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
+        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
+        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .logo-text h2 {
-            color: var(--primary);
-            font-size: 20px;
-        }
-
-        .logo-text p {
-            color: var(--secondary);
-            font-size: 12px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            background: linear-gradient(135deg, var(--success), var(--info));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .user-details h4 {
-            color: var(--primary);
-        }
-
-        .user-details p {
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-
-        .logout-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* الشريط الجانبي */
-        .sidebar {
-            background: white;
-            width: 250px;
-            height: calc(100vh - 70px);
-            position: fixed;
-            top: 70px;
-            right: 0;
-            box-shadow: 2px 0 15px rgba(0,0,0,0.05);
-            padding: 20px 0;
-            overflow-y: auto;
-        }
-
-        .menu {
-            list-style: none;
-        }
-
-        .menu-item {
-            padding: 12px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--dark);
-            text-decoration: none;
-            border-right: 4px solid transparent;
-            cursor: pointer;
-            font-size: 15px;
-        }
-
-        .menu-item:hover {
-            background: var(--light);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-        }
-
-        .menu-item.active {
-            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .menu-item i {
-            width: 22px;
-            text-align: center;
-            font-size: 18px;
-        }
-
-        .menu-section {
-            padding: 20px 25px 10px;
-            color: #7f8c8d;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* المحتوى الرئيسي */
-        .main-content {
-            margin-right: 250px;
-            margin-top: 70px;
-            padding: 25px;
-            min-height: calc(100vh - 70px);
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .page-title {
-            color: var(--primary);
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
+        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--secondary); color: white; }
-        .btn-success { background: var(--success); color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        /* علامات التبويب */
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid var(--light);
-            margin-bottom: 20px;
-        }
+        .tabs { display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
+        .tab-btn { padding: 12px 25px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent; }
+        .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        .tab-btn {
-            padding: 12px 25px;
-            background: none;
-            border: none;
-            color: #7f8c8d;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 3px solid transparent;
-        }
-
-        .tab-btn.active {
-            color: var(--secondary);
-            border-bottom-color: var(--secondary);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* بطاقات ملخص */
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .summary-card {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border-top: 5px solid;
-        }
-
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .summary-card { background: white; border-radius: 12px; padding: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 5px solid; }
         .summary-card.count { border-top-color: var(--secondary); }
         .summary-card.balance { border-top-color: var(--warning); }
         .summary-card.debt { border-top-color: var(--danger); }
         .summary-card.credit { border-top-color: var(--success); }
+        .summary-icon { font-size: 20px; margin-bottom: 5px; }
+        .summary-value { font-size: 20px; font-weight: bold; color: var(--primary); }
+        .summary-label { color: #7f8c8d; font-size: 11px; }
 
-        .summary-icon {
-            font-size: 20px;
-            margin-bottom: 5px;
-        }
+        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; }
+        .search-box input { border: none; outline: none; font-size: 14px; width: 200px; }
 
-        .summary-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--primary);
-        }
-
-        .summary-label {
-            color: #7f8c8d;
-            font-size: 11px;
-        }
-
-        /* جدول */
-        .table-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .search-box {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .search-box input {
-            border: none;
-            outline: none;
-            font-size: 14px;
-            width: 200px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f8f9fa;
-            color: var(--primary);
-            font-weight: 600;
-            text-align: right;
-            padding: 12px 15px;
-        }
-
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-        }
-
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
         .balance-positive { color: var(--success); font-weight: bold; }
         .balance-negative { color: var(--danger); font-weight: bold; }
 
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 5px;
-        }
-
+        .action-buttons { display: flex; gap: 5px; }
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; }
         .action-btn.view { color: var(--secondary); }
         .action-btn.edit { color: var(--warning); }
         .action-btn.payment { color: var(--success); }
         .action-btn.debt { color: var(--danger); }
 
-        /* مودال */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 25px;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
-            border-top: 1px solid #eee;
-            margin-top: 30px;
-        }
+        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
 
         @media (max-width: 992px) {
             .sidebar { width: 70px; }
@@ -419,28 +97,16 @@
             .main-content { margin-right: 70px; }
             .menu-item { justify-content: center; padding: 15px; }
         }
-
-        @media (max-width: 768px) {
-            .navbar { padding: 0 10px; }
-            .logo-text h2 { font-size: 16px; }
-            .user-details { display: none; }
-        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">
             <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text">
-                <h2>نظام التوزيع الغذائي</h2>
-                <p>العملاء والموردين</p>
-            </div>
+            <div class="logo-text"><h2>نظام التوزيع الغذائي</h2><p>العملاء والموردين</p></div>
         </div>
         <div class="user-info">
-            <div class="user-details">
-                <h4 id="userName">مدير النظام</h4>
-                <p id="loginTime"></p>
-            </div>
+            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
             <div class="user-avatar" id="userAvatar">م</div>
             <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </div>
@@ -467,13 +133,8 @@
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title">
-                <i class="fas fa-user-tie"></i>
-                <h1>العملاء والموردين</h1>
-            </div>
-            <div>
-                <button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> إضافة جديد</button>
-            </div>
+            <div class="page-title"><i class="fas fa-user-tie"></i><h1>العملاء والموردين</h1></div>
+            <div><button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> إضافة جديد</button></div>
         </div>
 
         <div class="tabs">
@@ -484,83 +145,35 @@
         <div id="customersTab" class="tab-content active">
             <div class="summary-cards" id="customersSummary"></div>
             <div class="table-container">
-                <div class="table-header">
-                    <h3>قائمة العملاء</h3>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="بحث..." id="customerSearch" oninput="filterTable('customer')">
-                    </div>
-                </div>
-                <table>
-                    <thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead>
-                    <tbody id="customersTableBody"></tbody>
-                </table>
+                <div class="table-header"><h3>قائمة العملاء</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="customerSearch" oninput="filterTable('customer')"></div></div>
+                <table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead><tbody id="customersTableBody"></tbody></table>
             </div>
         </div>
 
         <div id="suppliersTab" class="tab-content">
             <div class="summary-cards" id="suppliersSummary"></div>
             <div class="table-container">
-                <div class="table-header">
-                    <h3>قائمة الموردين</h3>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="بحث..." id="supplierSearch" oninput="filterTable('supplier')">
-                    </div>
-                </div>
-                <table>
-                    <thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead>
-                    <tbody id="suppliersTableBody"></tbody>
-                </table>
+                <div class="table-header"><h3>قائمة الموردين</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="supplierSearch" oninput="filterTable('supplier')"></div></div>
+                <table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead><tbody id="suppliersTableBody"></tbody></table>
             </div>
         </div>
 
-        <div class="footer">
-            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
-        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <!-- مودال إضافة/تعديل طرف -->
     <div class="modal" id="partyModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">إضافة جديد</h3>
-                <button class="close-btn" onclick="closePartyModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3 id="modalTitle">إضافة جديد</h3><button class="close-btn" onclick="closePartyModal()">&times;</button></div>
             <form id="partyForm" onsubmit="saveParty(event)">
                 <input type="hidden" id="partyId">
-                <div class="form-group">
-                    <label>النوع</label>
-                    <select id="partyType" required>
-                        <option value="customer">عميل</option>
-                        <option value="supplier">مورد</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>الاسم</label>
-                    <input type="text" id="partyName" required>
-                </div>
-                <div class="form-group">
-                    <label>الهاتف</label>
-                    <input type="tel" id="partyPhone">
-                </div>
-                <div class="form-group">
-                    <label>العنوان</label>
-                    <input type="text" id="partyAddress">
-                </div>
-                <div class="form-group">
-                    <label>البريد الإلكتروني</label>
-                    <input type="email" id="partyEmail">
-                </div>
-                <div class="form-group">
-                    <label>الرصيد الافتتاحي</label>
-                    <input type="number" id="partyBalance" value="0" step="0.01">
-                    <small>سالب = مدين، موجب = دائن</small>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closePartyModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
+                <div class="form-group"><label>النوع</label><select id="partyType" required><option value="customer">عميل</option><option value="supplier">مورد</option></select></div>
+                <div class="form-group"><label>الاسم</label><input type="text" id="partyName" required></div>
+                <div class="form-group"><label>الهاتف</label><input type="tel" id="partyPhone"></div>
+                <div class="form-group"><label>العنوان</label><input type="text" id="partyAddress"></div>
+                <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="partyEmail"></div>
+                <div class="form-group"><label>الرصيد الافتتاحي</label><input type="number" id="partyBalance" value="0" step="0.01"><small>سالب = مدين، موجب = دائن</small></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closePartyModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
@@ -568,36 +181,14 @@
     <!-- مودال معاملة (دفعة/دين) -->
     <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="transModalTitle">تسجيل معاملة</h3>
-                <button class="close-btn" onclick="closeTransactionModal()">&times;</button>
-            </div>
+            <div class="modal-header"><h3 id="transModalTitle">تسجيل معاملة</h3><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
             <form id="transactionForm" onsubmit="saveTransaction(event)">
-                <input type="hidden" id="transPartyId">
-                <input type="hidden" id="transPartyType">
-                <div class="form-group">
-                    <label>نوع المعاملة</label>
-                    <select id="transType" required>
-                        <option value="payment">دفعة (تخفيض مديونية)</option>
-                        <option value="debt">إضافة دين</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>المبلغ</label>
-                    <input type="number" id="transAmount" min="0.01" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="transDate" required>
-                </div>
-                <div class="form-group">
-                    <label>ملاحظات</label>
-                    <input type="text" id="transNotes">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
+                <input type="hidden" id="transPartyId"><input type="hidden" id="transPartyType">
+                <div class="form-group"><label>نوع المعاملة</label><select id="transType" required><option value="payment">دفعة (تخفيض مديونية)</option><option value="debt">إضافة دين</option></select></div>
+                <div class="form-group"><label>المبلغ</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
+                <div class="form-group"><label>ملاحظات</label><input type="text" id="transNotes"></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
@@ -607,28 +198,25 @@
     <script src="js/utils.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        let customers = [];
-        let suppliers = [];
-        let currentTab = 'customers';
+        let customers = [], suppliers = [], currentTab = 'customers';
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!UI.initPage('العملاء والموردين')) return;
-
-            loadData();
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Auth.requireAuth()) return;
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('العملاء والموردين');
+            await loadData();
             document.getElementById('transDate').value = Utils.getToday();
         });
 
-        function loadData() {
-            customers = Storage.getCustomers();
-            suppliers = Storage.getSuppliers();
+        async function loadData() {
+            customers = await Storage.getCustomers();
+            suppliers = await Storage.getSuppliers();
             renderAll();
         }
 
         function renderAll() {
-            renderTable('customer');
-            renderTable('supplier');
-            updateSummary('customer');
-            updateSummary('supplier');
+            renderTable('customer'); renderTable('supplier');
+            updateSummary('customer'); updateSummary('supplier');
         }
 
         function switchTab(tab) {
@@ -642,52 +230,32 @@
         function renderTable(type) {
             const data = type === 'customer' ? customers : suppliers;
             const tbody = document.getElementById(type + 'sTableBody');
-            const searchTerm = document.getElementById(type + 'Search').value.toLowerCase();
-            const filtered = data.filter(p => p.name.toLowerCase().includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
-
+            const term = document.getElementById(type + 'Search').value.toLowerCase();
+            const filtered = data.filter(p => p.name.toLowerCase().includes(term) || (p.phone&&p.phone.includes(term)));
             tbody.innerHTML = filtered.map(p => {
                 const balanceClass = p.balance >= 0 ? 'balance-positive' : 'balance-negative';
-                let balanceText = Utils.formatMoney(p.balance);
-                if (type === 'customer') {
-                    balanceText += p.balance < 0 ? ' (مدين)' : ' (دائن)';
-                } else {
-                    balanceText += p.balance > 0 ? ' (لنا)' : ' (علينا)';
-                }
-                return `
-                    <tr>
-                        <td>${p.name}</td>
-                        <td>${p.phone || '-'}</td>
-                        <td class="${balanceClass}">${balanceText}</td>
-                        <td>${p.lastTransaction || '-'}</td>
-                        <td class="action-buttons">
-                            <button class="action-btn view" onclick="viewParty(${p.id}, '${type}')"><i class="fas fa-eye"></i></button>
-                            <button class="action-btn edit" onclick="editParty(${p.id}, '${type}')"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn payment" onclick="openTransactionModal(${p.id}, '${type}', 'payment')"><i class="fas fa-money-bill"></i></button>
-                            <button class="action-btn debt" onclick="openTransactionModal(${p.id}, '${type}', 'debt')"><i class="fas fa-file-invoice"></i></button>
-                        </td>
-                    </tr>
-                `;
+                let text = Utils.formatMoney(p.balance);
+                text += type === 'customer' ? (p.balance < 0 ? ' (مدين)' : ' (دائن)') : (p.balance > 0 ? ' (لنا)' : ' (علينا)');
+                return `<tr><td>${p.name}</td><td>${p.phone||'-'}</td><td class="${balanceClass}">${text}</td><td>${p.lastTransaction||'-'}</td>
+                <td class="action-buttons"><button class="action-btn view" onclick="viewParty(${p.id},'${type}')"><i class="fas fa-eye"></i></button>
+                <button class="action-btn edit" onclick="editParty(${p.id},'${type}')"><i class="fas fa-edit"></i></button>
+                <button class="action-btn payment" onclick="openTransactionModal(${p.id},'${type}','payment')"><i class="fas fa-money-bill"></i></button>
+                <button class="action-btn debt" onclick="openTransactionModal(${p.id},'${type}','debt')"><i class="fas fa-file-invoice"></i></button></td></tr>`;
             }).join('');
         }
 
-        function filterTable(type) {
-            renderTable(type);
-        }
+        function filterTable(type) { renderTable(type); }
 
         function updateSummary(type) {
             const data = type === 'customer' ? customers : suppliers;
-            const count = data.length;
-            const balance = data.reduce((s, p) => s + p.balance, 0);
-            const debt = data.filter(p => p.balance < 0).reduce((s, p) => s + Math.abs(p.balance), 0);
-            const credit = data.filter(p => p.balance > 0).reduce((s, p) => s + p.balance, 0);
-
-            const container = document.getElementById(type + 'sSummary');
-            container.innerHTML = `
-                <div class="summary-card count"><div class="summary-icon"><i class="fas fa-${type === 'customer' ? 'users' : 'truck'}"></i></div><div class="summary-value">${count}</div><div class="summary-label">العدد</div></div>
+            const count = data.length, balance = data.reduce((s,p)=>s+p.balance,0);
+            const debt = data.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
+            const credit = data.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
+            document.getElementById(type+'sSummary').innerHTML = `
+                <div class="summary-card count"><div class="summary-icon"><i class="fas fa-${type==='customer'?'users':'truck'}"></i></div><div class="summary-value">${count}</div><div class="summary-label">العدد</div></div>
                 <div class="summary-card balance"><div class="summary-icon"><i class="fas fa-scale-balanced"></i></div><div class="summary-value">${Utils.formatMoney(balance)}</div><div class="summary-label">صافي الرصيد</div></div>
-                <div class="summary-card debt"><div class="summary-icon"><i class="fas fa-arrow-down"></i></div><div class="summary-value">${Utils.formatMoney(debt)}</div><div class="summary-label">${type === 'customer' ? 'مديونية' : 'لنا'}</div></div>
-                <div class="summary-card credit"><div class="summary-icon"><i class="fas fa-arrow-up"></i></div><div class="summary-value">${Utils.formatMoney(credit)}</div><div class="summary-label">${type === 'customer' ? 'دائن' : 'علينا'}</div></div>
-            `;
+                <div class="summary-card debt"><div class="summary-icon"><i class="fas fa-arrow-down"></i></div><div class="summary-value">${Utils.formatMoney(debt)}</div><div class="summary-label">${type==='customer'?'مديونية':'لنا'}</div></div>
+                <div class="summary-card credit"><div class="summary-icon"><i class="fas fa-arrow-up"></i></div><div class="summary-value">${Utils.formatMoney(credit)}</div><div class="summary-label">${type==='customer'?'دائن':'علينا'}</div></div>`;
         }
 
         function openPartyModal() {
@@ -698,24 +266,22 @@
         }
 
         function editParty(id, type) {
-            const party = (type === 'customer' ? customers : suppliers).find(p => p.id === id);
-            if (!party) return;
+            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
+            if(!p)return;
             document.getElementById('modalTitle').textContent = 'تعديل';
-            document.getElementById('partyId').value = party.id;
+            document.getElementById('partyId').value = p.id;
             document.getElementById('partyType').value = type;
-            document.getElementById('partyName').value = party.name;
-            document.getElementById('partyPhone').value = party.phone || '';
-            document.getElementById('partyAddress').value = party.address || '';
-            document.getElementById('partyEmail').value = party.email || '';
-            document.getElementById('partyBalance').value = party.balance;
+            document.getElementById('partyName').value = p.name;
+            document.getElementById('partyPhone').value = p.phone||'';
+            document.getElementById('partyAddress').value = p.address||'';
+            document.getElementById('partyEmail').value = p.email||'';
+            document.getElementById('partyBalance').value = p.balance;
             document.getElementById('partyModal').style.display = 'flex';
         }
 
-        function closePartyModal() {
-            document.getElementById('partyModal').style.display = 'none';
-        }
+        function closePartyModal() { document.getElementById('partyModal').style.display = 'none'; }
 
-        function saveParty(event) {
+        async function saveParty(event) {
             event.preventDefault();
             const id = document.getElementById('partyId').value;
             const type = document.getElementById('partyType').value;
@@ -723,49 +289,40 @@
             const phone = document.getElementById('partyPhone').value;
             const address = document.getElementById('partyAddress').value;
             const email = document.getElementById('partyEmail').value;
-            const balance = parseFloat(document.getElementById('partyBalance').value) || 0;
-
-            const collection = type === 'customer' ? customers : suppliers;
+            const balance = parseFloat(document.getElementById('partyBalance').value)||0;
+            const collection = type==='customer'?customers:suppliers;
             if (id) {
-                const index = collection.findIndex(p => p.id == id);
-                if (index >= 0) {
-                    collection[index] = { ...collection[index], name, phone, address, email, balance };
-                }
+                const idx = collection.findIndex(p=>p.id==id);
+                if(idx>=0) collection[idx] = {...collection[idx], name, phone, address, email, balance};
             } else {
                 const newId = Date.now();
-                collection.push({ id: newId, type, name, phone, address, email, balance, lastTransaction: null });
+                collection.push({id:newId, type, name, phone, address, email, balance, lastTransaction:null});
             }
-
-            if (type === 'customer') Storage.saveCustomers(customers);
-            else Storage.saveSuppliers(suppliers);
-
-            loadData();
+            if(type==='customer') await Storage.saveCustomers(customers); else await Storage.saveSuppliers(suppliers);
+            await loadData();
             closePartyModal();
         }
 
         function viewParty(id, type) {
-            const party = (type === 'customer' ? customers : suppliers).find(p => p.id === id);
-            alert(`الاسم: ${party.name}\nالرصيد: ${Utils.formatMoney(party.balance)}\nالهاتف: ${party.phone || '-'}`);
+            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
+            alert(`الاسم: ${p.name}\nالرصيد: ${Utils.formatMoney(p.balance)}`);
         }
 
         function openTransactionModal(id, type, transType) {
-            const party = (type === 'customer' ? customers : suppliers).find(p => p.id === id);
-            if (!party) return;
+            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
+            if(!p)return;
             document.getElementById('transPartyId').value = id;
             document.getElementById('transPartyType').value = type;
             document.getElementById('transType').value = transType;
             document.getElementById('transAmount').value = '';
             document.getElementById('transNotes').value = '';
-            document.getElementById('transDate').value = Utils.getToday();
-            document.getElementById('transModalTitle').textContent = `${transType === 'payment' ? 'دفعة' : 'دين'} - ${party.name}`;
+            document.getElementById('transModalTitle').textContent = `${transType==='payment'?'دفعة':'دين'} - ${p.name}`;
             document.getElementById('transactionModal').style.display = 'flex';
         }
 
-        function closeTransactionModal() {
-            document.getElementById('transactionModal').style.display = 'none';
-        }
+        function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
 
-        function saveTransaction(event) {
+        async function saveTransaction(event) {
             event.preventDefault();
             const id = parseInt(document.getElementById('transPartyId').value);
             const type = document.getElementById('transPartyType').value;
@@ -773,39 +330,20 @@
             const amount = parseFloat(document.getElementById('transAmount').value);
             const date = document.getElementById('transDate').value;
             const notes = document.getElementById('transNotes').value;
-
-            const collection = type === 'customer' ? customers : suppliers;
-            const party = collection.find(p => p.id === id);
-            if (!party) return;
-
-            if (transType === 'payment') {
-                party.balance += amount; // الدفعة تزيد الرصيد (تخفض المديونية)
-            } else {
-                party.balance -= amount; // الدين يقلل الرصيد
+            const collection = type==='customer'?customers:suppliers;
+            const p = collection.find(x=>x.id===id);
+            if(!p)return;
+            p.balance += transType==='payment'? amount : -amount;
+            p.lastTransaction = date;
+            if(type==='customer') await Storage.saveCustomers(customers); else await Storage.saveSuppliers(suppliers);
+            if(transType==='payment') {
+                const trans = await Storage.getTransactions();
+                trans.push({id:Date.now(), date, type:'income', amount, description:`دفعة من ${type==='customer'?'عميل':'مورد'} ${p.name} - ${notes}`, paymentMethod:'cash'});
+                await Storage.saveTransactions(trans);
             }
-            party.lastTransaction = date;
-
-            if (type === 'customer') Storage.saveCustomers(customers);
-            else Storage.saveSuppliers(suppliers);
-
-            // إضافة حركة للصندوق إذا كانت دفعة نقدية (يمكن تطويرها)
-            if (transType === 'payment') {
-                const transactions = Storage.getTransactions();
-                transactions.push({
-                    id: Date.now(),
-                    date,
-                    type: 'income',
-                    amount,
-                    description: `دفعة من ${type === 'customer' ? 'عميل' : 'مورد'} ${party.name} - ${notes}`,
-                    paymentMethod: 'cash',
-                    reference: ''
-                });
-                Storage.saveTransactions(transactions);
-            }
-
             renderAll();
             closeTransactionModal();
-            alert(`تم ${transType === 'payment' ? 'تسجيل دفعة' : 'إضافة دين'} بقيمة ${Utils.formatMoney(amount)}`);
+            alert(`تم ${transType==='payment'?'تسجيل دفعة':'إضافة دين'} بقيمة ${Utils.formatMoney(amount)}`);
         }
     </script>
 </body>
