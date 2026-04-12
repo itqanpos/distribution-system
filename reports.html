@@ -18,377 +18,69 @@
             --dark: #34495e;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #f5f6fa; color: #333; }
 
-        body {
-            background: #f5f6fa;
-            color: #333;
-        }
+        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-text h2 { color: var(--primary); font-size: 20px; }
+        .logo-text p { color: var(--secondary); font-size: 12px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-details h4 { color: var(--primary); }
+        .user-details p { color: #7f8c8d; font-size: 12px; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-        /* شريط التنقل */
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 0 20px;
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
-        }
+        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
+        .menu { list-style: none; }
+        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
+        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
+        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
+        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .logo-text h2 {
-            color: var(--primary);
-            font-size: 20px;
-        }
-
-        .logo-text p {
-            color: var(--secondary);
-            font-size: 12px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            background: linear-gradient(135deg, var(--success), var(--info));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .user-details h4 {
-            color: var(--primary);
-        }
-
-        .user-details p {
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-
-        .logout-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* الشريط الجانبي */
-        .sidebar {
-            background: white;
-            width: 250px;
-            height: calc(100vh - 70px);
-            position: fixed;
-            top: 70px;
-            right: 0;
-            box-shadow: 2px 0 15px rgba(0,0,0,0.05);
-            padding: 20px 0;
-            overflow-y: auto;
-        }
-
-        .menu {
-            list-style: none;
-        }
-
-        .menu-item {
-            padding: 12px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--dark);
-            text-decoration: none;
-            border-right: 4px solid transparent;
-            cursor: pointer;
-            font-size: 15px;
-        }
-
-        .menu-item:hover {
-            background: var(--light);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-        }
-
-        .menu-item.active {
-            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
-            color: var(--secondary);
-            border-right-color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .menu-item i {
-            width: 22px;
-            text-align: center;
-            font-size: 18px;
-        }
-
-        .menu-section {
-            padding: 20px 25px 10px;
-            color: #7f8c8d;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* المحتوى الرئيسي */
-        .main-content {
-            margin-right: 250px;
-            margin-top: 70px;
-            padding: 25px;
-            min-height: calc(100vh - 70px);
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .page-title {
-            color: var(--primary);
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
+        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--secondary); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        /* بطاقات ملخص */
-        .quick-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
+        .quick-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .quick-stat { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); text-align: center; border-top: 5px solid var(--secondary); }
+        .quick-stat h3 { font-size: 26px; color: var(--primary); margin-bottom: 5px; }
+        .quick-stat p { color: #7f8c8d; font-size: 13px; }
 
-        .quick-stat {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            text-align: center;
-            border-top: 5px solid var(--secondary);
-        }
+        .period-selector { background: white; border-radius: 12px; padding: 15px 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .period-btn { padding: 8px 16px; border: 2px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; }
+        .period-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
+        .date-range { display: flex; gap: 10px; align-items: center; }
+        .date-input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
 
-        .quick-stat h3 {
-            font-size: 26px;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-
-        .quick-stat p {
-            color: #7f8c8d;
-            font-size: 13px;
-        }
-
-        /* فلاتر الفترة */
-        .period-selector {
-            background: white;
-            border-radius: 12px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .period-btn {
-            padding: 8px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 20px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .period-btn.active {
-            background: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
-        }
-
-        .date-range {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .date-input {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
-
-        /* قائمة التقارير */
-        .reports-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .report-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border: 2px solid transparent;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .report-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            border-color: var(--secondary);
-        }
-
-        .report-icon {
-            width: 55px;
-            height: 55px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin-bottom: 15px;
-        }
-
-        .report-card h3 {
-            color: var(--primary);
-            margin-bottom: 8px;
-        }
-
-        .report-card p {
-            color: #7f8c8d;
-            font-size: 13px;
-            margin-bottom: 15px;
-        }
-
-        .report-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .report-btn {
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
+        .reports-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .report-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border: 2px solid transparent; cursor: pointer; transition: all 0.3s; }
+        .report-card:hover { transform: translateY(-5px); border-color: var(--secondary); }
+        .report-icon { width: 55px; height: 55px; border-radius: 12px; background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 15px; }
+        .report-card h3 { color: var(--primary); margin-bottom: 8px; }
+        .report-card p { color: #7f8c8d; font-size: 13px; margin-bottom: 15px; }
+        .report-actions { display: flex; gap: 8px; }
+        .report-btn { flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
         .report-btn.view { background: rgba(52,152,219,0.1); color: var(--secondary); }
         .report-btn.download { background: rgba(46,204,113,0.1); color: var(--success); }
 
-        /* معاينة التقرير */
-        .report-preview {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            margin-top: 20px;
-            display: none;
-        }
+        .report-preview { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-top: 20px; display: none; }
+        .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .preview-content { max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; }
 
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
 
-        .preview-content {
-            max-height: 400px;
-            overflow-y: auto;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
-            border-top: 1px solid #eee;
-            margin-top: 30px;
-        }
-
-        /* استجابة */
         @media (max-width: 992px) {
             .sidebar { width: 70px; }
             .sidebar .menu-text, .sidebar .menu-section { display: none; }
             .main-content { margin-right: 70px; }
             .menu-item { justify-content: center; padding: 15px; }
-        }
-
-        @media (max-width: 768px) {
-            .period-selector { flex-direction: column; align-items: stretch; }
-            .navbar { padding: 0 10px; }
-            .logo-text h2 { font-size: 16px; }
-            .user-details { display: none; }
         }
     </style>
 </head>
@@ -402,10 +94,7 @@
             </div>
         </div>
         <div class="user-info">
-            <div class="user-details">
-                <h4 id="userName">مدير النظام</h4>
-                <p id="loginTime"></p>
-            </div>
+            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
             <div class="user-avatar" id="userAvatar">م</div>
             <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </div>
@@ -432,13 +121,8 @@
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title">
-                <i class="fas fa-chart-bar"></i>
-                <h1>التقارير والتحليلات</h1>
-            </div>
-            <div>
-                <button class="btn btn-primary" onclick="generateAllReports()"><i class="fas fa-file-pdf"></i> تصدير شامل</button>
-            </div>
+            <div class="page-title"><i class="fas fa-chart-bar"></i><h1>التقارير والتحليلات</h1></div>
+            <div><button class="btn btn-primary" onclick="generateAllReports()"><i class="fas fa-file-pdf"></i> تصدير شامل</button></div>
         </div>
 
         <div class="quick-stats" id="quickStatsContainer"></div>
@@ -449,9 +133,7 @@
             <button class="period-btn" onclick="setPeriod('month')"><i class="fas fa-calendar-alt"></i> الشهر</button>
             <button class="period-btn" onclick="setPeriod('custom')"><i class="fas fa-calendar-check"></i> مخصص</button>
             <div class="date-range" id="customDateRange" style="display:none;">
-                <input type="date" id="startDate" class="date-input">
-                <span>إلى</span>
-                <input type="date" id="endDate" class="date-input">
+                <input type="date" id="startDate" class="date-input"> <span>إلى</span> <input type="date" id="endDate" class="date-input">
                 <button class="btn btn-outline btn-sm" onclick="applyCustomDate()">تطبيق</button>
             </div>
         </div>
@@ -461,17 +143,12 @@
         <div class="report-preview" id="reportPreview">
             <div class="preview-header">
                 <h3 id="previewTitle">معاينة التقرير</h3>
-                <div>
-                    <button class="btn btn-success" onclick="downloadCurrentReport()"><i class="fas fa-download"></i> تحميل</button>
-                    <button class="btn btn-outline" onclick="closePreview()"><i class="fas fa-times"></i> إغلاق</button>
-                </div>
+                <div><button class="btn btn-success" onclick="downloadCurrentReport()"><i class="fas fa-download"></i> تحميل</button><button class="btn btn-outline" onclick="closePreview()"><i class="fas fa-times"></i> إغلاق</button></div>
             </div>
             <div class="preview-content" id="previewContent"></div>
         </div>
 
-        <div class="footer">
-            <p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p>
-        </div>
+        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <script src="js/auth.js"></script>
@@ -484,21 +161,21 @@
         let currentReportData = null;
         let currentReportTitle = '';
 
-        // تعريف التقارير المتاحة
         const reportDefinitions = [
-            { id: 'sales', name: 'تقرير المبيعات', icon: 'fa-chart-line', description: 'إجمالي المبيعات والفواتير خلال الفترة', color: 'success' },
-            { id: 'purchases', name: 'تقرير المشتريات', icon: 'fa-shopping-cart', description: 'إجمالي المشتريات من الموردين', color: 'warning' },
-            { id: 'cashflow', name: 'التدفق النقدي', icon: 'fa-money-bill-wave', description: 'حركة الصندوق (إيداعات وسحوبات)', color: 'primary' },
-            { id: 'customers', name: 'تقرير العملاء', icon: 'fa-users', description: 'أرصدة العملاء والمديونيات', color: 'info' },
-            { id: 'suppliers', name: 'تقرير الموردين', icon: 'fa-truck', description: 'أرصدة الموردين والمستحقات', color: 'danger' },
-            { id: 'inventory', name: 'تقرير المخزون', icon: 'fa-boxes', description: 'حالة المخزون والمنتجات', color: 'secondary' },
-            { id: 'reps', name: 'أداء المندوبين', icon: 'fa-user-tie', description: 'مبيعات وتحصيلات المندوبين', color: 'success' },
-            { id: 'profit', name: 'الأرباح والخسائر', icon: 'fa-chart-pie', description: 'صافي الربح خلال الفترة', color: 'warning' }
+            { id: 'sales', name: 'تقرير المبيعات', icon: 'fa-chart-line', description: 'إجمالي المبيعات والفواتير خلال الفترة' },
+            { id: 'purchases', name: 'تقرير المشتريات', icon: 'fa-shopping-cart', description: 'إجمالي المشتريات من الموردين' },
+            { id: 'cashflow', name: 'التدفق النقدي', icon: 'fa-money-bill-wave', description: 'حركة الصندوق (إيداعات وسحوبات)' },
+            { id: 'customers', name: 'تقرير العملاء', icon: 'fa-users', description: 'أرصدة العملاء والمديونيات' },
+            { id: 'suppliers', name: 'تقرير الموردين', icon: 'fa-truck', description: 'أرصدة الموردين والمستحقات' },
+            { id: 'inventory', name: 'تقرير المخزون', icon: 'fa-boxes', description: 'حالة المخزون والمنتجات' },
+            { id: 'reps', name: 'أداء المندوبين', icon: 'fa-user-tie', description: 'مبيعات وتحصيلات المندوبين' },
+            { id: 'profit', name: 'الأرباح والخسائر', icon: 'fa-chart-pie', description: 'صافي الربح خلال الفترة' }
         ];
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!UI.initPage('التقارير')) return;
-
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Auth.requireAuth()) return;
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('التقارير');
             renderReportCards();
             updateQuickStats();
         });
@@ -506,28 +183,15 @@
         function getDateRange() {
             const today = new Date();
             let start, end;
-            switch(currentPeriod) {
-                case 'today':
-                    start = end = Utils.getToday();
-                    break;
-                case 'week':
-                    const day = today.getDay();
-                    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-                    start = new Date(today.setDate(diff)).toISOString().split('T')[0];
-                    today.setDate(today.getDate() + 6);
-                    end = today.toISOString().split('T')[0];
-                    break;
-                case 'month':
-                    start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-                    end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-                    break;
-                case 'custom':
-                    start = customStart || Utils.getToday();
-                    end = customEnd || Utils.getToday();
-                    break;
-                default:
-                    start = end = Utils.getToday();
-            }
+            if (currentPeriod === 'today') start = end = Utils.getToday();
+            else if (currentPeriod === 'week') {
+                const day = today.getDay(); const diff = today.getDate() - day + (day===0?-6:1);
+                start = new Date(today.setDate(diff)).toISOString().split('T')[0];
+                today.setDate(today.getDate()+6); end = today.toISOString().split('T')[0];
+            } else if (currentPeriod === 'month') {
+                start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                end = new Date(today.getFullYear(), today.getMonth()+1, 0).toISOString().split('T')[0];
+            } else { start = customStart || Utils.getToday(); end = customEnd || Utils.getToday(); }
             return { start, end };
         }
 
@@ -536,237 +200,99 @@
             document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById('customDateRange').style.display = period === 'custom' ? 'flex' : 'none';
-            if (period !== 'custom') {
-                updateQuickStats();
-            }
+            if (period !== 'custom') updateQuickStats();
         }
 
         function applyCustomDate() {
             customStart = document.getElementById('startDate').value;
             customEnd = document.getElementById('endDate').value;
-            if (customStart && customEnd) {
-                updateQuickStats();
-            } else {
-                alert('حدد تاريخ البداية والنهاية');
-            }
+            if (customStart && customEnd) updateQuickStats(); else alert('حدد التاريخين');
         }
 
         function renderReportCards() {
-            const grid = document.getElementById('reportsGrid');
-            grid.innerHTML = reportDefinitions.map(def => `
+            document.getElementById('reportsGrid').innerHTML = reportDefinitions.map(def => `
                 <div class="report-card" onclick="generateReport('${def.id}')">
-                    <div class="report-icon"><i class="fas ${def.icon}"></i></div>
-                    <h3>${def.name}</h3>
-                    <p>${def.description}</p>
-                    <div class="report-actions">
-                        <button class="report-btn view" onclick="event.stopPropagation(); generateReport('${def.id}')"><i class="fas fa-eye"></i> معاينة</button>
-                        <button class="report-btn download" onclick="event.stopPropagation(); downloadReport('${def.id}')"><i class="fas fa-download"></i> تحميل</button>
-                    </div>
+                    <div class="report-icon"><i class="fas ${def.icon}"></i></div><h3>${def.name}</h3><p>${def.description}</p>
+                    <div class="report-actions"><button class="report-btn view" onclick="event.stopPropagation();generateReport('${def.id}')"><i class="fas fa-eye"></i> معاينة</button>
+                    <button class="report-btn download" onclick="event.stopPropagation();downloadReport('${def.id}')"><i class="fas fa-download"></i> تحميل</button></div>
                 </div>
             `).join('');
         }
 
-        function updateQuickStats() {
+        async function updateQuickStats() {
             const range = getDateRange();
-            const invoices = Storage.getInvoices().filter(i => i.date >= range.start && i.date <= range.end);
-            const purchases = Storage.getPurchases().filter(p => p.date >= range.start && p.date <= range.end);
-            const transactions = Storage.getTransactions().filter(t => t.date >= range.start && t.date <= range.end);
-
-            const salesTotal = invoices.filter(i => i.type === 'sale').reduce((s, i) => s + i.total, 0);
-            const purchasesTotal = purchases.reduce((s, p) => s + p.total, 0);
-            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-            const profit = income - expense;
-
+            const invoices = (await Storage.getInvoices()).filter(i => i.date >= range.start && i.date <= range.end);
+            const purchases = (await Storage.getPurchases()).filter(p => p.date >= range.start && p.date <= range.end);
+            const transactions = (await Storage.getTransactions()).filter(t => t.date >= range.start && t.date <= range.end);
+            const salesTotal = invoices.filter(i=>i.type==='sale').reduce((s,i)=>s+i.total,0);
+            const purchasesTotal = purchases.reduce((s,p)=>s+p.total,0);
+            const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+            const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
             document.getElementById('quickStatsContainer').innerHTML = `
                 <div class="quick-stat"><h3>${Utils.formatMoney(salesTotal)}</h3><p>المبيعات</p></div>
                 <div class="quick-stat"><h3>${Utils.formatMoney(purchasesTotal)}</h3><p>المشتريات</p></div>
                 <div class="quick-stat"><h3>${Utils.formatMoney(income)}</h3><p>الإيرادات</p></div>
                 <div class="quick-stat"><h3>${Utils.formatMoney(expense)}</h3><p>المصروفات</p></div>
-                <div class="quick-stat"><h3 style="color:${profit >= 0 ? 'var(--success)' : 'var(--danger)'}">${Utils.formatMoney(profit)}</h3><p>صافي الربح</p></div>
-            `;
+                <div class="quick-stat"><h3 style="color:${(income-expense)>=0?'var(--success)':'var(--danger)'}">${Utils.formatMoney(income-expense)}</h3><p>صافي الربح</p></div>`;
         }
 
-        function generateReport(reportId) {
+        async function generateReport(reportId) {
             const range = getDateRange();
-            const report = reportDefinitions.find(d => d.id === reportId);
+            const report = reportDefinitions.find(d=>d.id===reportId);
             currentReportTitle = `${report.name} (${range.start} - ${range.end})`;
-
             let content = '';
-            switch(reportId) {
-                case 'sales':
-                    content = generateSalesReport(range);
-                    break;
-                case 'purchases':
-                    content = generatePurchasesReport(range);
-                    break;
-                case 'cashflow':
-                    content = generateCashflowReport(range);
-                    break;
-                case 'customers':
-                    content = generateCustomersReport();
-                    break;
-                case 'suppliers':
-                    content = generateSuppliersReport();
-                    break;
-                case 'inventory':
-                    content = generateInventoryReport();
-                    break;
-                case 'reps':
-                    content = generateRepsReport();
-                    break;
-                case 'profit':
-                    content = generateProfitReport(range);
-                    break;
+            const invoices = await Storage.getInvoices();
+            const purchases = await Storage.getPurchases();
+            const transactions = await Storage.getTransactions();
+            const customers = await Storage.getCustomers();
+            const suppliers = await Storage.getSuppliers();
+            const products = await Storage.getProducts();
+            const reps = await Storage.getReps();
+            
+            if (reportId === 'sales') {
+                const invs = invoices.filter(i=>i.type==='sale' && i.date>=range.start && i.date<=range.end);
+                const total = invs.reduce((s,i)=>s+i.total,0);
+                content = `<h4>ملخص المبيعات</h4><p>عدد الفواتير: ${invs.length}</p><p>إجمالي المبيعات: ${Utils.formatMoney(total)}</p>`;
+            } else if (reportId === 'purchases') {
+                const purs = purchases.filter(p=>p.date>=range.start && p.date<=range.end);
+                const total = purs.reduce((s,p)=>s+p.total,0);
+                content = `<h4>ملخص المشتريات</h4><p>عدد الفواتير: ${purs.length}</p><p>إجمالي المشتريات: ${Utils.formatMoney(total)}</p>`;
+            } else if (reportId === 'cashflow') {
+                const trans = transactions.filter(t=>t.date>=range.start && t.date<=range.end);
+                const inc = trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+                const exp = trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+                content = `<h4>التدفق النقدي</h4><p>إيداعات: ${Utils.formatMoney(inc)}</p><p>سحوبات: ${Utils.formatMoney(exp)}</p><p>صافي: ${Utils.formatMoney(inc-exp)}</p>`;
+            } else if (reportId === 'customers') {
+                const debtors = customers.filter(c=>c.balance<0).sort((a,b)=>a.balance-b.balance);
+                content = `<h4>العملاء</h4><p>عدد العملاء: ${customers.length}</p><h4>أكبر المديونيات</h4>${debtors.slice(0,5).map(c=>`<p>${c.name}: ${Utils.formatMoney(c.balance)}</p>`).join('')}`;
+            } else if (reportId === 'suppliers') {
+                content = `<h4>الموردين</h4><p>عدد الموردين: ${suppliers.length}</p><p>إجمالي المستحقات: ${Utils.formatMoney(suppliers.reduce((s,sup)=>s+sup.balance,0))}</p>`;
+            } else if (reportId === 'inventory') {
+                let totalItems=0, lowStock=[];
+                products.forEach(p=>p.units.forEach(u=>{ totalItems+=u.stock; if(u.stock<=10) lowStock.push(`${p.name} (${u.unit})`); }));
+                content = `<h4>المخزون</h4><p>إجمالي الوحدات: ${totalItems}</p><p>منتجات منخفضة: ${lowStock.length}</p>${lowStock.length?'<ul>'+lowStock.map(l=>`<li>${l}</li>`).join('')+'</ul>':''}`;
+            } else if (reportId === 'reps') {
+                content = `<h4>أداء المندوبين</h4>${reps.map(r=>`<p>${r.name}: مبيعات ${Utils.formatMoney(r.sales)} (${Math.round(r.sales/r.target*100)}%)</p>`).join('')}`;
+            } else if (reportId === 'profit') {
+                const sales = invoices.filter(i=>i.type==='sale'&&i.date>=range.start&&i.date<=range.end).reduce((s,i)=>s+i.total,0);
+                const purs = purchases.filter(p=>p.date>=range.start&&p.date<=range.end).reduce((s,p)=>s+p.total,0);
+                const exp = transactions.filter(t=>t.type==='expense'&&t.date>=range.start&&t.date<=range.end).reduce((s,t)=>s+t.amount,0);
+                content = `<h4>الأرباح والخسائر</h4><p>المبيعات: ${Utils.formatMoney(sales)}</p><p>تكلفة المشتريات: ${Utils.formatMoney(purs)}</p><p>مصروفات أخرى: ${Utils.formatMoney(exp)}</p><p>صافي الربح: ${Utils.formatMoney(sales-purs-exp)}</p>`;
             }
-
             currentReportData = { reportId, range, content };
             document.getElementById('previewTitle').textContent = currentReportTitle;
             document.getElementById('previewContent').innerHTML = content;
             document.getElementById('reportPreview').style.display = 'block';
-            document.getElementById('reportPreview').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function generateSalesReport(range) {
-            const invoices = Storage.getInvoices().filter(i => i.type === 'sale' && i.date >= range.start && i.date <= range.end);
-            const total = invoices.reduce((s, i) => s + i.total, 0);
-            const paid = invoices.reduce((s, i) => s + i.paid, 0);
-            return `
-                <h4>ملخص المبيعات</h4>
-                <p>عدد الفواتير: ${invoices.length}</p>
-                <p>إجمالي المبيعات: ${Utils.formatMoney(total)}</p>
-                <p>المدفوع: ${Utils.formatMoney(paid)}</p>
-                <p>المستحق: ${Utils.formatMoney(total - paid)}</p>
-                <hr>
-                <h4>أفضل العملاء</h4>
-                ${getTopCustomers(invoices)}
-            `;
-        }
-
-        function generatePurchasesReport(range) {
-            const purchases = Storage.getPurchases().filter(p => p.date >= range.start && p.date <= range.end);
-            const total = purchases.reduce((s, p) => s + p.total, 0);
-            return `
-                <h4>ملخص المشتريات</h4>
-                <p>عدد الفواتير: ${purchases.length}</p>
-                <p>إجمالي المشتريات: ${Utils.formatMoney(total)}</p>
-                <p>المدفوع: ${Utils.formatMoney(purchases.reduce((s,p) => s + p.paid, 0))}</p>
-                <p>المستحق: ${Utils.formatMoney(purchases.reduce((s,p) => s + p.remaining, 0))}</p>
-            `;
-        }
-
-        function generateCashflowReport(range) {
-            const trans = Storage.getTransactions().filter(t => t.date >= range.start && t.date <= range.end);
-            const income = trans.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
-            const expense = trans.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
-            return `
-                <h4>التدفق النقدي</h4>
-                <p>إجمالي الإيداعات: ${Utils.formatMoney(income)}</p>
-                <p>إجمالي السحوبات: ${Utils.formatMoney(expense)}</p>
-                <p>صافي التدفق: ${Utils.formatMoney(income - expense)}</p>
-                <hr>
-                <h4>آخر 10 حركات</h4>
-                ${trans.slice(0,10).map(t => `<p>${t.date} - ${t.description}: ${t.type === 'income' ? '+' : '-'}${Utils.formatMoney(t.amount)}</p>`).join('')}
-            `;
-        }
-
-        function generateCustomersReport() {
-            const customers = Storage.getCustomers();
-            const totalBalance = customers.reduce((s,c) => s + c.balance, 0);
-            const debtors = customers.filter(c => c.balance < 0).sort((a,b) => a.balance - b.balance);
-            return `
-                <h4>العملاء</h4>
-                <p>عدد العملاء: ${customers.length}</p>
-                <p>صافي الرصيد: ${Utils.formatMoney(totalBalance)}</p>
-                <h4>أكبر المديونيات</h4>
-                ${debtors.slice(0,5).map(c => `<p>${c.name}: ${Utils.formatMoney(c.balance)}</p>`).join('')}
-            `;
-        }
-
-        function generateSuppliersReport() {
-            const suppliers = Storage.getSuppliers();
-            const totalBalance = suppliers.reduce((s,c) => s + c.balance, 0);
-            return `
-                <h4>الموردين</h4>
-                <p>عدد الموردين: ${suppliers.length}</p>
-                <p>إجمالي المستحقات: ${Utils.formatMoney(totalBalance)}</p>
-            `;
-        }
-
-        function generateInventoryReport() {
-            const products = Storage.getProducts();
-            let totalItems = 0, lowStock = [];
-            products.forEach(p => p.units.forEach(u => {
-                totalItems += u.stock;
-                if (u.stock <= 10) lowStock.push(`${p.name} (${u.unit})`);
-            }));
-            return `
-                <h4>المخزون</h4>
-                <p>إجمالي الوحدات: ${totalItems}</p>
-                <p>منتجات منخفضة: ${lowStock.length}</p>
-                ${lowStock.length > 0 ? '<ul>' + lowStock.map(l => `<li>${l}</li>`).join('') + '</ul>' : ''}
-            `;
-        }
-
-        function generateRepsReport() {
-            const reps = Storage.getReps();
-            const totalSales = reps.reduce((s,r) => s + r.sales, 0);
-            return `
-                <h4>أداء المندوبين</h4>
-                <p>إجمالي المبيعات: ${Utils.formatMoney(totalSales)}</p>
-                ${reps.map(r => `<p>${r.name}: مبيعات ${Utils.formatMoney(r.sales)} (${Math.round(r.sales/r.target*100)}%)</p>`).join('')}
-            `;
-        }
-
-        function generateProfitReport(range) {
-            const sales = Storage.getInvoices().filter(i => i.type === 'sale' && i.date >= range.start && i.date <= range.end).reduce((s,i) => s + i.total, 0);
-            const purchases = Storage.getPurchases().filter(p => p.date >= range.start && p.date <= range.end).reduce((s,p) => s + p.total, 0);
-            const expenses = Storage.getTransactions().filter(t => t.type === 'expense' && t.date >= range.start && t.date <= range.end).reduce((s,t) => s + t.amount, 0);
-            const profit = sales - purchases - expenses;
-            return `
-                <h4>الأرباح والخسائر</h4>
-                <p>المبيعات: ${Utils.formatMoney(sales)}</p>
-                <p>تكلفة المشتريات: ${Utils.formatMoney(purchases)}</p>
-                <p>مصروفات أخرى: ${Utils.formatMoney(expenses)}</p>
-                <p>صافي الربح: ${Utils.formatMoney(profit)}</p>
-            `;
-        }
-
-        function getTopCustomers(invoices) {
-            const customerMap = {};
-            invoices.forEach(i => {
-                if (!customerMap[i.customer]) customerMap[i.customer] = 0;
-                customerMap[i.customer] += i.total;
-            });
-            const sorted = Object.entries(customerMap).sort((a,b) => b[1] - a[1]).slice(0,5);
-            return sorted.map(([name, total]) => `<p>${name}: ${Utils.formatMoney(total)}</p>`).join('');
-        }
-
-        function downloadReport(reportId) {
-            generateReport(reportId);
-            setTimeout(() => downloadCurrentReport(), 100);
-        }
-
+        function downloadReport(reportId) { generateReport(reportId); setTimeout(()=>downloadCurrentReport(), 100); }
         function downloadCurrentReport() {
             if (!currentReportData) return;
-            const text = document.getElementById('previewContent').innerText;
-            const blob = new Blob([currentReportTitle + '\n\n' + text], { type: 'text/plain;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `تقرير_${currentReportData.reportId}_${Utils.getToday()}.txt`;
-            link.click();
+            const blob = new Blob([currentReportTitle+'\n\n'+document.getElementById('previewContent').innerText], {type:'text/plain'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `تقرير_${currentReportData.reportId}_${Utils.getToday()}.txt`; a.click();
         }
-
-        function generateAllReports() {
-            const range = getDateRange();
-            let allText = `تقرير شامل - ${range.start} إلى ${range.end}\n\n`;
-            allText += '=== المبيعات ===\n' + document.getElementById('previewContent')?.innerText || '';
-            alert('سيتم تجميع جميع التقارير في ملف واحد قريباً');
-        }
-
-        function closePreview() {
-            document.getElementById('reportPreview').style.display = 'none';
-        }
+        function generateAllReports() { alert('سيتم تجميع جميع التقارير قريباً'); }
+        function closePreview() { document.getElementById('reportPreview').style.display = 'none'; }
     </script>
 </body>
 </html>
