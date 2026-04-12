@@ -1,5 +1,6 @@
 // js/storage.js
 // طبقة تخزين البيانات (محاكاة قاعدة بيانات باستخدام localStorage)
+// جميع الدوال async جاهزة للاستبدال بـ API حقيقي
 
 const Storage = {
     KEYS: {
@@ -61,12 +62,14 @@ const Storage = {
             system: { lang: 'ar', currency: 'ج.م', timezone: 'Africa/Cairo', dateFormat: 'dd/mm/yyyy', lowStockAlert: 10 }
         },
         users: [
-            { id: 1, username: 'admin', fullName: 'مدير النظام', role: 'admin', status: 'active', lastLogin: '2024-01-20 10:30' }
+            { id: 1, username: 'admin', password: '123456', fullName: 'مدير النظام', role: 'admin', status: 'active' },
+            { id: 2, username: 'مندوب1', password: '123456', fullName: 'أحمد محمود', role: 'rep', repId: 1, status: 'active' },
+            { id: 3, username: 'مندوب2', password: '123456', fullName: 'خالد عمرو', role: 'rep', repId: 2, status: 'active' }
         ]
     },
 
     // تهيئة التخزين (تحميل البيانات الافتراضية إذا لم تكن موجودة)
-    init() {
+    async init() {
         for (let key in this.KEYS) {
             const storageKey = this.KEYS[key];
             if (!localStorage.getItem(storageKey)) {
@@ -79,129 +82,211 @@ const Storage = {
     },
 
     // دوال عامة للقراءة والكتابة
-    getCollection(key) {
+    async getCollection(key) {
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : [];
     },
 
-    setCollection(key, data) {
+    async setCollection(key, data) {
         localStorage.setItem(key, JSON.stringify(data));
     },
 
-    // دوال متخصصة
-    getProducts() {
+    // المنتجات
+    async getProducts() {
         return this.getCollection(this.KEYS.PRODUCTS);
     },
-
-    saveProducts(products) {
-        this.setCollection(this.KEYS.PRODUCTS, products);
+    async saveProducts(products) {
+        await this.setCollection(this.KEYS.PRODUCTS, products);
+    },
+    async saveProduct(product) {
+        const products = await this.getProducts();
+        const index = products.findIndex(p => p.id === product.id);
+        if (index >= 0) products[index] = product;
+        else {
+            product.id = Date.now();
+            products.push(product);
+        }
+        await this.saveProducts(products);
+        return product;
+    },
+    async deleteProduct(id) {
+        const products = await this.getProducts();
+        const filtered = products.filter(p => p.id !== id);
+        await this.saveProducts(filtered);
     },
 
-    getCustomers() {
+    // العملاء
+    async getCustomers() {
         return this.getCollection(this.KEYS.CUSTOMERS);
     },
-
-    saveCustomers(customers) {
-        this.setCollection(this.KEYS.CUSTOMERS, customers);
+    async saveCustomers(customers) {
+        await this.setCollection(this.KEYS.CUSTOMERS, customers);
+    },
+    async saveCustomer(customer) {
+        const customers = await this.getCustomers();
+        const index = customers.findIndex(c => c.id === customer.id);
+        if (index >= 0) customers[index] = customer;
+        else {
+            customer.id = Date.now();
+            customer.type = 'customer';
+            customers.push(customer);
+        }
+        await this.saveCustomers(customers);
+        return customer;
+    },
+    async deleteCustomer(id) {
+        const customers = await this.getCustomers();
+        const filtered = customers.filter(c => c.id !== id);
+        await this.saveCustomers(filtered);
     },
 
-    getSuppliers() {
+    // الموردين
+    async getSuppliers() {
         return this.getCollection(this.KEYS.SUPPLIERS);
     },
-
-    saveSuppliers(suppliers) {
-        this.setCollection(this.KEYS.SUPPLIERS, suppliers);
+    async saveSuppliers(suppliers) {
+        await this.setCollection(this.KEYS.SUPPLIERS, suppliers);
     },
-
-    // الحصول على جميع العملاء والموردين
-    getAllParties() {
-        return [...this.getCustomers(), ...this.getSuppliers()];
-    },
-
-    // حفظ طرف (عميل أو مورد) مع تحديث المجموعة الصحيحة
-    saveParty(party) {
-        if (party.type === 'customer') {
-            const customers = this.getCustomers();
-            const index = customers.findIndex(c => c.id === party.id);
-            if (index >= 0) customers[index] = party;
-            else {
-                party.id = Date.now();
-                customers.push(party);
-            }
-            this.saveCustomers(customers);
-        } else {
-            const suppliers = this.getSuppliers();
-            const index = suppliers.findIndex(s => s.id === party.id);
-            if (index >= 0) suppliers[index] = party;
-            else {
-                party.id = Date.now();
-                suppliers.push(party);
-            }
-            this.saveSuppliers(suppliers);
+    async saveSupplier(supplier) {
+        const suppliers = await this.getSuppliers();
+        const index = suppliers.findIndex(s => s.id === supplier.id);
+        if (index >= 0) suppliers[index] = supplier;
+        else {
+            supplier.id = Date.now();
+            supplier.type = 'supplier';
+            suppliers.push(supplier);
         }
+        await this.saveSuppliers(suppliers);
+        return supplier;
+    },
+    async deleteSupplier(id) {
+        const suppliers = await this.getSuppliers();
+        const filtered = suppliers.filter(s => s.id !== id);
+        await this.saveSuppliers(filtered);
     },
 
-    deleteParty(id, type) {
-        if (type === 'customer') {
-            const customers = this.getCustomers().filter(c => c.id !== id);
-            this.saveCustomers(customers);
-        } else {
-            const suppliers = this.getSuppliers().filter(s => s.id !== id);
-            this.saveSuppliers(suppliers);
-        }
+    // جميع الأطراف
+    async getAllParties() {
+        const customers = await this.getCustomers();
+        const suppliers = await this.getSuppliers();
+        return [...customers, ...suppliers];
+    },
+    async saveParty(party) {
+        if (party.type === 'customer') return this.saveCustomer(party);
+        else return this.saveSupplier(party);
+    },
+    async deleteParty(id, type) {
+        if (type === 'customer') return this.deleteCustomer(id);
+        else return this.deleteSupplier(id);
     },
 
-    getReps() {
+    // المندوبين
+    async getReps() {
         return this.getCollection(this.KEYS.REPS);
     },
-
-    saveReps(reps) {
-        this.setCollection(this.KEYS.REPS, reps);
+    async saveReps(reps) {
+        await this.setCollection(this.KEYS.REPS, reps);
+    },
+    async saveRep(rep) {
+        const reps = await this.getReps();
+        const index = reps.findIndex(r => r.id === rep.id);
+        if (index >= 0) reps[index] = rep;
+        else {
+            rep.id = Date.now();
+            reps.push(rep);
+        }
+        await this.saveReps(reps);
+        return rep;
+    },
+    async deleteRep(id) {
+        const reps = await this.getReps();
+        const filtered = reps.filter(r => r.id !== id);
+        await this.saveReps(filtered);
     },
 
-    getInvoices() {
+    // الفواتير
+    async getInvoices() {
         return this.getCollection(this.KEYS.INVOICES);
     },
-
-    saveInvoices(invoices) {
-        this.setCollection(this.KEYS.INVOICES, invoices);
+    async saveInvoices(invoices) {
+        await this.setCollection(this.KEYS.INVOICES, invoices);
+    },
+    async saveInvoice(invoice) {
+        const invoices = await this.getInvoices();
+        const index = invoices.findIndex(i => i.id === invoice.id);
+        if (index >= 0) invoices[index] = invoice;
+        else invoices.push(invoice);
+        await this.saveInvoices(invoices);
+        return invoice;
     },
 
-    getPurchases() {
+    // المشتريات
+    async getPurchases() {
         return this.getCollection(this.KEYS.PURCHASES);
     },
-
-    savePurchases(purchases) {
-        this.setCollection(this.KEYS.PURCHASES, purchases);
+    async savePurchases(purchases) {
+        await this.setCollection(this.KEYS.PURCHASES, purchases);
+    },
+    async savePurchase(purchase) {
+        const purchases = await this.getPurchases();
+        const index = purchases.findIndex(p => p.id === purchase.id);
+        if (index >= 0) purchases[index] = purchase;
+        else purchases.push(purchase);
+        await this.savePurchases(purchases);
+        return purchase;
     },
 
-    getTransactions() {
+    // حركات الصندوق
+    async getTransactions() {
         return this.getCollection(this.KEYS.TRANSACTIONS);
     },
-
-    saveTransactions(transactions) {
-        this.setCollection(this.KEYS.TRANSACTIONS, transactions);
+    async saveTransactions(transactions) {
+        await this.setCollection(this.KEYS.TRANSACTIONS, transactions);
+    },
+    async saveTransaction(transaction) {
+        const transactions = await this.getTransactions();
+        const index = transactions.findIndex(t => t.id === transaction.id);
+        if (index >= 0) transactions[index] = transaction;
+        else {
+            transaction.id = Date.now();
+            transactions.push(transaction);
+        }
+        await this.saveTransactions(transactions);
+        return transaction;
     },
 
-    getSettings() {
+    // الإعدادات
+    async getSettings() {
         const data = localStorage.getItem(this.KEYS.SETTINGS);
         return data ? JSON.parse(data) : this.defaults.settings;
     },
-
-    saveSettings(settings) {
+    async saveSettings(settings) {
         localStorage.setItem(this.KEYS.SETTINGS, JSON.stringify(settings));
     },
 
-    getUsers() {
+    // المستخدمين
+    async getUsers() {
         return this.getCollection(this.KEYS.USERS);
     },
-
-    saveUsers(users) {
-        this.setCollection(this.KEYS.USERS, users);
+    async saveUsers(users) {
+        await this.setCollection(this.KEYS.USERS, users);
+    },
+    async saveUser(user) {
+        const users = await this.getUsers();
+        const index = users.findIndex(u => u.id === user.id);
+        if (index >= 0) users[index] = user;
+        else {
+            user.id = Date.now();
+            users.push(user);
+        }
+        await this.saveUsers(users);
+        return user;
+    },
+    async deleteUser(id) {
+        const users = await this.getUsers();
+        const filtered = users.filter(u => u.id !== id);
+        await this.saveUsers(filtered);
     }
 };
-
-// تهيئة التخزين عند التحميل
-Storage.init();
 
 window.Storage = Storage;
