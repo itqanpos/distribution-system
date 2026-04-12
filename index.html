@@ -2,8 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام التوزيع الغذائي - الصفحة الرئيسية</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام التوزيع الغذائي - تسجيل الدخول</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
     <style>
@@ -26,287 +26,67 @@
         }
 
         body {
-            background: #f5f6fa;
-            color: #333;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
-        .navbar {
+        .login-container {
             background: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-            padding: 0 20px;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 450px;
+            padding: 40px 30px;
+            animation: fadeIn 0.5s ease-out;
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
         }
 
         .logo-icon {
             background: linear-gradient(135deg, var(--secondary), var(--info));
             color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .logo-text h2 {
-            color: var(--primary);
-            font-size: 20px;
-            margin-bottom: 2px;
-        }
-
-        .logo-text p {
-            color: var(--secondary);
-            font-size: 12px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .nav-link {
-            color: var(--dark);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-link:hover {
-            color: var(--secondary);
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: var(--secondary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(52,152,219,0.3);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 2px solid var(--secondary);
-            color: var(--secondary);
-        }
-
-        .btn-outline:hover {
-            background: var(--secondary);
-            color: white;
-        }
-
-        .hero {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 60px 40px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 500px;
-        }
-
-        .hero-content {
-            flex: 1;
-            max-width: 600px;
-        }
-
-        .hero-content h1 {
-            font-size: 48px;
-            color: var(--primary);
-            margin-bottom: 20px;
-            line-height: 1.3;
-        }
-
-        .hero-content p {
-            font-size: 18px;
-            color: #555;
-            margin-bottom: 30px;
-            line-height: 1.8;
-        }
-
-        .hero-image {
-            flex: 1;
-            text-align: center;
-        }
-
-        .hero-image i {
-            font-size: 250px;
-            color: var(--secondary);
-            opacity: 0.8;
-        }
-
-        .features {
-            padding: 60px 40px;
-            text-align: center;
-        }
-
-        .features h2 {
-            font-size: 36px;
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-
-        .features-subtitle {
-            color: #7f8c8d;
-            margin-bottom: 50px;
-            font-size: 18px;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .feature-card {
-            background: white;
-            border-radius: 12px;
-            padding: 30px 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            transition: all 0.3s;
-            border-bottom: 5px solid transparent;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
-            border-bottom-color: var(--secondary);
-        }
-
-        .feature-icon {
             width: 70px;
             height: 70px;
-            background: linear-gradient(135deg, var(--secondary), var(--info));
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
-            color: white;
-            font-size: 30px;
-        }
-
-        .feature-card h3 {
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-
-        .feature-card p {
-            color: #7f8c8d;
-            line-height: 1.6;
-        }
-
-        .footer {
-            background: var(--primary);
-            color: white;
-            padding: 40px 20px 20px;
-        }
-
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .footer-section h4 {
-            margin-bottom: 20px;
-            font-size: 18px;
-        }
-
-        .footer-section p, .footer-section a {
-            color: #bdc3c7;
-            text-decoration: none;
-            display: block;
-            margin-bottom: 10px;
-        }
-
-        .footer-section a:hover {
-            color: white;
-        }
-
-        .copyright {
-            text-align: center;
-            padding-top: 30px;
-            margin-top: 30px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            color: #bdc3c7;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-        }
-
-        .modal-header {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
-        .modal-header .logo-icon {
+            font-size: 32px;
             margin: 0 auto 15px;
         }
 
-        .modal-header h3 {
+        .login-header h2 {
             color: var(--primary);
             margin-bottom: 5px;
+        }
+
+        .login-header p {
+            color: #7f8c8d;
+            font-size: 14px;
         }
 
         .form-group {
             margin-bottom: 20px;
         }
 
-        .form-group label {
+        label {
             display: block;
             margin-bottom: 8px;
             color: var(--primary);
             font-weight: 600;
+            font-size: 14px;
         }
 
         .input-icon {
@@ -323,15 +103,17 @@
 
         .input-icon input {
             width: 100%;
-            padding: 12px 45px 12px 15px;
+            padding: 14px 45px 14px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
             font-size: 16px;
+            transition: all 0.3s;
         }
 
         .input-icon input:focus {
             border-color: var(--secondary);
             outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
         }
 
         .login-btn {
@@ -344,170 +126,145 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
         }
 
-        .demo-note {
-            background: var(--light);
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 20px;
-            font-size: 13px;
-            color: #555;
+        .login-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52,152,219,0.3);
+        }
+
+        .demo-section {
+            margin-top: 25px;
             text-align: center;
         }
 
-        .close-modal {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
+        .demo-label {
             color: #7f8c8d;
+            font-size: 13px;
+            margin-bottom: 10px;
         }
 
-        @media (max-width: 992px) {
-            .hero {
-                flex-direction: column;
-                text-align: center;
-                padding: 40px 20px;
-            }
-            .hero-content h1 {
-                font-size: 36px;
-            }
-            .hero-image i {
-                font-size: 180px;
-                margin-top: 30px;
-            }
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
 
-        @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
-            .features {
-                padding: 40px 20px;
+        .demo-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--secondary);
+            border-radius: 8px;
+            background: white;
+            color: var(--secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .demo-btn:hover {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .demo-btn.admin {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .demo-btn.admin:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .demo-btn.rep {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .demo-btn.rep:hover {
+            background: var(--success);
+            color: white;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
             }
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text">
-                <h2>نظام التوزيع الغذائي</h2>
-                <p>إدارة متكاملة للتوزيع والمبيعات</p>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-icon">
+                <i class="fas fa-truck"></i>
             </div>
+            <h2>نظام التوزيع الغذائي</h2>
+            <p>الرجاء إدخال بيانات الدخول</p>
         </div>
-        <div class="nav-links">
-            <a href="#" class="nav-link">الرئيسية</a>
-            <a href="#features" class="nav-link">المميزات</a>
-            <a href="#contact" class="nav-link">اتصل بنا</a>
-            <button class="btn btn-outline" onclick="openLoginModal()"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</button>
-        </div>
-    </nav>
-
-    <section class="hero">
-        <div class="hero-content">
-            <h1>أدر أعمالك الغذائية بكل سهولة واحترافية</h1>
-            <p>نظام متكامل لإدارة المبيعات، المشتريات، المخزون، العملاء، والمندوبين. صُمم خصيصًا لقطاع التوزيع الغذائي.</p>
-            <button class="btn btn-primary" onclick="openLoginModal()"><i class="fas fa-rocket"></i> ابدأ الآن مجاناً</button>
-        </div>
-        <div class="hero-image">
-            <i class="fas fa-chart-pie"></i>
-        </div>
-    </section>
-
-    <section class="features" id="features">
-        <h2>لماذا نظام التوزيع الغذائي؟</h2>
-        <p class="features-subtitle">حلول متكاملة تلبي احتياجات إدارة أعمالك</p>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-cash-register"></i></div>
-                <h3>نقطة بيع متطورة</h3>
-                <p>واجهة بيع سريعة تدعم الباركود وإدارة الأصناف والعروض والخصومات</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-users"></i></div>
-                <h3>إدارة العملاء والمندوبين</h3>
-                <p>متابعة حسابات العملاء وأداء المندوبين مع تقارير مفصلة</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-boxes"></i></div>
-                <h3>مخزون ذكي</h3>
-                <p>تتبع المخزون بدقة مع تنبيهات الحد الأدنى وإدارة المشتريات</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-chart-bar"></i></div>
-                <h3>تقارير وتحليلات</h3>
-                <p>لوحات تحكم تفاعلية وتقارير شاملة عن الأداء المالي والتشغيلي</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
-                <h3>تجربة جوال ممتازة</h3>
-                <p>تطبيق ويب تقدمي (PWA) يعمل على جميع الأجهزة ويمكن تثبيته</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-hand-holding-usd"></i></div>
-                <h3>متابعة الديون</h3>
-                <p>نظام متكامل لتسجيل ومتابعة الديون والتحصيلات مع تنبيهات</p>
-            </div>
-        </div>
-    </section>
-
-    <footer class="footer" id="contact">
-        <div class="footer-content">
-            <div class="footer-section">
-                <h4>نظام التوزيع الغذائي</h4>
-                <p>حلول برمجية متكاملة لإدارة أعمال التوزيع والمبيعات الغذائية.</p>
-            </div>
-            <div class="footer-section">
-                <h4>روابط سريعة</h4>
-                <a href="#">الرئيسية</a>
-                <a href="#features">المميزات</a>
-                <a href="#">الأسعار</a>
-                <a href="#">الدعم</a>
-            </div>
-            <div class="footer-section">
-                <h4>تواصل معنا</h4>
-                <p><i class="fas fa-phone"></i> 01234567890</p>
-                <p><i class="fas fa-envelope"></i> info@fooddist.com</p>
-                <p><i class="fas fa-map-marker-alt"></i> القاهرة، مصر</p>
-            </div>
-        </div>
-        <div class="copyright">
-            © 2024 نظام إدارة التوزيع الغذائي. جميع الحقوق محفوظة.
-        </div>
-    </footer>
-
-    <div class="modal" id="loginModal">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeLoginModal()">&times;</button>
-            <div class="modal-header">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <h3>تسجيل الدخول</h3>
-                <p>أدخل بياناتك للوصول إلى لوحة التحكم</p>
-            </div>
-            <form id="loginForm" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label>اسم المستخدم</label>
-                    <div class="input-icon">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
-                    </div>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>اسم المستخدم</label>
+                <div class="input-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
                 </div>
-                <div class="form-group">
-                    <label>كلمة المرور</label>
-                    <div class="input-icon">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
-                    </div>
+            </div>
+            
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <div class="input-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
                 </div>
-                <button type="submit" class="login-btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
-                <div class="demo-note"><i class="fas fa-info-circle"></i> <strong>تجريبي:</strong> أي اسم مستخدم وكلمة مرور</div>
-            </form>
+                <div class="error-message" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+            </div>
+            
+            <button type="submit" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i> دخول
+            </button>
+        </form>
+        
+        <div class="demo-section">
+            <div class="demo-label">حسابات تجريبية</div>
+            <div class="demo-buttons">
+                <button type="button" class="demo-btn admin" onclick="fillDemo('admin')">
+                    <i class="fas fa-user-tie"></i> مدير
+                </button>
+                <button type="button" class="demo-btn rep" onclick="fillDemo('rep')">
+                    <i class="fas fa-user"></i> مندوب
+                </button>
+            </div>
+        </div>
+        
+        <div class="login-footer">
+            © 2024 نظام إدارة التوزيع الغذائي
         </div>
     </div>
 
@@ -516,39 +273,63 @@
     <script src="js/utils.js"></script>
     <script src="js/ui.js"></script>
     <script>
-        // تحويل إذا كان المستخدم مسجلاً مسبقاً
-        Auth.redirectIfAuth('dashboard.html');
+        // التحقق مما إذا كان المستخدم مسجلاً مسبقاً وتوجيهه
+        (function() {
+            if (Auth.redirectIfAuth && typeof Auth.redirectIfAuth === 'function') {
+                Auth.redirectIfAuth();
+            } else if (Auth.isAuthenticated && Auth.isAuthenticated()) {
+                const user = Auth.getUser();
+                if (user) {
+                    window.location.href = user.role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
+                }
+            }
+        })();
 
-        function openLoginModal() {
-            document.getElementById('loginModal').style.display = 'flex';
-        }
-
-        function closeLoginModal() {
-            document.getElementById('loginModal').style.display = 'none';
-        }
-
-        function handleLogin(event) {
+        async function handleLogin(event) {
             event.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
             
-            const result = Auth.login(username, password);
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+            
+            if (!username || !password) {
+                errorEl.textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            const result = await Auth.login(username, password);
+            
             if (result.success) {
-                window.location.href = 'dashboard.html';
+                window.location.href = result.redirectUrl;
             } else {
-                alert(result.message);
+                errorEl.textContent = result.message || 'بيانات الدخول غير صحيحة';
+                errorEl.style.display = 'block';
             }
         }
 
-        window.onclick = function(event) {
-            const modal = document.getElementById('loginModal');
-            if (event.target === modal) {
-                closeLoginModal();
+        function fillDemo(role) {
+            if (role === 'admin') {
+                document.getElementById('username').value = 'admin';
+                document.getElementById('password').value = '123456';
+            } else {
+                document.getElementById('username').value = 'مندوب1';
+                document.getElementById('password').value = '123456';
             }
+            document.getElementById('loginError').style.display = 'none';
         }
 
+        // إخفاء رسالة الخطأ عند الكتابة
+        document.getElementById('username').addEventListener('input', hideError);
+        document.getElementById('password').addEventListener('input', hideError);
+        
+        function hideError() {
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        // تهيئة القيم الافتراضية
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('username').value = 'مدير النظام';
+            document.getElementById('username').value = 'admin';
             document.getElementById('password').value = '123456';
         });
     </script>
