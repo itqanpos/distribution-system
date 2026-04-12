@@ -4,6 +4,7 @@
 const Utils = {
     // تنسيق العملة
     formatMoney(amount, currency = 'ج') {
+        if (amount === null || amount === undefined) return '0 ' + currency;
         return new Intl.NumberFormat('ar-EG').format(amount) + ' ' + currency;
     },
 
@@ -11,6 +12,7 @@ const Utils = {
     formatDate(date, format = 'dd/mm/yyyy') {
         if (!date) return '';
         const d = new Date(date);
+        if (isNaN(d.getTime())) return '';
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = d.getFullYear();
@@ -19,7 +21,11 @@ const Utils = {
 
     // الحصول على تاريخ اليوم بصيغة YYYY-MM-DD
     getToday() {
-        return new Date().toISOString().split('T')[0];
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     },
 
     // إنشاء معرف فريد
@@ -30,9 +36,12 @@ const Utils = {
     // البحث في مصفوفة كائنات
     search(array, term, fields) {
         if (!term) return array;
-        const lowerTerm = term.toLowerCase();
+        const lowerTerm = String(term).toLowerCase();
         return array.filter(item => 
-            fields.some(field => String(item[field]).toLowerCase().includes(lowerTerm))
+            fields.some(field => {
+                const value = item[field];
+                return value && String(value).toLowerCase().includes(lowerTerm);
+            })
         );
     },
 
@@ -64,17 +73,20 @@ const Utils = {
 
     // نسخ النص إلى الحافظة
     copyToClipboard(text) {
-        navigator.clipboard?.writeText(text).then(() => {
-            alert('تم النسخ إلى الحافظة');
-        }).catch(() => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('تم النسخ إلى الحافظة');
+            }).catch(() => {
+                prompt('انسخ يدوياً:', text);
+            });
+        } else {
             prompt('انسخ يدوياً:', text);
-        });
+        }
     },
 
     // عرض إشعار (يمكن تطويره لـ Toast)
     showNotification(message, type = 'info') {
-        // يمكن استبدالها بمكتبة إشعارات
-        alert(message);
+        alert(message); // يمكن استبدالها بمكتبة إشعارات
     },
 
     // تأكيد الإجراء
@@ -82,6 +94,26 @@ const Utils = {
         if (confirm(message)) {
             callback();
         }
+    },
+
+    // تجميع البيانات حسب مفتاح
+    groupBy(array, key) {
+        return array.reduce((result, item) => {
+            const groupKey = item[key];
+            if (!result[groupKey]) result[groupKey] = [];
+            result[groupKey].push(item);
+            return result;
+        }, {});
+    },
+
+    // حساب المجموع حسب مفتاح
+    sumBy(array, key) {
+        return array.reduce((sum, item) => sum + (parseFloat(item[key]) || 0), 0);
+    },
+
+    // ترتيب تنازلي حسب التاريخ
+    sortByDateDesc(array, dateKey = 'date') {
+        return [...array].sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
     }
 };
 
