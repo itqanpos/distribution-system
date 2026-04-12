@@ -31,10 +31,9 @@
             overflow-x: hidden;
         }
 
-        /* شريط التنقل */
         .navbar {
             background: white;
-            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             padding: 0 15px;
             position: fixed;
             top: 0;
@@ -108,7 +107,6 @@
             gap: 5px;
         }
 
-        /* تخطيط نقطة البيع */
         .pos-container {
             margin-top: 60px;
             padding: 15px;
@@ -118,12 +116,11 @@
             min-height: calc(100vh - 60px);
         }
 
-        /* قسم المنتجات */
         .products-section {
             background: white;
             border-radius: 12px;
             padding: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
         }
@@ -140,7 +137,6 @@
             border: 2px solid #e0e0e0;
             border-radius: 10px;
             font-size: 16px;
-            transition: border 0.3s;
         }
 
         .search-bar input:focus {
@@ -162,7 +158,6 @@
             border-radius: 20px;
             cursor: pointer;
             font-size: 13px;
-            transition: all 0.2s;
         }
 
         .filter-tab.active {
@@ -219,12 +214,11 @@
             color: #95a5a6;
         }
 
-        /* قسم الفاتورة */
         .cart-section {
             background: white;
             border-radius: 12px;
             padding: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
         }
@@ -377,36 +371,16 @@
             flex: 1;
         }
 
-        .btn-primary {
-            background: var(--secondary);
-            color: white;
-        }
+        .btn-primary { background: var(--secondary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-warning {
-            background: var(--warning);
-            color: white;
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--secondary);
-            color: var(--secondary);
-        }
-
-        /* مودال اختيار الوحدة */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
             align-items: center;
             justify-content: center;
             z-index: 2000;
@@ -433,38 +407,20 @@
             border-radius: 8px;
             margin-bottom: 10px;
             cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .unit-option:hover {
-            background: var(--light);
-            border-color: var(--secondary);
         }
 
         .unit-option.selected {
-            background: rgba(52, 152, 219, 0.1);
+            background: rgba(52,152,219,0.1);
             border-color: var(--secondary);
         }
 
-        /* استجابة */
         @media (max-width: 992px) {
-            .pos-container {
-                grid-template-columns: 1fr;
-            }
-            .product-grid {
-                max-height: 300px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .product-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .pos-container { grid-template-columns: 1fr; }
+            .product-grid { max-height: 300px; }
         }
     </style>
 </head>
 <body>
-    <!-- شريط التنقل -->
     <nav class="navbar">
         <div class="logo">
             <div class="logo-icon"><i class="fas fa-truck"></i></div>
@@ -474,27 +430,22 @@
             </div>
         </div>
         <div class="user-info">
-            <div class="user-details" style="display:none;">
-                <h4 id="userName">مدير النظام</h4>
-            </div>
+            <div class="user-details" style="display:none;"><h4 id="userName">مدير النظام</h4></div>
             <div class="user-avatar" id="userAvatar">م</div>
             <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
         </div>
     </nav>
 
-    <!-- المحتوى الرئيسي -->
     <div class="pos-container">
-        <!-- قسم المنتجات -->
         <div class="products-section">
             <div class="search-bar">
                 <input type="text" id="productSearch" placeholder="بحث سريع عن المنتج..." autocomplete="off">
-                <button class="btn btn-primary" style="padding: 12px;" onclick="scanBarcode()"><i class="fas fa-barcode"></i></button>
+                <button class="btn btn-primary" style="padding:12px;" onclick="scanBarcode()"><i class="fas fa-barcode"></i></button>
             </div>
             <div class="filter-tabs" id="categoryFilters"></div>
             <div class="product-grid" id="productGrid"></div>
         </div>
 
-        <!-- قسم الفاتورة -->
         <div class="cart-section">
             <div class="cart-header">
                 <h3><i class="fas fa-shopping-cart"></i> الفاتورة</h3>
@@ -511,22 +462,13 @@
             <div class="cart-items" id="cartItemsContainer"></div>
 
             <div class="cart-summary">
-                <div class="summary-row">
-                    <span>الإجمالي</span>
-                    <span id="subtotal">0.00 ج</span>
-                </div>
+                <div class="summary-row"><span>الإجمالي</span><span id="subtotal">0.00 ج</span></div>
                 <div class="summary-row">
                     <span>الخصم</span>
-                    <input type="number" id="discountAmount" min="0" step="0.01" value="0" style="width:100px; text-align:left; padding:5px; border:1px solid #ddd; border-radius:5px;" oninput="calculateTotals()"> ج
+                    <input type="number" id="discountAmount" min="0" step="0.01" value="0" style="width:100px; text-align:left;" oninput="calculateTotals()"> ج
                 </div>
-                <div class="summary-row">
-                    <span>الضريبة (14%)</span>
-                    <span id="taxAmount">0.00 ج</span>
-                </div>
-                <div class="summary-row total">
-                    <span>الصافي</span>
-                    <span id="netTotal">0.00 ج</span>
-                </div>
+                <div class="summary-row"><span>الضريبة (14%)</span><span id="taxAmount">0.00 ج</span></div>
+                <div class="summary-row total"><span>الصافي</span><span id="netTotal">0.00 ج</span></div>
             </div>
 
             <div class="payment-methods">
@@ -550,13 +492,13 @@
 
             <div class="action-buttons">
                 <button class="btn btn-success" onclick="completeSale()"><i class="fas fa-check"></i> إتمام البيع</button>
-                <button class="btn btn-warning" onclick="printInvoice()"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-warning" onclick="printCurrentReceipt()"><i class="fas fa-print"></i> طباعة</button>
                 <button class="btn btn-outline" onclick="holdInvoice()"><i class="fas fa-pause"></i> تعليق</button>
             </div>
         </div>
     </div>
 
-    <!-- مودال اختيار الوحدة وتعديل السعر -->
+    <!-- مودال اختيار الوحدة -->
     <div class="modal" id="unitModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -566,11 +508,11 @@
             <div id="unitOptions"></div>
             <div style="margin-top:15px;">
                 <label>الكمية</label>
-                <input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                <input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1" style="width:100%; padding:10px;">
             </div>
             <div style="margin-top:15px;">
                 <label>السعر (ضمن الحدود)</label>
-                <input type="number" id="selectedPrice" min="0" step="0.01" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                <input type="number" id="selectedPrice" min="0" step="0.01" style="width:100%; padding:10px;">
                 <small id="priceLimits"></small>
             </div>
             <button class="btn btn-primary" style="margin-top:20px; width:100%;" onclick="addToCartWithOptions()">إضافة إلى الفاتورة</button>
@@ -583,93 +525,55 @@
     <script src="js/ui.js"></script>
     <script src="js/print.js"></script>
     <script>
-        // المتغيرات العامة
         let cart = [];
         let products = [];
         let customers = [];
         let selectedProduct = null;
         let selectedUnitIndex = 0;
         let currentCategory = 'الكل';
+        let lastInvoice = null;
 
-        // تهيئة الصفحة
         document.addEventListener('DOMContentLoaded', () => {
             if (!UI.initPage('نقطة البيع')) return;
-
-            // تحميل البيانات
             products = Storage.getProducts();
             customers = Storage.getCustomers();
             
-            // ملء قائمة العملاء
-            const customerSelect = document.getElementById('customerSelect');
-            customerSelect.innerHTML = '<option value="">-- اختر العميل --</option>';
-            customers.forEach(c => {
-                customerSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-            });
+            const select = document.getElementById('customerSelect');
+            customers.forEach(c => select.innerHTML += `<option value="${c.id}">${c.name}</option>`);
             
-            // ملء التصنيفات
             const categories = ['الكل', ...new Set(products.map(p => p.category))];
-            const filterDiv = document.getElementById('categoryFilters');
-            filterDiv.innerHTML = categories.map(cat => 
+            document.getElementById('categoryFilters').innerHTML = categories.map(cat => 
                 `<button class="filter-tab ${cat === 'الكل' ? 'active' : ''}" onclick="filterCategory('${cat}')">${cat}</button>`
             ).join('');
             
             renderProducts();
-            
-            // أحداث البحث
-            document.getElementById('productSearch').addEventListener('input', (e) => {
-                renderProducts(e.target.value);
-            });
+            document.getElementById('productSearch').addEventListener('input', e => renderProducts(e.target.value));
         });
 
         function filterCategory(cat) {
             currentCategory = cat;
-            document.querySelectorAll('.filter-tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             renderProducts(document.getElementById('productSearch').value);
         }
 
         function renderProducts(searchTerm = '') {
-            const grid = document.getElementById('productGrid');
             let filtered = products;
+            if (currentCategory !== 'الكل') filtered = filtered.filter(p => p.category === currentCategory);
+            if (searchTerm) filtered = filtered.filter(p => p.name.includes(searchTerm) || p.units.some(u => u.barcode?.includes(searchTerm)));
             
-            if (currentCategory !== 'الكل') {
-                filtered = filtered.filter(p => p.category === currentCategory);
-            }
-            if (searchTerm) {
-                filtered = filtered.filter(p => 
-                    p.name.includes(searchTerm) || 
-                    p.units.some(u => u.barcode && u.barcode.includes(searchTerm))
-                );
-            }
-            
-            grid.innerHTML = filtered.map(p => {
-                const mainUnit = p.units[0];
-                return `
-                    <div class="product-card" onclick="openUnitModal(${p.id})">
-                        <h4>${p.name}</h4>
-                        <div class="unit">${mainUnit.unit}</div>
-                        <div class="price">${mainUnit.price} ج</div>
-                        <div class="limits">الحدود: ${mainUnit.min} - ${mainUnit.max} ج</div>
-                    </div>
-                `;
+            document.getElementById('productGrid').innerHTML = filtered.map(p => {
+                const u = p.units[0];
+                return `<div class="product-card" onclick="openUnitModal(${p.id})"><h4>${p.name}</h4><div class="unit">${u.unit}</div><div class="price">${u.price} ج</div><div class="limits">${u.min}-${u.max} ج</div></div>`;
             }).join('');
         }
 
         function openUnitModal(productId) {
             selectedProduct = products.find(p => p.id === productId);
-            if (!selectedProduct) return;
-            
             document.getElementById('modalProductName').textContent = selectedProduct.name;
-            
-            const optionsDiv = document.getElementById('unitOptions');
-            optionsDiv.innerHTML = selectedProduct.units.map((u, i) => `
-                <div class="unit-option ${i === 0 ? 'selected' : ''}" onclick="selectUnit(${i})">
-                    <strong>${u.unit}</strong><br>
-                    <span>السعر: ${u.price} ج (الحدود: ${u.min} - ${u.max})</span>
-                    <small>المخزون: ${u.stock}</small>
-                </div>
-            `).join('');
-            
+            document.getElementById('unitOptions').innerHTML = selectedProduct.units.map((u, i) => 
+                `<div class="unit-option ${i===0?'selected':''}" onclick="selectUnit(${i})"><strong>${u.unit}</strong><br>السعر: ${u.price} ج (${u.min}-${u.max})<br>المخزون: ${u.stock}</div>`
+            ).join('');
             selectedUnitIndex = 0;
             updatePriceLimits();
             document.getElementById('unitModal').style.display = 'flex';
@@ -677,60 +581,37 @@
 
         function selectUnit(index) {
             selectedUnitIndex = index;
-            document.querySelectorAll('.unit-option').forEach((opt, i) => {
-                opt.classList.toggle('selected', i === index);
-            });
+            document.querySelectorAll('.unit-option').forEach((o,i) => o.classList.toggle('selected', i===index));
             updatePriceLimits();
         }
 
         function updatePriceLimits() {
-            const unit = selectedProduct.units[selectedUnitIndex];
-            document.getElementById('selectedPrice').value = unit.price;
-            document.getElementById('selectedPrice').min = unit.min;
-            document.getElementById('selectedPrice').max = unit.max;
-            document.getElementById('priceLimits').textContent = `السعر يجب أن يكون بين ${unit.min} و ${unit.max} ج`;
+            const u = selectedProduct.units[selectedUnitIndex];
+            document.getElementById('selectedPrice').value = u.price;
+            document.getElementById('selectedPrice').min = u.min;
+            document.getElementById('selectedPrice').max = u.max;
+            document.getElementById('priceLimits').textContent = `السعر بين ${u.min} و ${u.max} ج`;
         }
 
-        function closeUnitModal() {
-            document.getElementById('unitModal').style.display = 'none';
-        }
+        function closeUnitModal() { document.getElementById('unitModal').style.display = 'none'; }
 
         function addToCartWithOptions() {
-            const unit = selectedProduct.units[selectedUnitIndex];
-            const quantity = parseFloat(document.getElementById('selectedQuantity').value);
+            const u = selectedProduct.units[selectedUnitIndex];
+            const qty = parseFloat(document.getElementById('selectedQuantity').value);
             let price = parseFloat(document.getElementById('selectedPrice').value);
-            
-            if (price < unit.min || price > unit.max) {
-                alert(`السعر يجب أن يكون بين ${unit.min} و ${unit.max}`);
-                return;
-            }
-            if (quantity <= 0) {
-                alert('الكمية يجب أن تكون أكبر من صفر');
-                return;
-            }
-            if (quantity > unit.stock) {
-                alert(`المخزون غير كافٍ. المتاح: ${unit.stock}`);
-                return;
-            }
+            if (price < u.min || price > u.max) { alert(`السعر بين ${u.min} و ${u.max}`); return; }
+            if (qty <= 0) { alert('كمية غير صالحة'); return; }
+            if (qty > u.stock) { alert(`المخزون غير كاف. المتاح: ${u.stock}`); return; }
 
-            const existing = cart.find(item => item.productId === selectedProduct.id && item.unitIndex === selectedUnitIndex);
+            const existing = cart.find(i => i.productId === selectedProduct.id && i.unitIndex === selectedUnitIndex);
             if (existing) {
-                if (existing.quantity + quantity > unit.stock) {
-                    alert(`المخزون غير كافٍ. المتاح: ${unit.stock}`);
-                    return;
-                }
-                existing.quantity += quantity;
+                if (existing.quantity + qty > u.stock) { alert(`المخزون غير كاف`); return; }
+                existing.quantity += qty;
             } else {
                 cart.push({
-                    productId: selectedProduct.id,
-                    productName: selectedProduct.name,
-                    unitIndex: selectedUnitIndex,
-                    unitName: unit.unit,
-                    quantity: quantity,
-                    price: price,
-                    min: unit.min,
-                    max: unit.max,
-                    barcode: unit.barcode
+                    productId: selectedProduct.id, productName: selectedProduct.name,
+                    unitIndex: selectedUnitIndex, unitName: u.unit, quantity: qty,
+                    price: price, min: u.min, max: u.max
                 });
             }
             renderCart();
@@ -740,70 +621,44 @@
         function renderCart() {
             const container = document.getElementById('cartItemsContainer');
             if (cart.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#7f8c8d;">السلة فارغة</p>';
+                container.innerHTML = '<p style="text-align:center;color:#7f8c8d;">السلة فارغة</p>';
                 calculateTotals();
                 return;
             }
-            
-            container.innerHTML = cart.map((item, index) => {
+            container.innerHTML = cart.map((item, idx) => {
                 const total = item.price * item.quantity;
-                return `
-                    <div class="cart-item">
-                        <div class="cart-item-info">
-                            <div class="cart-item-name">${item.productName}</div>
-                            <div class="cart-item-unit">${item.unitName}</div>
-                            <div class="cart-item-price">${item.price} ج</div>
-                        </div>
-                        <div class="cart-item-controls">
-                            <input type="number" value="${item.quantity}" min="0.001" step="0.001" onchange="updateQuantity(${index}, this.value)">
-                            <span class="cart-item-total">${total.toFixed(2)} ج</span>
-                        </div>
-                        <div class="cart-item-actions">
-                            <button onclick="removeItem(${index})"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>
-                `;
+                return `<div class="cart-item">
+                    <div class="cart-item-info"><div class="cart-item-name">${item.productName}</div><div class="cart-item-unit">${item.unitName}</div><div class="cart-item-price">${item.price} ج</div></div>
+                    <div class="cart-item-controls"><input type="number" value="${item.quantity}" min="0.001" step="0.001" onchange="updateQuantity(${idx}, this.value)"><span class="cart-item-total">${total.toFixed(2)} ج</span></div>
+                    <div class="cart-item-actions"><button onclick="removeItem(${idx})"><i class="fas fa-trash"></i></button></div>
+                </div>`;
             }).join('');
             calculateTotals();
         }
 
-        function updateQuantity(index, newQty) {
-            const qty = parseFloat(newQty);
-            const item = cart[index];
+        function updateQuantity(idx, val) {
+            const qty = parseFloat(val);
+            const item = cart[idx];
             const product = products.find(p => p.id === item.productId);
             const unit = product.units[item.unitIndex];
-            
-            if (qty <= 0) {
-                cart.splice(index, 1);
-            } else if (qty > unit.stock) {
-                alert(`المخزون غير كافٍ. المتاح: ${unit.stock}`);
-                renderCart();
-                return;
-            } else {
-                item.quantity = qty;
-            }
+            if (qty <= 0) cart.splice(idx, 1);
+            else if (qty > unit.stock) { alert(`المخزون غير كاف`); renderCart(); return; }
+            else item.quantity = qty;
             renderCart();
         }
 
-        function removeItem(index) {
-            cart.splice(index, 1);
-            renderCart();
-        }
+        function removeItem(idx) { cart.splice(idx, 1); renderCart(); }
 
         function calculateTotals() {
-            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
-            const afterDiscount = subtotal - discount;
-            const tax = afterDiscount * 0.14;
-            const net = afterDiscount + tax;
-            
+            const after = subtotal - discount;
+            const tax = after * 0.14;
+            const net = after + tax;
             document.getElementById('subtotal').textContent = subtotal.toFixed(2) + ' ج';
             document.getElementById('taxAmount').textContent = tax.toFixed(2) + ' ج';
             document.getElementById('netTotal').textContent = net.toFixed(2) + ' ج';
-            
-            if (document.getElementById('paymentMethod').value === 'mixed') {
-                calculateRemaining();
-            }
+            if (document.getElementById('paymentMethod').value === 'mixed') calculateRemaining();
         }
 
         function toggleMixedPayment() {
@@ -816,134 +671,75 @@
         function calculateRemaining() {
             const net = parseFloat(document.getElementById('netTotal').textContent) || 0;
             const cash = parseFloat(document.getElementById('cashAmount').value) || 0;
-            const credit = Math.max(0, net - cash);
-            document.getElementById('creditAmount').value = credit.toFixed(2);
+            document.getElementById('creditAmount').value = Math.max(0, net - cash).toFixed(2);
         }
 
         function updateCustomerBalance() {
-            const customerId = document.getElementById('customerSelect').value;
-            const customer = customers.find(c => c.id == customerId);
-            if (customer) {
-                document.getElementById('customerBalanceDisplay').textContent = 
-                    `الرصيد الحالي: ${Utils.formatMoney(customer.balance)}`;
-            } else {
-                document.getElementById('customerBalanceDisplay').textContent = '';
-            }
+            const c = customers.find(c => c.id == document.getElementById('customerSelect').value);
+            document.getElementById('customerBalanceDisplay').textContent = c ? `الرصيد: ${Utils.formatMoney(c.balance)}` : '';
         }
 
         function completeSale() {
-            if (cart.length === 0) {
-                alert('الرجاء إضافة منتجات إلى الفاتورة');
-                return;
-            }
-            
+            if (cart.length === 0) { alert('أضف منتجات'); return; }
             const customerId = document.getElementById('customerSelect').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
-            const netTotal = parseFloat(document.getElementById('netTotal').textContent);
+            const net = parseFloat(document.getElementById('netTotal').textContent);
             const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
-            
-            // التحقق من صحة الدفع المختلط
-            if (paymentMethod === 'mixed') {
-                const cash = parseFloat(document.getElementById('cashAmount').value) || 0;
-                const credit = parseFloat(document.getElementById('creditAmount').value) || 0;
-                if (cash + credit < netTotal - 0.01) {
-                    alert('مجموع المبلغ النقدي والآجل يجب أن يساوي الصافي');
-                    return;
-                }
-            }
 
-            // إنشاء رقم فاتورة
-            const invoices = Storage.getInvoices();
-            const newInvoiceId = `INV-${String(invoices.length + 1).padStart(3, '0')}`;
-            
-            // حساب المدفوع والمتبقي
-            let paid = 0;
-            let remaining = netTotal;
-            
-            if (paymentMethod === 'cash') {
-                paid = netTotal;
-                remaining = 0;
-            } else if (paymentMethod === 'credit') {
-                paid = 0;
-                remaining = netTotal;
-            } else if (paymentMethod === 'mixed') {
+            let paid = 0, remaining = net;
+            if (paymentMethod === 'cash') { paid = net; remaining = 0; }
+            else if (paymentMethod === 'credit') { paid = 0; remaining = net; }
+            else if (paymentMethod === 'mixed') {
                 paid = parseFloat(document.getElementById('cashAmount').value) || 0;
                 remaining = parseFloat(document.getElementById('creditAmount').value) || 0;
-            } else if (paymentMethod === 'bank') {
-                paid = netTotal;
-                remaining = 0;
-            }
+            } else if (paymentMethod === 'bank') { paid = net; remaining = 0; }
 
-            // إنشاء كائن الفاتورة
             const customer = customers.find(c => c.id == customerId) || { name: 'نقدي' };
+            const invoices = Storage.getInvoices();
+            const newId = `INV-${String(invoices.length + 1).padStart(3, '0')}`;
+            
             const invoice = {
-                id: newInvoiceId,
-                type: 'sale',
-                customer: customer.name,
-                customerId: customerId || null,
-                date: Utils.getToday(),
-                total: netTotal,
-                paid: paid,
-                remaining: remaining,
-                discount: discount,
+                id: newId, type: 'sale', customer: customer.name, customerId: customerId || null,
+                date: Utils.getToday(), total: net, paid, remaining, discount,
                 status: remaining === 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'),
-                paymentMethod: paymentMethod,
-                items: cart.map(item => ({
-                    productId: item.productId,
-                    productName: item.productName,
-                    unit: item.unitName,
-                    quantity: item.quantity,
-                    price: item.price,
-                    total: item.price * item.quantity
-                }))
+                paymentMethod,
+                items: cart.map(i => ({ productId: i.productId, productName: i.productName, unit: i.unitName, quantity: i.quantity, price: i.price, total: i.price * i.quantity }))
             };
 
-            // حفظ الفاتورة
             invoices.push(invoice);
             Storage.saveInvoices(invoices);
 
             // تحديث المخزون
-            cart.forEach(item => {
-                const product = products.find(p => p.id === item.productId);
-                if (product) {
-                    const unit = product.units[item.unitIndex];
-                    unit.stock -= item.quantity;
-                }
+            cart.forEach(i => {
+                const p = products.find(pr => pr.id === i.productId);
+                p.units[i.unitIndex].stock -= i.quantity;
             });
             Storage.saveProducts(products);
 
-            // تحديث رصيد العميل إذا كان آجل
+            // تحديث رصيد العميل
             if (customerId && remaining > 0) {
-                const customerIndex = customers.findIndex(c => c.id == customerId);
-                if (customerIndex >= 0) {
-                    customers[customerIndex].balance -= remaining;
-                    customers[customerIndex].lastTransaction = Utils.getToday();
+                const idx = customers.findIndex(c => c.id == customerId);
+                if (idx >= 0) {
+                    customers[idx].balance -= remaining;
+                    customers[idx].lastTransaction = Utils.getToday();
                     Storage.saveCustomers(customers);
                 }
             }
 
-            // إضافة حركة للصندوق إذا كان هناك نقدي
+            // حركة الصندوق
             if (paid > 0) {
-                const transactions = Storage.getTransactions();
-                transactions.push({
-                    id: Date.now(),
-                    date: Utils.getToday(),
-                    type: 'income',
-                    amount: paid,
-                    description: `بيع نقدي - فاتورة ${newInvoiceId}`,
-                    paymentMethod: paymentMethod === 'bank' ? 'bank' : 'cash',
-                    reference: newInvoiceId,
-                    notes: ''
-                });
-                Storage.saveTransactions(transactions);
+                const trans = Storage.getTransactions();
+                trans.push({ id: Date.now(), date: Utils.getToday(), type: 'income', amount: paid, description: `بيع - ${newId}`, paymentMethod, reference: newId });
+                Storage.saveTransactions(trans);
             }
 
-            // عرض رسالة نجاح
-            let message = `تم حفظ الفاتورة ${newInvoiceId} بنجاح\nالصافي: ${Utils.formatMoney(netTotal)}`;
-            if (paymentMethod === 'mixed') {
-                message += `\nنقدي: ${Utils.formatMoney(paid)}\nآجل: ${Utils.formatMoney(remaining)}`;
+            lastInvoice = invoice;
+            alert(`تم البيع بنجاح. الفاتورة ${newId}`);
+
+            // سؤال الطباعة
+            if (confirm('هل تريد طباعة الإيصال؟')) {
+                printCurrentReceipt();
             }
-            alert(message);
 
             // مسح السلة
             cart = [];
@@ -951,82 +747,52 @@
             document.getElementById('discountAmount').value = 0;
             document.getElementById('customerSelect').value = '';
             updateCustomerBalance();
-            
-            // إعادة تحميل المنتجات لتحديث المخزون المعروض
             renderProducts();
         }
-        // داخل pos.html، استبدل دالة printInvoice الموجودة بهذه:
-function printReceipt() {
-    if (cart.length === 0) {
-        alert('لا توجد عناصر للطباعة');
-        return;
-    }
-    
-    const totals = {
-        subtotal: cart.reduce((s, i) => s + i.price * i.quantity, 0),
-        discount: parseFloat(document.getElementById('discountAmount').value) || 0,
-        tax: 0,
-        net: parseFloat(document.getElementById('netTotal').textContent) || 0
-    };
-    totals.tax = (totals.subtotal - totals.discount) * 0.14;
-    
-    const customerSelect = document.getElementById('customerSelect');
-    const customerId = customerSelect.value;
-    const customers = Storage.getCustomers();
-    const customer = customers.find(c => c.id == customerId);
-    
-    const paymentMethod = document.getElementById('paymentMethod').value;
-    
-    PrintSystem.printThermalReceipt(cart, totals, customer, paymentMethod);
-}
 
-// في completeSale()، بعد حفظ الفاتورة، يمكن إضافة سؤال للطباعة:
-// if (confirm('هل تريد طباعة الإيصال؟')) printReceipt();
-body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-        }
+        function printCurrentReceipt() {
+            if (cart.length === 0 && !lastInvoice) { alert('لا توجد فاتورة للطباعة'); return; }
 
-        function clearCart() {
-            if (confirm('مسح الفاتورة الحالية؟')) {
-                cart = [];
-                renderCart();
-                document.getElementById('discountAmount').value = 0;
+            if (lastInvoice && cart.length === 0) {
+                // طباعة فاتورة محفوظة
+                PrintSystem.printInvoice(lastInvoice, lastInvoice.items);
+            } else {
+                // طباعة إيصال حالي
+                const totals = {
+                    subtotal: cart.reduce((s, i) => s + i.price * i.quantity, 0),
+                    discount: parseFloat(document.getElementById('discountAmount').value) || 0,
+                    tax: 0,
+                    net: parseFloat(document.getElementById('netTotal').textContent) || 0
+                };
+                totals.tax = (totals.subtotal - totals.discount) * 0.14;
+                
+                const customerId = document.getElementById('customerSelect').value;
+                const customer = customers.find(c => c.id == customerId);
+                const paymentMethod = document.getElementById('paymentMethod').value;
+                
+                PrintSystem.printThermalReceipt(cart, totals, customer, paymentMethod);
             }
         }
 
-        function holdInvoice() {
-            alert('تم تعليق الفاتورة (يمكن استكمالها لاحقاً)');
-        }
-
+        function clearCart() { if (confirm('مسح الفاتورة؟')) { cart = []; renderCart(); } }
+        function holdInvoice() { alert('تم تعليق الفاتورة'); }
         function scanBarcode() {
-            const barcode = prompt('امسح الباركود أو أدخله:');
-            if (!barcode) return;
-            
+            const code = prompt('ادخل الباركود:');
+            if (!code) return;
             for (let p of products) {
-                const unitIndex = p.units.findIndex(u => u.barcode === barcode);
-                if (unitIndex >= 0) {
+                const idx = p.units.findIndex(u => u.barcode === code);
+                if (idx >= 0) {
                     selectedProduct = p;
-                    selectedUnitIndex = unitIndex;
-                    const unit = p.units[unitIndex];
+                    selectedUnitIndex = idx;
                     document.getElementById('selectedQuantity').value = 1;
-                    document.getElementById('selectedPrice').value = unit.price;
                     updatePriceLimits();
                     addToCartWithOptions();
                     closeUnitModal();
                     return;
                 }
             }
-            alert('لم يتم العثور على منتج بهذا الباركود');
+            alert('لم يتم العثور على المنتج');
         }
     </script>
-    <link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-  }
-</script>
 </body>
 </html>
