@@ -1,6 +1,9 @@
-// js/auth.js - إدارة المصادقة والجلسات (تستخدم localStorage للعمل في PWA)
+// js/auth.js - إدارة المصادقة والجلسات مع دعم GitHub Pages
+const REPO_PATH = window.location.pathname.split('/')[1] || '';
+const STORAGE_PREFIX = REPO_PATH ? `foodDist_${REPO_PATH}_` : 'foodDist_';
+
 const Auth = {
-    STORAGE_KEY: 'foodDist_user',
+    STORAGE_KEY: STORAGE_PREFIX + 'user',
 
     getUser() {
         const data = localStorage.getItem(this.STORAGE_KEY);
