@@ -59,7 +59,7 @@
         .quick-menu {
             position: fixed; top: 75px; left: 20px; background: white;
             border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            padding: 10px 0; min-width: 200px; z-index: 1050; display: none;
+            padding: 10px 0; min-width: 220px; z-index: 1050; display: none;
         }
         .quick-menu.show { display: block; }
         .quick-menu-item {
@@ -130,9 +130,21 @@
         .cart-item-name { font-weight: 500; }
         .cart-item-unit { font-size: 12px; color: #7f8c8d; }
         .cart-item-price input { width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 6px; }
+        
+        /* ملخص الفاتورة */
         .cart-summary {
             border-top: 2px dashed #ccc; padding-top: 15px; margin-top: 10px;
         }
+        .summary-stats {
+            display: flex; justify-content: space-between; background: #f8fafc;
+            border-radius: 12px; padding: 12px 15px; margin-bottom: 15px;
+        }
+        .stat-item {
+            text-align: center; flex: 1;
+        }
+        .stat-item .label { font-size: 13px; color: #7f8c8d; }
+        .stat-item .value { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .stat-divider { width: 1px; background: #e0e0e0; }
         .summary-row {
             display: flex; justify-content: space-between; margin-bottom: 8px;
         }
@@ -205,6 +217,8 @@
         <div class="quick-menu-item" onclick="addInvoiceNote()"><i class="fas fa-pen"></i> رسالة على الفاتورة</div>
         <div class="quick-menu-item" onclick="createReturnInvoice()"><i class="fas fa-undo-alt"></i> فاتورة مرتجع</div>
         <div class="quick-menu-item" onclick="recallHeldInvoice()"><i class="fas fa-pause-circle"></i> استرجاع فاتورة معلقة</div>
+        <div class="quick-menu-item" onclick="saveCurrentAsDraft()"><i class="fas fa-save"></i> حفظ كمسودة</div>
+        <div class="quick-menu-item" onclick="clearCurrentCart()"><i class="fas fa-trash-alt"></i> إلغاء الفاتورة الحالية</div>
     </div>
 
     <div class="pos-container">
@@ -231,11 +245,21 @@
                 <div id="cartItemsContainer"></div>
             </div>
             <div class="cart-summary">
-                <div class="summary-row"><span>عدد الأصناف:</span> <span id="itemTypesCount">0</span></div>
-                <div class="summary-row"><span>عدد القطع:</span> <span id="totalPieces">0</span></div>
+                <!-- مربع إحصائيات السلة (عدد الأصناف والقطع متقابلين) -->
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="label">عدد الأصناف</div>
+                        <div class="value" id="itemTypesCount">0</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="label">عدد القطع</div>
+                        <div class="value" id="totalPieces">0</div>
+                    </div>
+                </div>
                 <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج</span></div>
                 <div class="summary-row"><span>الخصم:</span> <input type="number" id="discount" value="0" style="width:80px;" oninput="calculateTotals()"> ج</div>
-                <div class="summary-row"><span>الضريبة (14%):</span> <span id="taxAmount">0.00 ج</span></div>
+                <div class="summary-row" id="taxRow"><span>الضريبة (14%):</span> <span id="taxAmount">0.00 ج</span></div>
                 <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج</span></div>
             </div>
             <div class="action-buttons">
@@ -286,6 +310,7 @@
         let selectedProduct = null, selectedUnitIndex = 0;
         let selectedCustomer = null;
         let invoiceNote = '';
+        let settings = {};
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
@@ -295,6 +320,14 @@
 
             products = await Storage.getProducts();
             customers = await Storage.getCustomers();
+            settings = await Storage.getSettings();
+            
+            // إخفاء صف الضريبة إذا كانت معطلة في الإعدادات
+            const taxEnabled = settings.system?.taxEnabled !== false; // افتراضي مفعل
+            if (!taxEnabled) {
+                document.getElementById('taxRow').style.display = 'none';
+            }
+            
             populateDatalists();
             renderProducts();
             
@@ -405,10 +438,12 @@
             const subtotal = cart.reduce((s,i) => s + i.price * i.quantity, 0);
             const discount = parseFloat(document.getElementById('discount').value) || 0;
             const after = subtotal - discount;
-            const tax = after * 0.14;
+            const taxEnabled = settings.system?.taxEnabled !== false;
+            const tax = taxEnabled ? after * 0.14 : 0;
             const net = after + tax;
+            
             document.getElementById('itemTypesCount').textContent = cart.length;
-            document.getElementById('totalPieces').textContent = cart.reduce((s,i) => s + i.quantity, 0);
+            document.getElementById('totalPieces').textContent = cart.reduce((s,i) => s + i.quantity, 0).toFixed(3);
             document.getElementById('subtotal').textContent = Utils.formatMoney(subtotal);
             document.getElementById('taxAmount').textContent = Utils.formatMoney(tax);
             document.getElementById('netTotal').textContent = Utils.formatMoney(net);
@@ -450,11 +485,9 @@
             const method = document.getElementById('paymentMethod').value;
             const notes = document.getElementById('paymentNotes').value;
 
-            // تحديث رصيد العميل
             if (remaining > 0) selectedCustomer.balance -= remaining;
             await Storage.saveCustomer(selectedCustomer);
 
-            // إنشاء الفاتورة
             const invoice = {
                 id: 'INV-' + Date.now(), type: 'sale', customer: selectedCustomer.name, customerId: selectedCustomer.id,
                 repId: Auth.getRepId(), date: Utils.getToday(), total: net, paid, remaining, discount: parseFloat(document.getElementById('discount').value)||0,
@@ -462,18 +495,15 @@
             };
             await Storage.saveInvoice(invoice);
 
-            // تحديث المخزون
             cart.forEach(i => { const p = products.find(pr => pr.id === i.productId); p.units[i.unitIndex].stock -= i.quantity; });
             await Storage.saveProducts(products);
 
-            // حركة صندوق
             if (paid > 0) {
                 await Storage.saveTransaction({ id: Date.now(), date: Utils.getToday(), type: 'income', amount: paid, description: `بيع - ${invoice.id}`, paymentMethod: method });
             }
 
-            // طباعة
             if (confirm('طباعة الإيصال؟')) {
-                PrintSystem.printThermalReceipt(cart, { subtotal: cart.reduce((s,i)=>s+i.price*i.quantity,0), discount: parseFloat(document.getElementById('discount').value)||0, tax: (cart.reduce((s,i)=>s+i.price*i.quantity,0)- (parseFloat(document.getElementById('discount').value)||0))*0.14, net }, selectedCustomer, method);
+                PrintSystem.printThermalReceipt(cart, { subtotal: cart.reduce((s,i)=>s+i.price*i.quantity,0), discount: parseFloat(document.getElementById('discount').value)||0, tax: (cart.reduce((s,i)=>s+i.price*i.quantity,0)- (parseFloat(document.getElementById('discount').value)||0))*0.14, net }, selectedCustomer, method, invoiceNote);
             }
 
             alert(`تم البيع. الفاتورة ${invoice.id}`);
@@ -482,17 +512,117 @@
             closePaymentModal();
         }
 
-        // --- دوال القائمة الجانبية ---
+        // ========== وظائف القائمة الجانبية (النقاط الثلاث) ==========
         function addInvoiceNote() {
-            const note = prompt('أدخل ملاحظة على الفاتورة:');
+            const note = prompt('أدخل ملاحظة تظهر في تذييل الفاتورة:');
             if (note !== null) invoiceNote = note;
             document.getElementById('quickMenu').classList.remove('show');
         }
-        function createReturnInvoice() { alert('سيتم تطوير فاتورة المرتجع قريباً'); }
-        function recallHeldInvoice() { alert('استرجاع فاتورة معلقة - قيد التطوير'); }
-        function holdInvoice() { alert('تم تعليق الفاتورة مؤقتاً'); }
 
-        // إغلاق القائمة عند النقر خارجها
+        async function createReturnInvoice() {
+            const invoices = await Storage.getInvoices();
+            const saleInvoices = invoices.filter(inv => inv.type === 'sale' && inv.status !== 'returned');
+            if (saleInvoices.length === 0) { alert('لا توجد فواتير بيع لإنشاء مرتجع منها'); return; }
+            let options = 'اختر رقم الفاتورة:\n';
+            saleInvoices.slice(0, 10).forEach(inv => { options += `${inv.id} - ${inv.customer} - ${Utils.formatMoney(inv.total)}\n`; });
+            const invoiceId = prompt(options);
+            if (!invoiceId) return;
+            const originalInvoice = saleInvoices.find(inv => inv.id === invoiceId);
+            if (!originalInvoice) { alert('الفاتورة غير موجودة'); return; }
+            
+            const returnQtys = {};
+            for (let i = 0; i < originalInvoice.items.length; i++) {
+                const item = originalInvoice.items[i];
+                const qty = prompt(`الكمية المرتجعة من ${item.productName} (${item.unit}) - الكمية الأصلية: ${item.quantity}`);
+                if (qty !== null && !isNaN(parseFloat(qty)) && parseFloat(qty) > 0) {
+                    const returnQty = parseFloat(qty);
+                    if (returnQty <= item.quantity) returnQtys[i] = returnQty;
+                    else alert(`الكمية المرتجعة أكبر من الكمية الأصلية (${item.quantity})`);
+                }
+            }
+            if (Object.keys(returnQtys).length === 0) { alert('لم يتم اختيار أي صنف للإرجاع'); return; }
+            
+            let returnTotal = 0;
+            const returnedItems = [];
+            for (let idx in returnQtys) {
+                const item = originalInvoice.items[idx];
+                const returnQty = returnQtys[idx];
+                const returnAmount = item.price * returnQty;
+                returnTotal += returnAmount;
+                returnedItems.push({ ...item, quantity: returnQty, total: returnAmount });
+                const product = products.find(p => p.id === item.productId);
+                if (product) { const unit = product.units[item.unitIndex]; if (unit) unit.stock += returnQty; }
+            }
+            
+            const customer = customers.find(c => c.id === originalInvoice.customerId);
+            if (customer) { customer.balance += returnTotal; await Storage.saveCustomer(customer); }
+            
+            const returnInvoice = {
+                id: 'RET-' + Date.now(), type: 'return', customer: originalInvoice.customer, customerId: originalInvoice.customerId,
+                originalInvoiceId: originalInvoice.id, date: Utils.getToday(), total: returnTotal, paid: 0, remaining: 0,
+                status: 'paid', items: returnedItems, note: `مرتجع من الفاتورة ${originalInvoice.id}`
+            };
+            await Storage.saveInvoice(returnInvoice);
+            await Storage.saveProducts(products);
+            alert(`تم إنشاء فاتورة مرتجع ${returnInvoice.id} بقيمة ${Utils.formatMoney(returnTotal)}`);
+            document.getElementById('quickMenu').classList.remove('show');
+        }
+
+        async function recallHeldInvoice() {
+            const heldInvoices = JSON.parse(localStorage.getItem('heldInvoices') || '[]');
+            if (heldInvoices.length === 0) { alert('لا توجد فواتير معلقة'); return; }
+            let list = 'اختر فاتورة لاسترجاعها:\n';
+            heldInvoices.forEach((inv, i) => { list += `${i+1}. ${inv.id || 'بدون رقم'} - ${inv.customer} - ${Utils.formatMoney(inv.total)}\n`; });
+            const choice = prompt(list);
+            if (!choice) return;
+            const index = parseInt(choice) - 1;
+            if (index >= 0 && index < heldInvoices.length) {
+                const invoice = heldInvoices[index];
+                cart = invoice.items || [];
+                selectedCustomer = customers.find(c => c.id === invoice.customerId);
+                if (selectedCustomer) {
+                    document.getElementById('customerSearch').value = selectedCustomer.name;
+                    document.getElementById('customerBalance').innerHTML = `الرصيد: ${Utils.formatMoney(selectedCustomer.balance)} ${selectedCustomer.balance < 0 ? '(مدين)' : '(دائن)'}`;
+                }
+                document.getElementById('discount').value = invoice.discount || 0;
+                invoiceNote = invoice.note || '';
+                renderCart();
+                heldInvoices.splice(index, 1);
+                localStorage.setItem('heldInvoices', JSON.stringify(heldInvoices));
+                alert('تم استرجاع الفاتورة المعلقة');
+            }
+            document.getElementById('quickMenu').classList.remove('show');
+        }
+
+        function saveCurrentAsDraft() {
+            if (cart.length === 0) { alert('السلة فارغة'); return; }
+            const draftInvoice = {
+                id: 'DRAFT-' + Date.now(), customer: selectedCustomer ? selectedCustomer.name : 'غير محدد',
+                customerId: selectedCustomer ? selectedCustomer.id : null, items: cart,
+                discount: parseFloat(document.getElementById('discount').value) || 0, note: invoiceNote,
+                total: cart.reduce((s, i) => s + i.price * i.quantity, 0), date: Utils.getToday()
+            };
+            const heldInvoices = JSON.parse(localStorage.getItem('heldInvoices') || '[]');
+            heldInvoices.push(draftInvoice);
+            localStorage.setItem('heldInvoices', JSON.stringify(heldInvoices));
+            alert(`تم حفظ الفاتورة كمسودة (${draftInvoice.id})`);
+            cart = []; renderCart(); document.getElementById('discount').value = 0; selectedCustomer = null;
+            document.getElementById('customerSearch').value = ''; document.getElementById('customerBalance').innerHTML = ''; invoiceNote = '';
+            document.getElementById('quickMenu').classList.remove('show');
+        }
+
+        function clearCurrentCart() {
+            if (cart.length === 0) { alert('السلة فارغة بالفعل'); return; }
+            if (confirm('هل أنت متأكد من إلغاء الفاتورة الحالية؟')) {
+                cart = []; renderCart(); document.getElementById('discount').value = 0; selectedCustomer = null;
+                document.getElementById('customerSearch').value = ''; document.getElementById('customerBalance').innerHTML = ''; invoiceNote = '';
+                alert('تم إلغاء الفاتورة');
+            }
+            document.getElementById('quickMenu').classList.remove('show');
+        }
+
+        function holdInvoice() { saveCurrentAsDraft(); }
+
         window.addEventListener('click', (e) => {
             if (!document.getElementById('moreMenuBtn').contains(e.target) && !document.getElementById('quickMenu').contains(e.target)) {
                 document.getElementById('quickMenu').classList.remove('show');
