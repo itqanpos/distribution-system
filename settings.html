@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <base href="/distribution-system/">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>الإعدادات - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <style>
         :root {
             --primary: #2c3e50;
@@ -16,111 +17,203 @@
             --info: #1abc9c;
             --light: #ecf0f1;
             --dark: #34495e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 65px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: #f5f6fa; color: #333; }
+        body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
-        .logo { display: flex; align-items: center; gap: 15px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .logo-text h2 { color: var(--primary); font-size: 20px; }
-        .logo-text p { color: var(--secondary); font-size: 12px; }
-        .user-info { display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
-        .user-details h4 { color: var(--primary); }
-        .user-details p { color: #7f8c8d; font-size: 12px; }
-        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        /* ========== شريط التنقل ========== */
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .navbar-left { display: flex; align-items: center; gap: 15px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .navbar-right { display: flex; align-items: center; gap: 15px; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+        }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
+        .user-info { text-align: right; }
+        .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
+        .user-info p { font-size: 12px; color: #7f8c8d; }
+        .logout-btn {
+            background: none; border: none; color: var(--danger); font-size: 20px;
+            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+        }
 
-        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
-        .menu { list-style: none; }
-        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
-        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
-        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
-        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
-        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        /* ========== الشريط الجانبي ========== */
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s ease; z-index: 1020;
+            overflow-y: auto; overflow-x: hidden; padding: 20px 0;
+        }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar .menu-section {
+            padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            opacity: 1; transition: opacity 0.15s;
+        }
+        .sidebar.collapsed .menu-section { opacity: 0; pointer-events: none; padding: 20px 0 8px; text-align: center; }
+        .menu { list-style: none; padding: 0 12px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; flex-shrink: 0; }
+        .menu-text { transition: opacity 0.2s; }
+        .sidebar.collapsed .menu-text { opacity: 0; pointer-events: none; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
+            color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
+        }
 
-        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
-        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-primary { background: var(--secondary); color: white; }
+        /* ========== المحتوى الرئيسي ========== */
+        .main-content {
+            margin-right: var(--sidebar-width); margin-top: var(--header-height);
+            padding: 25px; transition: margin-right 0.25s ease;
+            min-height: calc(100vh - var(--header-height));
+        }
+        .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
+
+        /* ========== البطاقات ========== */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
+        }
+        .page-title { display: flex; align-items: center; gap: 12px; }
+        .page-title h1 { font-size: 26px; font-weight: 700; color: var(--primary); }
+        .btn {
+            padding: 10px 18px; border: none; border-radius: 12px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+            transition: all 0.2s; font-size: 14px;
+        }
+        .btn-primary { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(52,152,219,0.2); }
+        .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
         .btn-danger { background: var(--danger); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        .tabs { display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px; flex-wrap: wrap; }
-        .tab-btn { padding: 12px 20px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent; }
+        .tabs {
+            display: flex; border-bottom: 2px solid var(--light); margin-bottom: 25px; flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 12px 20px; background: none; border: none; color: #7f8c8d; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent;
+        }
         .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .settings-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        .settings-section-title { color: var(--primary); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .settings-card {
+            background: white; border-radius: 20px; padding: 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+            margin-bottom: 30px;
+        }
+        .settings-section-title {
+            color: var(--primary); margin-bottom: 20px; padding-bottom: 10px;
+            border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px;
+        }
+        .form-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: var(--primary); }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px; border: 2px solid #eef2f6; border-radius: 12px;
+            font-size: 14px; background: white;
+        }
+        .form-group.checkbox { display: flex; align-items: center; gap: 10px; }
+        .form-group.checkbox input { width: auto; }
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
-        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
-        .action-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; color: var(--danger); }
+        th { text-align: right; padding: 12px; background: #f8fafc; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
 
-        .printer-list { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; margin: 15px 0; }
-        .printer-item { padding: 12px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .printer-item:hover { background: var(--light); }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
-
-        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
-
-        @media (max-width: 992px) {
-            .sidebar { width: 70px; }
-            .sidebar .menu-text, .sidebar .menu-section { display: none; }
-            .main-content { margin-right: 70px; }
-            .menu-item { justify-content: center; padding: 15px; }
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
         }
+        .modal-content {
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 500px;
+            max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .sidebar.collapsed { width: var(--sidebar-width); transform: translateX(100%); }
+            .sidebar.collapsed.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; }
+            .menu-toggle { display: flex; }
+            .logo-text p { display: none; }
+            .user-info { display: none; }
+            .tabs { flex-direction: column; }
+        }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text"><h2>نظام التوزيع الغذائي</h2><p>الإعدادات</p></div>
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
         </div>
-        <div class="user-info">
-            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
-            <div class="user-avatar" id="userAvatar">م</div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        <div class="navbar-right">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">م</div>
+                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+            </div>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">القائمة الرئيسية</div>
-            <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item active" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item active" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
     </aside>
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><i class="fas fa-cog"></i><h1>الإعدادات</h1></div>
+            <div class="page-title"><i class="fas fa-cog" style="font-size:28px; color:var(--secondary);"></i><h1>الإعدادات</h1></div>
             <div><button class="btn btn-primary" onclick="saveAllSettings()"><i class="fas fa-save"></i> حفظ جميع التغييرات</button></div>
         </div>
 
@@ -130,6 +223,7 @@
             <button class="tab-btn" onclick="switchTab('system')"><i class="fas fa-desktop"></i> النظام</button>
             <button class="tab-btn" onclick="switchTab('users')"><i class="fas fa-users-cog"></i> المستخدمين</button>
             <button class="tab-btn" onclick="switchTab('backup')"><i class="fas fa-database"></i> النسخ الاحتياطي</button>
+            <button class="tab-btn" onclick="switchTab('advanced')"><i class="fas fa-sliders-h"></i> متقدمة</button>
         </div>
 
         <!-- عامة -->
@@ -154,19 +248,13 @@
                 <div class="form-grid">
                     <div class="form-group"><label>نوع الطابعة الافتراضي</label><select id="printerType"><option value="thermal">حرارية 80mm</option><option value="a4" selected>A4</option></select></div>
                     <div class="form-group"><label>عدد النسخ</label><input type="number" id="printCopies" min="1" value="1"></div>
-                    <div class="form-group"><label>عرض الشعار</label><select id="showLogo"><option value="yes" selected>نعم</option><option value="no">لا</option></select></div>
+                    <div class="form-group checkbox"><input type="checkbox" id="showLogo" checked> <label>عرض الشعار في الفاتورة</label></div>
                     <div class="form-group"><label>تذييل الفاتورة</label><input type="text" id="invoiceFooter" value="شكراً لتعاملكم معنا"></div>
                 </div>
-                <div style="margin-top:20px;">
-                    <button class="btn btn-outline" onclick="searchPrinters()"><i class="fas fa-search"></i> البحث عن طابعات</button>
-                    <button class="btn btn-outline" onclick="openPrinterModal()"><i class="fas fa-plus"></i> إضافة طابعة</button>
-                </div>
-                <h4 style="margin-top:20px;">الطابعات المضافة</h4>
-                <div class="table-container">
-                    <table><thead><tr><th>اسم الطابعة</th><th>النوع</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-                        <tbody id="printersTableBody"><tr><td>طابعة المطبخ</td><td>حرارية</td><td>متصل</td><td><button class="action-btn"><i class="fas fa-trash"></i></button></td></tr></tbody>
-                    </table>
-                </div>
+                <button class="btn btn-outline" onclick="searchPrinters()"><i class="fas fa-search"></i> البحث عن طابعات</button>
+                <button class="btn btn-outline" onclick="openPrinterModal()"><i class="fas fa-plus"></i> إضافة طابعة</button>
+                <h4 style="margin:20px 0 10px;">الطابعات المضافة</h4>
+                <div class="table-container"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th></th></tr></thead><tbody id="printersTableBody"></tbody></table></div>
             </div>
         </div>
 
@@ -180,22 +268,21 @@
                     <div class="form-group"><label>المنطقة الزمنية</label><select id="timezone"><option value="Africa/Cairo" selected>القاهرة</option></select></div>
                     <div class="form-group"><label>صيغة التاريخ</label><select id="dateFormat"><option value="dd/mm/yyyy" selected>DD/MM/YYYY</option></select></div>
                     <div class="form-group"><label>الحد الأدنى للمخزون</label><input type="number" id="lowStockAlert" value="10"></div>
+                    <div class="form-group checkbox"><input type="checkbox" id="taxEnabled" checked> <label>تفعيل الضريبة</label></div>
+                    <div class="form-group"><label>نسبة الضريبة (%)</label><input type="number" id="taxRate" value="14" min="0" max="100"></div>
                 </div>
-                <div style="margin-top:20px;">
-                    <label>الثيم</label>
-                    <div><button class="btn btn-outline" onclick="setTheme('light')"><i class="fas fa-sun"></i> فاتح</button><button class="btn btn-outline" onclick="setTheme('dark')"><i class="fas fa-moon"></i> داكن</button></div>
-                </div>
-                <div style="margin-top:20px;"><button class="btn btn-danger" onclick="confirmDeleteAllData()"><i class="fas fa-trash-alt"></i> حذف جميع البيانات</button></div>
+                <h4 style="margin:20px 0 10px;">المظهر</h4>
+                <div class="form-group"><label>الثيم</label><div><button class="btn btn-outline" onclick="setTheme('light')"><i class="fas fa-sun"></i> فاتح</button><button class="btn btn-outline" onclick="setTheme('dark')"><i class="fas fa-moon"></i> داكن</button></div></div>
+                <h4 style="margin:20px 0 10px;">بيانات خطيرة</h4>
+                <button class="btn btn-danger" onclick="confirmDeleteAllData()"><i class="fas fa-trash-alt"></i> حذف جميع البيانات</button>
             </div>
         </div>
 
         <!-- المستخدمين -->
         <div id="usersTab" class="tab-content">
             <div class="settings-card">
-                <div style="display:flex; justify-content:space-between;"><h3 class="settings-section-title"><i class="fas fa-users-cog"></i> إدارة المستخدمين</h3><button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-plus"></i> مستخدم جديد</button></div>
-                <div class="table-container">
-                    <table><thead><tr><th>المستخدم</th><th>الاسم الكامل</th><th>الدور</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="usersTableBody"></tbody></table>
-                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h3 class="settings-section-title" style="margin:0;"><i class="fas fa-users-cog"></i> إدارة المستخدمين</h3><button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-plus"></i> مستخدم جديد</button></div>
+                <div class="table-container"><table><thead><tr><th>المستخدم</th><th>الاسم</th><th>الدور</th><th>الحالة</th><th></th></tr></thead><tbody id="usersTableBody"></tbody></table></div>
             </div>
         </div>
 
@@ -206,20 +293,46 @@
                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="createBackup()"><i class="fas fa-download"></i> إنشاء نسخة احتياطية</button>
                     <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()"><i class="fas fa-upload"></i> استعادة نسخة</button>
-                    <input type="file" id="restoreFile" accept=".json,.zip" style="display:none;" onchange="restoreBackup(this)">
+                    <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreBackup(this)">
                     <button class="btn btn-outline" onclick="autoBackupSettings()"><i class="fas fa-clock"></i> جدولة نسخ تلقائي</button>
                 </div>
-                <p style="margin-top:20px;">آخر نسخة: <span id="lastBackupDate">2024-01-20 08:00</span></p>
+                <p style="margin-top:20px;">آخر نسخة: <span id="lastBackupDate">-</span></p>
             </div>
         </div>
 
-        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
+        <!-- متقدمة -->
+        <div id="advancedTab" class="tab-content">
+            <div class="settings-card">
+                <h3 class="settings-section-title"><i class="fas fa-sliders-h"></i> إعدادات متقدمة</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>بادئة الفواتير</label><input type="text" id="invoicePrefix" value="INV-"></div>
+                    <div class="form-group"><label>بادئة فواتير الشراء</label><input type="text" id="purchasePrefix" value="PUR-"></div>
+                    <div class="form-group"><label>الحد الأقصى للخصم (%)</label><input type="number" id="maxDiscount" value="20"></div>
+                    <div class="form-group"><label>مدة الجلسة (دقيقة)</label><input type="number" id="sessionTimeout" value="120"></div>
+                    <div class="form-group checkbox"><input type="checkbox" id="enableNotifications"> <label>تفعيل الإشعارات</label></div>
+                    <div class="form-group checkbox"><input type="checkbox" id="requireApproval"> <label>تتطلب الفواتير الكبيرة موافقة</label></div>
+                    <div class="form-group"><label>حد الفاتورة للموافقة (ج)</label><input type="number" id="approvalThreshold" value="5000"></div>
+                </div>
+            </div>
+            <div class="settings-card">
+                <h3 class="settings-section-title"><i class="fas fa-envelope"></i> إعدادات البريد الإلكتروني</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>خادم SMTP</label><input type="text" id="smtpHost" placeholder="smtp.gmail.com"></div>
+                    <div class="form-group"><label>المنفذ</label><input type="number" id="smtpPort" value="587"></div>
+                    <div class="form-group"><label>اسم المستخدم</label><input type="text" id="smtpUser"></div>
+                    <div class="form-group"><label>كلمة المرور</label><input type="password" id="smtpPass"></div>
+                    <div class="form-group"><label>البريد المرسل</label><input type="email" id="fromEmail"></div>
+                    <div class="form-group checkbox"><input type="checkbox" id="smtpSecure"> <label>استخدام SSL/TLS</label></div>
+                    <button class="btn btn-outline" onclick="testEmail()">اختبار الإرسال</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- مودال مستخدم -->
     <div class="modal" id="userModal">
         <div class="modal-content">
-            <div class="modal-header"><h3 id="userModalTitle">مستخدم جديد</h3><button class="close-btn" onclick="closeUserModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="userModalTitle">مستخدم جديد</h2><button class="close-btn" onclick="closeUserModal()">&times;</button></div>
             <form id="userForm" onsubmit="saveUser(event)">
                 <input type="hidden" id="userId">
                 <div class="form-group"><label>اسم المستخدم</label><input type="text" id="username" required></div>
@@ -235,32 +348,43 @@
     <!-- مودال طابعة -->
     <div class="modal" id="printerModal">
         <div class="modal-content">
-            <div class="modal-header"><h3>البحث عن طابعات</h3><button class="close-btn" onclick="closePrinterModal()">&times;</button></div>
-            <div class="printer-list" id="printerList">
-                <div class="printer-item"><span>طابعة حرارية (USB)</span><button class="btn btn-sm" onclick="addPrinter('طابعة حرارية (USB)')">إضافة</button></div>
-                <div class="printer-item"><span>طابعة A4 (شبكة)</span><button class="btn btn-sm" onclick="addPrinter('طابعة A4 (شبكة)')">إضافة</button></div>
-                <div class="printer-item"><span>طابعة مطبخ</span><button class="btn btn-sm" onclick="addPrinter('طابعة مطبخ')">إضافة</button></div>
-            </div>
+            <div class="modal-header"><h2>البحث عن طابعات</h2><button class="close-btn" onclick="closePrinterModal()">&times;</button></div>
+            <div id="printerList" style="max-height:300px; overflow-y:auto;"></div>
             <div class="form-group"><label>أو أضف يدوياً</label><input type="text" id="manualPrinterName" placeholder="اسم الطابعة"></div>
-            <div class="modal-footer"><button onclick="addManualPrinter()" class="btn btn-primary">إضافة</button></div>
+            <div class="modal-footer"><button class="btn btn-primary" onclick="addManualPrinter()">إضافة</button></div>
         </div>
     </div>
 
-    <script src="js/auth.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/print.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/ui.js"></script>
     <script>
-        let users = [];
-        let printers = [{ name: 'طابعة المطبخ', type: 'حرارية', status: 'متصل' }];
+        // الشريط الجانبي
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        function toggleSidebar() {
+            if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
+            else sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+        menuToggle.addEventListener('click', toggleSidebar);
+        if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+        document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
+
+        let users = [], printers = [{ name: 'طابعة المطبخ', type: 'حرارية', status: 'متصل' }];
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
             await UI.initPage('الإعدادات');
+            const user = Auth.getUser();
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
+            document.getElementById('userAvatar').textContent = user.avatar;
+
             users = await Storage.getUsers();
-            loadSettings();
+            await loadSettings();
             renderUsers();
             renderPrinters();
             applyTheme(localStorage.getItem('theme') || 'light');
@@ -284,53 +408,66 @@
             if (s.printing) {
                 document.getElementById('printerType').value = s.printing.printerType || 'a4';
                 document.getElementById('printCopies').value = s.printing.copies || 1;
-                document.getElementById('showLogo').value = s.printing.showLogo ? 'yes' : 'no';
+                document.getElementById('showLogo').checked = s.printing.showLogo !== false;
                 document.getElementById('invoiceFooter').value = s.printing.footer || '';
             }
             if (s.system) {
                 document.getElementById('systemLang').value = s.system.lang || 'ar';
                 document.getElementById('currency').value = s.system.currency || 'ج.م';
                 document.getElementById('lowStockAlert').value = s.system.lowStockAlert || 10;
+                document.getElementById('taxEnabled').checked = s.system.taxEnabled !== false;
+                document.getElementById('taxRate').value = s.system.taxRate || 14;
+            }
+            if (s.advanced) {
+                document.getElementById('invoicePrefix').value = s.advanced.invoicePrefix || 'INV-';
+                document.getElementById('purchasePrefix').value = s.advanced.purchasePrefix || 'PUR-';
+                document.getElementById('maxDiscount').value = s.advanced.maxDiscount || 20;
+                document.getElementById('sessionTimeout').value = s.advanced.sessionTimeout || 120;
+                document.getElementById('enableNotifications').checked = s.advanced.enableNotifications || false;
+                document.getElementById('requireApproval').checked = s.advanced.requireApproval || false;
+                document.getElementById('approvalThreshold').value = s.advanced.approvalThreshold || 5000;
             }
         }
 
         async function saveAllSettings() {
-            const settings = {
-                company: {
-                    name: document.getElementById('companyName').value,
-                    phone: document.getElementById('companyPhone').value,
-                    email: document.getElementById('companyEmail').value,
-                    address: document.getElementById('companyAddress').value
-                },
-                printing: {
-                    printerType: document.getElementById('printerType').value,
-                    copies: parseInt(document.getElementById('printCopies').value) || 1,
-                    showLogo: document.getElementById('showLogo').value === 'yes',
-                    footer: document.getElementById('invoiceFooter').value
-                },
-                system: {
-                    lang: document.getElementById('systemLang').value,
-                    currency: document.getElementById('currency').value,
-                    lowStockAlert: parseInt(document.getElementById('lowStockAlert').value) || 10
-                }
+            const settings = await Storage.getSettings();
+            settings.company = {
+                name: document.getElementById('companyName').value,
+                phone: document.getElementById('companyPhone').value,
+                email: document.getElementById('companyEmail').value,
+                address: document.getElementById('companyAddress').value
+            };
+            settings.printing = {
+                printerType: document.getElementById('printerType').value,
+                copies: parseInt(document.getElementById('printCopies').value) || 1,
+                showLogo: document.getElementById('showLogo').checked,
+                footer: document.getElementById('invoiceFooter').value
+            };
+            settings.system = {
+                lang: document.getElementById('systemLang').value,
+                currency: document.getElementById('currency').value,
+                lowStockAlert: parseInt(document.getElementById('lowStockAlert').value) || 10,
+                taxEnabled: document.getElementById('taxEnabled').checked,
+                taxRate: parseFloat(document.getElementById('taxRate').value) || 14
+            };
+            settings.advanced = {
+                invoicePrefix: document.getElementById('invoicePrefix').value,
+                purchasePrefix: document.getElementById('purchasePrefix').value,
+                maxDiscount: parseFloat(document.getElementById('maxDiscount').value) || 20,
+                sessionTimeout: parseInt(document.getElementById('sessionTimeout').value) || 120,
+                enableNotifications: document.getElementById('enableNotifications').checked,
+                requireApproval: document.getElementById('requireApproval').checked,
+                approvalThreshold: parseFloat(document.getElementById('approvalThreshold').value) || 5000
             };
             await Storage.saveSettings(settings);
-            alert('تم حفظ الإعدادات');
+            alert('تم حفظ جميع الإعدادات');
         }
 
-        function setTheme(theme) {
-            localStorage.setItem('theme', theme);
-            applyTheme(theme);
-        }
-
-        function applyTheme(theme) {
-            document.body.classList.toggle('dark-theme', theme === 'dark');
-        }
+        function setTheme(theme) { localStorage.setItem('theme', theme); applyTheme(theme); }
+        function applyTheme(theme) { document.body.classList.toggle('dark-theme', theme === 'dark'); }
 
         function renderUsers() {
-            const tbody = document.getElementById('usersTableBody');
-            tbody.innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.fullName}</td><td>${u.role}</td><td>${u.status==='active'?'نشط':'غير نشط'}</td>
-                <td class="action-buttons"><button class="action-btn edit" onclick="editUser(${u.id})"><i class="fas fa-edit"></i></button><button class="action-btn delete" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+            document.getElementById('usersTableBody').innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.fullName}</td><td>${u.role}</td><td>${u.status==='active'?'نشط':'غير نشط'}</td><td><i class="fas fa-edit action-icon" onclick="editUser(${u.id})"></i><i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteUser(${u.id})"></i></td></tr>`).join('');
         }
 
         function openUserModal() {
@@ -339,7 +476,6 @@
             document.getElementById('userId').value = '';
             document.getElementById('userModal').style.display = 'flex';
         }
-
         function editUser(id) {
             const u = users.find(x => x.id == id); if (!u) return;
             document.getElementById('userModalTitle').textContent = 'تعديل مستخدم';
@@ -350,9 +486,7 @@
             document.getElementById('userStatus').value = u.status;
             document.getElementById('userModal').style.display = 'flex';
         }
-
         function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
-
         async function saveUser(e) {
             e.preventDefault();
             const id = document.getElementById('userId').value;
@@ -371,29 +505,30 @@
             renderUsers();
             closeUserModal();
         }
-
-        async function deleteUser(id) {
-            if (confirm('حذف المستخدم؟')) {
-                users = users.filter(u => u.id != id);
-                await Storage.saveUsers(users);
-                renderUsers();
-            }
-        }
+        async function deleteUser(id) { if (confirm('حذف المستخدم؟')) { users = users.filter(u => u.id != id); await Storage.saveUsers(users); renderUsers(); } }
 
         function renderPrinters() {
-            const tbody = document.getElementById('printersTableBody');
-            tbody.innerHTML = printers.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.status}</td><td><button class="action-btn" onclick="removePrinter('${p.name}')"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+            document.getElementById('printersTableBody').innerHTML = printers.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.status}</td><td><i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="removePrinter('${p.name}')"></i></td></tr>`).join('');
         }
-
         function searchPrinters() { openPrinterModal(); }
-        function openPrinterModal() { document.getElementById('printerModal').style.display = 'flex'; }
+        function openPrinterModal() {
+            document.getElementById('printerModal').style.display = 'flex';
+            document.getElementById('printerList').innerHTML = `
+                <div class="printer-item" style="padding:10px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between;"><span>طابعة حرارية (USB)</span><button class="btn btn-sm" onclick="addPrinter('طابعة حرارية (USB)')">إضافة</button></div>
+                <div class="printer-item" style="padding:10px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between;"><span>طابعة A4 (شبكة)</span><button class="btn btn-sm" onclick="addPrinter('طابعة A4 (شبكة)')">إضافة</button></div>
+            `;
+        }
         function closePrinterModal() { document.getElementById('printerModal').style.display = 'none'; }
         function addPrinter(name) { if (!printers.find(p => p.name === name)) { printers.push({ name, type: 'حرارية', status: 'متصل' }); renderPrinters(); } closePrinterModal(); }
         function addManualPrinter() { const name = document.getElementById('manualPrinterName').value; if (name) addPrinter(name); }
         function removePrinter(name) { printers = printers.filter(p => p.name !== name); renderPrinters(); }
 
         async function createBackup() {
-            const data = { products: await Storage.getProducts(), customers: await Storage.getCustomers(), suppliers: await Storage.getSuppliers(), reps: await Storage.getReps(), invoices: await Storage.getInvoices(), purchases: await Storage.getPurchases(), transactions: await Storage.getTransactions(), settings: await Storage.getSettings(), users: await Storage.getUsers(), printers };
+            const data = {
+                products: await Storage.getProducts(), customers: await Storage.getCustomers(), suppliers: await Storage.getSuppliers(),
+                reps: await Storage.getReps(), invoices: await Storage.getInvoices(), purchases: await Storage.getPurchases(),
+                transactions: await Storage.getTransactions(), settings: await Storage.getSettings(), users: await Storage.getUsers()
+            };
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${Utils.getToday()}.json`; a.click();
             document.getElementById('lastBackupDate').textContent = new Date().toLocaleString('ar-EG');
@@ -401,7 +536,6 @@
 
         async function restoreBackup(input) {
             if (!input.files.length) return;
-            const file = input.files[0];
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
@@ -416,18 +550,17 @@
                         if (data.transactions) await Storage.saveTransactions(data.transactions);
                         if (data.settings) await Storage.saveSettings(data.settings);
                         if (data.users) await Storage.saveUsers(data.users);
-                        if (data.printers) printers = data.printers;
-                        alert('تمت الاستعادة بنجاح. سيتم إعادة تحميل الصفحة.'); location.reload();
+                        alert('تمت الاستعادة. سيتم إعادة التحميل.'); location.reload();
                     }
                 } catch (ex) { alert('ملف غير صالح'); }
             };
-            reader.readAsText(file);
+            reader.readAsText(input.files[0]);
         }
 
         function autoBackupSettings() { alert('سيتم جدولة نسخ احتياطي يومي'); }
 
         function confirmDeleteAllData() {
-            if (confirm('تحذير: سيتم حذف جميع البيانات بشكل نهائي. هل أنت متأكد؟')) {
+            if (confirm('تحذير: سيتم حذف جميع البيانات نهائياً. هل أنت متأكد؟')) {
                 if (confirm('آخر تأكيد: لا يمكن التراجع!')) {
                     localStorage.clear();
                     alert('تم حذف جميع البيانات. سيتم إعادة تهيئة النظام.');
@@ -435,6 +568,8 @@
                 }
             }
         }
+
+        function testEmail() { alert('سيتم محاولة إرسال بريد تجريبي'); }
     </script>
 </body>
 </html>
