@@ -1,14 +1,14 @@
-// js/auth.js - تعديل STORAGE_KEY ليكون في localStorage وليس sessionStorage
+// js/auth.js - إدارة المصادقة والجلسات (تستخدم localStorage للعمل في PWA)
 const Auth = {
-    STORAGE_KEY: 'foodDist_user', // سيتم تخزينه في localStorage الآن
+    STORAGE_KEY: 'foodDist_user',
 
     getUser() {
-        const data = localStorage.getItem(this.STORAGE_KEY); // تغيير إلى localStorage
+        const data = localStorage.getItem(this.STORAGE_KEY);
         return data ? JSON.parse(data) : null;
     },
 
     setUser(user) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user)); // تغيير إلى localStorage
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user));
     },
 
     async login(username, password) {
@@ -32,7 +32,7 @@ const Auth = {
                 permissions: user.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
             };
         } else {
-            // حساب افتراضي للتجربة
+            // مستخدم افتراضي للتجربة
             let role = 'admin';
             let fullName = username;
             let repId = null;
@@ -40,7 +40,10 @@ const Auth = {
                 role = 'rep';
                 const reps = await Storage.getReps();
                 const matchingRep = reps.find(r => r.name.includes(username) || username.includes(r.name));
-                if (matchingRep) { repId = matchingRep.id; fullName = matchingRep.name; }
+                if (matchingRep) {
+                    repId = matchingRep.id;
+                    fullName = matchingRep.name;
+                }
             }
             userData = {
                 id: Date.now(),
@@ -60,7 +63,7 @@ const Auth = {
     },
 
     logout() {
-        localStorage.removeItem(this.STORAGE_KEY); // تغيير إلى localStorage
+        localStorage.removeItem(this.STORAGE_KEY);
     },
 
     isAuthenticated() {
