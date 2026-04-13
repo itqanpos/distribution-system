@@ -1,4 +1,4 @@
-// js/ui.js - واجهة المستخدم المشتركة
+// js/ui.js - مع تسجيل Service Worker صحيح
 const UI = {
     async initPage(title) {
         if (!Auth.requireAuth()) return false;
@@ -20,8 +20,8 @@ const UI = {
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js', { scope: './' })
-                .then(reg => console.log('SW registered'))
-                .catch(err => console.error('SW failed', err));
+                .then(reg => console.log('SW registered, scope:', reg.scope))
+                .catch(err => console.error('SW registration failed:', err));
         }
     },
 
