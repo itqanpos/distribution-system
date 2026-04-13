@@ -1,9 +1,10 @@
-// js/storage.js - طبقة تخزين محلية مع مفاتيح فريدة لـ GitHub Pages
-const REPO_PATH = window.location.pathname.split('/')[1] || '';
-const PREFIX = REPO_PATH ? `foodDist_${REPO_PATH}_` : 'foodDist_';
+// js/storage.js - مفاتيح فريدة تشمل المسار الأساسي لـ GitHub Pages
+const Storage = (function() {
+    const pathSegments = window.location.pathname.split('/');
+    const BASE_PATH = (pathSegments.length > 1 && pathSegments[1]) ? '_' + pathSegments[1] : '';
+    const PREFIX = 'foodDist' + BASE_PATH + '_';
 
-const Storage = {
-    KEYS: {
+    const KEYS = {
         PRODUCTS: PREFIX + 'products',
         CUSTOMERS: PREFIX + 'customers',
         SUPPLIERS: PREFIX + 'suppliers',
@@ -13,9 +14,9 @@ const Storage = {
         TRANSACTIONS: PREFIX + 'transactions',
         SETTINGS: PREFIX + 'settings',
         USERS: PREFIX + 'users'
-    },
+    };
 
-    defaults: {
+    const defaults = {
         products: [
             { id: 1, name: 'خبز', category: 'مخبوزات', description: 'خبز طازج', units: [
                 { unit: 'قطعة', price: 5, min: 4, max: 6, barcode: '111', stock: 150 },
@@ -52,131 +53,135 @@ const Storage = {
             { id: 1, username: 'admin', password: '123456', fullName: 'مدير النظام', role: 'admin', status: 'active' },
             { id: 2, username: 'مندوب1', password: '123456', fullName: 'أحمد محمود', role: 'rep', repId: 1, status: 'active' }
         ]
-    },
+    };
 
-    async init() {
-        try {
-            localStorage.setItem(PREFIX + 'test', '1');
-            localStorage.removeItem(PREFIX + 'test');
-        } catch (e) {
-            console.error('localStorage غير متوفر');
-            return;
-        }
-        for (let key in this.KEYS) {
-            const storageKey = this.KEYS[key];
-            if (!localStorage.getItem(storageKey)) {
-                const defaultData = this.defaults[key.toLowerCase()];
-                if (defaultData) {
-                    localStorage.setItem(storageKey, JSON.stringify(defaultData));
+    return {
+        KEYS: KEYS,
+
+        async init() {
+            try {
+                localStorage.setItem(PREFIX + 'test', '1');
+                localStorage.removeItem(PREFIX + 'test');
+            } catch (e) {
+                console.error('localStorage غير متوفر');
+                return;
+            }
+            for (let key in KEYS) {
+                const storageKey = KEYS[key];
+                if (!localStorage.getItem(storageKey)) {
+                    const defaultData = defaults[key.toLowerCase()];
+                    if (defaultData) {
+                        localStorage.setItem(storageKey, JSON.stringify(defaultData));
+                    }
                 }
             }
+        },
+
+        async getCollection(key) {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : [];
+        },
+
+        async setCollection(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        },
+
+        async getProducts() { return this.getCollection(KEYS.PRODUCTS); },
+        async saveProducts(products) { await this.setCollection(KEYS.PRODUCTS, products); },
+        async saveProduct(product) {
+            const products = await this.getProducts();
+            const index = products.findIndex(p => p.id === product.id);
+            if (index >= 0) products[index] = product;
+            else { product.id = Date.now(); products.push(product); }
+            await this.saveProducts(products);
+            return product;
+        },
+
+        async getCustomers() { return this.getCollection(KEYS.CUSTOMERS); },
+        async saveCustomers(customers) { await this.setCollection(KEYS.CUSTOMERS, customers); },
+        async saveCustomer(customer) {
+            const customers = await this.getCustomers();
+            const index = customers.findIndex(c => c.id === customer.id);
+            if (index >= 0) customers[index] = customer;
+            else { customer.id = Date.now(); customer.type = 'customer'; customers.push(customer); }
+            await this.saveCustomers(customers);
+            return customer;
+        },
+
+        async getSuppliers() { return this.getCollection(KEYS.SUPPLIERS); },
+        async saveSuppliers(suppliers) { await this.setCollection(KEYS.SUPPLIERS, suppliers); },
+        async saveSupplier(supplier) {
+            const suppliers = await this.getSuppliers();
+            const index = suppliers.findIndex(s => s.id === supplier.id);
+            if (index >= 0) suppliers[index] = supplier;
+            else { supplier.id = Date.now(); supplier.type = 'supplier'; suppliers.push(supplier); }
+            await this.saveSuppliers(suppliers);
+            return supplier;
+        },
+
+        async getAllParties() { return [...(await this.getCustomers()), ...(await this.getSuppliers())]; },
+
+        async getReps() { return this.getCollection(KEYS.REPS); },
+        async saveReps(reps) { await this.setCollection(KEYS.REPS, reps); },
+        async saveRep(rep) {
+            const reps = await this.getReps();
+            const index = reps.findIndex(r => r.id === rep.id);
+            if (index >= 0) reps[index] = rep;
+            else { rep.id = Date.now(); reps.push(rep); }
+            await this.saveReps(reps);
+            return rep;
+        },
+
+        async getInvoices() { return this.getCollection(KEYS.INVOICES); },
+        async saveInvoices(invoices) { await this.setCollection(KEYS.INVOICES, invoices); },
+        async saveInvoice(invoice) {
+            const invoices = await this.getInvoices();
+            const index = invoices.findIndex(i => i.id === invoice.id);
+            if (index >= 0) invoices[index] = invoice;
+            else invoices.push(invoice);
+            await this.saveInvoices(invoices);
+            return invoice;
+        },
+
+        async getPurchases() { return this.getCollection(KEYS.PURCHASES); },
+        async savePurchases(purchases) { await this.setCollection(KEYS.PURCHASES, purchases); },
+        async savePurchase(purchase) {
+            const purchases = await this.getPurchases();
+            const index = purchases.findIndex(p => p.id === purchase.id);
+            if (index >= 0) purchases[index] = purchase;
+            else purchases.push(purchase);
+            await this.savePurchases(purchases);
+            return purchase;
+        },
+
+        async getTransactions() { return this.getCollection(KEYS.TRANSACTIONS); },
+        async saveTransactions(transactions) { await this.setCollection(KEYS.TRANSACTIONS, transactions); },
+        async saveTransaction(transaction) {
+            const transactions = await this.getTransactions();
+            const index = transactions.findIndex(t => t.id === transaction.id);
+            if (index >= 0) transactions[index] = transaction;
+            else { transaction.id = Date.now(); transactions.push(transaction); }
+            await this.saveTransactions(transactions);
+            return transaction;
+        },
+
+        async getSettings() {
+            const data = localStorage.getItem(KEYS.SETTINGS);
+            return data ? JSON.parse(data) : defaults.settings;
+        },
+        async saveSettings(settings) { localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings)); },
+
+        async getUsers() { return this.getCollection(KEYS.USERS); },
+        async saveUsers(users) { await this.setCollection(KEYS.USERS, users); },
+        async saveUser(user) {
+            const users = await this.getUsers();
+            const index = users.findIndex(u => u.id === user.id);
+            if (index >= 0) users[index] = user;
+            else { user.id = Date.now(); users.push(user); }
+            await this.saveUsers(users);
+            return user;
         }
-    },
-
-    async getCollection(key) {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
-    },
-
-    async setCollection(key, data) {
-        localStorage.setItem(key, JSON.stringify(data));
-    },
-
-    async getProducts() { return this.getCollection(this.KEYS.PRODUCTS); },
-    async saveProducts(products) { await this.setCollection(this.KEYS.PRODUCTS, products); },
-    async saveProduct(product) {
-        const products = await this.getProducts();
-        const index = products.findIndex(p => p.id === product.id);
-        if (index >= 0) products[index] = product;
-        else { product.id = Date.now(); products.push(product); }
-        await this.saveProducts(products);
-        return product;
-    },
-
-    async getCustomers() { return this.getCollection(this.KEYS.CUSTOMERS); },
-    async saveCustomers(customers) { await this.setCollection(this.KEYS.CUSTOMERS, customers); },
-    async saveCustomer(customer) {
-        const customers = await this.getCustomers();
-        const index = customers.findIndex(c => c.id === customer.id);
-        if (index >= 0) customers[index] = customer;
-        else { customer.id = Date.now(); customer.type = 'customer'; customers.push(customer); }
-        await this.saveCustomers(customers);
-        return customer;
-    },
-
-    async getSuppliers() { return this.getCollection(this.KEYS.SUPPLIERS); },
-    async saveSuppliers(suppliers) { await this.setCollection(this.KEYS.SUPPLIERS, suppliers); },
-    async saveSupplier(supplier) {
-        const suppliers = await this.getSuppliers();
-        const index = suppliers.findIndex(s => s.id === supplier.id);
-        if (index >= 0) suppliers[index] = supplier;
-        else { supplier.id = Date.now(); supplier.type = 'supplier'; suppliers.push(supplier); }
-        await this.saveSuppliers(suppliers);
-        return supplier;
-    },
-
-    async getAllParties() { return [...(await this.getCustomers()), ...(await this.getSuppliers())]; },
-
-    async getReps() { return this.getCollection(this.KEYS.REPS); },
-    async saveReps(reps) { await this.setCollection(this.KEYS.REPS, reps); },
-    async saveRep(rep) {
-        const reps = await this.getReps();
-        const index = reps.findIndex(r => r.id === rep.id);
-        if (index >= 0) reps[index] = rep;
-        else { rep.id = Date.now(); reps.push(rep); }
-        await this.saveReps(reps);
-        return rep;
-    },
-
-    async getInvoices() { return this.getCollection(this.KEYS.INVOICES); },
-    async saveInvoices(invoices) { await this.setCollection(this.KEYS.INVOICES, invoices); },
-    async saveInvoice(invoice) {
-        const invoices = await this.getInvoices();
-        const index = invoices.findIndex(i => i.id === invoice.id);
-        if (index >= 0) invoices[index] = invoice;
-        else invoices.push(invoice);
-        await this.saveInvoices(invoices);
-        return invoice;
-    },
-
-    async getPurchases() { return this.getCollection(this.KEYS.PURCHASES); },
-    async savePurchases(purchases) { await this.setCollection(this.KEYS.PURCHASES, purchases); },
-    async savePurchase(purchase) {
-        const purchases = await this.getPurchases();
-        const index = purchases.findIndex(p => p.id === purchase.id);
-        if (index >= 0) purchases[index] = purchase;
-        else purchases.push(purchase);
-        await this.savePurchases(purchases);
-        return purchase;
-    },
-
-    async getTransactions() { return this.getCollection(this.KEYS.TRANSACTIONS); },
-    async saveTransactions(transactions) { await this.setCollection(this.KEYS.TRANSACTIONS, transactions); },
-    async saveTransaction(transaction) {
-        const transactions = await this.getTransactions();
-        const index = transactions.findIndex(t => t.id === transaction.id);
-        if (index >= 0) transactions[index] = transaction;
-        else { transaction.id = Date.now(); transactions.push(transaction); }
-        await this.saveTransactions(transactions);
-        return transaction;
-    },
-
-    async getSettings() {
-        const data = localStorage.getItem(this.KEYS.SETTINGS);
-        return data ? JSON.parse(data) : this.defaults.settings;
-    },
-    async saveSettings(settings) { localStorage.setItem(this.KEYS.SETTINGS, JSON.stringify(settings)); },
-
-    async getUsers() { return this.getCollection(this.KEYS.USERS); },
-    async saveUsers(users) { await this.setCollection(this.KEYS.USERS, users); },
-    async saveUser(user) {
-        const users = await this.getUsers();
-        const index = users.findIndex(u => u.id === user.id);
-        if (index >= 0) users[index] = user;
-        else { user.id = Date.now(); users.push(user); }
-        await this.saveUsers(users);
-        return user;
-    }
-};
+    };
+})();
 
 window.Storage = Storage;
