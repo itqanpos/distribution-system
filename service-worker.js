@@ -1,6 +1,6 @@
-// service-worker.js
-const CACHE_NAME = 'fooddist-v6';
-const REPO_NAME = '/distribution-system'; // <-- هنا الاسم الصحيح
+// service-worker.js - نسخة متوافقة مع GitHub Pages
+const REPO_NAME = '/distribution-system'; // تأكد من اسم المستودع
+const CACHE_NAME = 'fooddist-v7-' + REPO_NAME;
 
 const urlsToCache = [
   REPO_NAME + '/',
@@ -34,15 +34,13 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
-// ... باقي الكود (دوال install, activate, fetch) كما هي ...
-
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return Promise.allSettled(
-        urlsToCache.map(url => fetch(url).then(response => {
+        urlsToCache.map(url => fetch(url, { cache: 'no-cache' }).then(response => {
           if (response.ok) return cache.put(url, response);
-        }).catch(err => console.warn('Cache failed:', url)))
+        }).catch(err => console.warn('Cache failed for', url)))
       );
     })
   );
@@ -59,23 +57,10 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith('http')) return;
-
-  event.respondWith(
-    fetch(event.request).then(response => {
-      if (response && response.status === 200) {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-      }
-      return response;
-    }).catch(() => {
-      return caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        if (event.request.headers.get('accept').includes('text/html')) {
-          return caches.match(REPO_NAME + '/index.html');
-        }
-      });
-    })
-  );
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith(REPO_NAME) && event.request.method === 'GET') {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
+  }
 });
