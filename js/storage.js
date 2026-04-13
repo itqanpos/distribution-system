@@ -69,6 +69,19 @@ const Storage = {
     },
 
     // تهيئة التخزين (تحميل البيانات الافتراضية إذا لم تكن موجودة)
+   // داخل storage.js، أضف في بداية init():
+async init() {
+    // فحص توفر localStorage
+    try {
+        localStorage.setItem('__test__', '1');
+        localStorage.removeItem('__test__');
+    } catch (e) {
+        console.error('localStorage not available:', e);
+        alert('التخزين المحلي غير متوفر. التطبيق لن يعمل بشكل صحيح.');
+        return;
+    }
+    // ... باقي الكود
+}
     async init() {
         for (let key in this.KEYS) {
             const storageKey = this.KEYS[key];
