@@ -32,14 +32,15 @@ const UI = {
         return true;
     },
 
-    // تسجيل Service Worker
-    registerServiceWorker() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-                .then(reg => console.log('Service Worker registered'))
-                .catch(err => console.log('Service Worker failed', err));
-        }
-    },
+    // تسجيل Service Worker;
+        registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+            .then(reg => console.log('SW registered with scope:', reg.scope))
+            .catch(err => console.error('SW registration failed:', err));
+    }
+}
+    
 
     // تحديد رابط القائمة النشط
     highlightCurrentMenuItem() {
