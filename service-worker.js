@@ -1,7 +1,7 @@
-// service-worker.js
-const CACHE_NAME = 'fooddist-v2';
+// service-worker.js - نسخة محسنة
+const CACHE_NAME = 'fooddist-v3-' + new Date().getTime(); // إضافة وقت لتجنب الكاش القديم
 const urlsToCache = [
-  '/',
+  './',
   'index.html',
   'dashboard.html',
   'sales.html',
@@ -27,21 +27,23 @@ const urlsToCache = [
   'js/utils.js',
   'js/ui.js',
   'js/print.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+  'js/database.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://cdn.jsdelivr.net/npm/dexie@3.2.3/dist/dexie.min.js'
 ];
 
-// تثبيت Service Worker وتخزين الملفات
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      console.log('Caching app shell');
-      return cache.addAll(urlsToCache);
+      console.log('Caching all files');
+      return cache.addAll(urlsToCache).catch(err => {
+        console.error('Failed to cache some files:', err);
+      });
     })
   );
   self.skipWaiting();
 });
 
-// تفعيل Service Worker وتنظيف الكاش القديم
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -58,18 +60,14 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// استراتيجية "الكاش أولاً ثم الشبكة" للملفات الثابتة
 self.addEventListener('fetch', event => {
-  // تجاهل طلبات chrome-extension والطلبات غير GET
   if (event.request.method !== 'GET') return;
   
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {
-        // إرجاع الملف من الكاش
         return cachedResponse;
       }
-      // إذا لم يكن موجودًا، جلبه من الشبكة وتخزينه للمستقبل
       return fetch(event.request).then(response => {
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
@@ -80,7 +78,7 @@ self.addEventListener('fetch', event => {
         });
         return response;
       }).catch(() => {
-        // في حال فشل الاتصال وكان المورد غير موجود في الكاش (لصفحات HTML يمكن إرجاع صفحة offline مخصصة)
+        // إذا فشل الاتصال وكان المورد HTML، أرجع index.html
         if (event.request.headers.get('accept').includes('text/html')) {
           return caches.match('index.html');
         }
