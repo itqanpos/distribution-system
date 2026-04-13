@@ -1,24 +1,58 @@
-# Nestjs specific
-/dist
-/node_modules
-/build
-/tmp
+# ملفات النظام المؤقتة
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Logs
-logs
+# ملفات المحرر
+.vscode/
+.idea/
+*.sublime-*
+
+# ملفات السجل
 *.log
 npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
 
-# dotenv environment variable files
+# ملفات التبعيات (إذا كنت تستخدم npm)
+node_modules/
+
+# ملفات بيئة التطوير المحلية
 .env
-.env.development
-.env.test
-.env.production
+.env.local
+.env.*.local
 
-# temp directory
-.temp
-.tmp
+# مجلدات البناء والإخراج
+dist/
+build/
+out/
+
+# ملفات مؤقتة للتطبيقات
+*.tmp
+*.temp
+
+# ملفات قاعدة البيانات المحلية (مثل SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# ملفات النسخ الاحتياطي
+*.bak
+*.backup
+
+# ملفات مضغوطة
+*.zip
+*.tar.gz
+*.rar
+
+# ملفات الوسائط الكبيرة (إذا لم تكن ضرورية للمشروع)
+*.mp4
+*.mov
+*.avi
+*.wmv
+*.flv
+
+# استثناءات: نريد تتبع الأيقونات
+!icon-192.png
+!icon-512.png
+
+# مجلد رفع الملفات (إذا كان هناك مجلد لرفع المستخدمين)
+uploads/
