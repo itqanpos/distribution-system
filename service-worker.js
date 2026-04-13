@@ -1,4 +1,4 @@
-// service-worker.js - تعديل استراتيجية التخزين لتجنب مشاكل التوجيه
+// service-worker.js - نسخة محسنة للعمل في PWA
 const CACHE_NAME = 'fooddist-v5';
 const urlsToCache = [
   './',
@@ -26,9 +26,7 @@ const urlsToCache = [
   './js/storage.js',
   './js/utils.js',
   './js/ui.js',
-  './js/print.js',
-  './icon-192.png',
-  './icon-512.png'
+  './js/print.js'
 ];
 
 self.addEventListener('install', event => {
@@ -37,7 +35,7 @@ self.addEventListener('install', event => {
       return Promise.allSettled(
         urlsToCache.map(url => fetch(url).then(response => {
           if (response.ok) return cache.put(url, response);
-        }).catch(err => console.warn('Cache failed for', url))
+        }).catch(err => console.warn('Cache failed:', url)))
       );
     })
   );
@@ -53,16 +51,15 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// استراتيجية: الشبكة أولاً، ثم الكاش (لتجنب تقديم index.html قديم)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  if (event.request.url.includes('/__/') || event.request.url.includes('chrome-extension')) return;
+  if (!event.request.url.startsWith('http')) return;
 
   event.respondWith(
     fetch(event.request).then(response => {
       if (response && response.status === 200) {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
       }
       return response;
     }).catch(() => {
