@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <base href="/distribution-system/">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>المنتجات - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <style>
         :root {
             --primary: #2c3e50;
@@ -16,121 +17,238 @@
             --info: #1abc9c;
             --light: #ecf0f1;
             --dark: #34495e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 65px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: #f5f6fa; color: #333; }
+        body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
-        .logo { display: flex; align-items: center; gap: 15px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .logo-text h2 { color: var(--primary); font-size: 20px; }
-        .logo-text p { color: var(--secondary); font-size: 12px; }
-        .user-info { display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
-        .user-details h4 { color: var(--primary); }
-        .user-details p { color: #7f8c8d; font-size: 12px; }
-        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        /* ========== شريط التنقل ========== */
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .navbar-left { display: flex; align-items: center; gap: 15px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .navbar-right { display: flex; align-items: center; gap: 15px; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+        }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
+        .user-info { text-align: right; }
+        .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
+        .user-info p { font-size: 12px; color: #7f8c8d; }
+        .logout-btn {
+            background: none; border: none; color: var(--danger); font-size: 20px;
+            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+        }
 
-        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
-        .menu { list-style: none; }
-        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
-        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
-        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
-        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
-        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        /* ========== الشريط الجانبي ========== */
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s ease; z-index: 1020;
+            overflow-y: auto; overflow-x: hidden; padding: 20px 0;
+        }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar .menu-section {
+            padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            opacity: 1; transition: opacity 0.15s;
+        }
+        .sidebar.collapsed .menu-section { opacity: 0; pointer-events: none; padding: 20px 0 8px; text-align: center; }
+        .menu { list-style: none; padding: 0 12px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; flex-shrink: 0; }
+        .menu-text { transition: opacity 0.2s; }
+        .sidebar.collapsed .menu-text { opacity: 0; pointer-events: none; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
+            color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
+        }
 
-        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
-        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-primary { background: var(--secondary); color: white; }
+        /* ========== المحتوى الرئيسي ========== */
+        .main-content {
+            margin-right: var(--sidebar-width); margin-top: var(--header-height);
+            padding: 25px; transition: margin-right 0.25s ease;
+            min-height: calc(100vh - var(--header-height));
+        }
+        .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
+
+        /* ========== البطاقات ========== */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
+        }
+        .page-title { display: flex; align-items: center; gap: 12px; }
+        .page-title h1 { font-size: 26px; font-weight: 700; color: var(--primary); }
+        .btn {
+            padding: 10px 18px; border: none; border-radius: 12px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+            transition: all 0.2s; font-size: 14px;
+        }
+        .btn-primary { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(52,152,219,0.2); }
+        .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
         .btn-success { background: var(--success); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
 
-        .tabs { display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
-        .tab-btn { padding: 12px 25px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent; }
+        .tabs {
+            display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 12px 25px; background: none; border: none; color: #7f8c8d; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent;
+        }
         .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; }
-        .search-box input { border: none; outline: none; font-size: 14px; width: 200px; }
-
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
-        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
-        .units-badge { background: var(--light); padding: 2px 8px; border-radius: 20px; font-size: 11px; margin-right: 5px; }
-
-        .action-buttons { display: flex; gap: 5px; }
-        .action-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; }
-        .action-btn.edit { color: var(--warning); }
-        .action-btn.delete { color: var(--danger); }
-        .action-btn.split { color: var(--success); }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-
-        .units-container { margin: 15px 0; }
-        .unit-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.5fr; gap: 8px; margin-bottom: 10px; align-items: center; }
-        .add-unit-btn { background: var(--light); border: 1px dashed var(--secondary); padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; }
-
-        .split-preview { background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
-
-        @media (max-width: 992px) {
-            .sidebar { width: 70px; }
-            .sidebar .menu-text, .sidebar .menu-section { display: none; }
-            .main-content { margin-right: 70px; }
-            .menu-item { justify-content: center; padding: 15px; }
+        .table-container {
+            background: white; border-radius: 20px; padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
         }
-        @media (max-width: 768px) {
+        .table-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-wrapper {
+            display: flex; align-items: center; background: #f8fafc;
+            border-radius: 40px; padding: 5px 15px; min-width: 250px;
+        }
+        .search-wrapper i { color: #95a5a6; margin-left: 10px; }
+        .search-wrapper input {
+            border: none; background: transparent; padding: 10px 0; width: 100%;
+            font-size: 14px; outline: none;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: right; padding: 15px 10px; color: #7f8c8d; font-weight: 600;
+            font-size: 13px; border-bottom: 1px solid #eee;
+        }
+        td { padding: 14px 10px; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+        tr:hover { background: #fafbfc; }
+        .units-badge {
+            background: var(--light); padding: 2px 8px; border-radius: 20px;
+            font-size: 11px; margin-right: 5px;
+        }
+        .action-buttons { display: flex; gap: 5px; }
+        .action-icon {
+            color: var(--secondary); margin: 0 5px; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .action-icon:hover { transform: scale(1.2); }
+
+        /* ========== مودال ========== */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 800px;
+            max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+        .modal-header h2 { font-size: 22px; color: var(--primary); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px; border: 2px solid #eef2f6; border-radius: 12px;
+        }
+        .units-container { margin: 20px 0; }
+        .unit-row {
+            display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.5fr;
+            gap: 8px; margin-bottom: 10px; align-items: center;
+        }
+        .add-unit-btn {
+            background: var(--light); border: 1px dashed var(--secondary);
+            padding: 10px; border-radius: 12px; text-align: center; cursor: pointer;
+        }
+        .split-preview {
+            background: #f0f7ff; padding: 15px; border-radius: 16px; margin: 15px 0;
+        }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .sidebar.collapsed { width: var(--sidebar-width); transform: translateX(100%); }
+            .sidebar.collapsed.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; }
+            .menu-toggle { display: flex; }
+            .logo-text p { display: none; }
+            .user-info { display: none; }
             .unit-row { grid-template-columns: 1fr; }
         }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text"><h2>نظام التوزيع الغذائي</h2><p>إدارة المنتجات</p></div>
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
         </div>
-        <div class="user-info">
-            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
-            <div class="user-avatar" id="userAvatar">م</div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        <div class="navbar-right">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">م</div>
+                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+            </div>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">القائمة الرئيسية</div>
-            <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item active" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item active" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
     </aside>
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><i class="fas fa-boxes"></i><h1>المنتجات</h1></div>
-            <div><button class="btn btn-primary" onclick="openProductModal()"><i class="fas fa-plus"></i> منتج جديد</button></div>
+            <div class="page-title"><i class="fas fa-boxes" style="font-size:28px; color:var(--secondary);"></i><h1>المنتجات</h1></div>
+            <div>
+                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> تحديث</button>
+                <button class="btn btn-primary" onclick="openProductModal()"><i class="fas fa-plus"></i> منتج جديد</button>
+                <button class="btn btn-success" onclick="printInventoryReport()"><i class="fas fa-print"></i> تقرير المخزون</button>
+            </div>
         </div>
 
         <div class="tabs">
@@ -138,13 +256,23 @@
             <button class="tab-btn" onclick="switchTab('splitTab')"><i class="fas fa-code-branch"></i> التقسيم / التعبئة</button>
         </div>
 
+        <!-- تبويب قائمة المنتجات -->
         <div id="productsTab" class="tab-content active">
             <div class="table-container">
-                <div class="table-header"><h3>المنتجات والوحدات</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="searchInput"></div></div>
-                <table><thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات والمخزون</th><th>السعر الأساسي</th><th>إجراءات</th></tr></thead><tbody id="productsTableBody"></tbody></table>
+                <div class="table-header">
+                    <h3>المنتجات والوحدات</h3>
+                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="بحث..."></div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات والمخزون</th><th>السعر الأساسي</th><th>إجراءات</th></tr></thead>
+                        <tbody id="productsTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
+        <!-- تبويب التقسيم / التعبئة -->
         <div id="splitTab" class="tab-content">
             <div class="table-container">
                 <h3 style="margin-bottom:20px;"><i class="fas fa-code-branch"></i> تقسيم المنتجات</h3>
@@ -156,61 +284,94 @@
                     <div class="form-group"><label>عدد الوحدات الناتجة من كل وحدة مصدر</label><input type="number" id="splitConversionRate" min="1" value="12" oninput="updateSplitPreview()"></div>
                     <div class="form-group"><label>سعر البيع للوحدة الناتجة</label><input type="number" id="splitTargetPrice" min="0.01" step="0.01" oninput="validateTargetPrice()"><small id="priceLimits"></small></div>
                     <div class="split-preview" id="splitPreview"></div>
-                    <div style="display:flex; gap:10px;"><button class="btn btn-success" onclick="executeSplit()"><i class="fas fa-check"></i> تنفيذ التقسيم</button><button class="btn btn-outline" onclick="resetSplitForm()">إلغاء</button></div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-success" onclick="executeSplit()"><i class="fas fa-check"></i> تنفيذ التقسيم</button>
+                        <button class="btn btn-outline" onclick="resetSplitForm()">إلغاء</button>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <!-- مودال إضافة/تعديل منتج -->
     <div class="modal" id="productModal">
         <div class="modal-content">
-            <div class="modal-header"><h3 id="modalTitle">منتج جديد</h3><button class="close-btn" onclick="closeProductModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="modalTitle">منتج جديد</h2><button class="close-btn" onclick="closeProductModal()">&times;</button></div>
             <form id="productForm" onsubmit="saveProduct(event)">
                 <input type="hidden" id="productId">
                 <div class="form-group"><label>اسم المنتج</label><input type="text" id="productName" required></div>
                 <div class="form-group"><label>التصنيف</label><select id="productCategory"><option value="مخبوزات">مخبوزات</option><option value="زيوت">زيوت</option><option value="بقوليات">بقوليات</option><option value="ألبان">ألبان</option><option value="مشروبات">مشروبات</option><option value="أخرى">أخرى</option></select></div>
                 <div class="form-group"><label>الوصف</label><textarea id="productDescription" rows="2"></textarea></div>
-                <div class="units-container"><label>وحدات القياس والأسعار والمخزون</label><div id="unitsList"></div><div class="add-unit-btn" onclick="addUnitRow()"><i class="fas fa-plus"></i> إضافة وحدة</div></div>
+                <div class="units-container">
+                    <label>وحدات القياس والأسعار والمخزون</label>
+                    <div id="unitsList"></div>
+                    <div class="add-unit-btn" onclick="addUnitRow()"><i class="fas fa-plus"></i> إضافة وحدة</div>
+                </div>
                 <div class="modal-footer"><button type="button" class="btn" onclick="closeProductModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
 
-    <script src="js/auth.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ui.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/ui.js"></script>
     <script>
-        let products = [], tempUnits = [], currentEditId = null;
+        // الشريط الجانبي
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        function toggleSidebar() {
+            if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
+            else sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+        menuToggle.addEventListener('click', toggleSidebar);
+        if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+        document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
 
-        document.addEventListener('DOMContentLoaded', async function() {
+        let products = [];
+        let tempUnits = [];
+        let currentEditId = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
-            await UI.initPage('المنتجات');
-            products = await Storage.getProducts();
-            renderAll();
+            await UI.initPage('المنتجات', { enablePullToRefresh: true, refreshCallback: loadProducts, autoSync: true, syncCallback: loadProducts });
+
+            const user = Auth.getUser();
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
+            document.getElementById('userAvatar').textContent = user.avatar;
+
+            await loadProducts();
             document.getElementById('searchInput').addEventListener('input', filterProducts);
         });
 
-        function renderAll() { renderProductsTable(products); populateSplitProductSelect(); }
+        async function loadProducts() {
+            products = await Storage.getProducts();
+            renderProductsTable(products);
+            populateSplitProductSelect();
+        }
+
         function renderProductsTable(data) {
             const tbody = document.getElementById('productsTableBody');
-            tbody.innerHTML = data.length ? data.map(p => {
+            if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">لا توجد منتجات</td></tr>'; return; }
+            tbody.innerHTML = data.map(p => {
                 const unitsSummary = p.units.map(u => `${u.unit} (${u.stock})`).join('، ');
-                const main = p.units[0];
-                return `<tr><td>${p.name}</td><td>${p.category}</td><td>${unitsSummary}</td><td>${Utils.formatMoney(main.price)} (${main.min}-${main.max})</td>
-                <td class="action-buttons"><button class="action-btn edit" onclick="editProduct(${p.id})"><i class="fas fa-edit"></i></button>
-                <button class="action-btn split" onclick="quickSplit(${p.id})"><i class="fas fa-code-branch"></i></button>
-                <button class="action-btn delete" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button></td></tr>`;
-            }).join('') : '<tr><td colspan="5">لا توجد منتجات</td></tr>';
+                const mainUnit = p.units[0];
+                return `<tr><td>${p.name}</td><td>${p.category}</td><td>${unitsSummary}</td><td>${Utils.formatMoney(mainUnit.price)} (${mainUnit.min}-${mainUnit.max})</td>
+                <td class="action-buttons">
+                    <i class="fas fa-edit action-icon" onclick="editProduct(${p.id})" title="تعديل"></i>
+                    <i class="fas fa-code-branch action-icon" style="color:var(--success);" onclick="quickSplit(${p.id})" title="تقسيم"></i>
+                    <i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteProduct(${p.id})" title="حذف"></i>
+                </td></tr>`;
+            }).join('');
         }
 
         function filterProducts() {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            renderProductsTable(products.filter(p => p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term)));
+            const filtered = products.filter(p => p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term));
+            renderProductsTable(filtered);
         }
 
         function openProductModal() {
@@ -238,7 +399,8 @@
         function closeProductModal() { document.getElementById('productModal').style.display = 'none'; }
 
         function renderUnitsList() {
-            document.getElementById('unitsList').innerHTML = tempUnits.map((u,i) => `
+            const container = document.getElementById('unitsList');
+            container.innerHTML = tempUnits.map((u, i) => `
                 <div class="unit-row">
                     <input type="text" placeholder="الوحدة" value="${u.unit}" onchange="updateTempUnit(${i},'unit',this.value)">
                     <input type="number" placeholder="السعر" value="${u.price}" step="0.01" onchange="updateTempUnit(${i},'price',this.value)">
@@ -246,39 +408,59 @@
                     <input type="number" placeholder="الحد الأقصى" value="${u.max}" step="0.01" onchange="updateTempUnit(${i},'max',this.value)">
                     <input type="text" placeholder="باركود" value="${u.barcode}" onchange="updateTempUnit(${i},'barcode',this.value)">
                     <input type="number" placeholder="المخزون" value="${u.stock}" step="0.001" onchange="updateTempUnit(${i},'stock',this.value)">
-                    <button type="button" class="action-btn delete" onclick="removeUnitRow(${i})"><i class="fas fa-trash"></i></button>
-                </div>`).join('');
+                    <button type="button" class="action-icon" style="color:var(--danger);" onclick="removeUnitRow(${i})"><i class="fas fa-trash"></i></button>
+                </div>
+            `).join('');
         }
 
-        function addUnitRow() { tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 }); renderUnitsList(); }
-        function updateTempUnit(i, f, v) { if (['price','min','max','stock'].includes(f)) tempUnits[i][f] = parseFloat(v)||0; else tempUnits[i][f] = v; }
-        function removeUnitRow(i) { if (tempUnits.length > 1) { tempUnits.splice(i,1); renderUnitsList(); } else alert('يجب وجود وحدة واحدة على الأقل'); }
+        function addUnitRow() {
+            tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 });
+            renderUnitsList();
+        }
+
+        function updateTempUnit(index, field, value) {
+            if (['price', 'min', 'max', 'stock'].includes(field)) tempUnits[index][field] = parseFloat(value) || 0;
+            else tempUnits[index][field] = value;
+        }
+
+        function removeUnitRow(index) {
+            if (tempUnits.length > 1) { tempUnits.splice(index, 1); renderUnitsList(); }
+            else alert('يجب وجود وحدة واحدة على الأقل');
+        }
 
         async function saveProduct(event) {
             event.preventDefault();
             const id = document.getElementById('productId').value;
             const name = document.getElementById('productName').value;
-            const cat = document.getElementById('productCategory').value;
-            const desc = document.getElementById('productDescription').value;
+            const category = document.getElementById('productCategory').value;
+            const description = document.getElementById('productDescription').value;
+
             for (let u of tempUnits) {
-                if (!u.unit || u.price<=0 || u.min<=0 || u.max<=0) return alert('جميع حقول الوحدات مطلوبة');
-                if (u.min > u.max) return alert('الحد الأدنى ≤ الأقصى');
-                if (u.price < u.min || u.price > u.max) return alert('السعر بين الحدين');
+                if (!u.unit || u.price <= 0 || u.min <= 0 || u.max <= 0) { alert('جميع حقول الوحدات مطلوبة'); return; }
+                if (u.min > u.max) { alert('الحد الأدنى يجب أن يكون ≤ الأقصى'); return; }
+                if (u.price < u.min || u.price > u.max) { alert('السعر يجب أن يكون بين الحدين'); return; }
             }
+
             if (id) {
                 const idx = products.findIndex(p => p.id == id);
-                if (idx >= 0) products[idx] = { ...products[idx], name, category: cat, description: desc, units: JSON.parse(JSON.stringify(tempUnits)) };
+                if (idx >= 0) products[idx] = { ...products[idx], name, category, description, units: JSON.parse(JSON.stringify(tempUnits)) };
             } else {
-                products.push({ id: Date.now(), name, category: cat, description: desc, units: JSON.parse(JSON.stringify(tempUnits)) });
+                products.push({ id: Date.now(), name, category, description, units: JSON.parse(JSON.stringify(tempUnits)) });
             }
             await Storage.saveProducts(products);
-            renderAll();
+            renderProductsTable(products);
             closeProductModal();
         }
 
-        async function deleteProduct(id) { if (confirm('حذف المنتج؟')) { products = products.filter(p => p.id !== id); await Storage.saveProducts(products); renderAll(); } }
+        async function deleteProduct(id) {
+            if (confirm('حذف المنتج؟')) {
+                products = products.filter(p => p.id !== id);
+                await Storage.saveProducts(products);
+                renderProductsTable(products);
+            }
+        }
 
-        // التقسيم
+        // === التقسيم / التعبئة ===
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -298,7 +480,7 @@
             if (!id) { document.getElementById('splitFormContainer').style.display = 'none'; return; }
             const p = products.find(x => x.id == id);
             const src = document.getElementById('splitSourceUnit'), tgt = document.getElementById('splitTargetUnit');
-            src.innerHTML = tgt.innerHTML = p.units.map((u,i) => `<option value="${i}">${u.unit} (المخزون: ${u.stock})</option>`).join('');
+            src.innerHTML = tgt.innerHTML = p.units.map((u, i) => `<option value="${i}">${u.unit} (المخزون: ${u.stock})</option>`).join('');
             document.getElementById('splitFormContainer').style.display = 'block';
             updateSplitPreview();
         }
@@ -347,13 +529,35 @@
             tgtU.stock += qty * rate;
             tgtU.price = newPrice;
             await Storage.saveProducts(products);
-            renderAll();
+            renderProductsTable(products);
+            populateSplitProductSelect();
             loadProductUnitsForSplit();
             alert(`تم تقسيم ${qty} ${srcU.unit} إلى ${(qty*rate).toFixed(3)} ${tgtU.unit}`);
         }
 
-        function quickSplit(productId) { switchTab('splitTab'); document.getElementById('splitProductSelect').value = productId; loadProductUnitsForSplit(); }
-        function resetSplitForm() { document.getElementById('splitProductSelect').value = ''; document.getElementById('splitFormContainer').style.display = 'none'; }
+        function quickSplit(productId) {
+            switchTab('splitTab');
+            document.getElementById('splitProductSelect').value = productId;
+            loadProductUnitsForSplit();
+        }
+
+        function resetSplitForm() {
+            document.getElementById('splitProductSelect').value = '';
+            document.getElementById('splitFormContainer').style.display = 'none';
+        }
+
+        function printInventoryReport() {
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html dir="rtl"><head><title>تقرير المخزون</title><style>body{font-family:'Segoe UI';padding:20px;}</style></head><body>
+                <h2>تقرير المخزون - ${Utils.getToday()}</h2>
+                <table border="1" cellpadding="8" style="border-collapse:collapse; width:100%;"><thead><tr><th>المنتج</th><th>الوحدة</th><th>المخزون</th><th>السعر</th></tr></thead><tbody>
+                ${products.flatMap(p => p.units.map(u => `<tr><td>${p.name}</td><td>${u.unit}</td><td>${u.stock}</td><td>${Utils.formatMoney(u.price)}</td></tr>`)).join('')}
+                </tbody></table>
+                </body></html>
+            `);
+            win.document.close(); win.print();
+        }
     </script>
 </body>
 </html>
