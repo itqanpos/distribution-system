@@ -1,6 +1,5 @@
-// js/print.js - نظام الطباعة والقوالب
+// js/print.js - نظام الطباعة
 const PrintSystem = {
-    // الحصول على إعدادات الطباعة من التخزين
     async getSettings() {
         const settings = await Storage.getSettings();
         return {
@@ -13,7 +12,6 @@ const PrintSystem = {
         };
     },
 
-    // القوالب الافتراضية
     getDefaultTemplates() {
         return {
             thermal: {
@@ -49,165 +47,37 @@ const PrintSystem = {
         };
     },
 
-    // طباعة فاتورة (بيع أو شراء)
     async printInvoice(invoice, items, customerName = null) {
         const settings = await this.getSettings();
         const template = settings.templates[settings.printerType] || settings.templates.thermal;
-        
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         const company = settings.company;
         const showLogo = settings.showLogo;
-        
         const logoHtml = showLogo ? `<div style="text-align:center;"><i class="fas fa-truck" style="font-size:40px;"></i></div>` : '';
         
         const itemsHtml = items.map(item => `
-            <tr>
-                <td>${item.productName}</td>
-                <td>${item.quantity} ${item.unit || item.unitName || ''}</td>
-                <td>${Utils.formatMoney(item.price)}</td>
-                <td>${Utils.formatMoney(item.total || item.price * item.quantity)}</td>
-            </tr>
+            <tr><td>${item.productName}</td><td>${item.quantity} ${item.unit || item.unitName || ''}</td><td>${Utils.formatMoney(item.price)}</td><td>${Utils.formatMoney(item.total || item.price * item.quantity)}</td></tr>
         `).join('');
 
         const typeText = invoice.type === 'sale' ? 'فاتورة بيع' : (invoice.type === 'purchase' ? 'فاتورة شراء' : 'فاتورة');
         const partyLabel = invoice.type === 'sale' ? 'العميل' : 'المورد';
         const partyName = customerName || invoice.customer || invoice.supplier || '-';
 
-        const html = `
-            <!DOCTYPE html>
-            <html dir="rtl">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>${typeText} - ${invoice.id}</title>
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                    <style>
-                        ${template.css}
-                    </style>
-                </head>
-                <body>
-                    ${logoHtml}
-                    <div class="header">
-                        <div class="company-info">
-                            <div class="company-name">${company.name}</div>
-                            <div>${company.phone || ''}</div>
-                            <div>${company.address || ''}</div>
-                        </div>
-                        <div>
-                            <div class="invoice-title">${typeText}</div>
-                            <div>رقم: ${invoice.id}</div>
-                            <div>التاريخ: ${invoice.date || Utils.getToday()}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="divider"></div>
-                    
-                    <div>
-                        <strong>${partyLabel}:</strong> ${partyName}<br>
-                        ${invoice.paymentMethod ? `<strong>طريقة الدفع:</strong> ${this.getMethodName(invoice.paymentMethod)}<br>` : ''}
-                    </div>
-                    
-                    <div class="divider"></div>
-                    
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>الصنف</th>
-                                <th>الكمية</th>
-                                <th>السعر</th>
-                                <th>الإجمالي</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${itemsHtml}
-                        </tbody>
-                    </table>
-                    
-                    <div class="totals">
-                        <div><strong>الإجمالي:</strong> ${Utils.formatMoney(invoice.total)}</div>
-                        ${invoice.discount ? `<div><strong>الخصم:</strong> ${Utils.formatMoney(invoice.discount)}</div>` : ''}
-                        <div><strong>المدفوع:</strong> ${Utils.formatMoney(invoice.paid)}</div>
-                        <div><strong>المتبقي:</strong> ${Utils.formatMoney(invoice.remaining)}</div>
-                    </div>
-                    
-                    <div class="footer">
-                        ${settings.footer}
-                    </div>
-                    
-                    <script>
-                        window.onload = function() { 
-                            setTimeout(() => { window.print(); }, 100);
-                            setTimeout(() => { window.close(); }, 1000);
-                        };
-                    </script>
-                </body>
-            </html>
-        `;
-        
+        const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${typeText} - ${invoice.id}</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>${template.css}</style></head><body>${logoHtml}<div class="header"><div class="company-info"><div class="company-name">${company.name}</div><div>${company.phone||''}</div><div>${company.address||''}</div></div><div><div class="invoice-title">${typeText}</div><div>رقم: ${invoice.id}</div><div>التاريخ: ${invoice.date || Utils.getToday()}</div></div></div><div class="divider"></div><div><strong>${partyLabel}:</strong> ${partyName}<br>${invoice.paymentMethod?`<strong>طريقة الدفع:</strong> ${this.getMethodName(invoice.paymentMethod)}<br>`:''}</div><div class="divider"></div><table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table><div class="totals"><div><strong>الإجمالي:</strong> ${Utils.formatMoney(invoice.total)}</div>${invoice.discount?`<div><strong>الخصم:</strong> ${Utils.formatMoney(invoice.discount)}</div>`:''}<div><strong>المدفوع:</strong> ${Utils.formatMoney(invoice.paid)}</div><div><strong>المتبقي:</strong> ${Utils.formatMoney(invoice.remaining)}</div></div><div class="footer">${settings.footer}</div><script>window.onload=function(){setTimeout(window.print,100);setTimeout(window.close,1000);};<\/script></body></html>`;
         printWindow.document.write(html);
         printWindow.document.close();
     },
 
-    // طباعة إيصال حراري سريع (لنقطة البيع)
     async printThermalReceipt(cart, totals, customer = null, paymentMethod = 'cash') {
         const settings = await this.getSettings();
         const template = settings.templates.thermal;
         const company = settings.company;
-        
         const printWindow = window.open('', '_blank', 'width=400,height=600');
-        
-        const itemsHtml = cart.map(item => `
-            <tr>
-                <td>${item.productName}</td>
-                <td>${item.quantity} ${item.unitName || item.unit || ''}</td>
-                <td>${Utils.formatMoney(item.price * item.quantity)}</td>
-            </tr>
-        `).join('');
-
+        const itemsHtml = cart.map(item => `<tr><td>${item.productName}</td><td>${item.quantity} ${item.unitName || item.unit || ''}</td><td>${Utils.formatMoney(item.price * item.quantity)}</td></tr>`).join('');
         const now = new Date();
         const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
         const dateStr = now.toLocaleDateString('ar-EG');
-
-        const html = `
-            <!DOCTYPE html>
-            <html dir="rtl">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>إيصال بيع</title>
-                    <style>
-                        ${template.css}
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <div class="company-name">${company.name}</div>
-                        <div>${company.phone || ''}</div>
-                        <div>${dateStr} ${timeStr}</div>
-                    </div>
-                    <div class="divider"></div>
-                    ${customer ? `<div>العميل: ${customer.name || customer}</div><div class="divider"></div>` : ''}
-                    <table>
-                        <thead><tr><th>الصنف</th><th>كم</th><th>إجمالي</th></tr></thead>
-                        <tbody>${itemsHtml}</tbody>
-                    </table>
-                    <div class="divider"></div>
-                    <div class="total">
-                        <div>الإجمالي: ${Utils.formatMoney(totals.subtotal)}</div>
-                        ${totals.discount > 0 ? `<div>الخصم: ${Utils.formatMoney(totals.discount)}</div>` : ''}
-                        <div>الضريبة: ${Utils.formatMoney(totals.tax)}</div>
-                        <div>الصافي: ${Utils.formatMoney(totals.net)}</div>
-                        <div>طريقة الدفع: ${this.getMethodName(paymentMethod)}</div>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="footer">${settings.footer}</div>
-                    <script>
-                        window.onload = function() { 
-                            setTimeout(() => { window.print(); }, 100);
-                            setTimeout(() => { window.close(); }, 1000);
-                        };
-                    </script>
-                </body>
-            </html>
-        `;
+        const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>إيصال بيع</title><style>${template.css}</style></head><body><div class="header"><div class="company-name">${company.name}</div><div>${company.phone||''}</div><div>${dateStr} ${timeStr}</div></div><div class="divider"></div>${customer?`<div>العميل: ${customer.name||customer}</div><div class="divider"></div>`:''}<table><thead><tr><th>الصنف</th><th>كم</th><th>إجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table><div class="divider"></div><div class="total"><div>الإجمالي: ${Utils.formatMoney(totals.subtotal)}</div>${totals.discount>0?`<div>الخصم: ${Utils.formatMoney(totals.discount)}</div>`:''}<div>الضريبة: ${Utils.formatMoney(totals.tax)}</div><div>الصافي: ${Utils.formatMoney(totals.net)}</div><div>طريقة الدفع: ${this.getMethodName(paymentMethod)}</div></div><div class="divider"></div><div class="footer">${settings.footer}</div><script>window.onload=function(){setTimeout(window.print,100);setTimeout(window.close,1000);};<\/script></body></html>`;
         printWindow.document.write(html);
         printWindow.document.close();
     },
@@ -215,18 +85,6 @@ const PrintSystem = {
     getMethodName(method) {
         const names = { cash: 'نقدي', credit: 'آجل', mixed: 'مختلط', bank: 'تحويل بنكي' };
         return names[method] || method;
-    },
-
-    // حفظ قالب مخصص
-    async saveTemplate(printerType, css) {
-        const settings = await Storage.getSettings();
-        if (!settings.printing) settings.printing = {};
-        if (!settings.printing.templates) settings.printing.templates = {};
-        settings.printing.templates[printerType] = { 
-            ...settings.printing.templates[printerType], 
-            css 
-        };
-        await Storage.saveSettings(settings);
     }
 };
 
