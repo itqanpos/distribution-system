@@ -1,5 +1,5 @@
-// service-worker.js - نسخة نهائية مصححة
-const CACHE_NAME = 'fooddist-v' + new Date().toISOString().replace(/[:.]/g, '-');
+// service-worker.js - تعديل استراتيجية التخزين لتجنب مشاكل التوجيه
+const CACHE_NAME = 'fooddist-v5';
 const urlsToCache = [
   './',
   './index.html',
@@ -27,61 +27,51 @@ const urlsToCache = [
   './js/utils.js',
   './js/ui.js',
   './js/print.js',
-  './js/database.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://cdn.jsdelivr.net/npm/dexie@3.2.3/dist/dexie.min.js'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-// تثبيت Service Worker
 self.addEventListener('install', event => {
-  console.log('[SW] Install event');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('[SW] Caching all files');
-        return cache.addAll(urlsToCache);
-      })
-      .catch(err => console.error('[SW] Cache addAll error:', err))
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.allSettled(
+        urlsToCache.map(url => fetch(url).then(response => {
+          if (response.ok) return cache.put(url, response);
+        }).catch(err => console.warn('Cache failed for', url))
+      );
+    })
   );
   self.skipWaiting();
 });
 
-// تفعيل Service Worker
 self.addEventListener('activate', event => {
-  console.log('[SW] Activate event');
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
   );
   self.clients.claim();
 });
 
-// استراتيجية "الكاش أولاً" مع تحديث في الخلفية
+// استراتيجية: الشبكة أولاً، ثم الكاش (لتجنب تقديم index.html قديم)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('/__/') || event.request.url.includes('chrome-extension')) return;
 
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      // إرجاع من الكاش فوراً
-      const fetchPromise = fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
+    fetch(event.request).then(response => {
+      if (response && response.status === 200) {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+      }
+      return response;
+    }).catch(() => {
+      return caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        if (event.request.headers.get('accept').includes('text/html')) {
+          return caches.match('./index.html');
         }
-        return networkResponse;
-      }).catch(err => console.warn('[SW] Fetch failed:', err));
-
-      return cachedResponse || fetchPromise;
+      });
     })
   );
 });
