@@ -1,33 +1,33 @@
-// service-worker.js - نسخة محسنة
-const CACHE_NAME = 'fooddist-v3-' + new Date().getTime(); // إضافة وقت لتجنب الكاش القديم
+// service-worker.js - نسخة مصححة
+const CACHE_NAME = 'fooddist-v' + new Date().getTime(); // تحديث تلقائي
 const urlsToCache = [
   './',
-  'index.html',
-  'dashboard.html',
-  'sales.html',
-  'pos.html',
-  'invoices.html',
-  'purchases.html',
-  'cashbox.html',
-  'reports.html',
-  'accounting.html',
-  'customers.html',
-  'customer-details.html',
-  'reps.html',
-  'products.html',
-  'settings.html',
-  'rep-dashboard.html',
-  'rep-pos.html',
-  'rep-customers.html',
-  'rep-orders.html',
-  'rep-collections.html',
-  'manifest.json',
-  'js/auth.js',
-  'js/storage.js',
-  'js/utils.js',
-  'js/ui.js',
-  'js/print.js',
-  'js/database.js',
+  './index.html',
+  './dashboard.html',
+  './sales.html',
+  './pos.html',
+  './invoices.html',
+  './purchases.html',
+  './cashbox.html',
+  './reports.html',
+  './accounting.html',
+  './customers.html',
+  './customer-details.html',
+  './reps.html',
+  './products.html',
+  './settings.html',
+  './rep-dashboard.html',
+  './rep-pos.html',
+  './rep-customers.html',
+  './rep-orders.html',
+  './rep-collections.html',
+  './manifest.json',
+  './js/auth.js',
+  './js/storage.js',
+  './js/utils.js',
+  './js/ui.js',
+  './js/print.js',
+  './js/database.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://cdn.jsdelivr.net/npm/dexie@3.2.3/dist/dexie.min.js'
 ];
@@ -37,7 +37,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME).then(cache => {
       console.log('Caching all files');
       return cache.addAll(urlsToCache).catch(err => {
-        console.error('Failed to cache some files:', err);
+        console.error('Failed to cache:', err);
       });
     })
   );
@@ -78,9 +78,8 @@ self.addEventListener('fetch', event => {
         });
         return response;
       }).catch(() => {
-        // إذا فشل الاتصال وكان المورد HTML، أرجع index.html
         if (event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('index.html');
+          return caches.match('./index.html');
         }
       });
     })
