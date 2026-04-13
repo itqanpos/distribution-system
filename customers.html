@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <base href="/distribution-system/">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>العملاء والموردين - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <style>
         :root {
             --primary: #2c3e50;
@@ -16,125 +17,236 @@
             --info: #1abc9c;
             --light: #ecf0f1;
             --dark: #34495e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 65px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: #f5f6fa; color: #333; }
+        body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        .navbar { background: white; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 0 20px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 70px; }
-        .logo { display: flex; align-items: center; gap: 15px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .logo-text h2 { color: var(--primary); font-size: 20px; }
-        .logo-text p { color: var(--secondary); font-size: 12px; }
-        .user-info { display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 45px; height: 45px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
-        .user-details h4 { color: var(--primary); }
-        .user-details p { color: #7f8c8d; font-size: 12px; }
-        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        /* ========== شريط التنقل ========== */
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .navbar-left { display: flex; align-items: center; gap: 15px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .navbar-right { display: flex; align-items: center; gap: 15px; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+        }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
+        .user-info { text-align: right; }
+        .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
+        .user-info p { font-size: 12px; color: #7f8c8d; }
+        .logout-btn {
+            background: none; border: none; color: var(--danger); font-size: 20px;
+            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+        }
 
-        .sidebar { background: white; width: 250px; height: calc(100vh - 70px); position: fixed; top: 70px; right: 0; box-shadow: 2px 0 15px rgba(0,0,0,0.05); padding: 20px 0; overflow-y: auto; }
-        .menu { list-style: none; }
-        .menu-item { padding: 12px 25px; display: flex; align-items: center; gap: 15px; color: var(--dark); text-decoration: none; border-right: 4px solid transparent; cursor: pointer; font-size: 15px; }
-        .menu-item:hover { background: var(--light); color: var(--secondary); border-right-color: var(--secondary); }
-        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); border-right-color: var(--secondary); font-weight: 600; }
-        .menu-item i { width: 22px; text-align: center; font-size: 18px; }
-        .menu-section { padding: 20px 25px 10px; color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        /* ========== الشريط الجانبي ========== */
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s ease; z-index: 1020;
+            overflow-y: auto; overflow-x: hidden; padding: 20px 0;
+        }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar .menu-section {
+            padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            opacity: 1; transition: opacity 0.15s;
+        }
+        .sidebar.collapsed .menu-section { opacity: 0; pointer-events: none; padding: 20px 0 8px; text-align: center; }
+        .menu { list-style: none; padding: 0 12px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; flex-shrink: 0; }
+        .menu-text { transition: opacity 0.2s; }
+        .sidebar.collapsed .menu-text { opacity: 0; pointer-events: none; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
+            color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
+        }
 
-        .main-content { margin-right: 250px; margin-top: 70px; padding: 25px; min-height: calc(100vh - 70px); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--light); }
-        .page-title { color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-primary { background: var(--secondary); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
+        /* ========== المحتوى الرئيسي ========== */
+        .main-content {
+            margin-right: var(--sidebar-width); margin-top: var(--header-height);
+            padding: 25px; transition: margin-right 0.25s ease;
+            min-height: calc(100vh - var(--header-height));
+        }
+        .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
 
-        .tabs { display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
-        .tab-btn { padding: 12px 25px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent; }
+        /* ========== البطاقات ========== */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
+        }
+        .page-title { display: flex; align-items: center; gap: 12px; }
+        .page-title h1 { font-size: 26px; font-weight: 700; color: var(--primary); }
+        .btn {
+            padding: 10px 18px; border: none; border-radius: 12px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+            transition: all 0.2s; font-size: 14px;
+        }
+        .btn-primary { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(52,152,219,0.2); }
+        .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
+
+        .tabs {
+            display: flex; border-bottom: 2px solid var(--light); margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 12px 25px; background: none; border: none; color: #7f8c8d; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent;
+        }
         .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .summary-card { background: white; border-radius: 12px; padding: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 5px solid; }
-        .summary-card.count { border-top-color: var(--secondary); }
-        .summary-card.balance { border-top-color: var(--warning); }
-        .summary-card.debt { border-top-color: var(--danger); }
-        .summary-card.credit { border-top-color: var(--success); }
-        .summary-icon { font-size: 20px; margin-bottom: 5px; }
-        .summary-value { font-size: 20px; font-weight: bold; color: var(--primary); }
-        .summary-label { color: #7f8c8d; font-size: 11px; }
+        .summary-cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px; margin-bottom: 20px;
+        }
+        .summary-card {
+            background: white; border-radius: 16px; padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+            text-align: center;
+        }
+        .summary-card .icon { font-size: 24px; margin-bottom: 8px; }
+        .summary-card .value { font-size: 22px; font-weight: 700; color: var(--primary); }
+        .summary-card .label { color: #7f8c8d; font-size: 12px; }
 
-        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .search-box { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; display: flex; align-items: center; gap: 10px; }
-        .search-box input { border: none; outline: none; font-size: 14px; width: 200px; }
-
+        .table-container {
+            background: white; border-radius: 20px; padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+        }
+        .table-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-wrapper {
+            display: flex; align-items: center; background: #f8fafc;
+            border-radius: 40px; padding: 5px 15px; min-width: 250px;
+        }
+        .search-wrapper i { color: #95a5a6; margin-left: 10px; }
+        .search-wrapper input {
+            border: none; background: transparent; padding: 10px 0; width: 100%;
+            font-size: 14px; outline: none;
+        }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8f9fa; color: var(--primary); font-weight: 600; text-align: right; padding: 12px 15px; }
-        td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        th {
+            text-align: right; padding: 15px 10px; color: #7f8c8d; font-weight: 600;
+            font-size: 13px; border-bottom: 1px solid #eee;
+        }
+        td { padding: 14px 10px; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+        tr:hover { background: #fafbfc; }
         .balance-positive { color: var(--success); font-weight: bold; }
         .balance-negative { color: var(--danger); font-weight: bold; }
 
         .action-buttons { display: flex; gap: 5px; }
-        .action-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 5px; }
-        .action-btn.view { color: var(--secondary); }
-        .action-btn.edit { color: var(--warning); }
-        .action-btn.payment { color: var(--success); }
-        .action-btn.debt { color: var(--danger); }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: var(--primary); font-weight: 600; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
-
-        .footer { text-align: center; padding: 20px; color: #7f8c8d; border-top: 1px solid #eee; margin-top: 30px; }
-
-        @media (max-width: 992px) {
-            .sidebar { width: 70px; }
-            .sidebar .menu-text, .sidebar .menu-section { display: none; }
-            .main-content { margin-right: 70px; }
-            .menu-item { justify-content: center; padding: 15px; }
+        .action-icon {
+            color: var(--secondary); margin: 0 5px; cursor: pointer;
+            transition: transform 0.2s;
         }
+        .action-icon:hover { transform: scale(1.2); }
+
+        /* ========== مودال ========== */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 500px;
+            max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+        .modal-header h2 { font-size: 22px; color: var(--primary); }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 14px; border: 2px solid #eef2f6; border-radius: 14px;
+            font-size: 16px;
+        }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .sidebar.collapsed { width: var(--sidebar-width); transform: translateX(100%); }
+            .sidebar.collapsed.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; }
+            .menu-toggle { display: flex; }
+            .logo-text p { display: none; }
+            .user-info { display: none; }
+        }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text"><h2>نظام التوزيع الغذائي</h2><p>العملاء والموردين</p></div>
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
         </div>
-        <div class="user-info">
-            <div class="user-details"><h4 id="userName">مدير النظام</h4><p id="loginTime"></p></div>
-            <div class="user-avatar" id="userAvatar">م</div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        <div class="navbar-right">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">م</div>
+                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+            </div>
+            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">القائمة الرئيسية</div>
-            <li><a class="menu-item" href="dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item active" href="customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
     </aside>
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><i class="fas fa-user-tie"></i><h1>العملاء والموردين</h1></div>
-            <div><button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> إضافة جديد</button></div>
+            <div class="page-title"><i class="fas fa-user-tie" style="font-size:28px; color:var(--secondary);"></i><h1>العملاء والموردين</h1></div>
+            <div>
+                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> تحديث</button>
+                <button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> إضافة جديد</button>
+            </div>
         </div>
 
         <div class="tabs">
@@ -142,29 +254,35 @@
             <button class="tab-btn" onclick="switchTab('suppliers')"><i class="fas fa-truck"></i> الموردين</button>
         </div>
 
+        <!-- تبويب العملاء -->
         <div id="customersTab" class="tab-content active">
             <div class="summary-cards" id="customersSummary"></div>
             <div class="table-container">
-                <div class="table-header"><h3>قائمة العملاء</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="customerSearch" oninput="filterTable('customer')"></div></div>
+                <div class="table-header">
+                    <h3>قائمة العملاء</h3>
+                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="customerSearch" placeholder="بحث..." oninput="filterTable('customer')"></div>
+                </div>
                 <table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead><tbody id="customersTableBody"></tbody></table>
             </div>
         </div>
 
+        <!-- تبويب الموردين -->
         <div id="suppliersTab" class="tab-content">
             <div class="summary-cards" id="suppliersSummary"></div>
             <div class="table-container">
-                <div class="table-header"><h3>قائمة الموردين</h3><div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="بحث..." id="supplierSearch" oninput="filterTable('supplier')"></div></div>
+                <div class="table-header">
+                    <h3>قائمة الموردين</h3>
+                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="supplierSearch" placeholder="بحث..." oninput="filterTable('supplier')"></div>
+                </div>
                 <table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead><tbody id="suppliersTableBody"></tbody></table>
             </div>
         </div>
-
-        <div class="footer"><p>© 2024 نظام إدارة التوزيع الغذائي | الإصدار 1.0.0</p></div>
     </main>
 
     <!-- مودال إضافة/تعديل طرف -->
     <div class="modal" id="partyModal">
         <div class="modal-content">
-            <div class="modal-header"><h3 id="modalTitle">إضافة جديد</h3><button class="close-btn" onclick="closePartyModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="modalTitle">إضافة جديد</h2><button class="close-btn" onclick="closePartyModal()">&times;</button></div>
             <form id="partyForm" onsubmit="saveParty(event)">
                 <input type="hidden" id="partyId">
                 <div class="form-group"><label>النوع</label><select id="partyType" required><option value="customer">عميل</option><option value="supplier">مورد</option></select></div>
@@ -181,7 +299,7 @@
     <!-- مودال معاملة (دفعة/دين) -->
     <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header"><h3 id="transModalTitle">تسجيل معاملة</h3><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="transModalTitle">تسجيل معاملة</h2><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
             <form id="transactionForm" onsubmit="saveTransaction(event)">
                 <input type="hidden" id="transPartyId"><input type="hidden" id="transPartyType">
                 <div class="form-group"><label>نوع المعاملة</label><select id="transType" required><option value="payment">دفعة (تخفيض مديونية)</option><option value="debt">إضافة دين</option></select></div>
@@ -193,19 +311,36 @@
         </div>
     </div>
 
-    <script src="js/auth.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ui.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/print.js"></script>
     <script>
+        // الشريط الجانبي
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        function toggleSidebar() {
+            if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
+            else sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+        menuToggle.addEventListener('click', toggleSidebar);
+        if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+        document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
+
         let customers = [], suppliers = [], currentTab = 'customers';
 
-        document.addEventListener('DOMContentLoaded', async function() {
+        document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
-            await UI.initPage('العملاء والموردين');
-            await loadData();
+            await UI.initPage('العملاء والموردين', { enablePullToRefresh: true, refreshCallback: loadData, autoSync: true, syncCallback: loadData });
+            const user = Auth.getUser();
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
+            document.getElementById('userAvatar').textContent = user.avatar;
             document.getElementById('transDate').value = Utils.getToday();
+            await loadData();
         });
 
         async function loadData() {
@@ -231,16 +366,19 @@
             const data = type === 'customer' ? customers : suppliers;
             const tbody = document.getElementById(type + 'sTableBody');
             const term = document.getElementById(type + 'Search').value.toLowerCase();
-            const filtered = data.filter(p => p.name.toLowerCase().includes(term) || (p.phone&&p.phone.includes(term)));
+            const filtered = data.filter(p => p.name.toLowerCase().includes(term) || (p.phone||'').includes(term));
             tbody.innerHTML = filtered.map(p => {
-                const balanceClass = p.balance >= 0 ? 'balance-positive' : 'balance-negative';
-                let text = Utils.formatMoney(p.balance);
-                text += type === 'customer' ? (p.balance < 0 ? ' (مدين)' : ' (دائن)') : (p.balance > 0 ? ' (لنا)' : ' (علينا)');
-                return `<tr><td>${p.name}</td><td>${p.phone||'-'}</td><td class="${balanceClass}">${text}</td><td>${p.lastTransaction||'-'}</td>
-                <td class="action-buttons"><button class="action-btn view" onclick="viewParty(${p.id},'${type}')"><i class="fas fa-eye"></i></button>
-                <button class="action-btn edit" onclick="editParty(${p.id},'${type}')"><i class="fas fa-edit"></i></button>
-                <button class="action-btn payment" onclick="openTransactionModal(${p.id},'${type}','payment')"><i class="fas fa-money-bill"></i></button>
-                <button class="action-btn debt" onclick="openTransactionModal(${p.id},'${type}','debt')"><i class="fas fa-file-invoice"></i></button></td></tr>`;
+                const balClass = p.balance >= 0 ? 'balance-positive' : 'balance-negative';
+                let balText = Utils.formatMoney(p.balance);
+                balText += type === 'customer' ? (p.balance < 0 ? ' (مدين)' : ' (دائن)') : (p.balance > 0 ? ' (لنا)' : ' (علينا)');
+                return `<tr><td>${p.name}</td><td>${p.phone||'-'}</td><td class="${balClass}">${balText}</td><td>${p.lastTransaction||'-'}</td>
+                <td class="action-buttons">
+                    <i class="fas fa-eye action-icon" onclick="viewParty(${p.id},'${type}')" title="عرض"></i>
+                    <i class="fas fa-edit action-icon" onclick="editParty(${p.id},'${type}')" title="تعديل"></i>
+                    <i class="fas fa-print action-icon" onclick="printStatement(${p.id},'${type}')" title="كشف حساب"></i>
+                    <i class="fas fa-money-bill action-icon" style="color:var(--success);" onclick="openTransactionModal(${p.id},'${type}','payment')" title="دفعة"></i>
+                    <i class="fas fa-file-invoice action-icon" style="color:var(--danger);" onclick="openTransactionModal(${p.id},'${type}','debt')" title="دين"></i>
+                </td></tr>`;
             }).join('');
         }
 
@@ -248,14 +386,15 @@
 
         function updateSummary(type) {
             const data = type === 'customer' ? customers : suppliers;
-            const count = data.length, balance = data.reduce((s,p)=>s+p.balance,0);
+            const count = data.length;
+            const balance = data.reduce((s,p) => s + p.balance, 0);
             const debt = data.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
             const credit = data.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
             document.getElementById(type+'sSummary').innerHTML = `
-                <div class="summary-card count"><div class="summary-icon"><i class="fas fa-${type==='customer'?'users':'truck'}"></i></div><div class="summary-value">${count}</div><div class="summary-label">العدد</div></div>
-                <div class="summary-card balance"><div class="summary-icon"><i class="fas fa-scale-balanced"></i></div><div class="summary-value">${Utils.formatMoney(balance)}</div><div class="summary-label">صافي الرصيد</div></div>
-                <div class="summary-card debt"><div class="summary-icon"><i class="fas fa-arrow-down"></i></div><div class="summary-value">${Utils.formatMoney(debt)}</div><div class="summary-label">${type==='customer'?'مديونية':'لنا'}</div></div>
-                <div class="summary-card credit"><div class="summary-icon"><i class="fas fa-arrow-up"></i></div><div class="summary-value">${Utils.formatMoney(credit)}</div><div class="summary-label">${type==='customer'?'دائن':'علينا'}</div></div>`;
+                <div class="summary-card"><div class="icon"><i class="fas fa-${type==='customer'?'users':'truck'}"></i></div><div class="value">${count}</div><div class="label">العدد</div></div>
+                <div class="summary-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(balance)}</div><div class="label">صافي الرصيد</div></div>
+                <div class="summary-card"><div class="icon"><i class="fas fa-arrow-down"></i></div><div class="value">${Utils.formatMoney(debt)}</div><div class="label">${type==='customer'?'مديونية':'لنا'}</div></div>
+                <div class="summary-card"><div class="icon"><i class="fas fa-arrow-up"></i></div><div class="value">${Utils.formatMoney(credit)}</div><div class="label">${type==='customer'?'دائن':'علينا'}</div></div>`;
         }
 
         function openPartyModal() {
@@ -305,7 +444,7 @@
 
         function viewParty(id, type) {
             const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
-            alert(`الاسم: ${p.name}\nالرصيد: ${Utils.formatMoney(p.balance)}`);
+            alert(`الاسم: ${p.name}\nالرصيد: ${Utils.formatMoney(p.balance)}\nالهاتف: ${p.phone||'-'}`);
         }
 
         function openTransactionModal(id, type, transType) {
@@ -344,6 +483,24 @@
             renderAll();
             closeTransactionModal();
             alert(`تم ${transType==='payment'?'تسجيل دفعة':'إضافة دين'} بقيمة ${Utils.formatMoney(amount)}`);
+        }
+
+        async function printStatement(id, type) {
+            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
+            if (!p) return;
+            const invoices = await Storage.getInvoices();
+            const transactions = await Storage.getTransactions();
+            const partyInvoices = invoices.filter(inv => (inv.customerId === id || inv.supplierId === id));
+            const partyTrans = transactions.filter(t => t.description.includes(p.name));
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html dir="rtl"><head><title>كشف حساب ${p.name}</title><style>body{font-family:'Segoe UI';padding:20px;}</style></head><body>
+                <h2>كشف حساب ${p.name}</h2><p>الرصيد الحالي: ${Utils.formatMoney(p.balance)}</p>
+                <h3>الفواتير</h3><ul>${partyInvoices.map(inv => `<li>${inv.id} - ${inv.date} - ${Utils.formatMoney(inv.total)} (المتبقي: ${Utils.formatMoney(inv.remaining)})</li>`).join('')}</ul>
+                <h3>المدفوعات</h3><ul>${partyTrans.filter(t=>t.type==='income').map(t => `<li>${t.date} - ${Utils.formatMoney(t.amount)} - ${t.description}</li>`).join('')}</ul>
+                </body></html>
+            `);
+            win.document.close(); win.print();
         }
     </script>
 </body>
