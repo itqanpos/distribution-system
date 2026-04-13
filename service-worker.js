@@ -1,5 +1,5 @@
-// service-worker.js - نسخة مصححة
-const CACHE_NAME = 'fooddist-v' + new Date().getTime(); // تحديث تلقائي
+// service-worker.js - نسخة نهائية مصححة
+const CACHE_NAME = 'fooddist-v' + new Date().toISOString().replace(/[:.]/g, '-');
 const urlsToCache = [
   './',
   './index.html',
@@ -32,25 +32,29 @@ const urlsToCache = [
   'https://cdn.jsdelivr.net/npm/dexie@3.2.3/dist/dexie.min.js'
 ];
 
+// تثبيت Service Worker
 self.addEventListener('install', event => {
+  console.log('[SW] Install event');
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log('Caching all files');
-      return cache.addAll(urlsToCache).catch(err => {
-        console.error('Failed to cache:', err);
-      });
-    })
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('[SW] Caching all files');
+        return cache.addAll(urlsToCache);
+      })
+      .catch(err => console.error('[SW] Cache addAll error:', err))
   );
   self.skipWaiting();
 });
 
+// تفعيل Service Worker
 self.addEventListener('activate', event => {
+  console.log('[SW] Activate event');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -60,28 +64,24 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
+// استراتيجية "الكاش أولاً" مع تحديث في الخلفية
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  
+
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+      // إرجاع من الكاش فوراً
+      const fetchPromise = fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      }).catch(() => {
-        if (event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('./index.html');
-        }
-      });
+        return networkResponse;
+      }).catch(err => console.warn('[SW] Fetch failed:', err));
+
+      return cachedResponse || fetchPromise;
     })
   );
 });
