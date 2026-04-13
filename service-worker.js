@@ -1,6 +1,6 @@
 // service-worker.js
 const CACHE_NAME = 'fooddist-v6';
-const REPO_NAME = '/food-distribution'; // <-- غيّر إلى اسم المستودع الخاص بك
+const REPO_NAME = '/distribution-system'; // <-- هنا الاسم الصحيح
 
 const urlsToCache = [
   REPO_NAME + '/',
@@ -31,9 +31,10 @@ const urlsToCache = [
   REPO_NAME + '/js/print.js',
   REPO_NAME + '/icon-192.png',
   REPO_NAME + '/icon-512.png',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://cdn.jsdelivr.net/npm/dexie@3.2.3/dist/dexie.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
+
+// ... باقي الكود (دوال install, activate, fetch) كما هي ...
 
 self.addEventListener('install', event => {
   event.waitUntil(
