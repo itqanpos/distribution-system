@@ -1,15 +1,18 @@
-// js/storage.js - طبقة تخزين محلية (جاهزة للعمل في PWA)
+// js/storage.js - طبقة تخزين محلية مع مفاتيح فريدة لـ GitHub Pages
+const REPO_PATH = window.location.pathname.split('/')[1] || '';
+const PREFIX = REPO_PATH ? `foodDist_${REPO_PATH}_` : 'foodDist_';
+
 const Storage = {
     KEYS: {
-        PRODUCTS: 'foodDist_products',
-        CUSTOMERS: 'foodDist_customers',
-        SUPPLIERS: 'foodDist_suppliers',
-        REPS: 'foodDist_reps',
-        INVOICES: 'foodDist_invoices',
-        PURCHASES: 'foodDist_purchases',
-        TRANSACTIONS: 'foodDist_transactions',
-        SETTINGS: 'foodDist_settings',
-        USERS: 'foodDist_users'
+        PRODUCTS: PREFIX + 'products',
+        CUSTOMERS: PREFIX + 'customers',
+        SUPPLIERS: PREFIX + 'suppliers',
+        REPS: PREFIX + 'reps',
+        INVOICES: PREFIX + 'invoices',
+        PURCHASES: PREFIX + 'purchases',
+        TRANSACTIONS: PREFIX + 'transactions',
+        SETTINGS: PREFIX + 'settings',
+        USERS: PREFIX + 'users'
     },
 
     defaults: {
@@ -53,8 +56,8 @@ const Storage = {
 
     async init() {
         try {
-            localStorage.setItem('__test', '1');
-            localStorage.removeItem('__test');
+            localStorage.setItem(PREFIX + 'test', '1');
+            localStorage.removeItem(PREFIX + 'test');
         } catch (e) {
             console.error('localStorage غير متوفر');
             return;
