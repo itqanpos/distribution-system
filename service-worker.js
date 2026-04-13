@@ -1,6 +1,6 @@
-// service-worker.js - متوافق مع GitHub Pages للمستودع distribution-system
+// service-worker.js
 const REPO_NAME = '/distribution-system';
-const CACHE_NAME = 'fooddist-v8' + REPO_NAME;
+const CACHE_NAME = 'fooddist-v9' + REPO_NAME;
 
 const urlsToCache = [
   REPO_NAME + '/',
@@ -58,23 +58,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  // فقط نتعامل مع طلبات ضمن نطاق المستودع
   if (url.pathname.startsWith(REPO_NAME) && event.request.method === 'GET') {
     event.respondWith(
-      caches.match(event.request).then(cachedResponse => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(event.request).then(response => {
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-          }
-          return response;
-        }).catch(() => {
-          if (event.request.headers.get('accept').includes('text/html')) {
-            return caches.match(REPO_NAME + '/index.html');
-          }
-        });
-      })
+      caches.match(event.request).then(cached => cached || fetch(event.request))
     );
   }
 });
