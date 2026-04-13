@@ -17,15 +17,13 @@
             --info: #1abc9c;
             --light: #ecf0f1;
             --dark: #34495e;
-            --sidebar-width: 260px;
-            --sidebar-collapsed-width: 70px;
             --header-height: 65px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        /* ========== شريط التنقل العلوي ========== */
+        /* ========== شريط التنقل العلوي (بدون سايد بار وتاريخ) ========== */
         .navbar {
             position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
             background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -33,10 +31,6 @@
             z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .navbar-left { display: flex; align-items: center; gap: 15px; }
-        .menu-toggle {
-            background: none; border: none; font-size: 24px; color: var(--primary);
-            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
-        }
         .logo { display: flex; align-items: center; gap: 12px; }
         .logo-icon {
             background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
@@ -56,7 +50,6 @@
         }
         .user-info { text-align: right; }
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
-        .user-info p { font-size: 12px; color: #7f8c8d; }
         .logout-btn {
             background: none; border: none; color: var(--danger); font-size: 20px;
             cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
@@ -93,22 +86,14 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
             display: flex; flex-direction: column;
         }
-        .search-header {
-            margin-bottom: 20px;
-        }
-        .search-header label {
-            font-weight: 600; margin-bottom: 8px; display: block;
-        }
-        .search-wrapper {
-            position: relative;
-        }
+        .search-header { margin-bottom: 20px; }
+        .search-header label { font-weight: 600; margin-bottom: 8px; display: block; }
+        .search-wrapper { position: relative; }
         .search-wrapper input {
             width: 100%; padding: 16px 20px; border: 2px solid #eef2f6; border-radius: 16px;
             font-size: 16px; background: #fafcfc; transition: border 0.2s;
         }
-        .search-wrapper input:focus {
-            border-color: var(--secondary); outline: none;
-        }
+        .search-wrapper input:focus { border-color: var(--secondary); outline: none; }
         .suggestions-box {
             position: absolute; top: 100%; left: 0; right: 0; background: white;
             border: 1px solid #eef2f6; border-radius: 16px; margin-top: 8px;
@@ -131,15 +116,9 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
             display: flex; flex-direction: column;
         }
-        .customer-section {
-            margin-bottom: 20px;
-        }
-        .customer-section label {
-            font-weight: 600; margin-bottom: 8px; display: block;
-        }
-        .customer-search {
-            position: relative;
-        }
+        .customer-section { margin-bottom: 20px; }
+        .customer-section label { font-weight: 600; margin-bottom: 8px; display: block; }
+        .customer-search { position: relative; }
         .customer-search input {
             width: 100%; padding: 14px; border: 2px solid #eef2f6; border-radius: 16px;
         }
@@ -203,7 +182,7 @@
         .btn-success { background: var(--success); color: white; }
         .btn-warning { background: var(--warning); color: white; }
 
-        /* مودال اختيار الكمية والسعر */
+        /* مودال */
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
@@ -242,7 +221,6 @@
 <body>
     <nav class="navbar">
         <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon"><i class="fas fa-truck"></i></div>
                 <div class="logo-text"><h2>نقطة البيع</h2></div>
@@ -252,7 +230,7 @@
             <button class="more-menu-btn" id="moreMenuBtn"><i class="fas fa-ellipsis-v"></i></button>
             <div class="user-profile">
                 <div class="user-avatar" id="userAvatar">م</div>
-                <div class="user-info"><h4 id="userName">مندوب</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-info"><h4 id="userName">مندوب</h4></div>
             </div>
             <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
@@ -381,13 +359,10 @@
             customers = await Storage.getCustomers();
             settings = await Storage.getSettings();
 
-            // إعدادات الضريبة
             if (!settings.system?.taxEnabled) document.getElementById('taxAmount').parentElement.style.display = 'none';
 
-            // إعدادات البحث
             setupSearch();
 
-            // القائمة الجانبية
             document.getElementById('moreMenuBtn').addEventListener('click', () => {
                 document.getElementById('quickMenu').classList.toggle('show');
             });
@@ -439,7 +414,6 @@
             document.getElementById('quantityModal').style.display = 'flex';
             document.getElementById('selectedQuantity').focus();
 
-            // إغلاق صندوق الاقتراحات
             document.getElementById('productSuggestionsBox').classList.remove('show');
             document.getElementById('productSearchInput').value = '';
         }
@@ -507,7 +481,6 @@
 
         function calculateTotals() { updateSummary(); }
 
-        // وظائف الدفع (مطابقة للنسخة السابقة)
         function openPaymentModal() {
             if (!cart.length) { alert('السلة فارغة'); return; }
             if (!selectedCustomer) { alert('اختر عميلاً'); return; }
@@ -567,7 +540,6 @@
             closePaymentModal();
         }
 
-        // وظائف القائمة
         function addInvoiceNote() { const n = prompt('ملاحظة:'); if (n) invoiceNote = n; document.getElementById('quickMenu').classList.remove('show'); }
         function createReturnInvoice() { alert('سيتم تطوير فاتورة المرتجع'); }
         function recallHeldInvoice() { alert('استرجاع فاتورة معلقة'); }
