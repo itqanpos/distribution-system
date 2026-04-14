@@ -1,6 +1,4 @@
-// js/storage-firebase.js - طبقة تخزين Firestore (بدون اعتماد على مستخدم)
-const STORE_ID = 'main'; // معرف ثابت للبيانات المشتركة
-
+// js/storage-firebase.js
 const Storage = {
     // --- المنتجات ---
     async getProducts() {
@@ -19,14 +17,6 @@ const Storage = {
     async deleteProduct(id) {
         await db.collection('products').doc(id).delete();
     },
-    async saveProducts(products) {
-        const batch = db.batch();
-        products.forEach(p => {
-            const ref = p.id ? db.collection('products').doc(p.id) : db.collection('products').doc();
-            batch.set(ref, p);
-        });
-        await batch.commit();
-    },
 
     // --- العملاء ---
     async getCustomers() {
@@ -42,18 +32,6 @@ const Storage = {
             customer.id = docRef.id;
         }
         return customer;
-    },
-    async saveCustomers(customers) {
-        const batch = db.batch();
-        customers.forEach(c => {
-            c.type = 'customer';
-            const ref = c.id ? db.collection('parties').doc(c.id) : db.collection('parties').doc();
-            batch.set(ref, c);
-        });
-        await batch.commit();
-    },
-    async deleteCustomer(id) {
-        await db.collection('parties').doc(id).delete();
     },
 
     // --- الموردين ---
@@ -71,50 +49,6 @@ const Storage = {
         }
         return supplier;
     },
-    async saveSuppliers(suppliers) {
-        const batch = db.batch();
-        suppliers.forEach(s => {
-            s.type = 'supplier';
-            const ref = s.id ? db.collection('parties').doc(s.id) : db.collection('parties').doc();
-            batch.set(ref, s);
-        });
-        await batch.commit();
-    },
-    async deleteSupplier(id) {
-        await db.collection('parties').doc(id).delete();
-    },
-
-    // --- جميع الأطراف ---
-    async getAllParties() {
-        const snapshot = await db.collection('parties').get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    },
-
-    // --- المندوبين ---
-    async getReps() {
-        const snapshot = await db.collection('reps').get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    },
-    async saveRep(rep) {
-        if (rep.id) {
-            await db.collection('reps').doc(rep.id).set(rep);
-        } else {
-            const docRef = await db.collection('reps').add(rep);
-            rep.id = docRef.id;
-        }
-        return rep;
-    },
-    async saveReps(reps) {
-        const batch = db.batch();
-        reps.forEach(r => {
-            const ref = r.id ? db.collection('reps').doc(r.id) : db.collection('reps').doc();
-            batch.set(ref, r);
-        });
-        await batch.commit();
-    },
-    async deleteRep(id) {
-        await db.collection('reps').doc(id).delete();
-    },
 
     // --- الفواتير ---
     async getInvoices() {
@@ -129,17 +63,6 @@ const Storage = {
             invoice.id = docRef.id;
         }
         return invoice;
-    },
-    async saveInvoices(invoices) {
-        const batch = db.batch();
-        invoices.forEach(i => {
-            const ref = i.id ? db.collection('invoices').doc(i.id) : db.collection('invoices').doc();
-            batch.set(ref, i);
-        });
-        await batch.commit();
-    },
-    async deleteInvoice(id) {
-        await db.collection('invoices').doc(id).delete();
     },
 
     // --- المشتريات ---
@@ -156,16 +79,20 @@ const Storage = {
         }
         return purchase;
     },
-    async savePurchases(purchases) {
-        const batch = db.batch();
-        purchases.forEach(p => {
-            const ref = p.id ? db.collection('purchases').doc(p.id) : db.collection('purchases').doc();
-            batch.set(ref, p);
-        });
-        await batch.commit();
+
+    // --- المندوبين ---
+    async getReps() {
+        const snapshot = await db.collection('reps').get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
-    async deletePurchase(id) {
-        await db.collection('purchases').doc(id).delete();
+    async saveRep(rep) {
+        if (rep.id) {
+            await db.collection('reps').doc(rep.id).set(rep);
+        } else {
+            const docRef = await db.collection('reps').add(rep);
+            rep.id = docRef.id;
+        }
+        return rep;
     },
 
     // --- حركات الصندوق ---
@@ -182,17 +109,6 @@ const Storage = {
         }
         return transaction;
     },
-    async saveTransactions(transactions) {
-        const batch = db.batch();
-        transactions.forEach(t => {
-            const ref = t.id ? db.collection('transactions').doc(t.id) : db.collection('transactions').doc();
-            batch.set(ref, t);
-        });
-        await batch.commit();
-    },
-    async deleteTransaction(id) {
-        await db.collection('transactions').doc(id).delete();
-    },
 
     // --- الإعدادات ---
     async getSettings() {
@@ -201,11 +117,6 @@ const Storage = {
     },
     async saveSettings(settings) {
         await db.collection('settings').doc('main').set(settings);
-    },
-
-    // --- التهيئة الأولية (اختياري) ---
-    async init() {
-        // لا حاجة لشيء هنا
     }
 };
 
