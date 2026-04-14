@@ -291,13 +291,7 @@
 
     <button id="installBtn"><i class="fas fa-download"></i> تثبيت التطبيق</button>
 
-    <!-- ملفات التطبيق -->
-    <!-- إزالة Firebase -->
-<!-- استخدم الملفات المحلية -->
-<script src="./js/storage.js"></script>
-<script src="./js/utils.js"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/auth-local.js"></script>
+    <!-- ملفات التطبيق بالترتيب الصحيح -->
     <script src="./js/firebase-config.js"></script>
     <script src="./js/storage-firebase.js"></script>
     <script src="./js/utils.js"></script>
@@ -328,13 +322,28 @@
                 return;
             }
             
-            const result = await Auth.login(username, password);
+            // تعطيل الزر أثناء المعالجة
+            const submitBtn = document.querySelector('.login-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الدخول...';
+            submitBtn.disabled = true;
             
-            if (result.success) {
-                window.location.href = result.redirectUrl;
-            } else {
-                errorEl.textContent = result.message || 'فشل تسجيل الدخول';
+            try {
+                const result = await Auth.login(username, password);
+                
+                if (result.success) {
+                    window.location.href = result.redirectUrl;
+                } else {
+                    errorEl.textContent = result.message || 'فشل تسجيل الدخول';
+                    errorEl.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorEl.textContent = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
                 errorEl.style.display = 'block';
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             }
         }
 
