@@ -8,10 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
     
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK (Firestore فقط) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
     
     <style>
         :root {
@@ -46,7 +45,7 @@
             border-radius: 24px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             width: 100%;
-            max-width: 450px;
+            max-width: 400px;
             padding: 40px 30px;
             animation: fadeIn 0.5s ease-out;
         }
@@ -252,10 +251,10 @@
         
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label>البريد الإلكتروني</label>
+                <label>اسم المستخدم</label>
                 <div class="input-icon">
-                    <i class="fas fa-envelope"></i>
-                    <input type="email" id="username" placeholder="أدخل البريد الإلكتروني" required>
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
                 </div>
             </div>
             
@@ -265,7 +264,7 @@
                     <i class="fas fa-lock"></i>
                     <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
                 </div>
-                <div class="error-message" id="loginError">البريد الإلكتروني أو كلمة المرور غير صحيحة</div>
+                <div class="error-message" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
             </div>
             
             <button type="submit" class="login-btn">
@@ -274,7 +273,7 @@
         </form>
         
         <div class="demo-section">
-            <div class="demo-label">حسابات تجريبية (للتجربة السريعة)</div>
+            <div class="demo-label">حسابات تجريبية</div>
             <div class="demo-buttons">
                 <button type="button" class="demo-btn admin" onclick="fillDemo('admin')">
                     <i class="fas fa-user-tie"></i> مدير
@@ -283,7 +282,6 @@
                     <i class="fas fa-user"></i> مندوب
                 </button>
             </div>
-            <p style="font-size:12px; color:#95a5a6; margin-top:10px;">* للنسخة التجريبية: admin@test.com / 123456</p>
         </div>
         
         <div class="login-footer">
@@ -298,7 +296,7 @@
     <script src="./js/storage-firebase.js"></script>
     <script src="./js/utils.js"></script>
     <script src="./js/ui.js"></script>
-    <script src="./js/auth.js"></script>
+    <script src="./js/auth-local.js"></script>
     
     <script>
         // التحقق مما إذا كان المستخدم مسجلاً مسبقاً وتوجيهه
@@ -314,26 +312,17 @@
         async function handleLogin(event) {
             event.preventDefault();
             
-            const email = document.getElementById('username').value.trim();
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('loginError');
             
-            if (!email || !password) {
-                errorEl.textContent = 'يرجى إدخال البريد الإلكتروني وكلمة المرور';
+            if (!username || !password) {
+                errorEl.textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
                 errorEl.style.display = 'block';
                 return;
             }
             
-            // إظهار حالة التحميل
-            const submitBtn = document.querySelector('.login-btn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الدخول...';
-            submitBtn.disabled = true;
-            
-            const result = await Auth.login(email, password);
-            
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
+            const result = await Auth.login(username, password);
             
             if (result.success) {
                 window.location.href = result.redirectUrl;
@@ -345,10 +334,10 @@
 
         function fillDemo(role) {
             if (role === 'admin') {
-                document.getElementById('username').value = 'admin@test.com';
+                document.getElementById('username').value = 'admin';
                 document.getElementById('password').value = '123456';
             } else {
-                document.getElementById('username').value = 'rep@test.com';
+                document.getElementById('username').value = 'مندوب1';
                 document.getElementById('password').value = '123456';
             }
             document.getElementById('loginError').style.display = 'none';
