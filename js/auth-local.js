@@ -1,4 +1,4 @@
-// js/auth-local.js - تسجيل دخول محلي بدون Firebase Authentication
+// js/auth-local.js - يقرأ المستخدمين من Firestore
 const Auth = {
     STORAGE_KEY: 'foodDist_user',
 
@@ -12,46 +12,50 @@ const Auth = {
     },
 
     async login(username, password) {
-        // مستخدمون محليون (يمكن توسيعهم لاحقاً)
-        const localUsers = [
-            { username: 'admin', password: '123456', fullName: 'مدير النظام', role: 'admin' },
-            { username: 'مندوب1', password: '123456', fullName: 'أحمد محمود', role: 'rep', repId: 1 },
-            { username: 'مندوب2', password: '123456', fullName: 'خالد عمرو', role: 'rep', repId: 2 }
-        ];
+        try {
+            const snapshot = await db.collection('users')
+                .where('username', '==', username)
+                .where('password', '==', password)
+                .limit(1)
+                .get();
 
-        const user = localUsers.find(u => u.username === username && u.password === password);
-        if (!user) {
-            return { success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
+            if (snapshot.empty) {
+                return { success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
+            }
+
+            const userDoc = snapshot.docs[0];
+            const user = { id: userDoc.id, ...userDoc.data() };
+
+            const userData = {
+                id: user.id,
+                username: user.username,
+                name: user.fullName,
+                role: user.role,
+                repId: user.repId || null,
+                loginTime: new Date().toLocaleString('ar-EG'),
+                avatar: user.fullName.charAt(0).toUpperCase(),
+                permissions: user.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
+            };
+
+            this.setUser(userData);
+            const redirectUrl = userData.role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
+            return { success: true, user: userData, redirectUrl };
+        } catch (error) {
+            console.error('Login error:', error);
+            return { success: false, message: 'حدث خطأ أثناء الاتصال بقاعدة البيانات' };
         }
-
-        const userData = {
-            id: user.repId || 1,
-            username: user.username,
-            name: user.fullName,
-            role: user.role,
-            repId: user.repId || null,
-            loginTime: new Date().toLocaleString('ar-EG'),
-            avatar: user.fullName.charAt(0).toUpperCase(),
-            permissions: user.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
-        };
-
-        this.setUser(userData);
-        const redirectUrl = userData.role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
-        return { success: true, user: userData, redirectUrl };
     },
 
+    // ... باقي الدوال كما هي ...
     logout() {
         localStorage.removeItem(this.STORAGE_KEY);
     },
-
     isAuthenticated() {
         return !!this.getUser();
     },
-
     getRedirectUrl(role) {
         return role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
     },
-
     requireAuth(redirectUrl = 'index.html') {
         if (!this.isAuthenticated()) {
             window.location.href = redirectUrl;
@@ -59,7 +63,6 @@ const Auth = {
         }
         return true;
     },
-
     requireRole(allowedRoles, redirectUrl = 'index.html') {
         const user = this.getUser();
         if (!user) {
@@ -72,7 +75,6 @@ const Auth = {
         }
         return true;
     },
-
     redirectIfAuth() {
         const user = this.getUser();
         if (user) {
@@ -81,7 +83,6 @@ const Auth = {
         }
         return false;
     },
-
     getRepId() {
         const user = this.getUser();
         return user?.repId || user?.id || null;
