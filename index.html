@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <base href="/distribution-system/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>نظام التوزيع الغذائي - تسجيل الدخول</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    
     <style>
         :root {
             --primary: #2c3e50;
@@ -36,7 +43,7 @@
 
         .login-container {
             background: white;
-            border-radius: 20px;
+            border-radius: 24px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             width: 100%;
             max-width: 450px;
@@ -105,7 +112,7 @@
             width: 100%;
             padding: 14px 45px 14px 15px;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 16px;
             transition: all 0.3s;
         }
@@ -122,7 +129,7 @@
             background: var(--secondary);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
@@ -160,7 +167,7 @@
             flex: 1;
             padding: 10px;
             border: 2px solid var(--secondary);
-            border-radius: 8px;
+            border-radius: 10px;
             background: white;
             color: var(--secondary);
             font-weight: 600;
@@ -245,10 +252,10 @@
         
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label>اسم المستخدم</label>
+                <label>البريد الإلكتروني</label>
                 <div class="input-icon">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="username" placeholder="أدخل البريد الإلكتروني" required>
                 </div>
             </div>
             
@@ -258,7 +265,7 @@
                     <i class="fas fa-lock"></i>
                     <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
                 </div>
-                <div class="error-message" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+                <div class="error-message" id="loginError">البريد الإلكتروني أو كلمة المرور غير صحيحة</div>
             </div>
             
             <button type="submit" class="login-btn">
@@ -267,7 +274,7 @@
         </form>
         
         <div class="demo-section">
-            <div class="demo-label">حسابات تجريبية</div>
+            <div class="demo-label">حسابات تجريبية (للتجربة السريعة)</div>
             <div class="demo-buttons">
                 <button type="button" class="demo-btn admin" onclick="fillDemo('admin')">
                     <i class="fas fa-user-tie"></i> مدير
@@ -276,6 +283,7 @@
                     <i class="fas fa-user"></i> مندوب
                 </button>
             </div>
+            <p style="font-size:12px; color:#95a5a6; margin-top:10px;">* للنسخة التجريبية: admin@test.com / 123456</p>
         </div>
         
         <div class="login-footer">
@@ -285,17 +293,20 @@
 
     <button id="installBtn"><i class="fas fa-download"></i> تثبيت التطبيق</button>
 
-    <script src="js/auth.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ui.js"></script>
+    <!-- ملفات التطبيق -->
+    <script src="./js/firebase-config.js"></script>
+    <script src="./js/storage-firebase.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/auth.js"></script>
+    
     <script>
         // التحقق مما إذا كان المستخدم مسجلاً مسبقاً وتوجيهه
         (function() {
             if (Auth.isAuthenticated && Auth.isAuthenticated()) {
                 const user = Auth.getUser();
                 if (user) {
-                    window.location.href = user.role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
+                    window.location.href = Auth.getRedirectUrl(user.role);
                 }
             }
         })();
@@ -303,32 +314,41 @@
         async function handleLogin(event) {
             event.preventDefault();
             
-            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('loginError');
             
-            if (!username || !password) {
-                errorEl.textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
+            if (!email || !password) {
+                errorEl.textContent = 'يرجى إدخال البريد الإلكتروني وكلمة المرور';
                 errorEl.style.display = 'block';
                 return;
             }
             
-            const result = await Auth.login(username, password);
+            // إظهار حالة التحميل
+            const submitBtn = document.querySelector('.login-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الدخول...';
+            submitBtn.disabled = true;
+            
+            const result = await Auth.login(email, password);
+            
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
             
             if (result.success) {
                 window.location.href = result.redirectUrl;
             } else {
-                errorEl.textContent = result.message || 'بيانات الدخول غير صحيحة';
+                errorEl.textContent = result.message || 'فشل تسجيل الدخول';
                 errorEl.style.display = 'block';
             }
         }
 
         function fillDemo(role) {
             if (role === 'admin') {
-                document.getElementById('username').value = 'admin';
+                document.getElementById('username').value = 'admin@test.com';
                 document.getElementById('password').value = '123456';
             } else {
-                document.getElementById('username').value = 'مندوب1';
+                document.getElementById('username').value = 'rep@test.com';
                 document.getElementById('password').value = '123456';
             }
             document.getElementById('loginError').style.display = 'none';
@@ -341,12 +361,6 @@
         function hideError() {
             document.getElementById('loginError').style.display = 'none';
         }
-
-        // تهيئة القيم الافتراضية
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('username').value = 'admin';
-            document.getElementById('password').value = '123456';
-        });
 
         // PWA Install Prompt
         let deferredPrompt;
