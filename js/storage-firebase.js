@@ -1,5 +1,5 @@
-// js/storage-firebase.js
-// طبقة الوصول إلى Firebase Firestore بنفس واجهة Storage القديمة
+// js/storage-firebase.js - طبقة تخزين Firestore (بدون اعتماد على مستخدم)
+const STORE_ID = 'main'; // معرف ثابت للبيانات المشتركة
 
 const Storage = {
     // --- المنتجات ---
@@ -203,35 +203,9 @@ const Storage = {
         await db.collection('settings').doc('main').set(settings);
     },
 
-    // --- المستخدمين ---
-    async getUsers() {
-        const snapshot = await db.collection('users').get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    },
-    async saveUser(user) {
-        if (user.id) {
-            await db.collection('users').doc(user.id).set(user);
-        } else {
-            const docRef = await db.collection('users').add(user);
-            user.id = docRef.id;
-        }
-        return user;
-    },
-    async saveUsers(users) {
-        const batch = db.batch();
-        users.forEach(u => {
-            const ref = u.id ? db.collection('users').doc(u.id) : db.collection('users').doc();
-            batch.set(ref, u);
-        });
-        await batch.commit();
-    },
-    async deleteUser(id) {
-        await db.collection('users').doc(id).delete();
-    },
-
-    // --- تهيئة البيانات الافتراضية ---
+    // --- التهيئة الأولية (اختياري) ---
     async init() {
-        // لا حاجة في Firebase، البيانات تُنشأ عند أول استخدام
+        // لا حاجة لشيء هنا
     }
 };
 
