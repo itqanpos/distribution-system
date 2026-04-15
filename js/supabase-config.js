@@ -3,7 +3,7 @@
 
 // ========== استبدل هذه القيم بقيم مشروعك ==========
 const SUPABASE_URL =supabase link --project-ref emvqitmpdkkuyjzegyxf // رابط مشروعك من Supabase
-const SUPABASE_ANON_KEY =sb_publishable_rVcVXt2iVM80-bU6ZsxqsA_DPJQm4lN // المفتاح العام (anon key)
+const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU// المفتاح العام (anon key)
 // ==================================================
 
 // التحقق من وجود مكتبة Supabase
