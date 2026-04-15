@@ -1,7 +1,7 @@
-// js/utils.js - دوال مساعدة عامة
+// js/utils.js
 const Utils = {
     formatMoney(amount, currency = 'ج') {
-        if (amount === null || amount === undefined) return '0 ' + currency;
+        if (amount === null || amount === undefined || isNaN(amount)) return '0 ' + currency;
         return new Intl.NumberFormat('ar-EG').format(amount) + ' ' + currency;
     },
 
@@ -40,6 +40,10 @@ const Utils = {
         return transactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
     },
 
+    sortByDateDesc(array, dateKey = 'date') {
+        return [...array].sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
+    },
+
     groupBy(array, key) {
         return array.reduce((result, item) => {
             const groupKey = item[key];
@@ -51,10 +55,6 @@ const Utils = {
 
     sumBy(array, key) {
         return array.reduce((sum, item) => sum + (parseFloat(item[key]) || 0), 0);
-    },
-
-    sortByDateDesc(array, dateKey = 'date') {
-        return [...array].sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
     }
 };
 
