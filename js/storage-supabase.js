@@ -1,6 +1,6 @@
 // js/storage-supabase.js
-// طبقة التخزين الكاملة والمضبوطة لـ Supabase
-// متوافقة مع هيكل الجداول الذي تم إنشاؤه
+// طبقة الربط الكاملة مع Supabase
+// متوافقة مع هيكل الجداول: products, parties, reps, invoices, purchases, transactions, settings, users
 
 const Storage = {
     // ========== المنتجات ==========
@@ -9,24 +9,28 @@ const Storage = {
             .from('products')
             .select('*')
             .order('created_at', { ascending: false });
-        if (error) { console.error('getProducts error:', error); return []; }
+        if (error) { console.error('❌ getProducts:', error); return []; }
         return data || [];
     },
 
     async saveProduct(product) {
-        // التأكد من أن units مصفوفة
+        // التأكد من أن units مصفوفة وليست نصاً
+        if (typeof product.units === 'string') {
+            product.units = JSON.parse(product.units);
+        }
         if (!product.units) product.units = [];
-        if (typeof product.units === 'string') product.units = JSON.parse(product.units);
+
+        const productData = {
+            name: product.name,
+            category: product.category,
+            description: product.description || '',
+            units: product.units
+        };
 
         if (product.id) {
             const { data, error } = await supabase
                 .from('products')
-                .update({
-                    name: product.name,
-                    category: product.category,
-                    description: product.description,
-                    units: product.units
-                })
+                .update(productData)
                 .eq('id', product.id)
                 .select();
             if (error) throw error;
@@ -34,12 +38,7 @@ const Storage = {
         } else {
             const { data, error } = await supabase
                 .from('products')
-                .insert({
-                    name: product.name,
-                    category: product.category,
-                    description: product.description,
-                    units: product.units
-                })
+                .insert(productData)
                 .select();
             if (error) throw error;
             return data[0];
@@ -51,12 +50,6 @@ const Storage = {
         if (error) throw error;
     },
 
-    async saveProducts(products) {
-        for (const p of products) {
-            await this.saveProduct(p);
-        }
-    },
-
     // ========== العملاء ==========
     async getCustomers() {
         const { data, error } = await supabase
@@ -64,27 +57,25 @@ const Storage = {
             .select('*')
             .eq('type', 'customer')
             .order('created_at', { ascending: false });
-        if (error) { console.error('getCustomers error:', error); return []; }
+        if (error) { console.error('❌ getCustomers:', error); return []; }
         return data || [];
     },
 
     async saveCustomer(customer) {
-        customer.type = 'customer';
-        // تحويل balance إلى رقم
-        customer.balance = parseFloat(customer.balance) || 0;
+        const customerData = {
+            type: 'customer',
+            name: customer.name,
+            phone: customer.phone || '',
+            address: customer.address || '',
+            email: customer.email || '',
+            balance: parseFloat(customer.balance) || 0,
+            lastTransaction: customer.lastTransaction || null
+        };
 
         if (customer.id) {
             const { data, error } = await supabase
                 .from('parties')
-                .update({
-                    type: customer.type,
-                    name: customer.name,
-                    phone: customer.phone,
-                    address: customer.address,
-                    email: customer.email,
-                    balance: customer.balance,
-                    lastTransaction: customer.lastTransaction
-                })
+                .update(customerData)
                 .eq('id', customer.id)
                 .select();
             if (error) throw error;
@@ -92,15 +83,7 @@ const Storage = {
         } else {
             const { data, error } = await supabase
                 .from('parties')
-                .insert({
-                    type: customer.type,
-                    name: customer.name,
-                    phone: customer.phone,
-                    address: customer.address,
-                    email: customer.email,
-                    balance: customer.balance,
-                    lastTransaction: customer.lastTransaction
-                })
+                .insert(customerData)
                 .select();
             if (error) throw error;
             return data[0];
@@ -112,12 +95,6 @@ const Storage = {
         if (error) throw error;
     },
 
-    async saveCustomers(customers) {
-        for (const c of customers) {
-            await this.saveCustomer(c);
-        }
-    },
-
     // ========== الموردين ==========
     async getSuppliers() {
         const { data, error } = await supabase
@@ -125,26 +102,25 @@ const Storage = {
             .select('*')
             .eq('type', 'supplier')
             .order('created_at', { ascending: false });
-        if (error) { console.error('getSuppliers error:', error); return []; }
+        if (error) { console.error('❌ getSuppliers:', error); return []; }
         return data || [];
     },
 
     async saveSupplier(supplier) {
-        supplier.type = 'supplier';
-        supplier.balance = parseFloat(supplier.balance) || 0;
+        const supplierData = {
+            type: 'supplier',
+            name: supplier.name,
+            phone: supplier.phone || '',
+            address: supplier.address || '',
+            email: supplier.email || '',
+            balance: parseFloat(supplier.balance) || 0,
+            lastTransaction: supplier.lastTransaction || null
+        };
 
         if (supplier.id) {
             const { data, error } = await supabase
                 .from('parties')
-                .update({
-                    type: supplier.type,
-                    name: supplier.name,
-                    phone: supplier.phone,
-                    address: supplier.address,
-                    email: supplier.email,
-                    balance: supplier.balance,
-                    lastTransaction: supplier.lastTransaction
-                })
+                .update(supplierData)
                 .eq('id', supplier.id)
                 .select();
             if (error) throw error;
@@ -152,15 +128,7 @@ const Storage = {
         } else {
             const { data, error } = await supabase
                 .from('parties')
-                .insert({
-                    type: supplier.type,
-                    name: supplier.name,
-                    phone: supplier.phone,
-                    address: supplier.address,
-                    email: supplier.email,
-                    balance: supplier.balance,
-                    lastTransaction: supplier.lastTransaction
-                })
+                .insert(supplierData)
                 .select();
             if (error) throw error;
             return data[0];
@@ -172,19 +140,13 @@ const Storage = {
         if (error) throw error;
     },
 
-    async saveSuppliers(suppliers) {
-        for (const s of suppliers) {
-            await this.saveSupplier(s);
-        }
-    },
-
     // جميع الأطراف
     async getAllParties() {
         const { data, error } = await supabase
             .from('parties')
             .select('*')
             .order('created_at', { ascending: false });
-        if (error) { console.error('getAllParties error:', error); return []; }
+        if (error) { console.error('❌ getAllParties:', error); return []; }
         return data || [];
     },
 
@@ -194,28 +156,25 @@ const Storage = {
             .from('reps')
             .select('*')
             .order('created_at', { ascending: false });
-        if (error) { console.error('getReps error:', error); return []; }
+        if (error) { console.error('❌ getReps:', error); return []; }
         return data || [];
     },
 
     async saveRep(rep) {
-        rep.target = parseFloat(rep.target) || 15000;
-        rep.commission = parseFloat(rep.commission) || 5;
-        rep.sales = parseFloat(rep.sales) || 0;
-        rep.collections = parseFloat(rep.collections) || 0;
+        const repData = {
+            name: rep.name,
+            phone: rep.phone || '',
+            region: rep.region || '',
+            target: parseFloat(rep.target) || 15000,
+            commission: parseFloat(rep.commission) || 5,
+            sales: parseFloat(rep.sales) || 0,
+            collections: parseFloat(rep.collections) || 0
+        };
 
         if (rep.id) {
             const { data, error } = await supabase
                 .from('reps')
-                .update({
-                    name: rep.name,
-                    phone: rep.phone,
-                    region: rep.region,
-                    target: rep.target,
-                    commission: rep.commission,
-                    sales: rep.sales,
-                    collections: rep.collections
-                })
+                .update(repData)
                 .eq('id', rep.id)
                 .select();
             if (error) throw error;
@@ -223,15 +182,7 @@ const Storage = {
         } else {
             const { data, error } = await supabase
                 .from('reps')
-                .insert({
-                    name: rep.name,
-                    phone: rep.phone,
-                    region: rep.region,
-                    target: rep.target,
-                    commission: rep.commission,
-                    sales: rep.sales,
-                    collections: rep.collections
-                })
+                .insert(repData)
                 .select();
             if (error) throw error;
             return data[0];
@@ -243,30 +194,24 @@ const Storage = {
         if (error) throw error;
     },
 
-    async saveReps(reps) {
-        for (const r of reps) {
-            await this.saveRep(r);
-        }
-    },
-
-    // ========== الفواتير (المبيعات) ==========
+    // ========== الفواتير ==========
     async getInvoices() {
         const { data, error } = await supabase
             .from('invoices')
             .select('*')
             .order('date', { ascending: false });
-        if (error) { console.error('getInvoices error:', error); return []; }
+        if (error) { console.error('❌ getInvoices:', error); return []; }
         return data || [];
     },
 
     async saveInvoice(invoice) {
-        // تجهيز البيانات
+        // تجهيز كائن الفاتورة
         const invoiceData = {
             id: invoice.id,
             type: invoice.type || 'sale',
-            customer: invoice.customer,
+            customer: invoice.customer || null,
             customerId: invoice.customerId || null,
-            supplier: invoice.supplier,
+            supplier: invoice.supplier || null,
             supplierId: invoice.supplierId || null,
             date: invoice.date || Utils.getToday(),
             total: parseFloat(invoice.total) || 0,
@@ -274,10 +219,10 @@ const Storage = {
             remaining: parseFloat(invoice.remaining) || 0,
             discount: parseFloat(invoice.discount) || 0,
             status: invoice.status || 'unpaid',
-            paymentMethod: invoice.paymentMethod,
+            paymentMethod: invoice.paymentMethod || null,
             items: invoice.items || [],
             repId: invoice.repId || null,
-            note: invoice.note
+            note: invoice.note || null
         };
 
         if (invoice.id) {
@@ -303,19 +248,13 @@ const Storage = {
         if (error) throw error;
     },
 
-    async saveInvoices(invoices) {
-        for (const i of invoices) {
-            await this.saveInvoice(i);
-        }
-    },
-
     // ========== المشتريات ==========
     async getPurchases() {
         const { data, error } = await supabase
             .from('purchases')
             .select('*')
             .order('date', { ascending: false });
-        if (error) { console.error('getPurchases error:', error); return []; }
+        if (error) { console.error('❌ getPurchases:', error); return []; }
         return data || [];
     },
 
@@ -329,7 +268,7 @@ const Storage = {
             paid: parseFloat(purchase.paid) || 0,
             remaining: parseFloat(purchase.remaining) || 0,
             status: purchase.status || 'unpaid',
-            paymentMethod: purchase.paymentMethod,
+            paymentMethod: purchase.paymentMethod || null,
             items: purchase.items || []
         };
 
@@ -356,19 +295,13 @@ const Storage = {
         if (error) throw error;
     },
 
-    async savePurchases(purchases) {
-        for (const p of purchases) {
-            await this.savePurchase(p);
-        }
-    },
-
     // ========== حركات الصندوق ==========
     async getTransactions() {
         const { data, error } = await supabase
             .from('transactions')
             .select('*')
             .order('date', { ascending: false });
-        if (error) { console.error('getTransactions error:', error); return []; }
+        if (error) { console.error('❌ getTransactions:', error); return []; }
         return data || [];
     },
 
@@ -379,8 +312,8 @@ const Storage = {
             description: transaction.description,
             paymentMethod: transaction.paymentMethod || 'cash',
             date: transaction.date || Utils.getToday(),
-            reference: transaction.reference,
-            notes: transaction.notes
+            reference: transaction.reference || null,
+            notes: transaction.notes || null
         };
 
         if (transaction.id) {
@@ -406,12 +339,6 @@ const Storage = {
         if (error) throw error;
     },
 
-    async saveTransactions(transactions) {
-        for (const t of transactions) {
-            await this.saveTransaction(t);
-        }
-    },
-
     // ========== الإعدادات ==========
     async getSettings() {
         const { data, error } = await supabase
@@ -420,7 +347,7 @@ const Storage = {
             .eq('id', 'main')
             .single();
         if (error && error.code !== 'PGRST116') {
-            console.warn('Settings not found, using defaults', error);
+            console.warn('⚠️ Settings not found, using defaults');
         }
         return data || {};
     },
@@ -442,13 +369,13 @@ const Storage = {
         return data[0];
     },
 
-    // ========== المستخدمين (إدارة) ==========
+    // ========== المستخدمين ==========
     async getUsers() {
         const { data, error } = await supabase
             .from('users')
             .select('*')
             .order('created_at', { ascending: false });
-        if (error) { console.error('getUsers error:', error); return []; }
+        if (error) { console.error('❌ getUsers:', error); return []; }
         return data || [];
     },
 
@@ -483,12 +410,6 @@ const Storage = {
     async deleteUser(id) {
         const { error } = await supabase.from('users').delete().eq('id', id);
         if (error) throw error;
-    },
-
-    async saveUsers(users) {
-        for (const u of users) {
-            await this.saveUser(u);
-        }
     }
 };
 
