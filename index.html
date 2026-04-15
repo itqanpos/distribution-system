@@ -8,11 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
     
-    <!-- Supabase SDK -->
+    <!-- مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     
     <style>
-        /* ... (نفس التنسيقات السابقة، لم يتم تغييرها) ... */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -23,7 +22,14 @@
             --light: #ecf0f1;
             --dark: #34495e;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
         body {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             min-height: 100vh;
@@ -32,6 +38,7 @@
             justify-content: center;
             padding: 20px;
         }
+
         .login-container {
             background: white;
             border-radius: 24px;
@@ -41,58 +48,202 @@
             padding: 40px 30px;
             animation: fadeIn 0.5s ease-out;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        .login-header { text-align: center; margin-bottom: 30px; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
         .logo-icon {
             background: linear-gradient(135deg, var(--secondary), var(--info));
-            color: white; width: 70px; height: 70px; border-radius: 20px;
-            display: flex; align-items: center; justify-content: center; font-size: 32px;
+            color: white;
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
             margin: 0 auto 15px;
         }
-        .login-header h2 { color: var(--primary); margin-bottom: 5px; }
-        .login-header p { color: #7f8c8d; font-size: 14px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: var(--primary); font-weight: 600; font-size: 14px; }
-        .input-icon { position: relative; }
-        .input-icon i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #95a5a6; }
+
+        .login-header h2 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .login-header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-icon {
+            position: relative;
+        }
+
+        .input-icon i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #95a5a6;
+        }
+
         .input-icon input {
-            width: 100%; padding: 14px 45px 14px 15px; border: 2px solid #e0e0e0; border-radius: 12px;
-            font-size: 16px; transition: all 0.3s;
+            width: 100%;
+            padding: 14px 45px 14px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
         }
-        .input-icon input:focus { border-color: var(--secondary); outline: none; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+
+        .input-icon input:focus {
+            border-color: var(--secondary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+        }
+
         .login-btn {
-            width: 100%; padding: 14px; background: var(--secondary); color: white; border: none;
-            border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.3s;
+            width: 100%;
+            padding: 14px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
         }
-        .login-btn:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(52,152,219,0.3); }
-        .demo-section { margin-top: 25px; text-align: center; }
-        .demo-label { color: #7f8c8d; font-size: 13px; margin-bottom: 10px; }
-        .demo-buttons { display: flex; gap: 10px; justify-content: center; }
+
+        .login-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52,152,219,0.3);
+        }
+
+        .demo-section {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .demo-label {
+            color: #7f8c8d;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
         .demo-btn {
-            flex: 1; padding: 10px; border: 2px solid var(--secondary); border-radius: 10px;
-            background: white; color: var(--secondary); font-weight: 600; cursor: pointer;
-            transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--secondary);
+            border-radius: 10px;
+            background: white;
+            color: var(--secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .demo-btn:hover { background: var(--secondary); color: white; }
-        .demo-btn.admin { border-color: var(--primary); color: var(--primary); }
-        .demo-btn.admin:hover { background: var(--primary); color: white; }
-        .demo-btn.rep { border-color: var(--success); color: var(--success); }
-        .demo-btn.rep:hover { background: var(--success); color: white; }
-        .login-footer { text-align: center; margin-top: 25px; color: #7f8c8d; font-size: 13px; }
-        .error-message { color: var(--danger); font-size: 13px; margin-top: 5px; display: none; }
+
+        .demo-btn:hover {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .demo-btn.admin {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .demo-btn.admin:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .demo-btn.rep {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .demo-btn.rep:hover {
+            background: var(--success);
+            color: white;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
         #installBtn {
-            position: fixed; bottom: 20px; left: 20px; background: var(--secondary); color: white;
-            border: none; padding: 12px 20px; border-radius: 50px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            cursor: pointer; z-index: 3000; display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 3000;
+            display: none;
         }
-        @media (max-width: 480px) { .login-container { padding: 30px 20px; } }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
-            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <div class="logo-icon">
+                <i class="fas fa-truck"></i>
+            </div>
             <h2>نظام التوزيع الغذائي</h2>
             <p>الرجاء إدخال بيانات الدخول</p>
         </div>
@@ -115,44 +266,56 @@
                 <div class="error-message" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
             </div>
             
-            <button type="submit" class="login-btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
+            <button type="submit" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i> دخول
+            </button>
         </form>
         
         <div class="demo-section">
             <div class="demo-label">حسابات تجريبية</div>
             <div class="demo-buttons">
-                <button type="button" class="demo-btn admin" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
-                <button type="button" class="demo-btn rep" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
+                <button type="button" class="demo-btn admin" onclick="fillDemo('admin')">
+                    <i class="fas fa-user-tie"></i> مدير
+                </button>
+                <button type="button" class="demo-btn rep" onclick="fillDemo('rep')">
+                    <i class="fas fa-user"></i> مندوب
+                </button>
             </div>
         </div>
         
-        <div class="login-footer">© 2024 نظام إدارة التوزيع الغذائي</div>
+        <div class="login-footer">
+            © 2024 نظام إدارة التوزيع الغذائي
+        </div>
     </div>
 
     <button id="installBtn"><i class="fas fa-download"></i> تثبيت التطبيق</button>
 
-    <!-- الترتيب الصحيح الإجباري -->
-    <!-- 1. إعدادات Supabase (يعرف كائن supabase) -->
-    <script src="./js/supabase-config.js"></script>
-    <!-- 2. طبقة التخزين (تستخدم supabase) -->
+    <!-- 
+        الترتيب الإجباري:
+        1. مكتبة Supabase (تم تضمينها أعلاه)
+        2. طبقة التخزين (تحتوي على الإعدادات مدمجة)
+        3. الأدوات المساعدة
+        4. المصادقة المحلية
+    -->
     <script src="./js/storage-supabase.js"></script>
-    <!-- 3. الأدوات المساعدة -->
     <script src="./js/utils.js"></script>
     <script src="./js/ui.js"></script>
-    <!-- 4. المصادقة المحلية -->
     <script src="./js/auth-local.js"></script>
     
     <script>
-        // التحقق من المستخدم المسجل
+        // التحقق من المستخدم المسجل مسبقاً
         (function() {
             if (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
                 const user = Auth.getUser();
-                if (user) window.location.href = Auth.getRedirectUrl(user.role);
+                if (user) {
+                    window.location.href = Auth.getRedirectUrl(user.role);
+                }
             }
         })();
 
         async function handleLogin(event) {
             event.preventDefault();
+            
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('loginError');
@@ -170,6 +333,7 @@
             
             try {
                 const result = await Auth.login(username, password);
+                
                 if (result.success) {
                     window.location.href = result.redirectUrl;
                 } else {
@@ -199,16 +363,21 @@
 
         document.getElementById('username').addEventListener('input', hideError);
         document.getElementById('password').addEventListener('input', hideError);
-        function hideError() { document.getElementById('loginError').style.display = 'none'; }
+        
+        function hideError() {
+            document.getElementById('loginError').style.display = 'none';
+        }
 
-        // PWA Install
+        // PWA Install Prompt
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             installBtn.style.display = 'block';
         });
+
         installBtn.addEventListener('click', async () => {
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
@@ -219,6 +388,7 @@
             }
             deferredPrompt = null;
         });
+
         window.addEventListener('appinstalled', () => {
             installBtn.style.display = 'none';
             deferredPrompt = null;
