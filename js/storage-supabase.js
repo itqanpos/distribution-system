@@ -143,7 +143,7 @@ const Storage = {
         return data?.[0] || settings;
     },
 
-    // --- المستخدمين ---
+    // --- المستخدمين (للتخزين فقط، المصادقة محلية) ---
     async getUsers() {
         const { data } = await supabase.from('users').select('*');
         return data || [];
