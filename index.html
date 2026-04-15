@@ -321,7 +321,6 @@
                 return;
             }
             
-            // تعطيل الزر أثناء المعالجة
             const submitBtn = document.querySelector('.login-btn');
             const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الدخول...';
@@ -357,7 +356,6 @@
             document.getElementById('loginError').style.display = 'none';
         }
 
-        // إخفاء رسالة الخطأ عند الكتابة
         document.getElementById('username').addEventListener('input', hideError);
         document.getElementById('password').addEventListener('input', hideError);
         
@@ -365,7 +363,6 @@
             document.getElementById('loginError').style.display = 'none';
         }
 
-        // PWA Install Prompt
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
 
