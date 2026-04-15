@@ -2,241 +2,185 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>اختبار اتصال Supabase</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>اختبار Supabase - مباشر</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: #f0f2f5;
-            margin: 0;
-            padding: 15px;
-            min-height: 100vh;
+        * { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f5f7fa; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .test-box {
+            max-width: 450px; width: 100%; background: white; border-radius: 28px; padding: 25px 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.08);
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-        h2 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 20px;
-        }
-        .section {
-            background: #f8fafc;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .section h3 {
-            margin: 0 0 10px 0;
-            color: #34495e;
-            font-size: 18px;
-        }
-        .status {
-            padding: 12px;
-            border-radius: 10px;
-            margin-top: 10px;
-            font-size: 14px;
-            background: white;
-            border-left: 4px solid #ccc;
-        }
-        .status.success { background: #e8f5e9; border-left-color: #4caf50; color: #2e7d32; }
-        .status.error { background: #ffebee; border-left-color: #f44336; color: #c62828; }
-        .status.pending { background: #fff8e1; border-left-color: #ff9800; color: #e65100; }
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 10px;
-            background: #3498db;
-            color: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .btn-success { background: #2ecc71; }
-        .btn-outline { background: white; color: #3498db; border: 2px solid #3498db; }
-        .note {
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-top: 10px;
-            text-align: center;
-        }
-        .divider { margin: 20px 0; border-top: 1px solid #ddd; }
+        h2 { color: #1e293b; text-align: center; margin-bottom: 25px; font-size: 24px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .step { margin-bottom: 20px; }
+        .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .step-number { width: 32px; height: 32px; background: #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #475569; }
+        .step-title { font-weight: 600; color: #334155; }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 18px; font-weight: 600; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s; margin-top: 5px; }
+        .btn-primary { background: #2563eb; color: white; box-shadow: 0 6px 14px rgba(37,99,235,0.2); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-outline { background: white; border: 1.5px solid #cbd5e1; color: #475569; }
+        .result { margin-top: 12px; padding: 14px; border-radius: 18px; font-size: 15px; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .result.success { background: #dcfce7; border-color: #86efac; color: #166534; }
+        .result.error { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+        .result.pending { background: #fef9c3; border-color: #fde047; color: #854d0e; }
+        .footer { margin-top: 25px; text-align: center; }
+        .link { color: #2563eb; text-decoration: none; font-weight: 500; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h2>🔌 اختبار اتصال Supabase</h2>
+<div class="test-box">
+    <h2><i class="fas fa-database" style="color:#2563eb;"></i> اختبار Supabase</h2>
 
-    <!-- 1. التهيئة -->
-    <div class="section">
-        <h3>1️⃣ حالة التهيئة</h3>
-        <div id="initStatus" class="status pending">⏳ جاري التحقق...</div>
+    <!-- Step 1: التهيئة -->
+    <div class="step">
+        <div class="step-header"><span class="step-number">1</span><span class="step-title">الاتصال بـ Supabase</span></div>
+        <button class="btn btn-primary" id="btnInit"><i class="fas fa-plug"></i> بدء الاتصال</button>
+        <div id="initResult" class="result pending"><i class="fas fa-hourglass-half"></i> في انتظار الضغط...</div>
     </div>
 
-    <!-- 2. الجداول -->
-    <div class="section">
-        <h3>2️⃣ الجداول المطلوبة</h3>
-        <div id="tablesStatus"></div>
+    <!-- Step 2: الجداول -->
+    <div class="step">
+        <div class="step-header"><span class="step-number">2</span><span class="step-title">فحص الجداول</span></div>
+        <button class="btn btn-outline" id="btnTables"><i class="fas fa-list"></i> فحص الجداول</button>
+        <div id="tablesResult" class="result pending"><i class="fas fa-hourglass-half"></i> في انتظار الضغط...</div>
     </div>
 
-    <!-- 3. كتابة -->
-    <div class="section">
-        <h3>3️⃣ اختبار الكتابة</h3>
-        <button class="btn" onclick="testWrite()">✏️ حفظ منتج تجريبي</button>
-        <div id="writeStatus"></div>
+    <!-- Step 3: كتابة -->
+    <div class="step">
+        <div class="step-header"><span class="step-number">3</span><span class="step-title">اختبار الحفظ</span></div>
+        <button class="btn btn-success" id="btnWrite"><i class="fas fa-save"></i> حفظ منتج تجريبي</button>
+        <div id="writeResult" class="result pending"><i class="fas fa-hourglass-half"></i> في انتظار الضغط...</div>
     </div>
 
-    <!-- 4. قراءة -->
-    <div class="section">
-        <h3>4️⃣ اختبار القراءة</h3>
-        <button class="btn btn-success" onclick="testRead()">📋 عرض المنتجات</button>
-        <div id="readStatus"></div>
+    <!-- Step 4: قراءة -->
+    <div class="step">
+        <div class="step-header"><span class="step-number">4</span><span class="step-title">اختبار القراءة</span></div>
+        <button class="btn btn-outline" id="btnRead"><i class="fas fa-eye"></i> عرض المنتجات</button>
+        <div id="readResult" class="result pending"><i class="fas fa-hourglass-half"></i> في انتظار الضغط...</div>
     </div>
 
-    <!-- 5. تنظيف -->
-    <div class="section">
-        <h3>5️⃣ تنظيف البيانات</h3>
-        <button class="btn btn-outline" onclick="cleanTestData()">🧹 حذف المنتج التجريبي</button>
-        <div id="cleanStatus"></div>
-    </div>
-
-    <div class="divider"></div>
-    <div class="note">
-        بعد نجاح الاختبارات، عد إلى التطبيق الرئيسي
+    <div class="footer">
+        <a href="index.html" class="link"><i class="fas fa-arrow-right"></i> العودة للتطبيق</a>
     </div>
 </div>
 
-<!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-<!-- إعدادات Supabase الخاصة بك -->
 <script>
-    // ========== الإعدادات ==========
+    // ========== الإعدادات المدمجة مباشرة ==========
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
-    
-    // إنشاء العميل
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let supabase;
     let testProductId = null;
 
-    // التحقق من التهيئة
-    function checkInit() {
-        const el = document.getElementById('initStatus');
-        if (typeof supabase !== 'undefined' && supabase) {
-            el.className = 'status success';
-            el.innerHTML = '✅ تم الاتصال بـ Supabase بنجاح!';
-        } else {
-            el.className = 'status error';
-            el.innerHTML = '❌ فشل الاتصال. تأكد من المفاتيح.';
+    // تهيئة Supabase
+    function initSupabase() {
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            return true;
+        } catch (e) {
+            console.error(e);
+            return false;
         }
     }
 
-    // فحص الجداول
-    async function checkTables() {
+    // عرض النتائج
+    function showResult(elementId, type, message) {
+        const el = document.getElementById(elementId);
+        el.className = 'result ' + type;
+        el.innerHTML = message;
+    }
+
+    // 1. زر التهيئة
+    document.getElementById('btnInit').addEventListener('click', function() {
+        if (initSupabase()) {
+            showResult('initResult', 'success', '✅ تم الاتصال بـ Supabase بنجاح!');
+        } else {
+            showResult('initResult', 'error', '❌ فشل الاتصال. تأكد من المفاتيح.');
+        }
+    });
+
+    // 2. فحص الجداول
+    document.getElementById('btnTables').addEventListener('click', async function() {
+        if (!supabase) { showResult('tablesResult', 'error', '❌ الرجاء الضغط على "بدء الاتصال" أولاً.'); return; }
+        showResult('tablesResult', 'pending', '<i class="fas fa-spinner fa-spin"></i> جاري الفحص...');
+        
         const tables = ['products', 'parties', 'reps', 'invoices', 'purchases', 'transactions', 'settings', 'users'];
-        const container = document.getElementById('tablesStatus');
         let html = '';
-        for (let table of tables) {
+        for (let t of tables) {
             try {
-                const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+                const { count, error } = await supabase.from(t).select('*', { count: 'exact', head: true });
                 if (error) {
-                    if (error.code === '42P01') {
-                        html += `<div class="status error">❌ ${table}: غير موجودة</div>`;
-                    } else if (error.message.includes('permission')) {
-                        html += `<div class="status error">🔒 ${table}: خطأ صلاحيات (تأكد من تعطيل RLS)</div>`;
-                    } else {
-                        html += `<div class="status error">⚠️ ${table}: ${error.message}</div>`;
-                    }
+                    if (error.code === '42P01') html += `❌ ${t}: غير موجود<br>`;
+                    else if (error.message.includes('permission')) html += `🔒 ${t}: صلاحية<br>`;
+                    else html += `⚠️ ${t}: ${error.message}<br>`;
                 } else {
-                    html += `<div class="status success">✅ ${table}: موجودة (${count} سجلات)</div>`;
+                    html += `✅ ${t}: موجودة (${count} سجل)<br>`;
                 }
             } catch (e) {
-                html += `<div class="status error">🐞 ${table}: خطأ غير متوقع</div>`;
+                html += `❌ ${t}: خطأ<br>`;
             }
         }
-        container.innerHTML = html;
-    }
+        showResult('tablesResult', 'success', html);
+    });
 
-    // اختبار الكتابة
-    async function testWrite() {
-        const el = document.getElementById('writeStatus');
-        el.innerHTML = '<div class="status pending">⏳ جاري حفظ منتج تجريبي...</div>';
+    // 3. كتابة منتج تجريبي
+    document.getElementById('btnWrite').addEventListener('click', async function() {
+        if (!supabase) { showResult('writeResult', 'error', '❌ الرجاء الضغط على "بدء الاتصال" أولاً.'); return; }
+        showResult('writeResult', 'pending', '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...');
+        
         const testProduct = {
-            name: 'منتج تجريبي (للاختبار)',
+            name: 'منتج اختبار ' + new Date().toLocaleTimeString('ar-EG'),
             category: 'تجربة',
-            description: 'تم إنشاؤه من اختبار الهاتف',
-            units: [{ unit: 'قطعة', price: 10, min: 5, max: 15, barcode: 'TEST001', stock: 50 }]
+            description: 'تم إنشاؤه بواسطة أداة الاختبار',
+            units: [{ unit: 'قطعة', price: 10, min: 5, max: 15, barcode: 'TEST', stock: 50 }]
         };
+        
         try {
             const { data, error } = await supabase.from('products').insert(testProduct).select();
             if (error) {
-                el.innerHTML = `<div class="status error">❌ فشل الحفظ: ${error.message}</div>`;
-                if (error.code === '42501') el.innerHTML += '<br><small>⛔ تأكد من تعطيل RLS في Supabase</small>';
+                showResult('writeResult', 'error', `❌ فشل الحفظ: ${error.message}`);
             } else {
                 testProductId = data[0].id;
-                el.innerHTML = `<div class="status success">✅ تم حفظ المنتج التجريبي!<br>ID: ${testProductId}</div>`;
+                showResult('writeResult', 'success', `✅ تم حفظ المنتج بنجاح! الـ ID: ${testProductId}`);
             }
         } catch (e) {
-            el.innerHTML = `<div class="status error">❌ خطأ: ${e.message}</div>`;
+            showResult('writeResult', 'error', `❌ خطأ غير متوقع: ${e.message}`);
         }
-    }
+    });
 
-    // اختبار القراءة
-    async function testRead() {
-        const el = document.getElementById('readStatus');
-        el.innerHTML = '<div class="status pending">⏳ جاري قراءة المنتجات...</div>';
+    // 4. قراءة المنتجات
+    document.getElementById('btnRead').addEventListener('click', async function() {
+        if (!supabase) { showResult('readResult', 'error', '❌ الرجاء الضغط على "بدء الاتصال" أولاً.'); return; }
+        showResult('readResult', 'pending', '<i class="fas fa-spinner fa-spin"></i> جاري القراءة...');
+        
         try {
             const { data, error } = await supabase.from('products').select('*').limit(10);
             if (error) {
-                el.innerHTML = `<div class="status error">❌ فشل القراءة: ${error.message}</div>`;
+                showResult('readResult', 'error', `❌ فشل القراءة: ${error.message}`);
             } else {
-                let html = `<div class="status success">✅ تمت القراءة! (${data.length} منتج)</div>`;
-                if (data.length) {
-                    html += '<ul style="margin:10px 0 0; padding-right:20px;">';
-                    data.forEach(p => { html += `<li>${p.name} - ${p.category}</li>`; });
-                    html += '</ul>';
+                let msg = `✅ تمت القراءة! (${data.length} منتج)<br>`;
+                if (data.length > 0) {
+                    msg += '<ul style="margin-top:8px; padding-right:20px;">';
+                    data.slice(0,5).forEach(p => { msg += `<li>${p.name} - ${p.category}</li>`; });
+                    msg += '</ul>';
                 }
-                el.innerHTML = html;
+                showResult('readResult', 'success', msg);
             }
         } catch (e) {
-            el.innerHTML = `<div class="status error">❌ خطأ: ${e.message}</div>`;
+            showResult('readResult', 'error', `❌ خطأ غير متوقع: ${e.message}`);
         }
-    }
+    });
 
-    // تنظيف
-    async function cleanTestData() {
-        const el = document.getElementById('cleanStatus');
-        if (!testProductId) {
-            el.innerHTML = '<div class="status pending">ℹ️ لا يوجد منتج تجريبي للحذف. جرب اختبار الكتابة أولاً.</div>';
-            return;
-        }
-        el.innerHTML = '<div class="status pending">⏳ جاري الحذف...</div>';
-        try {
-            const { error } = await supabase.from('products').delete().eq('id', testProductId);
-            if (error) {
-                el.innerHTML = `<div class="status error">❌ فشل الحذف: ${error.message}</div>`;
-            } else {
-                el.innerHTML = '<div class="status success">✅ تم حذف المنتج التجريبي.</div>';
-                testProductId = null;
-            }
-        } catch (e) {
-            el.innerHTML = `<div class="status error">❌ خطأ: ${e.message}</div>`;
-        }
-    }
-
-    // تشغيل الفحوصات تلقائياً عند التحميل
+    // تهيئة تلقائية عند تحميل الصفحة
     window.onload = function() {
-        checkInit();
-        checkTables();
+        if (initSupabase()) {
+            showResult('initResult', 'success', '✅ تم الاتصال تلقائياً بـ Supabase!');
+        } else {
+            showResult('initResult', 'error', '❌ فشل الاتصال التلقائي. اضغط "بدء الاتصال".');
+        }
     };
 </script>
 </body>
