@@ -3,8 +3,8 @@ const Storage = {
     // --- المنتجات ---
     async getProducts() {
         const { data, error } = await supabase.from('products').select('*');
-        if (error) throw error;
-        return data;
+        if (error) { console.error('getProducts error:', error); return []; }
+        return data || [];
     },
     async saveProduct(product) {
         if (product.id) {
@@ -24,141 +24,143 @@ const Storage = {
 
     // --- العملاء ---
     async getCustomers() {
-        const { data } = await supabase.from('parties').select('*').eq('type', 'customer');
+        const { data, error } = await supabase.from('parties').select('*').eq('type', 'customer');
+        if (error) { console.error('getCustomers error:', error); return []; }
         return data || [];
     },
     async saveCustomer(customer) {
         customer.type = 'customer';
         if (customer.id) {
-            const { data } = await supabase.from('parties').update(customer).eq('id', customer.id).select();
-            return data?.[0] || customer;
+            const { data, error } = await supabase.from('parties').update(customer).eq('id', customer.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('parties').insert(customer).select();
-            return data?.[0] || customer;
+            const { data, error } = await supabase.from('parties').insert(customer).select();
+            if (error) throw error;
+            return data[0];
         }
-    },
-    async deleteCustomer(id) {
-        await supabase.from('parties').delete().eq('id', id);
     },
 
     // --- الموردين ---
     async getSuppliers() {
-        const { data } = await supabase.from('parties').select('*').eq('type', 'supplier');
+        const { data, error } = await supabase.from('parties').select('*').eq('type', 'supplier');
+        if (error) { console.error('getSuppliers error:', error); return []; }
         return data || [];
     },
     async saveSupplier(supplier) {
         supplier.type = 'supplier';
         if (supplier.id) {
-            const { data } = await supabase.from('parties').update(supplier).eq('id', supplier.id).select();
-            return data?.[0] || supplier;
+            const { data, error } = await supabase.from('parties').update(supplier).eq('id', supplier.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('parties').insert(supplier).select();
-            return data?.[0] || supplier;
+            const { data, error } = await supabase.from('parties').insert(supplier).select();
+            if (error) throw error;
+            return data[0];
         }
-    },
-    async deleteSupplier(id) {
-        await supabase.from('parties').delete().eq('id', id);
     },
 
     // --- المندوبين ---
     async getReps() {
-        const { data } = await supabase.from('reps').select('*');
+        const { data, error } = await supabase.from('reps').select('*');
+        if (error) { console.error('getReps error:', error); return []; }
         return data || [];
     },
     async saveRep(rep) {
         if (rep.id) {
-            const { data } = await supabase.from('reps').update(rep).eq('id', rep.id).select();
-            return data?.[0] || rep;
+            const { data, error } = await supabase.from('reps').update(rep).eq('id', rep.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('reps').insert(rep).select();
-            return data?.[0] || rep;
+            const { data, error } = await supabase.from('reps').insert(rep).select();
+            if (error) throw error;
+            return data[0];
         }
     },
-    async deleteRep(id) {
-        await supabase.from('reps').delete().eq('id', id);
-    },
 
-    // --- الفواتير ---
+    // --- الفواتير (المبيعات) ---
     async getInvoices() {
-        const { data } = await supabase.from('invoices').select('*').order('date', { ascending: false });
+        const { data, error } = await supabase.from('invoices').select('*').order('date', { ascending: false });
+        if (error) { console.error('getInvoices error:', error); return []; }
         return data || [];
     },
     async saveInvoice(invoice) {
         if (invoice.id) {
-            const { data } = await supabase.from('invoices').update(invoice).eq('id', invoice.id).select();
-            return data?.[0] || invoice;
+            const { data, error } = await supabase.from('invoices').update(invoice).eq('id', invoice.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('invoices').insert(invoice).select();
-            return data?.[0] || invoice;
+            const { data, error } = await supabase.from('invoices').insert(invoice).select();
+            if (error) throw error;
+            return data[0];
         }
-    },
-    async deleteInvoice(id) {
-        await supabase.from('invoices').delete().eq('id', id);
     },
 
     // --- المشتريات ---
     async getPurchases() {
-        const { data } = await supabase.from('purchases').select('*').order('date', { ascending: false });
+        const { data, error } = await supabase.from('purchases').select('*').order('date', { ascending: false });
+        if (error) { console.error('getPurchases error:', error); return []; }
         return data || [];
     },
     async savePurchase(purchase) {
         if (purchase.id) {
-            const { data } = await supabase.from('purchases').update(purchase).eq('id', purchase.id).select();
-            return data?.[0] || purchase;
+            const { data, error } = await supabase.from('purchases').update(purchase).eq('id', purchase.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('purchases').insert(purchase).select();
-            return data?.[0] || purchase;
+            const { data, error } = await supabase.from('purchases').insert(purchase).select();
+            if (error) throw error;
+            return data[0];
         }
-    },
-    async deletePurchase(id) {
-        await supabase.from('purchases').delete().eq('id', id);
     },
 
     // --- حركات الصندوق ---
     async getTransactions() {
-        const { data } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+        const { data, error } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+        if (error) { console.error('getTransactions error:', error); return []; }
         return data || [];
     },
     async saveTransaction(transaction) {
         if (transaction.id) {
-            const { data } = await supabase.from('transactions').update(transaction).eq('id', transaction.id).select();
-            return data?.[0] || transaction;
+            const { data, error } = await supabase.from('transactions').update(transaction).eq('id', transaction.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('transactions').insert(transaction).select();
-            return data?.[0] || transaction;
+            const { data, error } = await supabase.from('transactions').insert(transaction).select();
+            if (error) throw error;
+            return data[0];
         }
-    },
-    async deleteTransaction(id) {
-        await supabase.from('transactions').delete().eq('id', id);
     },
 
     // --- الإعدادات ---
     async getSettings() {
-        const { data } = await supabase.from('settings').select('*').eq('id', 'main').single();
+        const { data, error } = await supabase.from('settings').select('*').eq('id', 'main').single();
+        if (error) { console.warn('Settings not found, using defaults'); return {}; }
         return data || {};
     },
     async saveSettings(settings) {
         settings.id = 'main';
-        const { data } = await supabase.from('settings').upsert(settings).select();
-        return data?.[0] || settings;
+        const { data, error } = await supabase.from('settings').upsert(settings).select();
+        if (error) throw error;
+        return data[0];
     },
 
-    // --- المستخدمين (للتخزين فقط، المصادقة محلية) ---
+    // --- المستخدمين (إدارة) ---
     async getUsers() {
-        const { data } = await supabase.from('users').select('*');
+        const { data, error } = await supabase.from('users').select('*');
+        if (error) { console.error('getUsers error:', error); return []; }
         return data || [];
     },
     async saveUser(user) {
         if (user.id) {
-            const { data } = await supabase.from('users').update(user).eq('id', user.id).select();
-            return data?.[0] || user;
+            const { data, error } = await supabase.from('users').update(user).eq('id', user.id).select();
+            if (error) throw error;
+            return data[0];
         } else {
-            const { data } = await supabase.from('users').insert(user).select();
-            return data?.[0] || user;
+            const { data, error } = await supabase.from('users').insert(user).select();
+            if (error) throw error;
+            return data[0];
         }
-    },
-    async deleteUser(id) {
-        await supabase.from('users').delete().eq('id', id);
     }
 };
 
