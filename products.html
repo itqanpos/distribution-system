@@ -181,7 +181,7 @@
         }
         .units-container { margin: 20px 0; }
         .unit-row {
-            display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.5fr;
+            display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr 1fr 0.8fr 0.5fr;
             gap: 8px; margin-bottom: 10px; align-items: center;
         }
         .add-unit-btn {
@@ -306,16 +306,18 @@
                     <label>وحدات القياس والأسعار والمخزون</label>
                     <div id="unitsList"></div>
                     <div class="add-unit-btn" onclick="addUnitRow()"><i class="fas fa-plus"></i> إضافة وحدة</div>
+                    <p style="font-size:12px; color:#7f8c8d; margin-top:8px;"><i class="fas fa-info-circle"></i> لكل وحدة، حدد عدد الوحدات الأساسية (مثلاً الكرتونة = 12 زجاجة)</p>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn" onclick="closeProductModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
             </form>
         </div>
     </div>
 
-    <script src="./js/auth.js"></script>
-    <script src="./js/storage.js"></script>
+    <script src="./js/supabase-config.js"></script>
+    <script src="./js/storage-supabase.js"></script>
     <script src="./js/utils.js"></script>
     <script src="./js/ui.js"></script>
+    <script src="./js/auth-local.js"></script>
     <script>
         // الشريط الجانبي
         const sidebar = document.getElementById('sidebar');
@@ -336,7 +338,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
-            await UI.initPage('المنتجات', { enablePullToRefresh: true, refreshCallback: loadProducts, autoSync: true, syncCallback: loadProducts });
+            await UI.initPage('المنتجات');
 
             const user = Auth.getUser();
             document.getElementById('userName').textContent = user.name;
@@ -378,7 +380,7 @@
             currentEditId = null;
             document.getElementById('modalTitle').textContent = 'منتج جديد';
             document.getElementById('productForm').reset();
-            tempUnits = [{ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 }];
+            tempUnits = [{ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0, baseUnits: 1 }];
             renderUnitsList();
             document.getElementById('productModal').style.display = 'flex';
         }
@@ -408,19 +410,23 @@
                     <input type="number" placeholder="الحد الأقصى" value="${u.max}" step="0.01" onchange="updateTempUnit(${i},'max',this.value)">
                     <input type="text" placeholder="باركود" value="${u.barcode}" onchange="updateTempUnit(${i},'barcode',this.value)">
                     <input type="number" placeholder="المخزون" value="${u.stock}" step="0.001" onchange="updateTempUnit(${i},'stock',this.value)">
+                    <input type="number" placeholder="الوحدات الأساسية" value="${u.baseUnits || 1}" step="1" min="1" onchange="updateTempUnit(${i},'baseUnits',this.value)" title="عدد الوحدات الأساسية التي تمثلها هذه الوحدة">
                     <button type="button" class="action-icon" style="color:var(--danger);" onclick="removeUnitRow(${i})"><i class="fas fa-trash"></i></button>
                 </div>
             `).join('');
         }
 
         function addUnitRow() {
-            tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0 });
+            tempUnits.push({ unit: '', price: 0, min: 0, max: 0, barcode: '', stock: 0, baseUnits: 1 });
             renderUnitsList();
         }
 
         function updateTempUnit(index, field, value) {
-            if (['price', 'min', 'max', 'stock'].includes(field)) tempUnits[index][field] = parseFloat(value) || 0;
-            else tempUnits[index][field] = value;
+            if (['price', 'min', 'max', 'stock', 'baseUnits'].includes(field)) {
+                tempUnits[index][field] = parseFloat(value) || (field === 'baseUnits' ? 1 : 0);
+            } else {
+                tempUnits[index][field] = value;
+            }
         }
 
         function removeUnitRow(index) {
@@ -439,6 +445,7 @@
                 if (!u.unit || u.price <= 0 || u.min <= 0 || u.max <= 0) { alert('جميع حقول الوحدات مطلوبة'); return; }
                 if (u.min > u.max) { alert('الحد الأدنى يجب أن يكون ≤ الأقصى'); return; }
                 if (u.price < u.min || u.price > u.max) { alert('السعر يجب أن يكون بين الحدين'); return; }
+                u.baseUnits = u.baseUnits || 1;
             }
 
             if (id) {
