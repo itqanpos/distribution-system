@@ -1,61 +1,57 @@
-// js/utils.js
-const Utils = {
-    formatMoney(amount, currency = 'ج') {
-        if (amount === null || amount === undefined || isNaN(amount)) return '0 ' + currency;
-        return new Intl.NumberFormat('ar-EG').format(amount) + ' ' + currency;
+// js/ui.js
+const UI = {
+    async initPage(title) {
+        if (!Auth.requireAuth()) return false;
+
+        const user = Auth.getUser();
+        const userNameEl = document.getElementById('userName');
+        const loginTimeEl = document.getElementById('loginTime');
+        const userAvatarEl = document.getElementById('userAvatar');
+        if (userNameEl) userNameEl.textContent = user.name;
+        if (loginTimeEl) loginTimeEl.textContent = `دخل النظام: ${user.loginTime || 'اليوم'}`;
+        if (userAvatarEl) userAvatarEl.textContent = user.avatar || user.name.charAt(0);
+        if (title) document.title = `${title} - نظام التوزيع الغذائي`;
+
+        this.highlightCurrentMenuItem();
+        this.registerServiceWorker();
+        return true;
     },
 
-    formatDate(date, format = 'dd/mm/yyyy') {
-        if (!date) return '';
-        const d = new Date(date);
-        if (isNaN(d.getTime())) return '';
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return format.replace('dd', day).replace('mm', month).replace('yyyy', year);
+    registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.error('SW failed', err));
+        }
     },
 
-    getToday() {
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+    highlightCurrentMenuItem() {
+        const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+        document.querySelectorAll('.menu-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (href && href.includes(currentPage)) item.classList.add('active');
+            else item.classList.remove('active');
+        });
     },
 
-    generateId(prefix = '') {
-        return prefix + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+    logout() {
+        if (confirm('هل تريد تسجيل الخروج؟')) {
+            Auth.logout();
+            window.location.href = 'index.html';
+        }
     },
 
-    search(array, term, fields) {
-        if (!term) return array;
-        const lowerTerm = String(term).toLowerCase();
-        return array.filter(item => fields.some(field => {
-            const value = item[field];
-            return value && String(value).toLowerCase().includes(lowerTerm);
-        }));
-    },
-
-    calculateBalance(transactions) {
-        return transactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
-    },
-
-    sortByDateDesc(array, dateKey = 'date') {
-        return [...array].sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
-    },
-
-    groupBy(array, key) {
-        return array.reduce((result, item) => {
-            const groupKey = item[key];
-            if (!result[groupKey]) result[groupKey] = [];
-            result[groupKey].push(item);
-            return result;
-        }, {});
-    },
-
-    sumBy(array, key) {
-        return array.reduce((sum, item) => sum + (parseFloat(item[key]) || 0), 0);
+    populateSelect(selectId, options, valueField = 'id', textField = 'name', emptyOption = '-- اختر --') {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = emptyOption ? `<option value="">${emptyOption}</option>` : '';
+        options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt[valueField];
+            option.textContent = opt[textField];
+            select.appendChild(option);
+        });
     }
 };
 
-window.Utils = Utils;
+window.UI = UI;
