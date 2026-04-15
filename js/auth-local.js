@@ -1,8 +1,7 @@
-// js/auth-local.js - تسجيل دخول محلي (لا يتصل بـ Supabase)
+// js/auth-local.js
 const Auth = {
     STORAGE_KEY: 'foodDist_user',
 
-    // مستخدمون محليون (يمكنك تعديلهم)
     localUsers: [
         { username: 'admin', password: '123456', fullName: 'مدير النظام', role: 'admin', repId: null },
         { username: 'مندوب1', password: '123456', fullName: 'أحمد محمود', role: 'rep', repId: '1' },
@@ -19,7 +18,6 @@ const Auth = {
     },
 
     async login(username, password) {
-        // بحث محلي فقط
         const user = this.localUsers.find(u => u.username === username && u.password === password);
         if (!user) {
             return { success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
