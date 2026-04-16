@@ -1,307 +1,474 @@
-// js/storage-supabase.js - طبقة Supabase كاملة مع الإعدادات مدمجة
+// js/storage-supabase.js - طبقة تخزين تستخدم REST API مباشرة (بدون مكتبة Supabase)
 (function() {
-    // ========== إعدادات Supabase (مدمجة) ==========
+    // الإعدادات
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
 
-    // انتظر حتى يتم تحميل مكتبة Supabase
-    function initSupabase() {
-        if (typeof window.supabase === 'undefined') {
-            console.error('❌ مكتبة Supabase غير محملة');
-            return null;
-        }
-        try {
-            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            window.supabase = client;
-            console.log('✅ Supabase مهيأ وجاهز');
-            return client;
-        } catch (e) {
-            console.error('❌ فشل تهيئة Supabase:', e);
-            return null;
-        }
-    }
+    // دالة عامة لاستدعاء REST API
+    async function supabaseRequest(endpoint, options = {}) {
+        const url = `${SUPABASE_URL}/rest/v1/${endpoint}`;
+        const headers = {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
 
-    // الحصول على عميل Supabase (مع إعادة المحاولة)
-    function getSupabase() {
-        if (window.supabase && typeof window.supabase.from === 'function') {
-            return window.supabase;
+        try {
+            const response = await fetch(url, {
+                method: options.method || 'GET',
+                headers: headers,
+                body: options.body ? JSON.stringify(options.body) : undefined
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
+        } catch (error) {
+            console.error('❌ Supabase request failed:', error);
+            throw error;
         }
-        // حاول التهيئة الآن
-        const client = initSupabase();
-        if (!client) {
-            alert('❌ لا يمكن الاتصال بقاعدة البيانات. الرجاء تحديث الصفحة.');
-            throw new Error('Supabase not available');
-        }
-        return client;
     }
 
     // ========== تعريف Storage ==========
     window.Storage = {
-        // المنتجات
+        // --- المنتجات ---
         async getProducts() {
-            const sb = getSupabase();
-            console.log('🔄 جاري جلب المنتجات...');
             try {
-                const { data, error } = await sb.from('products').select('*').order('created_at', { ascending: false });
-                if (error) {
-                    alert('❌ فشل جلب المنتجات: ' + error.message);
-                    console.error(error);
-                    return [];
-                }
-                console.log('✅ تم جلب', data?.length, 'منتج');
+                const data = await supabaseRequest('products?select=*&order=created_at.desc');
+                console.log(`✅ تم جلب ${data?.length || 0} منتج`);
                 return data || [];
-            } catch (e) {
-                alert('❌ خطأ غير متوقع: ' + e.message);
-                console.error(e);
+            } catch (error) {
+                console.error('❌ getProducts failed:', error);
+                alert('فشل جلب المنتجات: ' + error.message);
                 return [];
             }
         },
 
         async saveProduct(product) {
-            const sb = getSupabase();
-            if (typeof product.units === 'string') product.units = JSON.parse(product.units);
-            if (!product.units) product.units = [];
+            try {
+                // تجهيز البيانات
+                if (typeof product.units === 'string') {
+                    product.units = JSON.parse(product.units);
+                }
+                if (!product.units) product.units = [];
 
-            const productData = {
-                name: product.name,
-                category: product.category,
-                description: product.description || '',
-                units: product.units
-            };
+                const productData = {
+                    name: product.name,
+                    category: product.category,
+                    description: product.description || '',
+                    units: product.units
+                };
 
-            if (product.id) {
-                const { data, error } = await sb.from('products').update(productData).eq('id', product.id).select();
-                if (error) throw error;
-                return data[0];
-            } else {
-                const { data, error } = await sb.from('products').insert(productData).select();
-                if (error) throw error;
-                return data[0];
+                let result;
+                if (product.id) {
+                    result = await supabaseRequest(`products?id=eq.${product.id}`, {
+                        method: 'PATCH',
+                        body: productData
+                    });
+                } else {
+                    result = await supabaseRequest('products', {
+                        method: 'POST',
+                        body: productData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                
+                const savedProduct = Array.isArray(result) ? result[0] : result;
+                console.log('✅ تم حفظ المنتج:', savedProduct?.name);
+                return savedProduct;
+            } catch (error) {
+                console.error('❌ saveProduct failed:', error);
+                alert('فشل حفظ المنتج: ' + error.message);
+                throw error;
             }
         },
 
         async deleteProduct(id) {
-            const sb = getSupabase();
-            const { error } = await sb.from('products').delete().eq('id', id);
-            if (error) throw error;
+            try {
+                await supabaseRequest(`products?id=eq.${id}`, { method: 'DELETE' });
+                console.log('✅ تم حذف المنتج:', id);
+            } catch (error) {
+                console.error('❌ deleteProduct failed:', error);
+                alert('فشل حذف المنتج: ' + error.message);
+                throw error;
+            }
         },
 
-        // العملاء
+        // --- العملاء ---
         async getCustomers() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('parties').select('*').eq('type', 'customer');
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("parties?select=*&type=eq.customer&order=created_at.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getCustomers failed:', error);
+                return [];
+            }
         },
 
         async saveCustomer(customer) {
-            const sb = getSupabase();
-            customer.type = 'customer';
-            customer.balance = parseFloat(customer.balance) || 0;
-            if (customer.id) {
-                const { data, error } = await sb.from('parties').update(customer).eq('id', customer.id).select();
-                if (error) throw error;
-                return data[0];
-            } else {
-                const { data, error } = await sb.from('parties').insert(customer).select();
-                if (error) throw error;
-                return data[0];
+            try {
+                const customerData = {
+                    type: 'customer',
+                    name: customer.name,
+                    phone: customer.phone || '',
+                    address: customer.address || '',
+                    email: customer.email || '',
+                    balance: parseFloat(customer.balance) || 0,
+                    lastTransaction: customer.lastTransaction || null
+                };
+
+                let result;
+                if (customer.id) {
+                    result = await supabaseRequest(`parties?id=eq.${customer.id}`, {
+                        method: 'PATCH',
+                        body: customerData
+                    });
+                } else {
+                    result = await supabaseRequest('parties', {
+                        method: 'POST',
+                        body: customerData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveCustomer failed:', error);
+                throw error;
             }
         },
 
-        // الموردين
+        async deleteCustomer(id) {
+            try {
+                await supabaseRequest(`parties?id=eq.${id}`, { method: 'DELETE' });
+            } catch (error) {
+                console.error('❌ deleteCustomer failed:', error);
+                throw error;
+            }
+        },
+
+        // --- الموردين ---
         async getSuppliers() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('parties').select('*').eq('type', 'supplier');
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("parties?select=*&type=eq.supplier&order=created_at.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getSuppliers failed:', error);
+                return [];
+            }
         },
 
         async saveSupplier(supplier) {
-            const sb = getSupabase();
-            supplier.type = 'supplier';
-            supplier.balance = parseFloat(supplier.balance) || 0;
-            if (supplier.id) {
-                const { data, error } = await sb.from('parties').update(supplier).eq('id', supplier.id).select();
-                if (error) throw error;
-                return data[0];
-            } else {
-                const { data, error } = await sb.from('parties').insert(supplier).select();
-                if (error) throw error;
-                return data[0];
+            try {
+                const supplierData = {
+                    type: 'supplier',
+                    name: supplier.name,
+                    phone: supplier.phone || '',
+                    address: supplier.address || '',
+                    email: supplier.email || '',
+                    balance: parseFloat(supplier.balance) || 0,
+                    lastTransaction: supplier.lastTransaction || null
+                };
+
+                let result;
+                if (supplier.id) {
+                    result = await supabaseRequest(`parties?id=eq.${supplier.id}`, {
+                        method: 'PATCH',
+                        body: supplierData
+                    });
+                } else {
+                    result = await supabaseRequest('parties', {
+                        method: 'POST',
+                        body: supplierData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveSupplier failed:', error);
+                throw error;
             }
         },
 
-        // المندوبين
+        async deleteSupplier(id) {
+            try {
+                await supabaseRequest(`parties?id=eq.${id}`, { method: 'DELETE' });
+            } catch (error) {
+                console.error('❌ deleteSupplier failed:', error);
+                throw error;
+            }
+        },
+
+        // --- المندوبين ---
         async getReps() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('reps').select('*');
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("reps?select=*&order=created_at.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getReps failed:', error);
+                return [];
+            }
         },
 
         async saveRep(rep) {
-            const sb = getSupabase();
-            rep.target = parseFloat(rep.target) || 15000;
-            rep.commission = parseFloat(rep.commission) || 5;
-            rep.sales = parseFloat(rep.sales) || 0;
-            rep.collections = parseFloat(rep.collections) || 0;
-            if (rep.id) {
-                const { data, error } = await sb.from('reps').update(rep).eq('id', rep.id).select();
-                if (error) throw error;
-                return data[0];
-            } else {
-                const { data, error } = await sb.from('reps').insert(rep).select();
-                if (error) throw error;
-                return data[0];
+            try {
+                const repData = {
+                    name: rep.name,
+                    phone: rep.phone || '',
+                    region: rep.region || '',
+                    target: parseFloat(rep.target) || 15000,
+                    commission: parseFloat(rep.commission) || 5,
+                    sales: parseFloat(rep.sales) || 0,
+                    collections: parseFloat(rep.collections) || 0
+                };
+
+                let result;
+                if (rep.id) {
+                    result = await supabaseRequest(`reps?id=eq.${rep.id}`, {
+                        method: 'PATCH',
+                        body: repData
+                    });
+                } else {
+                    result = await supabaseRequest('reps', {
+                        method: 'POST',
+                        body: repData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveRep failed:', error);
+                throw error;
             }
         },
 
-        // الفواتير
+        async deleteRep(id) {
+            try {
+                await supabaseRequest(`reps?id=eq.${id}`, { method: 'DELETE' });
+            } catch (error) {
+                console.error('❌ deleteRep failed:', error);
+                throw error;
+            }
+        },
+
+        // --- الفواتير ---
         async getInvoices() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('invoices').select('*').order('date', { ascending: false });
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("invoices?select=*&order=date.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getInvoices failed:', error);
+                return [];
+            }
         },
 
         async saveInvoice(invoice) {
-            const sb = getSupabase();
-            const invoiceData = {
-                id: invoice.id,
-                type: invoice.type || 'sale',
-                customer: invoice.customer,
-                customerId: invoice.customerId || null,
-                date: invoice.date || new Date().toISOString().split('T')[0],
-                total: parseFloat(invoice.total) || 0,
-                paid: parseFloat(invoice.paid) || 0,
-                remaining: parseFloat(invoice.remaining) || 0,
-                discount: parseFloat(invoice.discount) || 0,
-                status: invoice.status || 'unpaid',
-                paymentMethod: invoice.paymentMethod,
-                items: invoice.items || [],
-                repId: invoice.repId || null,
-                note: invoice.note
-            };
-            if (invoice.id) {
-                const { data, error } = await sb.from('invoices').update(invoiceData).eq('id', invoice.id).select();
-                if (error) throw error;
-                return data[0];
-            } else {
-                const { data, error } = await sb.from('invoices').insert(invoiceData).select();
-                if (error) throw error;
-                return data[0];
+            try {
+                const invoiceData = {
+                    id: invoice.id,
+                    type: invoice.type || 'sale',
+                    customer: invoice.customer,
+                    customerId: invoice.customerId || null,
+                    date: invoice.date || new Date().toISOString().split('T')[0],
+                    total: parseFloat(invoice.total) || 0,
+                    paid: parseFloat(invoice.paid) || 0,
+                    remaining: parseFloat(invoice.remaining) || 0,
+                    discount: parseFloat(invoice.discount) || 0,
+                    status: invoice.status || 'unpaid',
+                    paymentMethod: invoice.paymentMethod,
+                    items: invoice.items || [],
+                    repId: invoice.repId || null,
+                    note: invoice.note
+                };
+
+                let result;
+                if (invoice.id) {
+                    result = await supabaseRequest(`invoices?id=eq.${invoice.id}`, {
+                        method: 'PATCH',
+                        body: invoiceData
+                    });
+                } else {
+                    result = await supabaseRequest('invoices', {
+                        method: 'POST',
+                        body: invoiceData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveInvoice failed:', error);
+                throw error;
             }
         },
 
-        // المشتريات
+        // --- المشتريات ---
         async getPurchases() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('purchases').select('*').order('date', { ascending: false });
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("purchases?select=*&order=date.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getPurchases failed:', error);
+                return [];
+            }
         },
 
         async savePurchase(purchase) {
-            const sb = getSupabase();
-            const data = {
-                id: purchase.id,
-                supplier: purchase.supplier,
-                supplierId: purchase.supplierId || null,
-                date: purchase.date || new Date().toISOString().split('T')[0],
-                total: parseFloat(purchase.total) || 0,
-                paid: parseFloat(purchase.paid) || 0,
-                remaining: parseFloat(purchase.remaining) || 0,
-                status: purchase.status || 'unpaid',
-                paymentMethod: purchase.paymentMethod,
-                items: purchase.items || []
-            };
-            if (purchase.id) {
-                const res = await sb.from('purchases').update(data).eq('id', purchase.id).select();
-                if (res.error) throw res.error;
-                return res.data[0];
-            } else {
-                const res = await sb.from('purchases').insert(data).select();
-                if (res.error) throw res.error;
-                return res.data[0];
+            try {
+                const purchaseData = {
+                    id: purchase.id,
+                    supplier: purchase.supplier,
+                    supplierId: purchase.supplierId || null,
+                    date: purchase.date || new Date().toISOString().split('T')[0],
+                    total: parseFloat(purchase.total) || 0,
+                    paid: parseFloat(purchase.paid) || 0,
+                    remaining: parseFloat(purchase.remaining) || 0,
+                    status: purchase.status || 'unpaid',
+                    paymentMethod: purchase.paymentMethod,
+                    items: purchase.items || []
+                };
+
+                let result;
+                if (purchase.id) {
+                    result = await supabaseRequest(`purchases?id=eq.${purchase.id}`, {
+                        method: 'PATCH',
+                        body: purchaseData
+                    });
+                } else {
+                    result = await supabaseRequest('purchases', {
+                        method: 'POST',
+                        body: purchaseData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ savePurchase failed:', error);
+                throw error;
             }
         },
 
-        // حركات الصندوق
+        // --- حركات الصندوق ---
         async getTransactions() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('transactions').select('*').order('date', { ascending: false });
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("transactions?select=*&order=date.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getTransactions failed:', error);
+                return [];
+            }
         },
 
         async saveTransaction(transaction) {
-            const sb = getSupabase();
-            const data = {
-                type: transaction.type,
-                amount: parseFloat(transaction.amount) || 0,
-                description: transaction.description,
-                paymentMethod: transaction.paymentMethod || 'cash',
-                date: transaction.date || new Date().toISOString().split('T')[0],
-                reference: transaction.reference,
-                notes: transaction.notes
-            };
-            if (transaction.id) {
-                const res = await sb.from('transactions').update(data).eq('id', transaction.id).select();
-                if (res.error) throw res.error;
-                return res.data[0];
-            } else {
-                const res = await sb.from('transactions').insert(data).select();
-                if (res.error) throw res.error;
-                return res.data[0];
+            try {
+                const transData = {
+                    type: transaction.type,
+                    amount: parseFloat(transaction.amount) || 0,
+                    description: transaction.description,
+                    paymentMethod: transaction.paymentMethod || 'cash',
+                    date: transaction.date || new Date().toISOString().split('T')[0],
+                    reference: transaction.reference,
+                    notes: transaction.notes
+                };
+
+                let result;
+                if (transaction.id) {
+                    result = await supabaseRequest(`transactions?id=eq.${transaction.id}`, {
+                        method: 'PATCH',
+                        body: transData
+                    });
+                } else {
+                    result = await supabaseRequest('transactions', {
+                        method: 'POST',
+                        body: transData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveTransaction failed:', error);
+                throw error;
             }
         },
 
-        // الإعدادات
+        // --- الإعدادات ---
         async getSettings() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('settings').select('*').eq('id', 'main').single();
-            if (error && error.code !== 'PGRST116') console.warn(error);
-            return data || {};
+            try {
+                const data = await supabaseRequest("settings?id=eq.main");
+                return (data && data[0]) || {};
+            } catch (error) {
+                console.warn('⚠️ Settings not found, using defaults');
+                return {};
+            }
         },
 
         async saveSettings(settings) {
-            const sb = getSupabase();
-            const data = { id: 'main', ...settings };
-            const res = await sb.from('settings').upsert(data, { onConflict: 'id' }).select();
-            if (res.error) throw res.error;
-            return res.data[0];
+            try {
+                const settingsData = {
+                    id: 'main',
+                    company: settings.company || {},
+                    printing: settings.printing || {},
+                    system: settings.system || {},
+                    advanced: settings.advanced || {}
+                };
+
+                const result = await supabaseRequest('settings', {
+                    method: 'POST',
+                    body: settingsData,
+                    headers: { 'Prefer': 'resolution=merge-duplicates' }
+                });
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveSettings failed:', error);
+                throw error;
+            }
         },
 
-        // المستخدمين
+        // --- المستخدمين ---
         async getUsers() {
-            const sb = getSupabase();
-            const { data, error } = await sb.from('users').select('*');
-            if (error) { console.error(error); return []; }
-            return data || [];
+            try {
+                const data = await supabaseRequest("users?select=*&order=created_at.desc");
+                return data || [];
+            } catch (error) {
+                console.error('❌ getUsers failed:', error);
+                return [];
+            }
         },
 
         async saveUser(user) {
-            const sb = getSupabase();
-            const data = {
-                username: user.username,
-                password: user.password,
-                fullName: user.fullName,
-                role: user.role,
-                repId: user.repId || null,
-                status: user.status || 'active'
-            };
-            if (user.id) {
-                const res = await sb.from('users').update(data).eq('id', user.id).select();
-                if (res.error) throw res.error;
-                return res.data[0];
-            } else {
-                const res = await sb.from('users').insert(data).select();
-                if (res.error) throw res.error;
-                return res.data[0];
+            try {
+                const userData = {
+                    username: user.username,
+                    password: user.password,
+                    fullName: user.fullName,
+                    role: user.role,
+                    repId: user.repId || null,
+                    status: user.status || 'active'
+                };
+
+                let result;
+                if (user.id) {
+                    result = await supabaseRequest(`users?id=eq.${user.id}`, {
+                        method: 'PATCH',
+                        body: userData
+                    });
+                } else {
+                    result = await supabaseRequest('users', {
+                        method: 'POST',
+                        body: userData,
+                        headers: { 'Prefer': 'return=representation' }
+                    });
+                }
+                return Array.isArray(result) ? result[0] : result;
+            } catch (error) {
+                console.error('❌ saveUser failed:', error);
+                throw error;
             }
         }
     };
 
-    console.log('✅ Storage module loaded with embedded Supabase config');
+    console.log('✅ Storage module loaded (REST API direct)');
 })();
