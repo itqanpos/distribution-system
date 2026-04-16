@@ -1,14 +1,14 @@
 // js/firebase-config.js
-// إعدادات Firebase (compat version)
+// إعدادات Firebase (compat version) - مشروع parq-893ca
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDX2wxXGLkuXCXI3ow2UxaZ88etbNjm4vY",
-  authDomain: "itqan-pos.firebaseapp.com",
-  projectId: "itqan-pos",
-  storageBucket: "itqan-pos.firebasestorage.app",
-  messagingSenderId: "697089164410",
-  appId: "1:697089164410:web:c40cc455f018ee26b4e7c3",
-  measurementId: "G-JZX3TS8HXE"
+  apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
+  authDomain: "parq-893ca.firebaseapp.com",
+  projectId: "parq-893ca",
+  storageBucket: "parq-893ca.firebasestorage.app",
+  messagingSenderId: "179492676601",
+  appId: "1:179492676601:web:061f76928423f2b476d328",
+  measurementId: "G-DWE6PCECE8"
 };
 
 // Initialize Firebase (compat)
@@ -24,4 +24,4 @@ db.enablePersistence({ synchronizeTabs: true })
 
 // تعريض db عالميًا
 window.db = db;
-console.log('✅ Firebase (compat) initialized');
+console.log('✅ Firebase (compat) initialized for project: parq-893ca');
