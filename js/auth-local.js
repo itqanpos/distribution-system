@@ -1,10 +1,12 @@
-// js/auth-local.js - تسجيل دخول محلي
+// js/auth-local.js
 const Auth = {
     STORAGE_KEY: 'foodDist_user',
 
+    // مستخدمون محليون (يمكنك تعديلهم)
     localUsers: [
         { username: 'admin', password: '123456', fullName: 'مدير النظام', role: 'admin', repId: null },
-        { username: 'مندوب1', password: '123456', fullName: 'أحمد محمود', role: 'rep', repId: '1' }
+        { username: 'مندوب1', password: '123456', fullName: 'أحمد محمود', role: 'rep', repId: '1' },
+        { username: 'مندوب2', password: '123456', fullName: 'خالد عمرو', role: 'rep', repId: '2' }
     ],
 
     getUser() {
