@@ -23,7 +23,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        /* ========== شريط التنقل العلوي (بدون سايد بار وتاريخ) ========== */
+        /* ========== شريط التنقل العلوي ========== */
         .navbar {
             position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
             background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -39,27 +39,23 @@
         }
         .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
         .navbar-right { display: flex; align-items: center; gap: 15px; }
-        .user-profile {
-            display: flex; align-items: center; gap: 12px; cursor: pointer;
-            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
-        }
+        .user-profile { display: flex; align-items: center; gap: 12px; }
         .user-avatar {
             width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
             color: white; font-weight: bold; font-size: 18px;
         }
-        .user-info { text-align: right; }
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
         .logout-btn {
             background: none; border: none; color: var(--danger); font-size: 20px;
-            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+            cursor: pointer; padding: 8px; border-radius: 10px;
         }
         .more-menu-btn {
             background: none; border: none; font-size: 22px; color: var(--primary);
             cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
         }
 
-        /* ========== القائمة الجانبية الصغيرة ========== */
+        /* القائمة الجانبية الصغيرة */
         .quick-menu {
             position: fixed; top: 75px; left: 20px; background: white;
             border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -68,47 +64,39 @@
         .quick-menu.show { display: block; }
         .quick-menu-item {
             padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-            color: var(--primary); cursor: pointer; transition: background 0.2s;
+            color: var(--primary); cursor: pointer;
         }
         .quick-menu-item:hover { background: var(--light); }
-        .quick-menu-item i { width: 20px; color: var(--secondary); }
 
-        /* ========== المحتوى الرئيسي ========== */
+        /* المحتوى الرئيسي */
         .pos-container {
             margin-top: var(--header-height); padding: 20px;
             display: grid; grid-template-columns: 1fr 400px; gap: 20px;
             min-height: calc(100vh - var(--header-height) - 70px);
         }
 
-        /* قسم المنتجات - البحث المباشر */
+        /* قسم المنتجات - عرض مباشر */
         .products-section {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
             display: flex; flex-direction: column;
         }
-        .search-header { margin-bottom: 20px; }
-        .search-header label { font-weight: 600; margin-bottom: 8px; display: block; }
-        .search-wrapper { position: relative; }
-        .search-wrapper input {
+        .search-header { margin-bottom: 15px; }
+        .search-header input {
             width: 100%; padding: 16px 20px; border: 2px solid #eef2f6; border-radius: 16px;
-            font-size: 16px; background: #fafcfc; transition: border 0.2s;
+            font-size: 16px; background: #fafcfc;
         }
-        .search-wrapper input:focus { border-color: var(--secondary); outline: none; }
-        .suggestions-box {
-            position: absolute; top: 100%; left: 0; right: 0; background: white;
-            border: 1px solid #eef2f6; border-radius: 16px; margin-top: 8px;
-            max-height: 300px; overflow-y: auto; z-index: 100; display: none;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        .product-list {
+            flex: 1; overflow-y: auto; max-height: 500px;
         }
-        .suggestions-box.show { display: block; }
-        .suggestion-item {
-            padding: 14px 16px; cursor: pointer; border-bottom: 1px solid #f0f0f0;
+        .product-item {
+            padding: 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .suggestion-item:hover { background: #f8fafc; }
-        .suggestion-item .name { font-weight: 600; }
-        .suggestion-item .price { color: var(--secondary); font-weight: bold; }
-        .suggestion-item .unit { font-size: 12px; color: #7f8c8d; }
+        .product-item:hover { background: #f8fafc; }
+        .product-info h4 { font-size: 16px; margin-bottom: 4px; }
+        .product-info p { font-size: 13px; color: #7f8c8d; }
+        .product-price { font-weight: bold; color: var(--secondary); font-size: 16px; }
 
         /* قسم الفاتورة */
         .cart-section {
@@ -117,27 +105,13 @@
             display: flex; flex-direction: column;
         }
         .customer-section { margin-bottom: 20px; }
-        .customer-section label { font-weight: 600; margin-bottom: 8px; display: block; }
-        .customer-search { position: relative; }
-        .customer-search input {
+        .customer-section input {
             width: 100%; padding: 14px; border: 2px solid #eef2f6; border-radius: 16px;
         }
-        .customer-suggestions {
-            position: absolute; top: 100%; left: 0; right: 0; background: white;
-            border: 1px solid #eef2f6; border-radius: 16px; margin-top: 8px;
-            max-height: 250px; overflow-y: auto; z-index: 100; display: none;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        }
-        .customer-suggestions.show { display: block; }
-        .customer-suggestion-item {
-            padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f0f0f0;
-        }
-        .customer-suggestion-item:hover { background: #f8fafc; }
         .customer-balance {
             margin-top: 8px; font-size: 14px; padding: 8px 12px;
             background: #f8fafc; border-radius: 12px;
         }
-
         .cart-items {
             flex: 1; overflow-y: auto; max-height: 350px; margin-bottom: 15px;
             border: 1px solid #eef2f6; border-radius: 12px;
@@ -166,14 +140,10 @@
         .stat-item .label { font-size: 13px; color: #7f8c8d; }
         .stat-item .value { font-size: 20px; font-weight: 700; color: var(--primary); }
         .stat-divider { width: 1px; background: #e0e0e0; }
-        .summary-row {
-            display: flex; justify-content: space-between; margin-bottom: 8px;
-        }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .summary-row.total { font-size: 20px; font-weight: bold; color: var(--primary); }
 
-        .action-buttons {
-            display: flex; gap: 10px; margin-top: 15px;
-        }
+        .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
         .btn {
             padding: 14px 20px; border: none; border-radius: 14px; font-weight: 600;
             cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -191,9 +161,7 @@
             background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 400px;
             max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
-        .modal-header {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
-        }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
         .form-group input {
@@ -201,7 +169,7 @@
             font-size: 16px;
         }
 
-        /* شريط التنقل السفلي */
+        /* شريط سفلي */
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: white;
             display: flex; justify-content: space-around; padding: 10px 0;
@@ -213,9 +181,7 @@
         .nav-item i { font-size: 20px; display: block; margin-bottom: 3px; }
         .nav-item.active { color: var(--secondary); }
 
-        @media (max-width: 992px) {
-            .pos-container { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 992px) { .pos-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -246,26 +212,19 @@
     </div>
 
     <div class="pos-container">
-        <!-- قسم البحث عن المنتجات -->
+        <!-- قسم المنتجات -->
         <div class="products-section">
             <div class="search-header">
-                <label><i class="fas fa-search"></i> بحث عن منتج</label>
-                <div class="search-wrapper">
-                    <input type="text" id="productSearchInput" placeholder="اكتب اسم المنتج..." autocomplete="off">
-                    <div class="suggestions-box" id="productSuggestionsBox"></div>
-                </div>
+                <input type="text" id="productSearchInput" placeholder="🔍 بحث عن منتج..." autocomplete="off">
             </div>
-            <p style="color:#7f8c8d; margin-top:10px;"><i class="fas fa-info-circle"></i> اختر منتجاً من الاقتراحات لإضافته للسلة</p>
+            <div class="product-list" id="productListContainer"></div>
         </div>
 
         <!-- قسم الفاتورة -->
         <div class="cart-section">
             <div class="customer-section">
-                <label><i class="fas fa-user"></i> العميل</label>
-                <div class="customer-search">
-                    <input type="text" id="customerSearchInput" placeholder="ابحث عن عميل..." autocomplete="off">
-                    <div class="customer-suggestions" id="customerSuggestionsBox"></div>
-                </div>
+                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." list="customerList" autocomplete="off">
+                <datalist id="customerList"></datalist>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
 
@@ -295,7 +254,7 @@
         </div>
     </div>
 
-    <!-- مودال اختيار الكمية والسعر -->
+    <!-- مودال الكمية والسعر -->
     <div class="modal" id="quantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button class="close-btn" onclick="closeQuantityModal()">&times;</button></div>
@@ -333,18 +292,16 @@
         <a href="./rep-collections.html" class="nav-item"><i class="fas fa-money-bill"></i><span>تحصيل</span></a>
     </div>
 
-    <script src="./js/auth.js"></script>
-    <script src="./js/storage.js"></script>
+    <script src="./js/storage-supabase.js"></script>
     <script src="./js/utils.js"></script>
     <script src="./js/ui.js"></script>
+    <script src="./js/auth-local.js"></script>
     <script src="./js/print.js"></script>
     <script>
-        // متغيرات عامة
         let products = [], customers = [], cart = [];
         let selectedProduct = null, selectedUnit = null;
         let selectedCustomer = null;
         let invoiceNote = '';
-        let settings = {};
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
@@ -357,65 +314,76 @@
 
             products = await Storage.getProducts();
             customers = await Storage.getCustomers();
-            settings = await Storage.getSettings();
 
-            if (!settings.system?.taxEnabled) document.getElementById('taxAmount').parentElement.style.display = 'none';
+            renderProductList(products);
+            populateCustomerDatalist();
 
-            setupSearch();
+            document.getElementById('productSearchInput').addEventListener('input', filterProducts);
+            document.getElementById('customerSearchInput').addEventListener('input', onCustomerSearch);
 
             document.getElementById('moreMenuBtn').addEventListener('click', () => {
                 document.getElementById('quickMenu').classList.toggle('show');
             });
         });
 
-        function setupSearch() {
-            const productInput = document.getElementById('productSearchInput');
-            const productBox = document.getElementById('productSuggestionsBox');
-            const customerInput = document.getElementById('customerSearchInput');
-            const customerBox = document.getElementById('customerSuggestionsBox');
-
-            productInput.addEventListener('input', () => {
-                const term = productInput.value.toLowerCase();
-                const filtered = products.filter(p => p.name.toLowerCase().includes(term)).slice(0, 8);
-                productBox.innerHTML = filtered.map(p => {
-                    const u = p.units[0];
-                    return `<div class="suggestion-item" onclick="selectProduct(${p.id}, 0)">
-                        <span class="name">${p.name}</span>
-                        <span><span class="price">${u.price} ج</span> <span class="unit">${u.unit}</span></span>
-                    </div>`;
-                }).join('');
-                productBox.classList.toggle('show', filtered.length > 0);
-            });
-
-            customerInput.addEventListener('input', () => {
-                const term = customerInput.value.toLowerCase();
-                const filtered = customers.filter(c => c.name.toLowerCase().includes(term)).slice(0, 5);
-                customerBox.innerHTML = filtered.map(c => `<div class="customer-suggestion-item" onclick="selectCustomer(${c.id})">${c.name}</div>`).join('');
-                customerBox.classList.toggle('show', filtered.length > 0);
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!productInput.contains(e.target) && !productBox.contains(e.target)) productBox.classList.remove('show');
-                if (!customerInput.contains(e.target) && !customerBox.contains(e.target)) customerBox.classList.remove('show');
-            });
+        function populateCustomerDatalist() {
+            const list = document.getElementById('customerList');
+            list.innerHTML = customers.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
         }
 
-        function selectProduct(productId, unitIndex = 0) {
-            const product = products.find(p => p.id === productId);
-            if (!product) return;
-            selectedProduct = product;
-            selectedUnit = product.units[unitIndex];
+        function renderProductList(list) {
+            const container = document.getElementById('productListContainer');
+            if (!list.length) {
+                container.innerHTML = '<p style="text-align:center; padding:20px;">لا توجد منتجات</p>';
+                return;
+            }
+            container.innerHTML = list.map(p => {
+                const u = p.units[0];
+                return `
+                    <div class="product-item" onclick="openQuantityModal(${p.id}, 0)">
+                        <div class="product-info">
+                            <h4>${p.name}</h4>
+                            <p>${u.unit} | المخزون: ${u.stock}</p>
+                        </div>
+                        <div class="product-price">${u.price} ج</div>
+                    </div>
+                `;
+            }).join('');
+        }
 
-            document.getElementById('modalProductName').textContent = product.name + ' - ' + selectedUnit.unit;
+        function filterProducts() {
+            const term = document.getElementById('productSearchInput').value.toLowerCase();
+            const filtered = products.filter(p => p.name.toLowerCase().includes(term) || 
+                p.units.some(u => u.barcode?.includes(term)));
+            renderProductList(filtered);
+        }
+
+        function onCustomerSearch() {
+            const val = document.getElementById('customerSearchInput').value;
+            const option = Array.from(document.querySelectorAll('#customerList option')).find(o => o.value === val);
+            if (option) {
+                const id = parseInt(option.dataset.id);
+                selectedCustomer = customers.find(c => c.id === id);
+                const balance = selectedCustomer.balance || 0;
+                const text = balance >= 0 ? `رصيد له: ${Utils.formatMoney(balance)}` : `مديونية: ${Utils.formatMoney(Math.abs(balance))}`;
+                document.getElementById('customerBalanceDisplay').innerHTML = text;
+            } else {
+                selectedCustomer = null;
+                document.getElementById('customerBalanceDisplay').innerHTML = '';
+            }
+        }
+
+        function openQuantityModal(productId, unitIndex = 0) {
+            selectedProduct = products.find(p => p.id === productId);
+            if (!selectedProduct) return;
+            selectedUnit = selectedProduct.units[unitIndex];
+
+            document.getElementById('modalProductName').textContent = selectedProduct.name + ' - ' + selectedUnit.unit;
             document.getElementById('selectedPrice').value = selectedUnit.price;
             document.getElementById('selectedPrice').min = selectedUnit.min;
             document.getElementById('selectedPrice').max = selectedUnit.max;
             document.getElementById('priceLimits').textContent = `الحدود: ${selectedUnit.min} - ${selectedUnit.max} ج`;
             document.getElementById('quantityModal').style.display = 'flex';
-            document.getElementById('selectedQuantity').focus();
-
-            document.getElementById('productSuggestionsBox').classList.remove('show');
-            document.getElementById('productSearchInput').value = '';
         }
 
         function closeQuantityModal() { document.getElementById('quantityModal').style.display = 'none'; }
@@ -435,16 +403,6 @@
             });
             renderCart();
             closeQuantityModal();
-        }
-
-        function selectCustomer(customerId) {
-            selectedCustomer = customers.find(c => c.id === customerId);
-            if (!selectedCustomer) return;
-            document.getElementById('customerSearchInput').value = selectedCustomer.name;
-            const balance = selectedCustomer.balance || 0;
-            const text = balance >= 0 ? `رصيد له: ${Utils.formatMoney(balance)}` : `مديونية: ${Utils.formatMoney(Math.abs(balance))}`;
-            document.getElementById('customerBalanceDisplay').innerHTML = text;
-            document.getElementById('customerSuggestionsBox').classList.remove('show');
         }
 
         function renderCart() {
@@ -481,6 +439,7 @@
 
         function calculateTotals() { updateSummary(); }
 
+        // دوال الدفع
         function openPaymentModal() {
             if (!cart.length) { alert('السلة فارغة'); return; }
             if (!selectedCustomer) { alert('اختر عميلاً'); return; }
@@ -497,6 +456,7 @@
         }
 
         function closePaymentModal() { document.getElementById('paymentModal').style.display = 'none'; }
+
         function updatePaymentPreview() {
             const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
             const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
@@ -538,8 +498,12 @@
             cart = []; renderCart(); document.getElementById('discount').value = 0; selectedCustomer = null;
             document.getElementById('customerSearchInput').value = ''; document.getElementById('customerBalanceDisplay').innerHTML = '';
             closePaymentModal();
+            // تحديث المخزون المعروض
+            products = await Storage.getProducts();
+            renderProductList(products);
         }
 
+        // وظائف القائمة
         function addInvoiceNote() { const n = prompt('ملاحظة:'); if (n) invoiceNote = n; document.getElementById('quickMenu').classList.remove('show'); }
         function createReturnInvoice() { alert('سيتم تطوير فاتورة المرتجع'); }
         function recallHeldInvoice() { alert('استرجاع فاتورة معلقة'); }
