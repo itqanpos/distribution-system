@@ -23,7 +23,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        /* ========== شريط التنقل العلوي ========== */
+        /* شريط التنقل العلوي */
         .navbar {
             position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
             background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -75,7 +75,7 @@
             min-height: calc(100vh - var(--header-height) - 70px);
         }
 
-        /* قسم المنتجات - عرض مباشر */
+        /* قسم المنتجات - عرض ديناميكي حسب البحث */
         .products-section {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
@@ -97,6 +97,9 @@
         .product-info h4 { font-size: 16px; margin-bottom: 4px; }
         .product-info p { font-size: 13px; color: #7f8c8d; }
         .product-price { font-weight: bold; color: var(--secondary); font-size: 16px; }
+        .empty-message {
+            text-align: center; padding: 30px; color: #95a5a6;
+        }
 
         /* قسم الفاتورة */
         .cart-section {
@@ -215,9 +218,11 @@
         <!-- قسم المنتجات -->
         <div class="products-section">
             <div class="search-header">
-                <input type="text" id="productSearchInput" placeholder="🔍 بحث عن منتج..." autocomplete="off">
+                <input type="text" id="productSearchInput" placeholder="🔍 اكتب اسم المنتج للبحث..." autocomplete="off">
             </div>
-            <div class="product-list" id="productListContainer"></div>
+            <div class="product-list" id="productListContainer">
+                <div class="empty-message">🔍 ابدأ بكتابة اسم المنتج للبحث</div>
+            </div>
         </div>
 
         <!-- قسم الفاتورة -->
@@ -315,8 +320,9 @@
             products = await Storage.getProducts();
             customers = await Storage.getCustomers();
 
-            renderProductList(products);
             populateCustomerDatalist();
+            // عرض رسالة البداية فقط، لا نعرض أي منتج
+            document.getElementById('productListContainer').innerHTML = '<div class="empty-message">🔍 ابدأ بكتابة اسم المنتج للبحث</div>';
 
             document.getElementById('productSearchInput').addEventListener('input', filterProducts);
             document.getElementById('customerSearchInput').addEventListener('input', onCustomerSearch);
@@ -331,13 +337,26 @@
             list.innerHTML = customers.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}</option>`).join('');
         }
 
-        function renderProductList(list) {
+        function filterProducts() {
+            const term = document.getElementById('productSearchInput').value.trim().toLowerCase();
             const container = document.getElementById('productListContainer');
-            if (!list.length) {
-                container.innerHTML = '<p style="text-align:center; padding:20px;">لا توجد منتجات</p>';
+            
+            if (!term) {
+                container.innerHTML = '<div class="empty-message">🔍 ابدأ بكتابة اسم المنتج للبحث</div>';
                 return;
             }
-            container.innerHTML = list.map(p => {
+
+            const filtered = products.filter(p => 
+                p.name.toLowerCase().includes(term) || 
+                p.units.some(u => u.barcode?.includes(term))
+            );
+
+            if (!filtered.length) {
+                container.innerHTML = '<div class="empty-message">❌ لا توجد منتجات تطابق البحث</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => {
                 const u = p.units[0];
                 return `
                     <div class="product-item" onclick="openQuantityModal(${p.id}, 0)">
@@ -349,13 +368,6 @@
                     </div>
                 `;
             }).join('');
-        }
-
-        function filterProducts() {
-            const term = document.getElementById('productSearchInput').value.toLowerCase();
-            const filtered = products.filter(p => p.name.toLowerCase().includes(term) || 
-                p.units.some(u => u.barcode?.includes(term)));
-            renderProductList(filtered);
         }
 
         function onCustomerSearch() {
@@ -439,7 +451,6 @@
 
         function calculateTotals() { updateSummary(); }
 
-        // دوال الدفع
         function openPaymentModal() {
             if (!cart.length) { alert('السلة فارغة'); return; }
             if (!selectedCustomer) { alert('اختر عميلاً'); return; }
@@ -498,9 +509,9 @@
             cart = []; renderCart(); document.getElementById('discount').value = 0; selectedCustomer = null;
             document.getElementById('customerSearchInput').value = ''; document.getElementById('customerBalanceDisplay').innerHTML = '';
             closePaymentModal();
-            // تحديث المخزون المعروض
             products = await Storage.getProducts();
-            renderProductList(products);
+            // نعيد عرض المنتجات المطابقة للبحث الحالي إن وجد
+            filterProducts();
         }
 
         // وظائف القائمة
