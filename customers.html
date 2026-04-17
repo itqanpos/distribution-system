@@ -60,7 +60,7 @@
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
         .user-info p { font-size: 12px; color: #7f8c8d; }
 
-        /* قائمة المستخدم المنسدلة */
+        /* قائمة منسدلة للمستخدم */
         .user-dropdown {
             position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
@@ -208,7 +208,7 @@
 
         /* استجابة */
         @media (max-width: 992px) {
-            .sidebar { transform: translateX(100%); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+            .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
             .sidebar.collapsed { width: var(--sidebar-width); transform: translateX(100%); }
             .sidebar.collapsed.mobile-open { transform: translateX(0); }
@@ -224,15 +224,15 @@
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
+            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>Food Distribution</h2></div></div>
         </div>
         <div class="navbar-right">
             <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">م</div>
-                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-info"><h4 id="userName">Admin</h4><p id="loginTime">Today</p></div>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -240,90 +240,90 @@
 
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <div class="menu-section">Main</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">Dashboard</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">Sales</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">POS</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">Invoices</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">Purchases</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">Cashbox</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">Reports</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">Accounting</span></a></li>
+            <div class="menu-section">Management</div>
+            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">Customers & Suppliers</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">Reps</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">Products</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">Settings</span></a></li>
         </ul>
     </aside>
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><i class="fas fa-user-tie" style="font-size:28px; color:var(--secondary);"></i><h1>العملاء والموردين</h1></div>
+            <div class="page-title"><i class="fas fa-user-tie" style="font-size:28px; color:var(--secondary);"></i><h1>Customers & Suppliers</h1></div>
             <div>
-                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> تحديث</button>
-                <button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> إضافة جديد</button>
+                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> Add New</button>
             </div>
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('customers')"><i class="fas fa-users"></i> العملاء</button>
-            <button class="tab-btn" onclick="switchTab('suppliers')"><i class="fas fa-truck"></i> الموردين</button>
+            <button class="tab-btn active" onclick="switchTab('customers')"><i class="fas fa-users"></i> Customers</button>
+            <button class="tab-btn" onclick="switchTab('suppliers')"><i class="fas fa-truck"></i> Suppliers</button>
         </div>
 
-        <!-- تبويب العملاء -->
+        <!-- Customers Tab -->
         <div id="customersTab" class="tab-content active">
             <div class="summary-cards" id="customersSummary"></div>
             <div class="table-container">
                 <div class="table-header">
-                    <h3>قائمة العملاء</h3>
-                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="customerSearch" placeholder="بحث..." oninput="filterTable('customer')"></div>
+                    <h3>Customer List</h3>
+                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="customerSearch" placeholder="Search..." oninput="filterTable('customer')"></div>
                 </div>
-                <table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead><tbody id="customersTableBody"></tbody></table>
+                <table><thead><tr><th>Name</th><th>Phone</th><th>Balance</th><th>Last Transaction</th><th>Actions</th></tr></thead><tbody id="customersTableBody"></tbody></table>
             </div>
         </div>
 
-        <!-- تبويب الموردين -->
+        <!-- Suppliers Tab -->
         <div id="suppliersTab" class="tab-content">
             <div class="summary-cards" id="suppliersSummary"></div>
             <div class="table-container">
                 <div class="table-header">
-                    <h3>قائمة الموردين</h3>
-                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="supplierSearch" placeholder="بحث..." oninput="filterTable('supplier')"></div>
+                    <h3>Supplier List</h3>
+                    <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="supplierSearch" placeholder="Search..." oninput="filterTable('supplier')"></div>
                 </div>
-                <table><thead><tr><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>آخر تعامل</th><th>إجراءات</th></tr></thead><tbody id="suppliersTableBody"></tbody></table>
+                <table><thead><tr><th>Name</th><th>Phone</th><th>Balance</th><th>Last Transaction</th><th>Actions</th></tr></thead><tbody id="suppliersTableBody"></tbody></table>
             </div>
         </div>
     </main>
 
-    <!-- مودال إضافة/تعديل طرف -->
+    <!-- Add/Edit Party Modal -->
     <div class="modal" id="partyModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="modalTitle">إضافة جديد</h2><button class="close-btn" onclick="closePartyModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="modalTitle">Add New</h2><button class="close-btn" onclick="closePartyModal()">&times;</button></div>
             <form id="partyForm" onsubmit="saveParty(event)">
                 <input type="hidden" id="partyId">
-                <div class="form-group"><label>النوع</label><select id="partyType" required><option value="customer">عميل</option><option value="supplier">مورد</option></select></div>
-                <div class="form-group"><label>الاسم</label><input type="text" id="partyName" required></div>
-                <div class="form-group"><label>الهاتف</label><input type="tel" id="partyPhone"></div>
-                <div class="form-group"><label>العنوان</label><input type="text" id="partyAddress"></div>
-                <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="partyEmail"></div>
-                <div class="form-group"><label>الرصيد الافتتاحي</label><input type="number" id="partyBalance" value="0" step="0.01"><small>سالب = مدين، موجب = دائن</small></div>
-                <div class="modal-footer"><button type="button" class="btn" onclick="closePartyModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
+                <div class="form-group"><label>Type</label><select id="partyType" required><option value="customer">Customer</option><option value="supplier">Supplier</option></select></div>
+                <div class="form-group"><label>Name</label><input type="text" id="partyName" required></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="partyPhone"></div>
+                <div class="form-group"><label>Address</label><input type="text" id="partyAddress"></div>
+                <div class="form-group"><label>Email</label><input type="email" id="partyEmail"></div>
+                <div class="form-group"><label>Opening Balance</label><input type="number" id="partyBalance" value="0" step="0.01"><small>Negative = Debit, Positive = Credit</small></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closePartyModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
             </form>
         </div>
     </div>
 
-    <!-- مودال معاملة (دفعة/دين) -->
+    <!-- Transaction Modal (Payment/Debt) -->
     <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="transModalTitle">تسجيل معاملة</h2><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="transModalTitle">Record Transaction</h2><button class="close-btn" onclick="closeTransactionModal()">&times;</button></div>
             <form id="transactionForm" onsubmit="saveTransaction(event)">
                 <input type="hidden" id="transPartyId"><input type="hidden" id="transPartyType">
-                <div class="form-group"><label>نوع المعاملة</label><select id="transType" required><option value="payment">دفعة (تخفيض مديونية)</option><option value="debt">إضافة دين</option></select></div>
-                <div class="form-group"><label>المبلغ</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
-                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
-                <div class="form-group"><label>ملاحظات</label><input type="text" id="transNotes"></div>
-                <div class="modal-footer"><button type="button" class="btn" onclick="closeTransactionModal()">إلغاء</button><button type="submit" class="btn btn-primary">حفظ</button></div>
+                <div class="form-group"><label>Transaction Type</label><select id="transType" required><option value="payment">Payment (Reduce Debit)</option><option value="debt">Add Debt</option></select></div>
+                <div class="form-group"><label>Amount</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>Date</label><input type="date" id="transDate" required></div>
+                <div class="form-group"><label>Notes</label><input type="text" id="transNotes"></div>
+                <div class="modal-footer"><button type="button" class="btn" onclick="closeTransactionModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
             </form>
         </div>
     </div>
@@ -332,20 +332,15 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-
-    <!-- التهيئة المركزية -->
     <script src="./js/firebase-init.js"></script>
-
-    <!-- الأدوات المساعدة -->
     <script src="./js/utils.js"></script>
     <script src="./js/auth.js"></script>
     <script src="./js/ui.js"></script>
     <script src="./js/storage-firebase.js"></script>
 
     <script>
-        // الشريط الجانبي
-        const sidebar = document.getElementById('sidebar');
-        const menuToggle = document.getElementById('menuToggle');
+        // Sidebar & dropdown
+        const sidebar = document.getElementById('sidebar'), menuToggle = document.getElementById('menuToggle');
         function toggleSidebar() {
             if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
             else sidebar.classList.toggle('collapsed');
@@ -353,26 +348,21 @@
         }
         menuToggle.addEventListener('click', toggleSidebar);
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
-        document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
+        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
 
-        // القائمة المنسدلة للمستخدم
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        const userProfileBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
+        userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
-        let customers = [], suppliers = [], currentTab = 'customers';
+        let customers = [], suppliers = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
-            await UI.initPage('العملاء والموردين', { enablePullToRefresh: true, refreshCallback: loadData, autoSync: true, syncCallback: loadData });
+            await UI.initPage('Customers & Suppliers', { enablePullToRefresh: true, refreshCallback: loadData, autoSync: true, syncCallback: loadData });
             const user = Auth.getUser();
             document.getElementById('userName').textContent = user.name;
-            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
+            document.getElementById('loginTime').textContent = user.loginTime || 'Today';
             document.getElementById('userAvatar').textContent = user.avatar;
             document.getElementById('transDate').value = Utils.getToday();
             await loadData();
@@ -383,10 +373,7 @@
                 customers = await Storage.getCustomers();
                 suppliers = await Storage.getSuppliers();
                 renderAll();
-            } catch (error) {
-                console.error('خطأ في تحميل البيانات:', error);
-                UI.showToast('فشل تحميل البيانات', 'danger');
-            }
+            } catch (e) { UI.showToast('Failed to load data', 'danger'); }
         }
 
         function renderAll() {
@@ -395,11 +382,10 @@
         }
 
         function switchTab(tab) {
-            currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
-            document.getElementById('customersTab').classList.toggle('active', tab === 'customers');
-            document.getElementById('suppliersTab').classList.toggle('active', tab === 'suppliers');
+            document.getElementById(tab + 'sTab').classList.add('active');
         }
 
         function renderTable(type) {
@@ -407,26 +393,23 @@
             const tbody = document.getElementById(type + 'sTableBody');
             const term = document.getElementById(type + 'Search').value.toLowerCase();
             const filtered = data.filter(p => (p.name || '').toLowerCase().includes(term) || (p.phone || '').includes(term));
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;">لا يوجد ${type === 'customer' ? 'عملاء' : 'موردين'}</td></tr>`;
+            if (!filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;">No ${type}s found</td></tr>`;
                 return;
             }
             tbody.innerHTML = filtered.map(p => {
                 const balClass = p.balance >= 0 ? 'balance-positive' : 'balance-negative';
                 let balText = Utils.formatMoney(p.balance);
-                balText += type === 'customer' ? (p.balance < 0 ? ' (مدين)' : ' (دائن)') : (p.balance > 0 ? ' (لنا)' : ' (علينا)');
+                balText += type === 'customer' ? (p.balance < 0 ? ' (Debit)' : ' (Credit)') : (p.balance > 0 ? ' (To Us)' : ' (We Owe)');
                 return `<tr>
-                    <td>${p.name}</td>
-                    <td>${p.phone || '-'}</td>
-                    <td class="${balClass}">${balText}</td>
-                    <td>${p.lastTransaction || '-'}</td>
+                    <td>${p.name}</td><td>${p.phone || '-'}</td><td class="${balClass}">${balText}</td><td>${p.lastTransaction || '-'}</td>
                     <td class="action-buttons">
-                        <i class="fas fa-eye action-icon" onclick="viewParty('${p.id}','${type}')" title="عرض"></i>
-                        <i class="fas fa-edit action-icon" onclick="editParty('${p.id}','${type}')" title="تعديل"></i>
-                        <i class="fas fa-print action-icon" onclick="printStatement('${p.id}','${type}')" title="كشف حساب"></i>
-                        <i class="fas fa-money-bill action-icon" style="color:var(--success);" onclick="openTransactionModal('${p.id}','${type}','payment')" title="دفعة"></i>
-                        <i class="fas fa-file-invoice action-icon" style="color:var(--danger);" onclick="openTransactionModal('${p.id}','${type}','debt')" title="دين"></i>
-                        <i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteParty('${p.id}','${type}')" title="حذف"></i>
+                        <i class="fas fa-eye action-icon" onclick="viewParty('${p.id}','${type}')" title="View"></i>
+                        <i class="fas fa-edit action-icon" onclick="editParty('${p.id}','${type}')" title="Edit"></i>
+                        <i class="fas fa-print action-icon" onclick="printStatement('${p.id}','${type}')" title="Statement"></i>
+                        <i class="fas fa-money-bill action-icon" style="color:var(--success);" onclick="openTransactionModal('${p.id}','${type}','payment')" title="Payment"></i>
+                        <i class="fas fa-file-invoice action-icon" style="color:var(--danger);" onclick="openTransactionModal('${p.id}','${type}','debt')" title="Add Debt"></i>
+                        <i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteParty('${p.id}','${type}')" title="Delete"></i>
                     </td>
                 </tr>`;
             }).join('');
@@ -441,14 +424,14 @@
             const debt = data.filter(p => p.balance < 0).reduce((s, p) => s + Math.abs(p.balance), 0);
             const credit = data.filter(p => p.balance > 0).reduce((s, p) => s + p.balance, 0);
             document.getElementById(type + 'sSummary').innerHTML = `
-                <div class="summary-card"><div class="icon"><i class="fas fa-${type==='customer'?'users':'truck'}"></i></div><div class="value">${count}</div><div class="label">العدد</div></div>
-                <div class="summary-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(balance)}</div><div class="label">صافي الرصيد</div></div>
-                <div class="summary-card"><div class="icon"><i class="fas fa-arrow-down"></i></div><div class="value">${Utils.formatMoney(debt)}</div><div class="label">${type==='customer'?'مديونية':'لنا'}</div></div>
-                <div class="summary-card"><div class="icon"><i class="fas fa-arrow-up"></i></div><div class="value">${Utils.formatMoney(credit)}</div><div class="label">${type==='customer'?'دائن':'علينا'}</div></div>`;
+                <div class="summary-card"><div class="icon"><i class="fas fa-${type==='customer'?'users':'truck'}"></i></div><div class="value">${count}</div><div class="label">Count</div></div>
+                <div class="summary-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(balance)}</div><div class="label">Net Balance</div></div>
+                <div class="summary-card"><div class="icon"><i class="fas fa-arrow-down"></i></div><div class="value">${Utils.formatMoney(debt)}</div><div class="label">${type==='customer'?'Debit':'To Us'}</div></div>
+                <div class="summary-card"><div class="icon"><i class="fas fa-arrow-up"></i></div><div class="value">${Utils.formatMoney(credit)}</div><div class="label">${type==='customer'?'Credit':'We Owe'}</div></div>`;
         }
 
         function openPartyModal() {
-            document.getElementById('modalTitle').textContent = 'إضافة جديد';
+            document.getElementById('modalTitle').textContent = 'Add New';
             document.getElementById('partyForm').reset();
             document.getElementById('partyId').value = '';
             document.getElementById('partyModal').style.display = 'flex';
@@ -457,7 +440,7 @@
         function editParty(id, type) {
             const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
             if (!p) return;
-            document.getElementById('modalTitle').textContent = 'تعديل';
+            document.getElementById('modalTitle').textContent = 'Edit';
             document.getElementById('partyId').value = p.id;
             document.getElementById('partyType').value = type;
             document.getElementById('partyName').value = p.name || '';
@@ -470,8 +453,8 @@
 
         function closePartyModal() { document.getElementById('partyModal').style.display = 'none'; }
 
-        async function saveParty(event) {
-            event.preventDefault();
+        async function saveParty(e) {
+            e.preventDefault();
             const id = document.getElementById('partyId').value;
             const type = document.getElementById('partyType').value;
             const name = document.getElementById('partyName').value.trim();
@@ -480,55 +463,32 @@
             const email = document.getElementById('partyEmail').value.trim();
             const balance = parseFloat(document.getElementById('partyBalance').value) || 0;
 
-            if (!name) {
-                UI.showToast('الاسم مطلوب', 'warning');
-                return;
-            }
+            if (!name) { UI.showToast('Name is required', 'warning'); return; }
 
-            const partyData = { name, phone, address, email, balance, type };
+            const data = { name, phone, address, email, balance };
+            if (id) data.id = id;
 
             try {
-                if (id) {
-                    // تعديل
-                    if (type === 'customer') {
-                        await Storage.saveCustomer({ ...partyData, id });
-                    } else {
-                        await Storage.saveSupplier({ ...partyData, id });
-                    }
-                    UI.showToast('تم التعديل بنجاح', 'success');
-                } else {
-                    // إضافة
-                    if (type === 'customer') {
-                        await Storage.saveCustomer(partyData);
-                    } else {
-                        await Storage.saveSupplier(partyData);
-                    }
-                    UI.showToast('تمت الإضافة بنجاح', 'success');
-                }
+                if (type === 'customer') await Storage.saveCustomer(data);
+                else await Storage.saveSupplier(data);
+                UI.showToast(id ? 'Updated successfully' : 'Added successfully', 'success');
                 closePartyModal();
                 await loadData();
-            } catch (error) {
-                console.error(error);
-                UI.showToast('فشل الحفظ', 'danger');
-            }
+            } catch (e) { UI.showToast('Save failed', 'danger'); }
         }
 
         async function deleteParty(id, type) {
-            if (!await UI.confirmDelete(`هل أنت متأكد من حذف هذا ${type === 'customer' ? 'العميل' : 'المورد'}؟`)) return;
+            if (!await UI.confirmDelete(`Delete this ${type}?`)) return;
             try {
                 await window.db.collection('parties').doc(id).delete();
-                UI.showToast('تم الحذف بنجاح', 'success');
+                UI.showToast('Deleted', 'success');
                 await loadData();
-            } catch (error) {
-                console.error(error);
-                UI.showToast('فشل الحذف', 'danger');
-            }
+            } catch (e) { UI.showToast('Delete failed', 'danger'); }
         }
 
         function viewParty(id, type) {
             const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
-            if (!p) return;
-            UI.showToast(`${p.name} - الرصيد: ${Utils.formatMoney(p.balance)}`, 'info');
+            if (p) UI.showToast(`${p.name} - Balance: ${Utils.formatMoney(p.balance)}`, 'info');
         }
 
         function openTransactionModal(id, type, transType) {
@@ -539,14 +499,14 @@
             document.getElementById('transType').value = transType;
             document.getElementById('transAmount').value = '';
             document.getElementById('transNotes').value = '';
-            document.getElementById('transModalTitle').textContent = `${transType === 'payment' ? 'دفعة' : 'دين'} - ${p.name}`;
+            document.getElementById('transModalTitle').textContent = `${transType === 'payment' ? 'Payment' : 'Debt'} - ${p.name}`;
             document.getElementById('transactionModal').style.display = 'flex';
         }
 
         function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
 
-        async function saveTransaction(event) {
-            event.preventDefault();
+        async function saveTransaction(e) {
+            e.preventDefault();
             const id = document.getElementById('transPartyId').value;
             const type = document.getElementById('transPartyType').value;
             const transType = document.getElementById('transType').value;
@@ -554,69 +514,48 @@
             const date = document.getElementById('transDate').value;
             const notes = document.getElementById('transNotes').value.trim();
 
-            if (!amount || amount <= 0) {
-                UI.showToast('المبلغ غير صحيح', 'warning');
-                return;
-            }
+            if (!amount || amount <= 0) { UI.showToast('Invalid amount', 'warning'); return; }
 
             const collection = type === 'customer' ? customers : suppliers;
             const party = collection.find(x => x.id === id);
             if (!party) return;
 
-            // تحديث الرصيد
             const newBalance = (party.balance || 0) + (transType === 'payment' ? amount : -amount);
             
             try {
-                // تحديث الطرف
-                await window.db.collection('parties').doc(id).update({
-                    balance: newBalance,
-                    lastTransaction: date
-                });
-
-                // إذا كانت دفعة، أضف حركة صندوق
+                await window.db.collection('parties').doc(id).update({ balance: newBalance, lastTransaction: date });
                 if (transType === 'payment') {
-                    const transaction = {
-                        date,
-                        type: 'income',
-                        amount,
-                        description: `دفعة من ${type === 'customer' ? 'عميل' : 'مورد'} ${party.name}${notes ? ' - ' + notes : ''}`,
-                        paymentMethod: 'cash',
-                        timestamp: new Date().toISOString()
-                    };
-                    await Storage.saveTransaction(transaction);
+                    await Storage.saveTransaction({
+                        date, type: 'income', amount, description: `Payment from ${type} ${party.name}${notes ? ' - ' + notes : ''}`,
+                        paymentMethod: 'cash', timestamp: new Date().toISOString()
+                    });
                 }
-
-                UI.showToast(`تم ${transType === 'payment' ? 'تسجيل دفعة' : 'إضافة دين'} بقيمة ${Utils.formatMoney(amount)}`, 'success');
+                UI.showToast(`${transType === 'payment' ? 'Payment' : 'Debt'} recorded`, 'success');
                 closeTransactionModal();
                 await loadData();
-            } catch (error) {
-                console.error(error);
-                UI.showToast('فشل حفظ المعاملة', 'danger');
-            }
+            } catch (e) { UI.showToast('Transaction failed', 'danger'); }
         }
 
         async function printStatement(id, type) {
             const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
             if (!p) return;
-            
-            // جلب الفواتير والحركات المرتبطة
             const invoices = await Storage.getInvoices();
             const transactions = await Storage.getTransactions();
             const partyInvoices = invoices.filter(inv => (type === 'customer' ? inv.customerId === id : inv.supplierId === id));
             const partyTrans = transactions.filter(t => t.description && t.description.includes(p.name));
-
-            const win = window.open('', '_blank');
+            const win = window.open('', '_blank', 'width=400,height=500');
             win.document.write(`
-                <html dir="rtl"><head><title>كشف حساب ${p.name}</title><style>body{font-family:'Segoe UI';padding:20px;}</style></head><body>
-                <h2>كشف حساب ${p.name}</h2><p>الرصيد الحالي: ${Utils.formatMoney(p.balance)}</p>
-                <h3>الفواتير</h3><ul>${partyInvoices.map(inv => `<li>${inv.id} - ${inv.date} - ${Utils.formatMoney(inv.total)} (المتبقي: ${Utils.formatMoney(inv.remaining || 0)})</li>`).join('')}</ul>
-                <h3>المدفوعات</h3><ul>${partyTrans.filter(t => t.type === 'income').map(t => `<li>${t.date} - ${Utils.formatMoney(t.amount)} - ${t.description}</li>`).join('')}</ul>
+                <html dir="rtl"><head><title>Statement - ${p.name}</title>
+                <style>body{font-family:'Segoe UI';padding:15px;font-size:14px;}</style></head><body>
+                <h3>${p.name} Statement</h3><p>Balance: ${Utils.formatMoney(p.balance)}</p>
+                <h4>Invoices</h4><ul>${partyInvoices.map(inv => `<li>${inv.id} - ${inv.date} - ${Utils.formatMoney(inv.total)} (Remaining: ${Utils.formatMoney(inv.remaining||0)})</li>`).join('')}</ul>
+                <h4>Payments</h4><ul>${partyTrans.filter(t=>t.type==='income').map(t => `<li>${t.date} - ${Utils.formatMoney(t.amount)} - ${t.description}</li>`).join('')}</ul>
+                <script>window.print();<\/script>
                 </body></html>
             `);
-            win.document.close(); win.print();
+            win.document.close();
         }
 
-        // تعريض الدوال
         window.switchTab = switchTab;
         window.filterTable = filterTable;
         window.openPartyModal = openPartyModal;
