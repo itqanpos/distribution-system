@@ -1,478 +1,99 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-
-<!-- التهيئة المركزية -->
-<script src="./js/firebase-init.js"></script>
-
-<!-- باقي ملفات التطبيق -->
-<script src="./js/utils.js"></script>
-<script src="./js/storage-firebase.js"></script>
-<script src="./js/auth-local.js"></script>
-<script src="./js/ui.js"></script>
     <base href="/distribution-system/">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>نظام التوزيع الغذائي · تسجيل الدخول</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تسجيل الدخول - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3498db">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <!-- Firebase SDK (compat) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    
     <style>
-        :root {
-            --primary: #1e293b;
-            --primary-light: #334155;
-            --secondary: #3b82f6;
-            --secondary-light: #60a5fa;
-            --accent: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --background: #f8fafc;
-            --surface: #ffffff;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
-            --border-light: #e2e8f0;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-            --radius-xl: 28px;
-            --radius-lg: 20px;
-            --radius-md: 16px;
-            --radius-sm: 12px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-
-        body {
-            background: linear-gradient(145deg, var(--primary) 0%, var(--primary-light) 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-        }
-
-        /* خلفية زخرفية */
-        body::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at 20% 80%, rgba(59,130,246,0.15) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 20%, rgba(16,185,129,0.1) 0%, transparent 50%);
-            pointer-events: none;
-        }
-
-        .login-container {
-            background: var(--surface);
-            border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-lg);
-            width: 100%;
-            max-width: 440px;
-            padding: 40px 32px;
-            animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-            z-index: 2;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        @keyframes fadeSlideUp {
-            from { opacity: 0; transform: translateY(24px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 36px;
-        }
-
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
-            color: white;
-            width: 80px;
-            height: 80px;
-            border-radius: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
-            margin: 0 auto 20px;
-            box-shadow: 0 12px 24px -8px rgba(59,130,246,0.4);
-            transition: transform 0.2s;
-        }
-
-        .logo-icon i {
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-
-        .login-header h2 {
-            color: var(--text-primary);
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            margin-bottom: 8px;
-        }
-
-        .login-header p {
-            color: var(--text-secondary);
-            font-size: 16px;
-            font-weight: 400;
-        }
-
-        .form-group {
-            margin-bottom: 24px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        .input-icon {
-            position: relative;
-        }
-
-        .input-icon i {
-            position: absolute;
-            right: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-            font-size: 1.2rem;
-            transition: color 0.2s;
-        }
-
-        .input-icon input {
-            width: 100%;
-            padding: 16px 52px 16px 18px;
-            border: 2px solid var(--border-light);
-            border-radius: var(--radius-md);
-            font-size: 16px;
-            background: var(--surface);
-            color: var(--text-primary);
-            transition: all 0.2s;
-            outline: none;
-        }
-
-        .input-icon input:focus {
-            border-color: var(--secondary);
-            box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
-        }
-
-        .input-icon input:focus + i {
-            color: var(--secondary);
-        }
-
-        .input-icon input::placeholder {
-            color: #94a3b8;
-        }
-
-        .login-btn {
-            width: 100%;
-            padding: 16px;
-            background: var(--secondary);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: 17px;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: all 0.2s;
-            box-shadow: 0 8px 16px -6px rgba(59,130,246,0.4);
-            margin-top: 8px;
-        }
-
-        .login-btn:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-            box-shadow: 0 16px 24px -8px rgba(59,130,246,0.5);
-        }
-
-        .login-btn:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 8px -4px rgba(59,130,246,0.4);
-        }
-
-        .demo-section {
-            margin-top: 32px;
-            text-align: center;
-        }
-
-        .demo-label {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        .demo-label::before,
-        .demo-label::after {
-            content: "";
-            height: 1px;
-            width: 40px;
-            background: var(--border-light);
-        }
-
-        .demo-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-        }
-
-        .demo-btn {
-            flex: 1;
-            padding: 12px 8px;
-            border: 1.5px solid var(--border-light);
-            border-radius: var(--radius-sm);
-            background: var(--surface);
-            color: var(--text-primary);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 14px;
-        }
-
-        .demo-btn:hover {
-            background: #f1f5f9;
-            border-color: var(--secondary);
-        }
-
-        .demo-btn.admin i { color: var(--primary); }
-        .demo-btn.rep i { color: var(--accent); }
-
-        .login-footer {
-            text-align: center;
-            margin-top: 32px;
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
-
-        .error-message {
-            color: var(--danger);
-            font-size: 14px;
-            margin-top: 8px;
-            display: none;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 12px;
-            background: #fef2f2;
-            border-radius: var(--radius-sm);
-        }
-
-        #installBtn {
-            position: fixed;
-            bottom: 24px;
-            left: 24px;
-            background: var(--surface);
-            color: var(--primary);
-            border: none;
-            padding: 14px 22px;
-            border-radius: 40px;
-            box-shadow: var(--shadow-lg);
-            cursor: pointer;
-            z-index: 3000;
-            display: none;
-            font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.3);
-            backdrop-filter: blur(8px);
-            transition: all 0.2s;
-        }
-
-        #installBtn:hover {
-            transform: scale(1.02);
-            background: white;
-        }
-
-        @media (max-width: 480px) {
-            .login-container {
-                padding: 32px 20px;
-            }
-        }
+        /* نفس تنسيقات صفحة تسجيل الدخول السابقة */
+        :root { --primary: #1e293b; --secondary: #3b82f6; --accent: #10b981; --surface: #ffffff; --text-primary: #0f172a; --text-secondary: #64748b; --border-light: #e2e8f0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: linear-gradient(145deg, var(--primary) 0%, #334155 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-container { background: var(--surface); border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 100%; max-width: 440px; padding: 40px 32px; }
+        .logo-icon { background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%); color: white; width: 80px; height: 80px; border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 20px; }
+        .input-icon { position: relative; margin-bottom: 20px; }
+        .input-icon i { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+        .input-icon input { width: 100%; padding: 16px 52px 16px 18px; border: 2px solid var(--border-light); border-radius: 16px; font-size: 16px; }
+        .login-btn { width: 100%; padding: 16px; background: var(--secondary); color: white; border: none; border-radius: 16px; font-size: 17px; font-weight: 700; cursor: pointer; }
+        .demo-btn { flex: 1; padding: 12px; border: 1.5px solid var(--border-light); border-radius: 12px; background: var(--surface); cursor: pointer; }
+        .error-message { color: #ef4444; display: none; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-header">
-            <div class="logo-icon">
-                <i class="fas fa-truck"></i>
+        <div class="logo-icon"><i class="fas fa-truck"></i></div>
+        <h2 style="text-align:center; margin-bottom:10px;">نظام التوزيع الغذائي</h2>
+        <p style="text-align:center; color:#64748b; margin-bottom:30px;">الرجاء إدخال بيانات الدخول</p>
+        <form id="loginForm">
+            <div class="input-icon">
+                <i class="fas fa-user"></i>
+                <input type="text" id="username" placeholder="اسم المستخدم" value="admin" required>
             </div>
-            <h2>نظام التوزيع الغذائي</h2>
-            <p>الرجاء إدخال بيانات الدخول</p>
-        </div>
-        
-        <form id="loginForm" onsubmit="handleLogin(event)">
-            <div class="form-group">
-                <label>اسم المستخدم</label>
-                <div class="input-icon">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" value="admin" autocomplete="username" required>
-                </div>
+            <div class="input-icon">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="password" placeholder="كلمة المرور" value="123456" required>
             </div>
-            
-            <div class="form-group">
-                <label>كلمة المرور</label>
-                <div class="input-icon">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" placeholder="••••••••" value="123456" autocomplete="current-password" required>
-                </div>
-                <div class="error-message" id="loginError">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>اسم المستخدم أو كلمة المرور غير صحيحة</span>
-                </div>
-            </div>
-            
-            <button type="submit" class="login-btn">
-                <i class="fas fa-sign-in-alt"></i> دخول
-            </button>
+            <div class="error-message" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+            <button type="submit" class="login-btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
         </form>
-        
-        <div class="demo-section">
-            <div class="demo-label">حسابات تجريبية</div>
-            <div class="demo-buttons">
-                <button type="button" class="demo-btn admin" onclick="fillDemo('admin')">
-                    <i class="fas fa-user-tie"></i> مدير
-                </button>
-                <button type="button" class="demo-btn rep" onclick="fillDemo('rep')">
-                    <i class="fas fa-user"></i> مندوب
-                </button>
+        <div style="margin-top:25px; text-align:center;">
+            <p style="color:#94a3b8; margin-bottom:12px;">حسابات تجريبية</p>
+            <div style="display:flex; gap:10px;">
+                <button class="demo-btn" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
+                <button class="demo-btn" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
             </div>
-        </div>
-        
-        <div class="login-footer">
-            © 2025 نظام إدارة التوزيع الغذائي
         </div>
     </div>
 
-    <button id="installBtn"><i class="fas fa-download"></i> تثبيت التطبيق</button>
-
-    <!-- طبقة التخزين (Firebase) -->
-    <script src="./js/storage-firebase.js"></script>
-    <!-- الأدوات المساعدة -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <!-- التهيئة المركزية -->
+    <script src="./js/firebase-init.js"></script>
+    <!-- الأدوات -->
     <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
     <script src="./js/ui.js"></script>
-    <!-- المصادقة المحلية -->
-    <script src="./js/auth-local.js"></script>
-    
-    <script>
-        // التحقق من المستخدم المسجل مسبقاً
-        (function() {
-            if (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
-                const user = Auth.getUser();
-                if (user) {
-                    window.location.href = Auth.getRedirectUrl(user.role);
-                }
-            }
-        })();
 
-        async function handleLogin(event) {
-            event.preventDefault();
-            
+    <script>
+        // منع الدخول إذا كان مسجلاً مسبقاً
+        if (Auth.isAuthenticated()) {
+            const user = Auth.getUser();
+            window.location.href = Auth.getRedirectUrl(user.role);
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('loginError');
             
             if (!username || !password) {
-                errorEl.querySelector('span').textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
-                errorEl.style.display = 'flex';
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
                 return;
             }
-            
-            const submitBtn = document.querySelector('.login-btn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الدخول...';
-            submitBtn.disabled = true;
-            
-            try {
-                const result = await Auth.login(username, password);
-                
-                if (result.success) {
-                    window.location.href = result.redirectUrl;
-                } else {
-                    errorEl.querySelector('span').textContent = result.message || 'فشل تسجيل الدخول';
-                    errorEl.style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                errorEl.querySelector('span').textContent = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
-                errorEl.style.display = 'flex';
-            } finally {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
+
+            const result = await Auth.login(username, password);
+            if (result.success) {
+                window.location.href = result.redirectUrl;
+            } else {
+                errorEl.style.display = 'block';
+                errorEl.textContent = result.message;
             }
         }
 
         function fillDemo(role) {
-            if (role === 'admin') {
-                document.getElementById('username').value = 'admin';
-                document.getElementById('password').value = '123456';
-            } else {
-                document.getElementById('username').value = 'مندوب1';
-                document.getElementById('password').value = '123456';
-            }
+            document.getElementById('username').value = role === 'admin' ? 'admin' : 'rep1';
+            document.getElementById('password').value = '123456';
             document.getElementById('loginError').style.display = 'none';
         }
 
-        document.getElementById('username').addEventListener('input', hideError);
-        document.getElementById('password').addEventListener('input', hideError);
-        
-        function hideError() {
-            document.getElementById('loginError').style.display = 'none';
-        }
-
-        // PWA Install Prompt
-        let deferredPrompt;
-        const installBtn = document.getElementById('installBtn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installBtn.style.display = 'block';
-        });
-
-        installBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                installBtn.style.display = 'none';
-            }
-            deferredPrompt = null;
-        });
-
-        window.addEventListener('appinstalled', () => {
-            installBtn.style.display = 'none';
-            deferredPrompt = null;
-        });
+        document.getElementById('loginForm').addEventListener('submit', handleLogin);
     </script>
 </body>
 </html>
