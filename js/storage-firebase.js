@@ -1,209 +1,186 @@
 // js/storage-firebase.js
 (function() {
-    // التأكد من وجود Firebase و db (يجب تحميل firebase-init.js أولاً)
-    if (typeof firebase === 'undefined') {
-        console.error('❌ Firebase SDK not loaded.');
-        alert('خطأ: مكتبة Firebase غير محملة.');
+    if (!window.db) {
+        console.error('Firestore not initialized');
         return;
     }
-
-    // إذا لم يتم التهيئة بعد (احتياط)
-    if (!window.db) {
-        console.warn('⚠️ firebase-init.js لم يتم تحميله، جار التهيئة الاحتياطية...');
-        const firebaseConfig = {
-            apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
-            authDomain: "parq-893ca.firebaseapp.com",
-            projectId: "parq-893ca",
-            storageBucket: "parq-893ca.firebasestorage.app",
-            messagingSenderId: "179492676601",
-            appId: "1:179492676601:web:061f76928423f2b476d328",
-            measurementId: "G-DWE6PCECE8"
-        };
-        firebase.initializeApp(firebaseConfig);
-        window.db = firebase.firestore();
-        window.auth = firebase.auth();
-    }
-
     const db = window.db;
 
-    // دالة تنظيف الكائن من undefined
     function sanitizeObject(obj) {
-        return Object.fromEntries(
-            Object.entries(obj).filter(([_, v]) => v !== undefined)
-        );
+        return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
     }
 
-    // باقي الدوال كما هي مع استخدام sanitizeObject ...
     window.Storage = {
+        // Products
         async getProducts() {
-            const snapshot = await db.collection('products').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('products').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveProduct(product) {
             if (typeof product.units === 'string') {
-                try { product.units = JSON.parse(product.units); } catch(e) { product.units = []; }
+                try { product.units = JSON.parse(product.units); } catch { product.units = []; }
             }
             if (!product.units) product.units = [];
-            const cleanProduct = sanitizeObject(product);
-            if (cleanProduct.id) {
-                await db.collection('products').doc(cleanProduct.id).set(cleanProduct);
-                return cleanProduct;
+            const clean = sanitizeObject(product);
+            if (clean.id) {
+                await db.collection('products').doc(clean.id).set(clean);
+                return clean;
             } else {
-                const docRef = await db.collection('products').add(cleanProduct);
-                cleanProduct.id = docRef.id;
-                return cleanProduct;
+                const ref = await db.collection('products').add(clean);
+                clean.id = ref.id;
+                return clean;
             }
         },
         async deleteProduct(id) { await db.collection('products').doc(id).delete(); },
 
+        // Customers
         async getCustomers() {
-            const snapshot = await db.collection('parties').where('type', '==', 'customer').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        },
-        async getCustomersCount() {
-            const snapshot = await db.collection('parties').where('type', '==', 'customer').get();
-            return snapshot.size;
+            const snap = await db.collection('parties').where('type', '==', 'customer').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveCustomer(customer) {
             customer.type = 'customer';
-            const cleanCustomer = sanitizeObject(customer);
-            if (cleanCustomer.id) {
-                await db.collection('parties').doc(cleanCustomer.id).set(cleanCustomer);
+            const clean = sanitizeObject(customer);
+            if (clean.id) {
+                await db.collection('parties').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('parties').add(cleanCustomer);
-                cleanCustomer.id = docRef.id;
+                const ref = await db.collection('parties').add(clean);
+                clean.id = ref.id;
             }
-            return cleanCustomer;
+            return clean;
         },
 
+        // Suppliers
         async getSuppliers() {
-            const snapshot = await db.collection('parties').where('type', '==', 'supplier').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('parties').where('type', '==', 'supplier').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveSupplier(supplier) {
             supplier.type = 'supplier';
-            const cleanSupplier = sanitizeObject(supplier);
-            if (cleanSupplier.id) {
-                await db.collection('parties').doc(cleanSupplier.id).set(cleanSupplier);
+            const clean = sanitizeObject(supplier);
+            if (clean.id) {
+                await db.collection('parties').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('parties').add(cleanSupplier);
-                cleanSupplier.id = docRef.id;
+                const ref = await db.collection('parties').add(clean);
+                clean.id = ref.id;
             }
-            return cleanSupplier;
+            return clean;
         },
 
+        // Reps
         async getReps() {
-            const snapshot = await db.collection('reps').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('reps').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveRep(rep) {
-            const cleanRep = sanitizeObject(rep);
-            if (cleanRep.id) {
-                await db.collection('reps').doc(cleanRep.id).set(cleanRep);
+            const clean = sanitizeObject(rep);
+            if (clean.id) {
+                await db.collection('reps').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('reps').add(cleanRep);
-                cleanRep.id = docRef.id;
+                const ref = await db.collection('reps').add(clean);
+                clean.id = ref.id;
             }
-            return cleanRep;
+            return clean;
         },
 
+        // Invoices (Sales)
         async getInvoices() {
-            const snapshot = await db.collection('invoices').orderBy('date', 'desc').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('invoices').orderBy('date', 'desc').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async getTodayInvoices() {
             const today = new Date().toISOString().split('T')[0];
-            const snapshot = await db.collection('invoices').where('date', '==', today).get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('invoices').where('date', '==', today).get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveInvoice(invoice) {
-            const cleanInvoice = sanitizeObject(invoice);
-            if (cleanInvoice.id) {
-                await db.collection('invoices').doc(cleanInvoice.id).set(cleanInvoice);
+            const clean = sanitizeObject(invoice);
+            if (clean.id) {
+                await db.collection('invoices').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('invoices').add(cleanInvoice);
-                cleanInvoice.id = docRef.id;
+                const ref = await db.collection('invoices').add(clean);
+                clean.id = ref.id;
             }
-            return cleanInvoice;
+            return clean;
         },
 
+        // Purchases
         async getPurchases() {
-            const snapshot = await db.collection('purchases').orderBy('date', 'desc').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('purchases').orderBy('date', 'desc').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async getTodayPurchases() {
             const today = new Date().toISOString().split('T')[0];
-            const snapshot = await db.collection('purchases').where('date', '==', today).get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('purchases').where('date', '==', today).get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async savePurchase(purchase) {
-            const cleanPurchase = sanitizeObject(purchase);
-            if (cleanPurchase.id) {
-                await db.collection('purchases').doc(cleanPurchase.id).set(cleanPurchase);
+            const clean = sanitizeObject(purchase);
+            if (clean.id) {
+                await db.collection('purchases').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('purchases').add(cleanPurchase);
-                cleanPurchase.id = docRef.id;
+                const ref = await db.collection('purchases').add(clean);
+                clean.id = ref.id;
             }
-            return cleanPurchase;
+            return clean;
         },
 
+        // Transactions
         async getTransactions() {
-            const snapshot = await db.collection('transactions').orderBy('date', 'desc').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('transactions').orderBy('timestamp', 'desc').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async getRecentTransactions(limit = 10) {
-            const snapshot = await db.collection('transactions')
-                .orderBy('timestamp', 'desc')
-                .limit(limit)
-                .get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('transactions').orderBy('timestamp', 'desc').limit(limit).get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveTransaction(transaction) {
-            const cleanTransaction = sanitizeObject(transaction);
-            if (cleanTransaction.id) {
-                await db.collection('transactions').doc(cleanTransaction.id).set(cleanTransaction);
+            const clean = sanitizeObject(transaction);
+            if (clean.id) {
+                await db.collection('transactions').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('transactions').add(cleanTransaction);
-                cleanTransaction.id = docRef.id;
+                const ref = await db.collection('transactions').add(clean);
+                clean.id = ref.id;
             }
-            return cleanTransaction;
+            return clean;
         },
         async getCurrentCashBalance() {
-            const snapshot = await db.collection('transactions').get();
+            const snap = await db.collection('transactions').get();
             let balance = 0;
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
+            snap.docs.forEach(d => {
+                const data = d.data();
                 if (data.type === 'income') balance += data.amount || 0;
                 else if (data.type === 'expense') balance -= data.amount || 0;
             });
             return balance;
         },
 
+        // Settings
         async getSettings() {
             const doc = await db.collection('settings').doc('main').get();
             return doc.exists ? doc.data() : {};
         },
         async saveSettings(settings) {
-            const cleanSettings = sanitizeObject(settings);
-            await db.collection('settings').doc('main').set(cleanSettings);
-            return cleanSettings;
+            const clean = sanitizeObject(settings);
+            await db.collection('settings').doc('main').set(clean, { merge: true });
+            return clean;
         },
 
+        // Users
         async getUsers() {
-            const snapshot = await db.collection('users').get();
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const snap = await db.collection('users').get();
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         },
         async saveUser(user) {
-            const cleanUser = sanitizeObject(user);
-            if (cleanUser.id) {
-                await db.collection('users').doc(cleanUser.id).set(cleanUser);
+            const clean = sanitizeObject(user);
+            if (clean.id) {
+                await db.collection('users').doc(clean.id).set(clean);
             } else {
-                const docRef = await db.collection('users').add(cleanUser);
-                cleanUser.id = docRef.id;
+                const ref = await db.collection('users').add(clean);
+                clean.id = ref.id;
             }
-            return cleanUser;
+            return clean;
         }
     };
-
-    console.log('✅ Storage (Firebase) module loaded');
+    console.log('✅ Storage module loaded');
 })();
