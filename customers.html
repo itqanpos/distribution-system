@@ -48,7 +48,9 @@
         .user-profile {
             display: flex; align-items: center; gap: 12px; cursor: pointer;
             padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+            position: relative;
         }
+        .user-profile:hover { background: var(--light); }
         .user-avatar {
             width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -57,10 +59,22 @@
         .user-info { text-align: right; }
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
         .user-info p { font-size: 12px; color: #7f8c8d; }
-        .logout-btn {
-            background: none; border: none; color: var(--danger); font-size: 20px;
-            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+
+        /* قائمة المستخدم المنسدلة */
+        .user-dropdown {
+            position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #eee; overflow: hidden;
         }
+        .user-dropdown.show { display: block; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .user-dropdown a:last-child { border-bottom: none; }
+        .user-dropdown a:hover { background: var(--light); }
+        .user-dropdown a i { width: 20px; color: var(--secondary); }
 
         /* ========== الشريط الجانبي ========== */
         .sidebar {
@@ -213,11 +227,14 @@
             <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile">
+            <div class="user-profile" id="userProfileBtn">
                 <div class="user-avatar" id="userAvatar">م</div>
                 <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
             </div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
@@ -312,20 +329,20 @@
     </div>
 
     <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
-<!-- التهيئة المركزية -->
-<script src="./js/firebase-init.js"></script>
+    <!-- التهيئة المركزية -->
+    <script src="./js/firebase-init.js"></script>
 
-<!-- الأدوات المساعدة -->
-<script src="./js/utils.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/storage-firebase.js"></script>
-<script>
-<!-- سكربت الصفحة الخاص (إن وجد) -->
+    <!-- الأدوات المساعدة -->
+    <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/storage-firebase.js"></script>
+
+    <script>
         // الشريط الجانبي
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
@@ -337,6 +354,15 @@
         menuToggle.addEventListener('click', toggleSidebar);
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
         document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
+
+        // القائمة المنسدلة للمستخدم
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
         let customers = [], suppliers = [], currentTab = 'customers';
 
@@ -353,9 +379,14 @@
         });
 
         async function loadData() {
-            customers = await Storage.getCustomers();
-            suppliers = await Storage.getSuppliers();
-            renderAll();
+            try {
+                customers = await Storage.getCustomers();
+                suppliers = await Storage.getSuppliers();
+                renderAll();
+            } catch (error) {
+                console.error('خطأ في تحميل البيانات:', error);
+                UI.showToast('فشل تحميل البيانات', 'danger');
+            }
         }
 
         function renderAll() {
@@ -375,19 +406,29 @@
             const data = type === 'customer' ? customers : suppliers;
             const tbody = document.getElementById(type + 'sTableBody');
             const term = document.getElementById(type + 'Search').value.toLowerCase();
-            const filtered = data.filter(p => p.name.toLowerCase().includes(term) || (p.phone||'').includes(term));
+            const filtered = data.filter(p => (p.name || '').toLowerCase().includes(term) || (p.phone || '').includes(term));
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;">لا يوجد ${type === 'customer' ? 'عملاء' : 'موردين'}</td></tr>`;
+                return;
+            }
             tbody.innerHTML = filtered.map(p => {
                 const balClass = p.balance >= 0 ? 'balance-positive' : 'balance-negative';
                 let balText = Utils.formatMoney(p.balance);
                 balText += type === 'customer' ? (p.balance < 0 ? ' (مدين)' : ' (دائن)') : (p.balance > 0 ? ' (لنا)' : ' (علينا)');
-                return `<tr><td>${p.name}</td><td>${p.phone||'-'}</td><td class="${balClass}">${balText}</td><td>${p.lastTransaction||'-'}</td>
-                <td class="action-buttons">
-                    <i class="fas fa-eye action-icon" onclick="viewParty(${p.id},'${type}')" title="عرض"></i>
-                    <i class="fas fa-edit action-icon" onclick="editParty(${p.id},'${type}')" title="تعديل"></i>
-                    <i class="fas fa-print action-icon" onclick="printStatement(${p.id},'${type}')" title="كشف حساب"></i>
-                    <i class="fas fa-money-bill action-icon" style="color:var(--success);" onclick="openTransactionModal(${p.id},'${type}','payment')" title="دفعة"></i>
-                    <i class="fas fa-file-invoice action-icon" style="color:var(--danger);" onclick="openTransactionModal(${p.id},'${type}','debt')" title="دين"></i>
-                </td></tr>`;
+                return `<tr>
+                    <td>${p.name}</td>
+                    <td>${p.phone || '-'}</td>
+                    <td class="${balClass}">${balText}</td>
+                    <td>${p.lastTransaction || '-'}</td>
+                    <td class="action-buttons">
+                        <i class="fas fa-eye action-icon" onclick="viewParty('${p.id}','${type}')" title="عرض"></i>
+                        <i class="fas fa-edit action-icon" onclick="editParty('${p.id}','${type}')" title="تعديل"></i>
+                        <i class="fas fa-print action-icon" onclick="printStatement('${p.id}','${type}')" title="كشف حساب"></i>
+                        <i class="fas fa-money-bill action-icon" style="color:var(--success);" onclick="openTransactionModal('${p.id}','${type}','payment')" title="دفعة"></i>
+                        <i class="fas fa-file-invoice action-icon" style="color:var(--danger);" onclick="openTransactionModal('${p.id}','${type}','debt')" title="دين"></i>
+                        <i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteParty('${p.id}','${type}')" title="حذف"></i>
+                    </td>
+                </tr>`;
             }).join('');
         }
 
@@ -396,10 +437,10 @@
         function updateSummary(type) {
             const data = type === 'customer' ? customers : suppliers;
             const count = data.length;
-            const balance = data.reduce((s,p) => s + p.balance, 0);
-            const debt = data.filter(p=>p.balance<0).reduce((s,p)=>s+Math.abs(p.balance),0);
-            const credit = data.filter(p=>p.balance>0).reduce((s,p)=>s+p.balance,0);
-            document.getElementById(type+'sSummary').innerHTML = `
+            const balance = data.reduce((s, p) => s + (p.balance || 0), 0);
+            const debt = data.filter(p => p.balance < 0).reduce((s, p) => s + Math.abs(p.balance), 0);
+            const credit = data.filter(p => p.balance > 0).reduce((s, p) => s + p.balance, 0);
+            document.getElementById(type + 'sSummary').innerHTML = `
                 <div class="summary-card"><div class="icon"><i class="fas fa-${type==='customer'?'users':'truck'}"></i></div><div class="value">${count}</div><div class="label">العدد</div></div>
                 <div class="summary-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(balance)}</div><div class="label">صافي الرصيد</div></div>
                 <div class="summary-card"><div class="icon"><i class="fas fa-arrow-down"></i></div><div class="value">${Utils.formatMoney(debt)}</div><div class="label">${type==='customer'?'مديونية':'لنا'}</div></div>
@@ -414,16 +455,16 @@
         }
 
         function editParty(id, type) {
-            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
-            if(!p)return;
+            const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
+            if (!p) return;
             document.getElementById('modalTitle').textContent = 'تعديل';
             document.getElementById('partyId').value = p.id;
             document.getElementById('partyType').value = type;
-            document.getElementById('partyName').value = p.name;
-            document.getElementById('partyPhone').value = p.phone||'';
-            document.getElementById('partyAddress').value = p.address||'';
-            document.getElementById('partyEmail').value = p.email||'';
-            document.getElementById('partyBalance').value = p.balance;
+            document.getElementById('partyName').value = p.name || '';
+            document.getElementById('partyPhone').value = p.phone || '';
+            document.getElementById('partyAddress').value = p.address || '';
+            document.getElementById('partyEmail').value = p.email || '';
+            document.getElementById('partyBalance').value = p.balance || 0;
             document.getElementById('partyModal').style.display = 'flex';
         }
 
@@ -433,38 +474,72 @@
             event.preventDefault();
             const id = document.getElementById('partyId').value;
             const type = document.getElementById('partyType').value;
-            const name = document.getElementById('partyName').value;
-            const phone = document.getElementById('partyPhone').value;
-            const address = document.getElementById('partyAddress').value;
-            const email = document.getElementById('partyEmail').value;
-            const balance = parseFloat(document.getElementById('partyBalance').value)||0;
-            const collection = type==='customer'?customers:suppliers;
-            if (id) {
-                const idx = collection.findIndex(p=>p.id==id);
-                if(idx>=0) collection[idx] = {...collection[idx], name, phone, address, email, balance};
-            } else {
-                const newId = Date.now();
-                collection.push({id:newId, type, name, phone, address, email, balance, lastTransaction:null});
+            const name = document.getElementById('partyName').value.trim();
+            const phone = document.getElementById('partyPhone').value.trim();
+            const address = document.getElementById('partyAddress').value.trim();
+            const email = document.getElementById('partyEmail').value.trim();
+            const balance = parseFloat(document.getElementById('partyBalance').value) || 0;
+
+            if (!name) {
+                UI.showToast('الاسم مطلوب', 'warning');
+                return;
             }
-            if(type==='customer') await Storage.saveCustomers(customers); else await Storage.saveSuppliers(suppliers);
-            await loadData();
-            closePartyModal();
+
+            const partyData = { name, phone, address, email, balance, type };
+
+            try {
+                if (id) {
+                    // تعديل
+                    if (type === 'customer') {
+                        await Storage.saveCustomer({ ...partyData, id });
+                    } else {
+                        await Storage.saveSupplier({ ...partyData, id });
+                    }
+                    UI.showToast('تم التعديل بنجاح', 'success');
+                } else {
+                    // إضافة
+                    if (type === 'customer') {
+                        await Storage.saveCustomer(partyData);
+                    } else {
+                        await Storage.saveSupplier(partyData);
+                    }
+                    UI.showToast('تمت الإضافة بنجاح', 'success');
+                }
+                closePartyModal();
+                await loadData();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل الحفظ', 'danger');
+            }
+        }
+
+        async function deleteParty(id, type) {
+            if (!await UI.confirmDelete(`هل أنت متأكد من حذف هذا ${type === 'customer' ? 'العميل' : 'المورد'}؟`)) return;
+            try {
+                await window.db.collection('parties').doc(id).delete();
+                UI.showToast('تم الحذف بنجاح', 'success');
+                await loadData();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل الحذف', 'danger');
+            }
         }
 
         function viewParty(id, type) {
-            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
-            alert(`الاسم: ${p.name}\nالرصيد: ${Utils.formatMoney(p.balance)}\nالهاتف: ${p.phone||'-'}`);
+            const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
+            if (!p) return;
+            UI.showToast(`${p.name} - الرصيد: ${Utils.formatMoney(p.balance)}`, 'info');
         }
 
         function openTransactionModal(id, type, transType) {
-            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
-            if(!p)return;
+            const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
+            if (!p) return;
             document.getElementById('transPartyId').value = id;
             document.getElementById('transPartyType').value = type;
             document.getElementById('transType').value = transType;
             document.getElementById('transAmount').value = '';
             document.getElementById('transNotes').value = '';
-            document.getElementById('transModalTitle').textContent = `${transType==='payment'?'دفعة':'دين'} - ${p.name}`;
+            document.getElementById('transModalTitle').textContent = `${transType === 'payment' ? 'دفعة' : 'دين'} - ${p.name}`;
             document.getElementById('transactionModal').style.display = 'flex';
         }
 
@@ -472,45 +547,86 @@
 
         async function saveTransaction(event) {
             event.preventDefault();
-            const id = parseInt(document.getElementById('transPartyId').value);
+            const id = document.getElementById('transPartyId').value;
             const type = document.getElementById('transPartyType').value;
             const transType = document.getElementById('transType').value;
             const amount = parseFloat(document.getElementById('transAmount').value);
             const date = document.getElementById('transDate').value;
-            const notes = document.getElementById('transNotes').value;
-            const collection = type==='customer'?customers:suppliers;
-            const p = collection.find(x=>x.id===id);
-            if(!p)return;
-            p.balance += transType==='payment'? amount : -amount;
-            p.lastTransaction = date;
-            if(type==='customer') await Storage.saveCustomers(customers); else await Storage.saveSuppliers(suppliers);
-            if(transType==='payment') {
-                const trans = await Storage.getTransactions();
-                trans.push({id:Date.now(), date, type:'income', amount, description:`دفعة من ${type==='customer'?'عميل':'مورد'} ${p.name} - ${notes}`, paymentMethod:'cash'});
-                await Storage.saveTransactions(trans);
+            const notes = document.getElementById('transNotes').value.trim();
+
+            if (!amount || amount <= 0) {
+                UI.showToast('المبلغ غير صحيح', 'warning');
+                return;
             }
-            renderAll();
-            closeTransactionModal();
-            alert(`تم ${transType==='payment'?'تسجيل دفعة':'إضافة دين'} بقيمة ${Utils.formatMoney(amount)}`);
+
+            const collection = type === 'customer' ? customers : suppliers;
+            const party = collection.find(x => x.id === id);
+            if (!party) return;
+
+            // تحديث الرصيد
+            const newBalance = (party.balance || 0) + (transType === 'payment' ? amount : -amount);
+            
+            try {
+                // تحديث الطرف
+                await window.db.collection('parties').doc(id).update({
+                    balance: newBalance,
+                    lastTransaction: date
+                });
+
+                // إذا كانت دفعة، أضف حركة صندوق
+                if (transType === 'payment') {
+                    const transaction = {
+                        date,
+                        type: 'income',
+                        amount,
+                        description: `دفعة من ${type === 'customer' ? 'عميل' : 'مورد'} ${party.name}${notes ? ' - ' + notes : ''}`,
+                        paymentMethod: 'cash',
+                        timestamp: new Date().toISOString()
+                    };
+                    await Storage.saveTransaction(transaction);
+                }
+
+                UI.showToast(`تم ${transType === 'payment' ? 'تسجيل دفعة' : 'إضافة دين'} بقيمة ${Utils.formatMoney(amount)}`, 'success');
+                closeTransactionModal();
+                await loadData();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل حفظ المعاملة', 'danger');
+            }
         }
 
         async function printStatement(id, type) {
-            const p = (type==='customer'?customers:suppliers).find(x=>x.id===id);
+            const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
             if (!p) return;
+            
+            // جلب الفواتير والحركات المرتبطة
             const invoices = await Storage.getInvoices();
             const transactions = await Storage.getTransactions();
-            const partyInvoices = invoices.filter(inv => (inv.customerId === id || inv.supplierId === id));
-            const partyTrans = transactions.filter(t => t.description.includes(p.name));
+            const partyInvoices = invoices.filter(inv => (type === 'customer' ? inv.customerId === id : inv.supplierId === id));
+            const partyTrans = transactions.filter(t => t.description && t.description.includes(p.name));
+
             const win = window.open('', '_blank');
             win.document.write(`
                 <html dir="rtl"><head><title>كشف حساب ${p.name}</title><style>body{font-family:'Segoe UI';padding:20px;}</style></head><body>
                 <h2>كشف حساب ${p.name}</h2><p>الرصيد الحالي: ${Utils.formatMoney(p.balance)}</p>
-                <h3>الفواتير</h3><ul>${partyInvoices.map(inv => `<li>${inv.id} - ${inv.date} - ${Utils.formatMoney(inv.total)} (المتبقي: ${Utils.formatMoney(inv.remaining)})</li>`).join('')}</ul>
-                <h3>المدفوعات</h3><ul>${partyTrans.filter(t=>t.type==='income').map(t => `<li>${t.date} - ${Utils.formatMoney(t.amount)} - ${t.description}</li>`).join('')}</ul>
+                <h3>الفواتير</h3><ul>${partyInvoices.map(inv => `<li>${inv.id} - ${inv.date} - ${Utils.formatMoney(inv.total)} (المتبقي: ${Utils.formatMoney(inv.remaining || 0)})</li>`).join('')}</ul>
+                <h3>المدفوعات</h3><ul>${partyTrans.filter(t => t.type === 'income').map(t => `<li>${t.date} - ${Utils.formatMoney(t.amount)} - ${t.description}</li>`).join('')}</ul>
                 </body></html>
             `);
             win.document.close(); win.print();
         }
+
+        // تعريض الدوال
+        window.switchTab = switchTab;
+        window.filterTable = filterTable;
+        window.openPartyModal = openPartyModal;
+        window.closePartyModal = closePartyModal;
+        window.editParty = editParty;
+        window.deleteParty = deleteParty;
+        window.viewParty = viewParty;
+        window.openTransactionModal = openTransactionModal;
+        window.closeTransactionModal = closeTransactionModal;
+        window.printStatement = printStatement;
     </script>
 </body>
 </html>
