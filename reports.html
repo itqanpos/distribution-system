@@ -9,68 +9,243 @@
     <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71; --danger: #e74c3c; --warning: #f39c12; --info: #1abc9c; --light: #ecf0f1; --dark: #34495e; --sidebar-width: 260px; --sidebar-collapsed-width: 70px; --header-height: 65px; }
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 65px;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
-        .navbar { position: fixed; top: 0; right: 0; left: 0; height: var(--header-height); background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; z-index: 1030; }
+
+        /* ========== شريط التنقل ========== */
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
         .navbar-left { display: flex; align-items: center; gap: 15px; }
-        .menu-toggle { background: none; border: none; font-size: 24px; color: var(--primary); cursor: pointer; width: 40px; height: 40px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
+        }
         .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
         .navbar-right { display: flex; align-items: center; gap: 15px; }
-        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 5px 10px; border-radius: 40px; position: relative; }
-        .user-avatar { width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+            position: relative;
+        }
+        .user-profile:hover { background: var(--light); }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
         .user-info { text-align: right; }
-        .user-dropdown { position: absolute; top: 55px; left: 0; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none; z-index: 1050; }
+        .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
+        .user-info p { font-size: 12px; color: #7f8c8d; }
+
+        /* قائمة منسدلة للمستخدم */
+        .user-dropdown {
+            position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #eee; overflow: hidden;
+        }
         .user-dropdown.show { display: block; }
-        .user-dropdown a { display: flex; align-items: center; gap: 12px; padding: 14px 18px; color: var(--primary); text-decoration: none; }
-        .sidebar { position: fixed; top: var(--header-height); right: 0; bottom: 0; width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02); border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s; z-index: 1020; overflow-y: auto; padding: 20px 0; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .user-dropdown a:last-child { border-bottom: none; }
+        .user-dropdown a:hover { background: var(--light); }
+        .user-dropdown a i { width: 20px; color: var(--secondary); }
+
+        /* ========== الشريط الجانبي ========== */
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s ease; z-index: 1020;
+            overflow-y: auto; overflow-x: hidden; padding: 20px 0;
+        }
         .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar .menu-section {
+            padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            opacity: 1; transition: opacity 0.15s;
+        }
+        .sidebar.collapsed .menu-section { opacity: 0; pointer-events: none; padding: 20px 0 8px; text-align: center; }
         .menu { list-style: none; padding: 0 12px; }
-        .menu-item { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0; color: var(--dark); text-decoration: none; border-radius: 12px; white-space: nowrap; }
-        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary); }
-        .main-content { margin-right: var(--sidebar-width); margin-top: var(--header-height); padding: 25px; transition: margin-right 0.25s; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; flex-shrink: 0; }
+        .menu-text { transition: opacity 0.2s; }
+        .sidebar.collapsed .menu-text { opacity: 0; pointer-events: none; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
+            color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
+        }
+
+        /* ========== المحتوى الرئيسي ========== */
+        .main-content {
+            margin-right: var(--sidebar-width); margin-top: var(--header-height);
+            padding: 25px; transition: margin-right 0.25s ease;
+            min-height: calc(100vh - var(--header-height));
+        }
         .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.02); }
-        .chart-container { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.02); margin-bottom: 30px; }
-        @media (max-width: 992px) { .sidebar { transform: translateX(100%); } .sidebar.mobile-open { transform: translateX(0); } .main-content { margin-right: 0 !important; } .menu-toggle { display: flex; } .user-info { display: none; } }
+
+        /* ========== البطاقات ========== */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
+        }
+        .page-title { display: flex; align-items: center; gap: 12px; }
+        .page-title h1 { font-size: 26px; font-weight: 700; color: var(--primary); }
+        .btn {
+            padding: 10px 18px; border: none; border-radius: 12px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+            transition: all 0.2s; font-size: 14px;
+        }
+        .btn-primary { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(52,152,219,0.2); }
+        .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 20px; margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white; border-radius: 20px; padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+            text-align: center;
+        }
+        .stat-card .icon { font-size: 28px; margin-bottom: 10px; color: var(--secondary); }
+        .stat-card .value { font-size: 26px; font-weight: 700; color: var(--primary); }
+        .stat-card .label { color: #7f8c8d; font-size: 14px; }
+
+        .charts-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 25px; margin-bottom: 30px;
+        }
+        .chart-card {
+            background: white; border-radius: 20px; padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+        }
+        .chart-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .chart-header h3 { font-size: 18px; }
+
+        .table-container {
+            background: white; border-radius: 20px; padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: right; padding: 12px 5px; color: #7f8c8d; font-size: 13px; border-bottom: 1px solid #eee; }
+        td { padding: 12px 5px; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
+            .charts-row { grid-template-columns: 1fr; }
+        }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
-    <nav class="navbar"><div class="navbar-left"><button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button><div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div></div><div class="navbar-right"><div class="user-profile" id="userProfileBtn"><div class="user-avatar" id="userAvatar">م</div><div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div><div class="user-dropdown" id="userDropdown"><a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a><a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></div></div></div></nav>
+    <nav class="navbar">
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>Food Distribution</h2></div></div>
+        </div>
+        <div class="navbar-right">
+            <div class="user-profile" id="userProfileBtn">
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-info"><h4 id="userName">Admin</h4><p id="loginTime">Today</p></div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item active" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <div class="menu-section">Main</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">Dashboard</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">Sales</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">POS</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">Invoices</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">Purchases</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">Cashbox</span></a></li>
+            <li><a class="menu-item active" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">Reports</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">Accounting</span></a></li>
+            <div class="menu-section">Management</div>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">Customers & Suppliers</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">Reps</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">Products</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">Settings</span></a></li>
         </ul>
     </aside>
+
     <main class="main-content">
-        <div class="page-header"><div class="page-title"><i class="fas fa-chart-bar" style="font-size:28px; color:var(--secondary);"></i><h1>التقارير</h1></div></div>
-        <div class="stats-grid">
-            <div class="stat-card"><h3>المبيعات اليوم</h3><p id="todaySales">0 ج</p></div>
-            <div class="stat-card"><h3>المشتريات اليوم</h3><p id="todayPurchases">0 ج</p></div>
-            <div class="stat-card"><h3>صافي الربح</h3><p id="netProfit">0 ج</p></div>
-            <div class="stat-card"><h3>رصيد الصندوق</h3><p id="cashBalance">0 ج</p></div>
+        <div class="page-header">
+            <div class="page-title"><i class="fas fa-chart-bar" style="font-size:28px; color:var(--secondary);"></i><h1>Reports</h1></div>
+            <div>
+                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button class="btn btn-primary" onclick="printReport()"><i class="fas fa-print"></i> Print</button>
+            </div>
         </div>
-        <div class="chart-container">
-            <canvas id="salesChart"></canvas>
+
+        <div class="stats-grid">
+            <div class="stat-card"><div class="icon"><i class="fas fa-money-bill-wave"></i></div><div class="value" id="totalSales">0 EGP</div><div class="label">Total Sales</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-shopping-cart"></i></div><div class="value" id="totalPurchases">0 EGP</div><div class="label">Total Purchases</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-chart-pie"></i></div><div class="value" id="netProfit">0 EGP</div><div class="label">Net Profit</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-wallet"></i></div><div class="value" id="cashBalance">0 EGP</div><div class="label">Cash Balance</div></div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-header"><h3>Sales vs Purchases (Last 7 Days)</h3></div>
+                <canvas id="salesPurchasesChart" style="height:200px;"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header"><h3>Top Selling Products</h3></div>
+                <canvas id="topProductsChart" style="height:200px;"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3 style="margin-bottom:20px;">Sales by Customer</h3>
+            <table>
+                <thead><tr><th>Customer</th><th>Invoices</th><th>Total Sales</th><th>Paid</th><th>Remaining</th></tr></thead>
+                <tbody id="customerSalesBody"></tbody>
+            </table>
         </div>
     </main>
 
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
@@ -81,22 +256,30 @@
     <script src="./js/storage-firebase.js"></script>
 
     <script>
-        // الشريط الجانبي والقائمة
+        // Sidebar & dropdown
         const sidebar = document.getElementById('sidebar'), menuToggle = document.getElementById('menuToggle');
-        function toggleSidebar() { if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open'); else sidebar.classList.toggle('collapsed'); localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed')); }
+        function toggleSidebar() {
+            if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
+            else sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
         menuToggle.addEventListener('click', toggleSidebar);
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
         document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
+
         const userProfileBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
         userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
-        let chart;
+        let chart1, chart2;
+
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
-            await UI.initPage('التقارير');
+            if (!Auth.requireRole(['admin'])) return;
+            await UI.initPage('Reports', { enablePullToRefresh: true, refreshCallback: loadReportData });
             const user = Auth.getUser();
             document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = user.loginTime || 'Today';
             document.getElementById('userAvatar').textContent = user.avatar;
             await loadReportData();
         });
@@ -106,37 +289,83 @@
                 const invoices = await Storage.getInvoices();
                 const purchases = await Storage.getPurchases();
                 const transactions = await Storage.getTransactions();
-                const today = Utils.getToday();
+                const customers = await Storage.getCustomers();
 
-                const todaySales = invoices.filter(i => i.type === 'sale' && i.date === today).reduce((s, i) => s + i.total, 0);
-                const todayPurchases = purchases.filter(p => p.date === today).reduce((s, p) => s + p.total, 0);
-                const totalSales = invoices.filter(i => i.type === 'sale').reduce((s, i) => s + i.total, 0);
-                const totalPurchases = purchases.reduce((s, p) => s + p.total, 0);
-                const balance = Utils.calculateBalance(transactions);
+                const totalSales = invoices.filter(i => i.type === 'sale').reduce((s, i) => s + (i.total || 0), 0);
+                const totalPurchases = purchases.reduce((s, p) => s + (p.total || 0), 0);
+                const balance = await Storage.getCurrentCashBalance();
 
-                document.getElementById('todaySales').textContent = Utils.formatMoney(todaySales);
-                document.getElementById('todayPurchases').textContent = Utils.formatMoney(todayPurchases);
+                document.getElementById('totalSales').textContent = Utils.formatMoney(totalSales);
+                document.getElementById('totalPurchases').textContent = Utils.formatMoney(totalPurchases);
                 document.getElementById('netProfit').textContent = Utils.formatMoney(totalSales - totalPurchases);
                 document.getElementById('cashBalance').textContent = Utils.formatMoney(balance);
 
-                // بيانات الرسم البياني (آخر 7 أيام)
+                // Sales vs Purchases Chart
                 const last7Days = [...Array(7)].map((_, i) => {
                     const d = new Date(); d.setDate(d.getDate() - i);
                     return d.toISOString().split('T')[0];
                 }).reverse();
-                const salesData = last7Days.map(day => invoices.filter(i => i.type === 'sale' && i.date === day).reduce((s, i) => s + i.total, 0));
+                const dailySales = last7Days.map(day => invoices.filter(i => i.type === 'sale' && i.date === day).reduce((s, i) => s + i.total, 0));
+                const dailyPurchases = last7Days.map(day => purchases.filter(p => p.date === day).reduce((s, p) => s + p.total, 0));
 
-                const ctx = document.getElementById('salesChart').getContext('2d');
-                if (chart) chart.destroy();
-                chart = new Chart(ctx, {
+                const ctx1 = document.getElementById('salesPurchasesChart').getContext('2d');
+                if (chart1) chart1.destroy();
+                chart1 = new Chart(ctx1, {
                     type: 'line',
                     data: {
-                        labels: last7Days,
-                        datasets: [{ label: 'المبيعات', data: salesData, borderColor: '#3498db', tension: 0.3, fill: false }]
+                        labels: last7Days.map(d => new Date(d).toLocaleDateString('en-US', { weekday: 'short' })),
+                        datasets: [
+                            { label: 'Sales', data: dailySales, borderColor: '#2ecc71', tension: 0.3 },
+                            { label: 'Purchases', data: dailyPurchases, borderColor: '#e74c3c', tension: 0.3 }
+                        ]
                     },
-                    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
-            } catch (e) { UI.showToast('فشل تحميل التقارير', 'danger'); }
+
+                // Top Products Chart
+                const productSales = {};
+                invoices.filter(i => i.type === 'sale').forEach(inv => {
+                    if (inv.items) {
+                        inv.items.forEach(item => {
+                            productSales[item.name] = (productSales[item.name] || 0) + (item.quantity || 0);
+                        });
+                    }
+                });
+                const sortedProducts = Object.entries(productSales).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                const ctx2 = document.getElementById('topProductsChart').getContext('2d');
+                if (chart2) chart2.destroy();
+                chart2 = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedProducts.map(p => p[0]),
+                        datasets: [{ label: 'Quantity Sold', data: sortedProducts.map(p => p[1]), backgroundColor: '#3498db' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // Customer Sales Table
+                const customerMap = {};
+                customers.forEach(c => { customerMap[c.id] = { name: c.name, invoices: 0, total: 0, paid: 0, remaining: 0 }; });
+                invoices.filter(i => i.type === 'sale').forEach(inv => {
+                    if (inv.customerId && customerMap[inv.customerId]) {
+                        const c = customerMap[inv.customerId];
+                        c.invoices++;
+                        c.total += inv.total || 0;
+                        c.paid += inv.paid || 0;
+                        c.remaining += inv.remaining || 0;
+                    }
+                });
+                const tbody = document.getElementById('customerSalesBody');
+                tbody.innerHTML = Object.values(customerMap).filter(c => c.invoices > 0).map(c => 
+                    `<tr><td>${c.name}</td><td>${c.invoices}</td><td>${Utils.formatMoney(c.total)}</td><td>${Utils.formatMoney(c.paid)}</td><td>${Utils.formatMoney(c.remaining)}</td></tr>`
+                ).join('') || '<tr><td colspan="5">No data</td></tr>';
+            } catch (e) {
+                UI.showToast('Failed to load reports', 'danger');
+            }
+        }
+
+        function printReport() {
+            window.print();
         }
     </script>
 </body>
