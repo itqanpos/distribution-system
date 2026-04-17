@@ -94,10 +94,21 @@
         </div>
     </div>
 
-    <script src="js/auth.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ui.js"></script>
+    <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+
+<!-- التهيئة المركزية -->
+<script src="./js/firebase-init.js"></script>
+
+<!-- الأدوات المساعدة -->
+<script src="./js/utils.js"></script>
+<script src="./js/auth.js"></script>
+<script src="./js/ui.js"></script>
+<script src="./js/storage-firebase.js"></script>
+
+<!-- سكربت الصفحة الخاص (إن وجد) -->
     <script>
         let customer = null;
         let customerInvoices = [];
