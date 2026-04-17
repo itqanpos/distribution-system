@@ -1,10 +1,6 @@
 // js/firebase-init.js
 (function() {
-    // منع إعادة التهيئة
-    if (window.firebaseApp) {
-        console.log('✅ Firebase already initialized');
-        return;
-    }
+    if (window.firebaseApp) return;
 
     const firebaseConfig = {
         apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
@@ -16,22 +12,14 @@
         measurementId: "G-DWE6PCECE8"
     };
 
-    // تهيئة Firebase
     firebase.initializeApp(firebaseConfig);
     window.firebaseApp = firebase.app();
     window.db = firebase.firestore();
     window.auth = firebase.auth();
 
-    // تفعيل التخزين المؤقت (Offline Persistence)
     window.db.enablePersistence({ synchronizeTabs: true })
         .then(() => console.log('✅ Offline persistence enabled'))
-        .catch(err => {
-            if (err.code === 'failed-precondition') {
-                console.warn('⚠️ Multiple tabs open, persistence can only be enabled in one tab.');
-            } else if (err.code === 'unimplemented') {
-                console.warn('⚠️ Browser does not support offline persistence.');
-            }
-        });
+        .catch(err => console.warn('⚠️ Persistence error:', err));
 
-    console.log('✅ Firebase initialized successfully');
+    console.log('✅ Firebase initialized');
 })();
