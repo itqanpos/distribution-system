@@ -1,10 +1,6 @@
 // js/storage-firebase.js
-// طبقة تخزين كاملة تستخدم Firebase Firestore
-// مع إعدادات مدمجة لمشروع parq-893ca
-// وإضافة بيانات تجريبية تلقائية عند أول تشغيل
-
+// طبقة تخزين كاملة تستخدم Firebase Firestore - مشروع parq-893ca
 (function() {
-    // ========== إعدادات Firebase (مدمجة) ==========
     const firebaseConfig = {
         apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
         authDomain: "parq-893ca.firebaseapp.com",
@@ -15,292 +11,216 @@
         measurementId: "G-DWE6PCECE8"
     };
 
-    // التحقق من وجود مكتبة Firebase
     if (typeof firebase === 'undefined') {
         console.error('❌ Firebase SDK not loaded.');
         alert('خطأ: مكتبة Firebase غير محملة.');
         return;
     }
 
-    // تهيئة Firebase
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('⚠️ Persistence error:', err));
+
+    // دالة مساعدة لإزالة الحقول ذات القيمة undefined
+    function sanitizeObject(obj) {
+        return Object.fromEntries(
+            Object.entries(obj).filter(([_, v]) => v !== undefined)
+        );
     }
 
-    const db = firebase.firestore();
-
-    // تفعيل التخزين المؤقت
-    db.enablePersistence({ synchronizeTabs: true })
-        .then(() => console.log('✅ Offline persistence enabled'))
-        .catch(err => console.warn('⚠️ Persistence error:', err));
-
-    // ========== تعريف Storage ==========
     window.Storage = {
         // --- المنتجات ---
         async getProducts() {
-            try {
-                const snapshot = await db.collection('products').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getProducts:', e);
-                return [];
-            }
+            const snapshot = await db.collection('products').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
         async saveProduct(product) {
-            try {
-                // تحويل الوحدات إلى كائن إذا كانت نصًا
-                if (typeof product.units === 'string') {
+            // معالجة حقل units: إذا كان نصاً JSON نحوله إلى كائن
+            if (typeof product.units === 'string') {
+                try {
                     product.units = JSON.parse(product.units);
+                } catch (e) {
+                    product.units = [];
                 }
-                if (!product.units) product.units = [];
+            }
+            if (!product.units) product.units = [];
 
-                if (product.id) {
-                    await db.collection('products').doc(product.id).set(product);
-                    console.log('✅ تم تحديث المنتج:', product.name);
-                    return product;
-                } else {
-                    const docRef = await db.collection('products').add(product);
-                    product.id = docRef.id;
-                    console.log('✅ تمت إضافة المنتج:', product.name);
-                    return product;
-                }
-            } catch (e) {
-                console.error('❌ saveProduct:', e);
-                throw e;
+            // تنظيف الكائن من أي undefined
+            const cleanProduct = sanitizeObject(product);
+
+            if (cleanProduct.id) {
+                await db.collection('products').doc(cleanProduct.id).set(cleanProduct);
+                return cleanProduct;
+            } else {
+                const docRef = await db.collection('products').add(cleanProduct);
+                cleanProduct.id = docRef.id;
+                return cleanProduct;
             }
         },
-
-        async deleteProduct(id) {
-            try {
-                await db.collection('products').doc(id).delete();
-                console.log('✅ تم حذف المنتج:', id);
-            } catch (e) {
-                console.error('❌ deleteProduct:', e);
-                throw e;
-            }
-        },
+        async deleteProduct(id) { await db.collection('products').doc(id).delete(); },
 
         // --- العملاء ---
         async getCustomers() {
-            try {
-                const snapshot = await db.collection('parties').where('type', '==', 'customer').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getCustomers:', e);
-                return [];
-            }
+            const snapshot = await db.collection('parties').where('type', '==', 'customer').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
+        async getCustomersCount() {
+            const snapshot = await db.collection('parties').where('type', '==', 'customer').get();
+            return snapshot.size;
+        },
         async saveCustomer(customer) {
-            try {
-                customer.type = 'customer';
-                if (customer.id) {
-                    await db.collection('parties').doc(customer.id).set(customer);
-                } else {
-                    const docRef = await db.collection('parties').add(customer);
-                    customer.id = docRef.id;
-                }
-                return customer;
-            } catch (e) {
-                console.error('❌ saveCustomer:', e);
-                throw e;
+            customer.type = 'customer';
+            const cleanCustomer = sanitizeObject(customer);
+            if (cleanCustomer.id) {
+                await db.collection('parties').doc(cleanCustomer.id).set(cleanCustomer);
+            } else {
+                const docRef = await db.collection('parties').add(cleanCustomer);
+                cleanCustomer.id = docRef.id;
             }
+            return cleanCustomer;
         },
 
         // --- الموردين ---
         async getSuppliers() {
-            try {
-                const snapshot = await db.collection('parties').where('type', '==', 'supplier').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getSuppliers:', e);
-                return [];
-            }
+            const snapshot = await db.collection('parties').where('type', '==', 'supplier').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
         async saveSupplier(supplier) {
-            try {
-                supplier.type = 'supplier';
-                if (supplier.id) {
-                    await db.collection('parties').doc(supplier.id).set(supplier);
-                } else {
-                    const docRef = await db.collection('parties').add(supplier);
-                    supplier.id = docRef.id;
-                }
-                return supplier;
-            } catch (e) {
-                console.error('❌ saveSupplier:', e);
-                throw e;
+            supplier.type = 'supplier';
+            const cleanSupplier = sanitizeObject(supplier);
+            if (cleanSupplier.id) {
+                await db.collection('parties').doc(cleanSupplier.id).set(cleanSupplier);
+            } else {
+                const docRef = await db.collection('parties').add(cleanSupplier);
+                cleanSupplier.id = docRef.id;
             }
+            return cleanSupplier;
         },
 
         // --- المندوبين ---
         async getReps() {
-            try {
-                const snapshot = await db.collection('reps').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getReps:', e);
-                return [];
-            }
+            const snapshot = await db.collection('reps').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
         async saveRep(rep) {
-            try {
-                if (rep.id) {
-                    await db.collection('reps').doc(rep.id).set(rep);
-                } else {
-                    const docRef = await db.collection('reps').add(rep);
-                    rep.id = docRef.id;
-                }
-                return rep;
-            } catch (e) {
-                console.error('❌ saveRep:', e);
-                throw e;
+            const cleanRep = sanitizeObject(rep);
+            if (cleanRep.id) {
+                await db.collection('reps').doc(cleanRep.id).set(cleanRep);
+            } else {
+                const docRef = await db.collection('reps').add(cleanRep);
+                cleanRep.id = docRef.id;
             }
+            return cleanRep;
         },
 
-        // --- الفواتير ---
+        // --- الفواتير (مبيعات) ---
         async getInvoices() {
-            try {
-                const snapshot = await db.collection('invoices').orderBy('date', 'desc').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getInvoices:', e);
-                return [];
-            }
+            const snapshot = await db.collection('invoices').orderBy('date', 'desc').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
+        async getTodayInvoices() {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const snapshot = await db.collection('invoices')
+                .where('date', '==', today)
+                .get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        },
         async saveInvoice(invoice) {
-            try {
-                if (invoice.id) {
-                    await db.collection('invoices').doc(invoice.id).set(invoice);
-                } else {
-                    const docRef = await db.collection('invoices').add(invoice);
-                    invoice.id = docRef.id;
-                }
-                return invoice;
-            } catch (e) {
-                console.error('❌ saveInvoice:', e);
-                throw e;
+            const cleanInvoice = sanitizeObject(invoice);
+            if (cleanInvoice.id) {
+                await db.collection('invoices').doc(cleanInvoice.id).set(cleanInvoice);
+            } else {
+                const docRef = await db.collection('invoices').add(cleanInvoice);
+                cleanInvoice.id = docRef.id;
             }
+            return cleanInvoice;
         },
 
         // --- المشتريات ---
         async getPurchases() {
-            try {
-                const snapshot = await db.collection('purchases').orderBy('date', 'desc').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getPurchases:', e);
-                return [];
-            }
+            const snapshot = await db.collection('purchases').orderBy('date', 'desc').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
+        async getTodayPurchases() {
+            const today = new Date().toISOString().split('T')[0];
+            const snapshot = await db.collection('purchases')
+                .where('date', '==', today)
+                .get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        },
         async savePurchase(purchase) {
-            try {
-                if (purchase.id) {
-                    await db.collection('purchases').doc(purchase.id).set(purchase);
-                } else {
-                    const docRef = await db.collection('purchases').add(purchase);
-                    purchase.id = docRef.id;
-                }
-                return purchase;
-            } catch (e) {
-                console.error('❌ savePurchase:', e);
-                throw e;
+            const cleanPurchase = sanitizeObject(purchase);
+            if (cleanPurchase.id) {
+                await db.collection('purchases').doc(cleanPurchase.id).set(cleanPurchase);
+            } else {
+                const docRef = await db.collection('purchases').add(cleanPurchase);
+                cleanPurchase.id = docRef.id;
             }
+            return cleanPurchase;
         },
 
         // --- حركات الصندوق ---
         async getTransactions() {
-            try {
-                const snapshot = await db.collection('transactions').orderBy('date', 'desc').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getTransactions:', e);
-                return [];
+            const snapshot = await db.collection('transactions').orderBy('date', 'desc').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        },
+        async getRecentTransactions(limit = 10) {
+            const snapshot = await db.collection('transactions')
+                .orderBy('timestamp', 'desc')
+                .limit(limit)
+                .get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        },
+        async saveTransaction(transaction) {
+            const cleanTransaction = sanitizeObject(transaction);
+            if (cleanTransaction.id) {
+                await db.collection('transactions').doc(cleanTransaction.id).set(cleanTransaction);
+            } else {
+                const docRef = await db.collection('transactions').add(cleanTransaction);
+                cleanTransaction.id = docRef.id;
             }
+            return cleanTransaction;
         },
 
-        async saveTransaction(transaction) {
-            try {
-                if (transaction.id) {
-                    await db.collection('transactions').doc(transaction.id).set(transaction);
-                } else {
-                    const docRef = await db.collection('transactions').add(transaction);
-                    transaction.id = docRef.id;
-                }
-                return transaction;
-            } catch (e) {
-                console.error('❌ saveTransaction:', e);
-                throw e;
-            }
+        // --- رصيد الصندوق الحالي (يحسب من مجموع الحركات) ---
+        async getCurrentCashBalance() {
+            const snapshot = await db.collection('transactions').get();
+            let balance = 0;
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.type === 'income') balance += data.amount || 0;
+                else if (data.type === 'expense') balance -= data.amount || 0;
+            });
+            return balance;
         },
 
         // --- الإعدادات ---
         async getSettings() {
-            try {
-                const doc = await db.collection('settings').doc('main').get();
-                return doc.exists ? doc.data() : {};
-            } catch (e) {
-                console.warn('⚠️ Settings not found');
-                return {};
-            }
+            const doc = await db.collection('settings').doc('main').get();
+            return doc.exists ? doc.data() : {};
         },
-
         async saveSettings(settings) {
-            try {
-                await db.collection('settings').doc('main').set(settings);
-                return settings;
-            } catch (e) {
-                console.error('❌ saveSettings:', e);
-                throw e;
-            }
+            const cleanSettings = sanitizeObject(settings);
+            await db.collection('settings').doc('main').set(cleanSettings);
+            return cleanSettings;
         },
 
         // --- المستخدمين ---
         async getUsers() {
-            try {
-                const snapshot = await db.collection('users').get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (e) {
-                console.error('❌ getUsers:', e);
-                return [];
-            }
+            const snapshot = await db.collection('users').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
-
         async saveUser(user) {
-            try {
-                if (user.id) {
-                    await db.collection('users').doc(user.id).set(user);
-                } else {
-                    const docRef = await db.collection('users').add(user);
-                    user.id = docRef.id;
-                }
-                return user;
-            } catch (e) {
-                console.error('❌ saveUser:', e);
-                throw e;
+            const cleanUser = sanitizeObject(user);
+            if (cleanUser.id) {
+                await db.collection('users').doc(cleanUser.id).set(cleanUser);
+            } else {
+                const docRef = await db.collection('users').add(cleanUser);
+                cleanUser.id = docRef.id;
             }
+            return cleanUser;
         }
     };
 
-    // ========== إضافة بيانات تجريبية تلقائيًا ==========
-    async function addSampleDataIfEmpty() {
-        try {
-            const snapshot = await db.collection('products').limit(1).get();
-            if (!snapshot.empty) return;
-
-            console.log('📦 إضافة بيانات تجريبية...');
-            // ... (نفس كود البيانات التجريبية السابق) ...
-            // [تم اختصاره للتركيز على الحل]
-        } catch (e) {
-            console.error('❌ خطأ في البيانات التجريبية:', e);
-        }
-    }
-
-    addSampleDataIfEmpty();
-    console.log('✅ Storage (Firebase) module loaded');
+    console.log('✅ Storage (Firebase) module loaded with optimized queries');
 })();
