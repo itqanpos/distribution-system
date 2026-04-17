@@ -290,6 +290,14 @@
                 <h4 style="margin:20px 0 10px;">Danger Zone</h4>
                 <button class="btn btn-danger" onclick="confirmDeleteAllData()"><i class="fas fa-trash-alt"></i> Delete All Data</button>
             </div>
+           <!-- داخل systemTab في settings.html -->
+<div class="form-group">
+    <label data-i18n="language">اللغة</label>
+    <select id="systemLang" onchange="changeLanguage(this.value)">
+        <option value="ar">العربية</option>
+        <option value="en">English</option>
+    </select>
+</div> 
         </div>
 
         <!-- Users Tab -->
