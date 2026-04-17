@@ -3,10 +3,13 @@
 <head>
     <base href="/distribution-system/">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام التوزيع الغذائي - تسجيل الدخول</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>نظام التوزيع الغذائي · تسجيل الدخول</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <!-- Firebase SDK (compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -14,85 +17,121 @@
     
     <style>
         :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --success: #2ecc71;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --info: #1abc9c;
-            --light: #ecf0f1;
-            --dark: #34495e;
+            --primary: #1e293b;
+            --primary-light: #334155;
+            --secondary: #3b82f6;
+            --secondary-light: #60a5fa;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-light: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         body {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(145deg, var(--primary) 0%, var(--primary-light) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
+        }
+
+        /* خلفية زخرفية */
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 20% 80%, rgba(59,130,246,0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(16,185,129,0.1) 0%, transparent 50%);
+            pointer-events: none;
         }
 
         .login-container {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            background: var(--surface);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
             width: 100%;
-            max-width: 400px;
-            padding: 40px 30px;
-            animation: fadeIn 0.5s ease-out;
+            max-width: 440px;
+            padding: 40px 32px;
+            animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 2;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(24px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         .login-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 36px;
         }
 
         .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), var(--info));
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
             color: white;
-            width: 70px;
-            height: 70px;
-            border-radius: 20px;
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
-            margin: 0 auto 15px;
+            font-size: 36px;
+            margin: 0 auto 20px;
+            box-shadow: 0 12px 24px -8px rgba(59,130,246,0.4);
+            transition: transform 0.2s;
+        }
+
+        .logo-icon i {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
 
         .login-header h2 {
-            color: var(--primary);
-            margin-bottom: 5px;
+            color: var(--text-primary);
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
         }
 
         .login-header p {
-            color: #7f8c8d;
-            font-size: 14px;
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 400;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         label {
             display: block;
             margin-bottom: 8px;
-            color: var(--primary);
+            color: var(--text-primary);
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .input-icon {
@@ -101,140 +140,169 @@
 
         .input-icon i {
             position: absolute;
-            right: 15px;
+            right: 18px;
             top: 50%;
             transform: translateY(-50%);
-            color: #95a5a6;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            transition: color 0.2s;
         }
 
         .input-icon input {
             width: 100%;
-            padding: 14px 45px 14px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
+            padding: 16px 52px 16px 18px;
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
             font-size: 16px;
-            transition: all 0.3s;
+            background: var(--surface);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            outline: none;
         }
 
         .input-icon input:focus {
             border-color: var(--secondary);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+        }
+
+        .input-icon input:focus + i {
+            color: var(--secondary);
+        }
+
+        .input-icon input::placeholder {
+            color: #94a3b8;
         }
 
         .login-btn {
             width: 100%;
-            padding: 14px;
+            padding: 16px;
             background: var(--secondary);
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: var(--radius-md);
+            font-size: 17px;
+            font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            box-shadow: 0 8px 16px -6px rgba(59,130,246,0.4);
+            margin-top: 8px;
         }
 
         .login-btn:hover {
-            background: #2980b9;
+            background: #2563eb;
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(52,152,219,0.3);
+            box-shadow: 0 16px 24px -8px rgba(59,130,246,0.5);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 8px -4px rgba(59,130,246,0.4);
         }
 
         .demo-section {
-            margin-top: 25px;
+            margin-top: 32px;
             text-align: center;
         }
 
         .demo-label {
-            color: #7f8c8d;
-            font-size: 13px;
-            margin-bottom: 10px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .demo-label::before,
+        .demo-label::after {
+            content: "";
+            height: 1px;
+            width: 40px;
+            background: var(--border-light);
         }
 
         .demo-buttons {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             justify-content: center;
         }
 
         .demo-btn {
             flex: 1;
-            padding: 10px;
-            border: 2px solid var(--secondary);
-            border-radius: 10px;
-            background: white;
-            color: var(--secondary);
+            padding: 12px 8px;
+            border: 1.5px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--text-primary);
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            font-size: 14px;
         }
 
         .demo-btn:hover {
-            background: var(--secondary);
-            color: white;
+            background: #f1f5f9;
+            border-color: var(--secondary);
         }
 
-        .demo-btn.admin {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .demo-btn.admin:hover {
-            background: var(--primary);
-            color: white;
-        }
-
-        .demo-btn.rep {
-            border-color: var(--success);
-            color: var(--success);
-        }
-
-        .demo-btn.rep:hover {
-            background: var(--success);
-            color: white;
-        }
+        .demo-btn.admin i { color: var(--primary); }
+        .demo-btn.rep i { color: var(--accent); }
 
         .login-footer {
             text-align: center;
-            margin-top: 25px;
-            color: #7f8c8d;
+            margin-top: 32px;
+            color: var(--text-secondary);
             font-size: 13px;
         }
 
         .error-message {
             color: var(--danger);
-            font-size: 13px;
-            margin-top: 5px;
+            font-size: 14px;
+            margin-top: 8px;
             display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #fef2f2;
+            border-radius: var(--radius-sm);
         }
 
         #installBtn {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: var(--secondary);
-            color: white;
+            bottom: 24px;
+            left: 24px;
+            background: var(--surface);
+            color: var(--primary);
             border: none;
-            padding: 12px 20px;
-            border-radius: 50px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            padding: 14px 22px;
+            border-radius: 40px;
+            box-shadow: var(--shadow-lg);
             cursor: pointer;
             z-index: 3000;
             display: none;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(8px);
+            transition: all 0.2s;
+        }
+
+        #installBtn:hover {
+            transform: scale(1.02);
+            background: white;
         }
 
         @media (max-width: 480px) {
             .login-container {
-                padding: 30px 20px;
+                padding: 32px 20px;
             }
         }
     </style>
@@ -254,7 +322,7 @@
                 <label>اسم المستخدم</label>
                 <div class="input-icon">
                     <i class="fas fa-user"></i>
-                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
+                    <input type="text" id="username" placeholder="أدخل اسم المستخدم" value="admin" autocomplete="username" required>
                 </div>
             </div>
             
@@ -262,9 +330,12 @@
                 <label>كلمة المرور</label>
                 <div class="input-icon">
                     <i class="fas fa-lock"></i>
-                    <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
+                    <input type="password" id="password" placeholder="••••••••" value="123456" autocomplete="current-password" required>
                 </div>
-                <div class="error-message" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+                <div class="error-message" id="loginError">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>اسم المستخدم أو كلمة المرور غير صحيحة</span>
+                </div>
             </div>
             
             <button type="submit" class="login-btn">
@@ -285,19 +356,18 @@
         </div>
         
         <div class="login-footer">
-            © 2024 نظام إدارة التوزيع الغذائي
+            © 2025 نظام إدارة التوزيع الغذائي
         </div>
     </div>
 
     <button id="installBtn"><i class="fas fa-download"></i> تثبيت التطبيق</button>
 
-    <!-- ملفات التطبيق بالترتيب الصحيح -->
-    <!-- 1. طبقة تخزين Firebase (تحتوي على الإعدادات) -->
+    <!-- طبقة التخزين (Firebase) -->
     <script src="./js/storage-firebase.js"></script>
-    <!-- 2. الأدوات المساعدة -->
+    <!-- الأدوات المساعدة -->
     <script src="./js/utils.js"></script>
     <script src="./js/ui.js"></script>
-    <!-- 3. المصادقة المحلية -->
+    <!-- المصادقة المحلية -->
     <script src="./js/auth-local.js"></script>
     
     <script>
@@ -319,8 +389,8 @@
             const errorEl = document.getElementById('loginError');
             
             if (!username || !password) {
-                errorEl.textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
-                errorEl.style.display = 'block';
+                errorEl.querySelector('span').textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';
+                errorEl.style.display = 'flex';
                 return;
             }
             
@@ -335,13 +405,13 @@
                 if (result.success) {
                     window.location.href = result.redirectUrl;
                 } else {
-                    errorEl.textContent = result.message || 'فشل تسجيل الدخول';
-                    errorEl.style.display = 'block';
+                    errorEl.querySelector('span').textContent = result.message || 'فشل تسجيل الدخول';
+                    errorEl.style.display = 'flex';
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                errorEl.textContent = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
-                errorEl.style.display = 'block';
+                errorEl.querySelector('span').textContent = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+                errorEl.style.display = 'flex';
             } finally {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
@@ -381,7 +451,6 @@
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             if (outcome === 'accepted') {
-                console.log('تم تثبيت التطبيق');
                 installBtn.style.display = 'none';
             }
             deferredPrompt = null;
