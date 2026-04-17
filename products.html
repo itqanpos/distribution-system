@@ -329,10 +329,15 @@
         </div>
     </div>
 
+    <!-- Firebase SDK (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
     <script src="./js/storage-firebase.js"></script>
     <script src="./js/utils.js"></script>
     <script src="./js/ui.js"></script>
     <script src="./js/auth-local.js"></script>
+
     <script>
         // الشريط الجانبي
         const sidebar = document.getElementById('sidebar');
@@ -473,27 +478,16 @@
             const productData = { id: id || undefined, name, category, description, units: JSON.parse(JSON.stringify(tempUnits)) };
             
             try {
-                if (id) {
-                    const idx = products.findIndex(p => p.id == id);
-                    if (idx >= 0) products[idx] = productData;
-                } else {
-                    products.push(productData);
-                }
-                
-                // حفظ المنتج الفردي باستخدام Storage.saveProduct
                 const saved = await Storage.saveProduct(productData);
                 if (!id) {
-                    // تحديث المعرف المحلي بالمعرف الجديد من الخادم
-                    const newId = saved.id;
-                    const localProd = products.find(p => !p.id || p.id === productData.id);
-                    if (localProd) localProd.id = newId;
+                    const localProd = products.find(p => p.id === productData.id);
+                    if (localProd) localProd.id = saved.id;
                 }
-                
-                renderProductsTable(products);
+                await loadProducts();
                 closeProductModal();
                 alert('✅ تم حفظ المنتج بنجاح');
             } catch (e) {
-                alert('فشل حفظ المنتج: ' + e.message);
+                alert('❌ فشل حفظ المنتج: ' + e.message);
             }
         }
 
