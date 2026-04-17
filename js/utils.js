@@ -1,15 +1,19 @@
 // js/utils.js
 window.Utils = {
-    // تنسيق المبلغ كعملة
+    // تنسيق العملة (بالأرقام الإنجليزية)
     formatMoney(amount) {
         if (amount === undefined || amount === null) amount = 0;
-        return Number(amount).toLocaleString('ar-EG', {
+        return Number(amount).toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        }) + ' ج.م';
+        }) + ' EGP';
     },
 
-    // الحصول على تاريخ اليوم بصيغة YYYY-MM-DD
+    // تنسيق رقم بدون عملة
+    formatNumber(num) {
+        return Number(num).toLocaleString('en-US');
+    },
+
     getToday() {
         const d = new Date();
         const year = d.getFullYear();
@@ -18,23 +22,14 @@ window.Utils = {
         return `${year}-${month}-${day}`;
     },
 
-    // الحصول على الوقت الحالي بصيغة HH:MM:SS
-    getCurrentTime() {
-        const d = new Date();
-        return d.toLocaleTimeString('ar-EG', { hour12: false });
-    },
-
-    // الحصول على طابع زمني كامل (ISO)
     getTimestamp() {
         return new Date().toISOString();
     },
 
-    // ترتيب المصفوفة تنازلياً حسب التاريخ (يفترض وجود حقل date بصيغة YYYY-MM-DD)
     sortByDateDesc(arr) {
         return arr.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     },
 
-    // حساب رصيد الصندوق من مجموعة حركات
     calculateBalance(transactions) {
         let balance = 0;
         transactions.forEach(t => {
@@ -44,17 +39,14 @@ window.Utils = {
         return balance;
     },
 
-    // توليد معرف فريد قصير (للاستخدام المؤقت قبل الحفظ)
     generateId(prefix = '') {
         return prefix + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
     },
 
-    // نسخ عميق آمن
     deepClone(obj) {
         return JSON.parse(JSON.stringify(obj));
     },
 
-    // عرض رسالة خطأ / نجاح (ستُستخدم مع UI)
     showToast(message, type = 'info') {
         if (window.UI && window.UI.showToast) {
             window.UI.showToast(message, type);
@@ -63,5 +55,3 @@ window.Utils = {
         }
     }
 };
-
-console.log('✅ Utils module loaded');
