@@ -1,25 +1,33 @@
 // js/storage-firebase.js
-// طبقة تخزين كاملة تستخدم Firebase Firestore - مشروع parq-893ca
 (function() {
-    const firebaseConfig = {
-        apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
-        authDomain: "parq-893ca.firebaseapp.com",
-        projectId: "parq-893ca",
-        storageBucket: "parq-893ca.firebasestorage.app",
-        messagingSenderId: "179492676601",
-        appId: "1:179492676601:web:061f76928423f2b476d328",
-        measurementId: "G-DWE6PCECE8"
-    };
-
+    // التأكد من وجود Firebase و db
     if (typeof firebase === 'undefined') {
         console.error('❌ Firebase SDK not loaded.');
         alert('خطأ: مكتبة Firebase غير محملة.');
         return;
     }
 
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('⚠️ Persistence error:', err));
+    // إذا لم يتم التهيئة بعد (احتياط)
+    if (!window.db) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
+            authDomain: "parq-893ca.firebaseapp.com",
+            projectId: "parq-893ca",
+            storageBucket: "parq-893ca.firebasestorage.app",
+            messagingSenderId: "179492676601",
+            appId: "1:179492676601:web:061f76928423f2b476d328",
+            measurementId: "G-DWE6PCECE8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        window.db = firebase.firestore();
+        window.auth = firebase.auth();
+    }
+
+    const db = window.db;
+
+    // باقي الكود كما هو ...
+    // (نفس دوال Storage السابقة)
+})();
 
     // دالة مساعدة لإزالة الحقول ذات القيمة undefined
     function sanitizeObject(obj) {
