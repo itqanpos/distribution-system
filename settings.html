@@ -48,7 +48,9 @@
         .user-profile {
             display: flex; align-items: center; gap: 12px; cursor: pointer;
             padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+            position: relative;
         }
+        .user-profile:hover { background: var(--light); }
         .user-avatar {
             width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -57,10 +59,22 @@
         .user-info { text-align: right; }
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
         .user-info p { font-size: 12px; color: #7f8c8d; }
-        .logout-btn {
-            background: none; border: none; color: var(--danger); font-size: 20px;
-            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+
+        /* قائمة منسدلة */
+        .user-dropdown {
+            position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #eee; overflow: hidden;
         }
+        .user-dropdown.show { display: block; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .user-dropdown a:last-child { border-bottom: none; }
+        .user-dropdown a:hover { background: var(--light); }
+        .user-dropdown a i { width: 20px; color: var(--secondary); }
 
         /* ========== الشريط الجانبي ========== */
         .sidebar {
@@ -184,11 +198,14 @@
             <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile">
+            <div class="user-profile" id="userProfileBtn">
                 <div class="user-avatar" id="userAvatar">م</div>
                 <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
             </div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
@@ -236,7 +253,6 @@
                     <div class="form-group"><label>الهاتف</label><input type="tel" id="companyPhone" value="01234567890"></div>
                     <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="companyEmail" value="info@fooddist.com"></div>
                     <div class="form-group"><label>العنوان</label><textarea id="companyAddress">القاهرة، مصر</textarea></div>
-                    <div class="form-group"><label>الشعار</label><input type="file" id="companyLogo" accept="image/*"></div>
                 </div>
             </div>
         </div>
@@ -251,10 +267,6 @@
                     <div class="form-group checkbox"><input type="checkbox" id="showLogo" checked> <label>عرض الشعار في الفاتورة</label></div>
                     <div class="form-group"><label>تذييل الفاتورة</label><input type="text" id="invoiceFooter" value="شكراً لتعاملكم معنا"></div>
                 </div>
-                <button class="btn btn-outline" onclick="searchPrinters()"><i class="fas fa-search"></i> البحث عن طابعات</button>
-                <button class="btn btn-outline" onclick="openPrinterModal()"><i class="fas fa-plus"></i> إضافة طابعة</button>
-                <h4 style="margin:20px 0 10px;">الطابعات المضافة</h4>
-                <div class="table-container"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th></th></tr></thead><tbody id="printersTableBody"></tbody></table></div>
             </div>
         </div>
 
@@ -294,7 +306,6 @@
                     <button class="btn btn-primary" onclick="createBackup()"><i class="fas fa-download"></i> إنشاء نسخة احتياطية</button>
                     <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()"><i class="fas fa-upload"></i> استعادة نسخة</button>
                     <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreBackup(this)">
-                    <button class="btn btn-outline" onclick="autoBackupSettings()"><i class="fas fa-clock"></i> جدولة نسخ تلقائي</button>
                 </div>
                 <p style="margin-top:20px;">آخر نسخة: <span id="lastBackupDate">-</span></p>
             </div>
@@ -312,18 +323,6 @@
                     <div class="form-group checkbox"><input type="checkbox" id="enableNotifications"> <label>تفعيل الإشعارات</label></div>
                     <div class="form-group checkbox"><input type="checkbox" id="requireApproval"> <label>تتطلب الفواتير الكبيرة موافقة</label></div>
                     <div class="form-group"><label>حد الفاتورة للموافقة (ج)</label><input type="number" id="approvalThreshold" value="5000"></div>
-                </div>
-            </div>
-            <div class="settings-card">
-                <h3 class="settings-section-title"><i class="fas fa-envelope"></i> إعدادات البريد الإلكتروني</h3>
-                <div class="form-grid">
-                    <div class="form-group"><label>خادم SMTP</label><input type="text" id="smtpHost" placeholder="smtp.gmail.com"></div>
-                    <div class="form-group"><label>المنفذ</label><input type="number" id="smtpPort" value="587"></div>
-                    <div class="form-group"><label>اسم المستخدم</label><input type="text" id="smtpUser"></div>
-                    <div class="form-group"><label>كلمة المرور</label><input type="password" id="smtpPass"></div>
-                    <div class="form-group"><label>البريد المرسل</label><input type="email" id="fromEmail"></div>
-                    <div class="form-group checkbox"><input type="checkbox" id="smtpSecure"> <label>استخدام SSL/TLS</label></div>
-                    <button class="btn btn-outline" onclick="testEmail()">اختبار الإرسال</button>
                 </div>
             </div>
         </div>
@@ -345,20 +344,16 @@
         </div>
     </div>
 
-    <!-- مودال طابعة -->
-    <div class="modal" id="printerModal">
-        <div class="modal-content">
-            <div class="modal-header"><h2>البحث عن طابعات</h2><button class="close-btn" onclick="closePrinterModal()">&times;</button></div>
-            <div id="printerList" style="max-height:300px; overflow-y:auto;"></div>
-            <div class="form-group"><label>أو أضف يدوياً</label><input type="text" id="manualPrinterName" placeholder="اسم الطابعة"></div>
-            <div class="modal-footer"><button class="btn btn-primary" onclick="addManualPrinter()">إضافة</button></div>
-        </div>
-    </div>
-
-    <script src="./js/auth.js"></script>
-    <script src="./js/storage.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="./js/firebase-init.js"></script>
     <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
     <script src="./js/ui.js"></script>
+    <script src="./js/storage-firebase.js"></script>
+
     <script>
         // الشريط الجانبي
         const sidebar = document.getElementById('sidebar');
@@ -370,9 +365,19 @@
         }
         menuToggle.addEventListener('click', toggleSidebar);
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+
+        // القائمة المنسدلة للمستخدم
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
+
         document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
 
-        let users = [], printers = [{ name: 'طابعة المطبخ', type: 'حرارية', status: 'متصل' }];
+        let users = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
@@ -386,8 +391,6 @@
             users = await Storage.getUsers();
             await loadSettings();
             renderUsers();
-            renderPrinters();
-            applyTheme(localStorage.getItem('theme') || 'light');
         });
 
         function switchTab(tab) {
@@ -401,6 +404,7 @@
             const s = await Storage.getSettings();
             if (s.company) {
                 document.getElementById('companyName').value = s.company.name || '';
+                document.getElementById('commercialReg').value = s.company.commercialReg || '';
                 document.getElementById('companyPhone').value = s.company.phone || '';
                 document.getElementById('companyEmail').value = s.company.email || '';
                 document.getElementById('companyAddress').value = s.company.address || '';
@@ -433,6 +437,7 @@
             const settings = await Storage.getSettings();
             settings.company = {
                 name: document.getElementById('companyName').value,
+                commercialReg: document.getElementById('commercialReg').value,
                 phone: document.getElementById('companyPhone').value,
                 email: document.getElementById('companyEmail').value,
                 address: document.getElementById('companyAddress').value
@@ -460,14 +465,13 @@
                 approvalThreshold: parseFloat(document.getElementById('approvalThreshold').value) || 5000
             };
             await Storage.saveSettings(settings);
-            alert('تم حفظ جميع الإعدادات');
+            UI.showToast('تم حفظ جميع الإعدادات', 'success');
         }
 
-        function setTheme(theme) { localStorage.setItem('theme', theme); applyTheme(theme); }
-        function applyTheme(theme) { document.body.classList.toggle('dark-theme', theme === 'dark'); }
+        function setTheme(theme) { localStorage.setItem('theme', theme); UI.showToast('سيتم تطبيق الثيم بعد إعادة التحميل', 'info'); }
 
         function renderUsers() {
-            document.getElementById('usersTableBody').innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.fullName}</td><td>${u.role}</td><td>${u.status==='active'?'نشط':'غير نشط'}</td><td><i class="fas fa-edit action-icon" onclick="editUser(${u.id})"></i><i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteUser(${u.id})"></i></td></tr>`).join('');
+            document.getElementById('usersTableBody').innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.fullName}</td><td>${u.role}</td><td>${u.status==='active'?'نشط':'غير نشط'}</td><td><i class="fas fa-edit action-icon" onclick="editUser('${u.id}')"></i><i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deleteUser('${u.id}')"></i></td></tr>`).join('');
         }
 
         function openUserModal() {
@@ -477,7 +481,7 @@
             document.getElementById('userModal').style.display = 'flex';
         }
         function editUser(id) {
-            const u = users.find(x => x.id == id); if (!u) return;
+            const u = users.find(x => x.id === id); if (!u) return;
             document.getElementById('userModalTitle').textContent = 'تعديل مستخدم';
             document.getElementById('userId').value = u.id;
             document.getElementById('username').value = u.username;
@@ -487,41 +491,45 @@
             document.getElementById('userModal').style.display = 'flex';
         }
         function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
+
         async function saveUser(e) {
             e.preventDefault();
             const id = document.getElementById('userId').value;
-            const username = document.getElementById('username').value;
-            const fullName = document.getElementById('fullName').value;
+            const username = document.getElementById('username').value.trim();
+            const fullName = document.getElementById('fullName').value.trim();
             const password = document.getElementById('password').value;
             const role = document.getElementById('userRole').value;
             const status = document.getElementById('userStatus').value;
-            if (id) {
-                const idx = users.findIndex(u => u.id == id);
-                if (idx >= 0) { users[idx] = { ...users[idx], username, fullName, role, status }; if (password) users[idx].password = password; }
-            } else {
-                users.push({ id: Date.now(), username, fullName, password, role, status });
-            }
-            await Storage.saveUsers(users);
-            renderUsers();
-            closeUserModal();
-        }
-        async function deleteUser(id) { if (confirm('حذف المستخدم؟')) { users = users.filter(u => u.id != id); await Storage.saveUsers(users); renderUsers(); } }
 
-        function renderPrinters() {
-            document.getElementById('printersTableBody').innerHTML = printers.map(p => `<tr><td>${p.name}</td><td>${p.type}</td><td>${p.status}</td><td><i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="removePrinter('${p.name}')"></i></td></tr>`).join('');
+            if (!username || !fullName) { UI.showToast('الاسم مطلوب', 'warning'); return; }
+
+            const userData = { username, fullName, role, status };
+            if (id) {
+                userData.id = id;
+                if (password) userData.password = password;
+            } else {
+                if (!password) { UI.showToast('كلمة المرور مطلوبة', 'warning'); return; }
+                userData.password = password;
+            }
+
+            try {
+                await Storage.saveUser(userData);
+                UI.showToast('تم حفظ المستخدم', 'success');
+                closeUserModal();
+                users = await Storage.getUsers();
+                renderUsers();
+            } catch (err) { UI.showToast('فشل الحفظ', 'danger'); }
         }
-        function searchPrinters() { openPrinterModal(); }
-        function openPrinterModal() {
-            document.getElementById('printerModal').style.display = 'flex';
-            document.getElementById('printerList').innerHTML = `
-                <div class="printer-item" style="padding:10px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between;"><span>طابعة حرارية (USB)</span><button class="btn btn-sm" onclick="addPrinter('طابعة حرارية (USB)')">إضافة</button></div>
-                <div class="printer-item" style="padding:10px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between;"><span>طابعة A4 (شبكة)</span><button class="btn btn-sm" onclick="addPrinter('طابعة A4 (شبكة)')">إضافة</button></div>
-            `;
+
+        async function deleteUser(id) {
+            if (!await UI.confirmDelete('حذف المستخدم؟')) return;
+            try {
+                await window.db.collection('users').doc(id).delete();
+                UI.showToast('تم الحذف', 'success');
+                users = await Storage.getUsers();
+                renderUsers();
+            } catch (err) { UI.showToast('فشل الحذف', 'danger'); }
         }
-        function closePrinterModal() { document.getElementById('printerModal').style.display = 'none'; }
-        function addPrinter(name) { if (!printers.find(p => p.name === name)) { printers.push({ name, type: 'حرارية', status: 'متصل' }); renderPrinters(); } closePrinterModal(); }
-        function addManualPrinter() { const name = document.getElementById('manualPrinterName').value; if (name) addPrinter(name); }
-        function removePrinter(name) { printers = printers.filter(p => p.name !== name); renderPrinters(); }
 
         async function createBackup() {
             const data = {
@@ -532,6 +540,7 @@
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${Utils.getToday()}.json`; a.click();
             document.getElementById('lastBackupDate').textContent = new Date().toLocaleString('ar-EG');
+            UI.showToast('تم إنشاء النسخة الاحتياطية', 'success');
         }
 
         async function restoreBackup(input) {
@@ -540,36 +549,44 @@
             reader.onload = async (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (confirm('استعادة النسخة ستؤدي إلى فقدان البيانات الحالية. متابعة؟')) {
-                        if (data.products) await Storage.saveProducts(data.products);
-                        if (data.customers) await Storage.saveCustomers(data.customers);
-                        if (data.suppliers) await Storage.saveSuppliers(data.suppliers);
-                        if (data.reps) await Storage.saveReps(data.reps);
-                        if (data.invoices) await Storage.saveInvoices(data.invoices);
-                        if (data.purchases) await Storage.savePurchases(data.purchases);
-                        if (data.transactions) await Storage.saveTransactions(data.transactions);
-                        if (data.settings) await Storage.saveSettings(data.settings);
-                        if (data.users) await Storage.saveUsers(data.users);
-                        alert('تمت الاستعادة. سيتم إعادة التحميل.'); location.reload();
-                    }
-                } catch (ex) { alert('ملف غير صالح'); }
+                    if (!await UI.confirmDelete('استعادة النسخة ستؤدي إلى فقدان البيانات الحالية. متابعة؟')) return;
+                    if (data.products) for (const p of data.products) await Storage.saveProduct(p);
+                    if (data.customers) for (const c of data.customers) await Storage.saveCustomer(c);
+                    if (data.suppliers) for (const s of data.suppliers) await Storage.saveSupplier(s);
+                    if (data.reps) for (const r of data.reps) await Storage.saveRep(r);
+                    if (data.invoices) for (const i of data.invoices) await Storage.saveInvoice(i);
+                    if (data.purchases) for (const p of data.purchases) await Storage.savePurchase(p);
+                    if (data.transactions) for (const t of data.transactions) await Storage.saveTransaction(t);
+                    if (data.settings) await Storage.saveSettings(data.settings);
+                    if (data.users) for (const u of data.users) await Storage.saveUser(u);
+                    UI.showToast('تمت الاستعادة بنجاح', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } catch (ex) { UI.showToast('ملف غير صالح', 'danger'); }
             };
             reader.readAsText(input.files[0]);
         }
-
-        function autoBackupSettings() { alert('سيتم جدولة نسخ احتياطي يومي'); }
 
         function confirmDeleteAllData() {
             if (confirm('تحذير: سيتم حذف جميع البيانات نهائياً. هل أنت متأكد؟')) {
                 if (confirm('آخر تأكيد: لا يمكن التراجع!')) {
                     localStorage.clear();
                     alert('تم حذف جميع البيانات. سيتم إعادة تهيئة النظام.');
-                    Storage.init(); location.reload();
+                    location.reload();
                 }
             }
         }
 
-        function testEmail() { alert('سيتم محاولة إرسال بريد تجريبي'); }
+        // تعريض الدوال
+        window.switchTab = switchTab;
+        window.saveAllSettings = saveAllSettings;
+        window.setTheme = setTheme;
+        window.openUserModal = openUserModal;
+        window.closeUserModal = closeUserModal;
+        window.editUser = editUser;
+        window.deleteUser = deleteUser;
+        window.createBackup = createBackup;
+        window.restoreBackup = restoreBackup;
+        window.confirmDeleteAllData = confirmDeleteAllData;
     </script>
 </body>
 </html>
