@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
     <style>
+        /* نفس التنسيقات السابقة مع إضافات بسيطة */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -25,7 +26,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        /* ========== شريط التنقل ========== */
+        /* شريط التنقل */
         .navbar {
             position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
             background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -62,7 +63,7 @@
             cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
         }
 
-        /* ========== الشريط الجانبي ========== */
+        /* الشريط الجانبي */
         .sidebar {
             position: fixed; top: var(--header-height); right: 0; bottom: 0;
             width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
@@ -91,7 +92,7 @@
             color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
         }
 
-        /* ========== المحتوى الرئيسي ========== */
+        /* المحتوى الرئيسي */
         .main-content {
             margin-right: var(--sidebar-width); margin-top: var(--header-height);
             padding: 25px; transition: margin-right 0.25s ease;
@@ -99,7 +100,7 @@
         }
         .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
 
-        /* ========== البطاقات ========== */
+        /* البطاقات */
         .page-header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
@@ -114,6 +115,7 @@
         .btn-primary { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(52,152,219,0.2); }
         .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
         .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
 
         .summary-cards {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -132,7 +134,7 @@
         .summary-card.profit .icon { color: var(--primary); }
         .summary-card.cash .icon { color: var(--warning); }
 
-        /* ========== جداول ========== */
+        /* جداول */
         .table-container {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
@@ -178,7 +180,7 @@
         .account-balance.positive { color: var(--success); }
         .account-balance.negative { color: var(--danger); }
 
-        /* ========== مودال ========== */
+        /* مودال */
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
@@ -203,6 +205,11 @@
         .add-entry-btn {
             background: var(--light); border: 1px dashed var(--secondary);
             padding: 10px; border-radius: 12px; text-align: center; cursor: pointer;
+        }
+
+        /* تحميل */
+        .loading-spinner {
+            text-align: center; padding: 40px; color: var(--secondary);
         }
 
         /* استجابة */
@@ -282,7 +289,7 @@
             </div>
             <div style="overflow-x: auto;">
                 <table>
-                    <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead>
+                    <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th><th></th></tr></thead>
                     <tbody id="ledgerBody"></tbody>
                 </table>
             </div>
@@ -308,20 +315,22 @@
             </form>
         </div>
     </div>
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
-<!-- التهيئة المركزية -->
-<script src="./js/firebase-init.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
-<!-- الأدوات المساعدة -->
-<script src="./js/utils.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/storage-firebase.js"></script>
-<script
+    <!-- التهيئة المركزية -->
+    <script src="./js/firebase-init.js"></script>
+
+    <!-- الأدوات المساعدة -->
+    <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/storage-firebase.js"></script>
+
+    <script>
         // الشريط الجانبي
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
@@ -334,8 +343,12 @@
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
         document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
 
-        let ledgerEntries = [];
+        // قائمة الحسابات الأساسية
         const accountNames = ['نقدية', 'بنك', 'عملاء', 'موردين', 'مبيعات', 'مشتريات', 'مصروفات', 'مخزون'];
+        let ledgerEntries = []; // تخزين القيود المحملة
+
+        // مرجع لمجموعة journal في Firestore
+        const journalCollection = window.db.collection('journal');
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
@@ -352,75 +365,215 @@
             document.getElementById('searchLedger').addEventListener('input', filterLedger);
         });
 
+        // تحميل البيانات المحاسبية (قيود + فواتير + مشتريات + حركات)
         async function loadAccountingData() {
-            await buildLedgerFromSystem();
-            renderLedger();
-            renderAccounts();
-            updateSummary();
+            try {
+                UI.showToast('جاري تحميل البيانات المحاسبية...', 'info');
+                
+                // جلب القيود المحفوظة يدوياً من Firestore
+                const journalSnapshot = await journalCollection.orderBy('date', 'desc').get();
+                const manualEntries = journalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // جلب الفواتير والمشتريات (نستخدم دوال اليوم إن وجدت لتحسين الأداء)
+                let invoices = [];
+                let purchases = [];
+                let transactions = [];
+                
+                if (Storage.getTodayInvoices) {
+                    invoices = await Storage.getTodayInvoices();
+                } else {
+                    invoices = await Storage.getInvoices();
+                }
+                if (Storage.getTodayPurchases) {
+                    purchases = await Storage.getTodayPurchases();
+                } else {
+                    purchases = await Storage.getPurchases();
+                }
+                transactions = await Storage.getTransactions();
+
+                // بناء القيود من العمليات النظامية
+                const systemEntries = buildEntriesFromSystem(invoices, purchases, transactions);
+                
+                // دمج القيود اليدوية مع النظامية
+                ledgerEntries = [...manualEntries, ...systemEntries];
+                // ترتيب حسب التاريخ تنازلياً
+                ledgerEntries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+                renderLedger();
+                await renderAccounts();
+                updateSummary();
+                
+                UI.showToast('تم تحميل البيانات بنجاح', 'success');
+            } catch (error) {
+                console.error('خطأ في تحميل البيانات المحاسبية:', error);
+                UI.showToast('فشل تحميل البيانات المحاسبية', 'danger');
+            }
         }
 
-        async function buildLedgerFromSystem() {
-            ledgerEntries = [];
-            const invoices = await Storage.getInvoices();
-            const purchases = await Storage.getPurchases();
-            const transactions = await Storage.getTransactions();
-
-            invoices.filter(i=>i.type==='sale').forEach(inv => {
-                if (inv.paid > 0) ledgerEntries.push({ date: inv.date, description: `دفعة فاتورة ${inv.id} - ${inv.customer}`, debitAccount: 'نقدية', creditAccount: 'عملاء', debit: inv.paid, credit: inv.paid });
-                ledgerEntries.push({ date: inv.date, description: `فاتورة بيع ${inv.id} - ${inv.customer}`, debitAccount: 'عملاء', creditAccount: 'مبيعات', debit: inv.total, credit: inv.total });
+        // بناء قيود من الفواتير والمشتريات والحركات
+        function buildEntriesFromSystem(invoices, purchases, transactions) {
+            const entries = [];
+            
+            invoices.filter(i => i.type === 'sale').forEach(inv => {
+                if (inv.paid > 0) {
+                    entries.push({ 
+                        date: inv.date, 
+                        description: `دفعة فاتورة ${inv.id} - ${inv.customer}`, 
+                        debitAccount: 'نقدية', creditAccount: 'عملاء', 
+                        debit: inv.paid, credit: inv.paid 
+                    });
+                }
+                entries.push({ 
+                    date: inv.date, 
+                    description: `فاتورة بيع ${inv.id} - ${inv.customer}`, 
+                    debitAccount: 'عملاء', creditAccount: 'مبيعات', 
+                    debit: inv.total, credit: inv.total 
+                });
             });
+
             purchases.forEach(p => {
-                if (p.paid > 0) ledgerEntries.push({ date: p.date, description: `دفع فاتورة ${p.id} - ${p.supplier}`, debitAccount: 'موردين', creditAccount: 'نقدية', debit: p.paid, credit: p.paid });
-                ledgerEntries.push({ date: p.date, description: `فاتورة شراء ${p.id} - ${p.supplier}`, debitAccount: 'مشتريات', creditAccount: 'موردين', debit: p.total, credit: p.total });
+                if (p.paid > 0) {
+                    entries.push({ 
+                        date: p.date, 
+                        description: `دفع فاتورة ${p.id} - ${p.supplier}`, 
+                        debitAccount: 'موردين', creditAccount: 'نقدية', 
+                        debit: p.paid, credit: p.paid 
+                    });
+                }
+                entries.push({ 
+                    date: p.date, 
+                    description: `فاتورة شراء ${p.id} - ${p.supplier}`, 
+                    debitAccount: 'مشتريات', creditAccount: 'موردين', 
+                    debit: p.total, credit: p.total 
+                });
             });
+
             transactions.forEach(t => {
-                ledgerEntries.push({ date: t.date, description: t.description, debitAccount: t.type==='income'?'نقدية':'مصروفات', creditAccount: t.type==='income'?'مبيعات':'نقدية', debit: t.amount, credit: t.amount });
+                entries.push({ 
+                    date: t.date, 
+                    description: t.description, 
+                    debitAccount: t.type === 'income' ? 'نقدية' : 'مصروفات', 
+                    creditAccount: t.type === 'income' ? 'مبيعات' : 'نقدية', 
+                    debit: t.amount, credit: t.amount 
+                });
             });
-            ledgerEntries.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            return entries;
         }
 
+        // عرض القيود في الجدول
         function renderLedger(entries = ledgerEntries) {
             const tbody = document.getElementById('ledgerBody');
-            tbody.innerHTML = entries.map(e => `<tr><td>${e.date}</td><td>${e.description}</td><td class="debit">${e.debitAccount} ${Utils.formatMoney(e.debit)}</td><td class="credit">${e.creditAccount} ${Utils.formatMoney(e.credit)}</td></tr>`).join('');
-        }
-
-        function filterLedger() {
-            const term = document.getElementById('searchLedger').value.toLowerCase();
-            const filtered = ledgerEntries.filter(e => e.description.toLowerCase().includes(term));
-            renderLedger(filtered);
-        }
-
-        function calculateBalances() {
-            const balances = {};
-            accountNames.forEach(n => balances[n] = 0);
-            ledgerEntries.forEach(e => { balances[e.debitAccount] = (balances[e.debitAccount]||0) + e.debit; balances[e.creditAccount] = (balances[e.creditAccount]||0) - e.credit; });
-            return balances;
-        }
-
-        async function renderAccounts() {
-            const balances = calculateBalances();
-            const customers = await Storage.getCustomers();
-            const suppliers = await Storage.getSuppliers();
-            const products = await Storage.getProducts();
-            balances['عملاء'] = customers.reduce((s,c)=>s+(c.balance<0?-c.balance:0),0);
-            balances['موردين'] = suppliers.reduce((s,s_)=>s_+s_.balance,0);
-            balances['مخزون'] = products.reduce((s,p)=>s+p.units.reduce((us,u)=>us+u.price*u.stock,0),0);
-
-            const groups = { 'الأصول': ['نقدية', 'بنك', 'عملاء', 'مخزون'], 'الخصوم': ['موردين'], 'الإيرادات': ['مبيعات'], 'المصروفات': ['مشتريات', 'مصروفات'] };
-            document.getElementById('accountsGrid').innerHTML = Object.entries(groups).map(([g, accs]) => `
-                <div class="account-group"><h4>${g}</h4>${accs.map(a => `<div class="account-item"><span>${a}</span><span class="account-balance ${balances[a]>=0?'positive':'negative'}">${Utils.formatMoney(balances[a]||0)}</span></div>`).join('')}</div>
+            if (!entries.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">لا توجد قيود</td></tr>';
+                return;
+            }
+            tbody.innerHTML = entries.map(e => `
+                <tr>
+                    <td>${e.date || ''}</td>
+                    <td>${e.description || ''}</td>
+                    <td class="debit">${e.debitAccount} ${Utils.formatMoney(e.debit)}</td>
+                    <td class="credit">${e.creditAccount} ${Utils.formatMoney(e.credit)}</td>
+                    <td>
+                        ${e.id ? `<button class="btn-icon" onclick="deleteEntry('${e.id}')" title="حذف"><i class="fas fa-trash" style="color:var(--danger);"></i></button>` : '<span style="color:#95a5a6;">تلقائي</span>'}
+                    </td>
+                </tr>
             `).join('');
         }
 
-        function updateSummary() {
-            const balances = calculateBalances();
-            const revenue = balances['مبيعات']||0, expenses = (balances['مشتريات']||0)+(balances['مصروفات']||0);
-            document.getElementById('totalRevenue').textContent = Utils.formatMoney(revenue);
-            document.getElementById('totalExpenses').textContent = Utils.formatMoney(expenses);
-            document.getElementById('netProfit').textContent = Utils.formatMoney(revenue-expenses);
-            document.getElementById('cashBalance').textContent = Utils.formatMoney(balances['نقدية']||0);
+        // حذف قيد يدوي
+        window.deleteEntry = async function(entryId) {
+            if (!await UI.confirmDelete('هل أنت متأكد من حذف هذا القيد؟')) return;
+            try {
+                await journalCollection.doc(entryId).delete();
+                UI.showToast('تم حذف القيد بنجاح', 'success');
+                await loadAccountingData();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل حذف القيد', 'danger');
+            }
+        };
+
+        // تصفية القيود بالبحث
+        function filterLedger() {
+            const term = document.getElementById('searchLedger').value.toLowerCase();
+            const filtered = ledgerEntries.filter(e => 
+                (e.description || '').toLowerCase().includes(term) ||
+                (e.debitAccount || '').toLowerCase().includes(term) ||
+                (e.creditAccount || '').toLowerCase().includes(term)
+            );
+            renderLedger(filtered);
         }
 
+        // حساب أرصدة الحسابات من القيود الحالية
+        function calculateBalances() {
+            const balances = {};
+            accountNames.forEach(n => balances[n] = 0);
+            ledgerEntries.forEach(e => {
+                balances[e.debitAccount] = (balances[e.debitAccount] || 0) + (e.debit || 0);
+                balances[e.creditAccount] = (balances[e.creditAccount] || 0) - (e.credit || 0);
+            });
+            return balances;
+        }
+
+        // عرض شجرة الحسابات مع الأرصدة
+        async function renderAccounts() {
+            const balances = calculateBalances();
+            
+            // جلب أرصدة العملاء والموردين والمخزون من المجموعات الأصلية
+            try {
+                const customers = await Storage.getCustomers();
+                const suppliers = await Storage.getSuppliers();
+                const products = await Storage.getProducts();
+                
+                // تحديث رصيد العملاء (دائن = سالب في العادة)
+                balances['عملاء'] = customers.reduce((s, c) => s + (c.balance > 0 ? c.balance : 0), 0);
+                balances['موردين'] = suppliers.reduce((s, s_) => s + (s_.balance || 0), 0);
+                balances['مخزون'] = products.reduce((s, p) => {
+                    return s + (p.units || []).reduce((us, u) => us + (u.price || 0) * (u.stock || 0), 0);
+                }, 0);
+            } catch (e) {
+                console.warn('تعذر تحديث أرصدة العملاء/الموردين من المصدر', e);
+            }
+
+            const groups = {
+                'الأصول': ['نقدية', 'بنك', 'عملاء', 'مخزون'],
+                'الخصوم': ['موردين'],
+                'الإيرادات': ['مبيعات'],
+                'المصروفات': ['مشتريات', 'مصروفات']
+            };
+
+            const grid = document.getElementById('accountsGrid');
+            grid.innerHTML = Object.entries(groups).map(([g, accs]) => `
+                <div class="account-group">
+                    <h4>${g}</h4>
+                    ${accs.map(a => `
+                        <div class="account-item">
+                            <span>${a}</span>
+                            <span class="account-balance ${(balances[a] || 0) >= 0 ? 'positive' : 'negative'}">
+                                ${Utils.formatMoney(balances[a] || 0)}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        // تحديث بطاقات الملخص
+        function updateSummary() {
+            const balances = calculateBalances();
+            const revenue = balances['مبيعات'] || 0;
+            const expenses = (balances['مشتريات'] || 0) + (balances['مصروفات'] || 0);
+            const profit = revenue - expenses;
+            const cash = balances['نقدية'] || 0;
+
+            document.getElementById('totalRevenue').textContent = Utils.formatMoney(revenue);
+            document.getElementById('totalExpenses').textContent = Utils.formatMoney(expenses);
+            document.getElementById('netProfit').textContent = Utils.formatMoney(profit);
+            document.getElementById('cashBalance').textContent = Utils.formatMoney(cash);
+        }
+
+        // --- إدارة المودال ---
         function openEntryModal() {
             document.getElementById('entryForm').reset();
             document.getElementById('entriesContainer').innerHTML = '';
@@ -432,7 +585,7 @@
         function addEntryRow() {
             const row = document.createElement('div'); row.className = 'entry-row';
             row.innerHTML = `
-                <select class="account-select" required><option value="">اختر الحساب</option>${accountNames.map(a=>`<option>${a}</option>`).join('')}</select>
+                <select class="account-select" required><option value="">اختر الحساب</option>${accountNames.map(a => `<option>${a}</option>`).join('')}</select>
                 <input type="number" class="debit-amount" placeholder="مدين" min="0" step="0.01">
                 <input type="number" class="credit-amount" placeholder="دائن" min="0" step="0.01">
                 <button type="button" class="btn" onclick="this.closest('.entry-row').remove()"><i class="fas fa-trash"></i></button>
@@ -440,38 +593,72 @@
             document.getElementById('entriesContainer').appendChild(row);
         }
 
-        function saveEntry(event) {
+        // حفظ قيد جديد في Firestore
+        async function saveEntry(event) {
             event.preventDefault();
             const date = document.getElementById('entryDate').value;
-            const desc = document.getElementById('entryDescription').value;
+            const desc = document.getElementById('entryDescription').value.trim();
+            if (!desc) return UI.showToast('البيان مطلوب', 'warning');
+
             const rows = document.querySelectorAll('.entry-row');
-            let totalDebit=0, totalCredit=0, newEntries=[];
+            let totalDebit = 0, totalCredit = 0;
+            const entriesToSave = [];
+
             rows.forEach(r => {
                 const acc = r.querySelector('.account-select').value;
-                const debit = parseFloat(r.querySelector('.debit-amount').value)||0;
-                const credit = parseFloat(r.querySelector('.credit-amount').value)||0;
-                if (acc && (debit||credit)) { newEntries.push({ acc, debit, credit }); totalDebit+=debit; totalCredit+=credit; }
+                const debit = parseFloat(r.querySelector('.debit-amount').value) || 0;
+                const credit = parseFloat(r.querySelector('.credit-amount').value) || 0;
+                if (acc && (debit > 0 || credit > 0)) {
+                    entriesToSave.push({ account: acc, debit, credit });
+                    totalDebit += debit;
+                    totalCredit += credit;
+                }
             });
-            if (!newEntries.length) return alert('أضف بنداً');
-            if (Math.abs(totalDebit-totalCredit)>0.01) return alert('يجب أن يتساوى المدين والدائن');
-            newEntries.forEach(e => {
-                if (e.debit) ledgerEntries.push({ date, description: desc, debitAccount: e.acc, creditAccount: 'مقابل', debit: e.debit, credit: e.debit });
-                if (e.credit) ledgerEntries.push({ date, description: desc, debitAccount: 'مقابل', creditAccount: e.acc, debit: e.credit, credit: e.credit });
-            });
-            renderLedger(); renderAccounts(); updateSummary(); closeEntryModal();
+
+            if (entriesToSave.length === 0) return UI.showToast('أضف بنداً واحداً على الأقل', 'warning');
+            if (Math.abs(totalDebit - totalCredit) > 0.01) return UI.showToast('يجب أن يتساوى مجموع المدين مع الدائن', 'warning');
+
+            // إنشاء قيود متوازنة (يمكن حفظها كقيد واحد يحتوي على تفاصيل البنود)
+            const journalEntry = {
+                date: date,
+                description: desc,
+                entries: entriesToSave, // تفاصيل البنود
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await journalCollection.add(journalEntry);
+                UI.showToast('تم حفظ القيد بنجاح', 'success');
+                closeEntryModal();
+                await loadAccountingData(); // إعادة تحميل البيانات
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل حفظ القيد', 'danger');
+            }
         }
 
         // طباعة التقرير المحاسبي
         function printAccountingReport() {
             const balances = calculateBalances();
-            const revenue = balances['مبيعات']||0, expenses = (balances['مشتريات']||0)+(balances['مصروفات']||0);
+            const revenue = balances['مبيعات'] || 0;
+            const expenses = (balances['مشتريات'] || 0) + (balances['مصروفات'] || 0);
+            const profit = revenue - expenses;
+
             const win = window.open('', '_blank');
             win.document.write(`
                 <html dir="rtl"><head><title>تقرير محاسبي</title><style>body{font-family:'Segoe UI';padding:20px;}</style></head><body>
                 <h2>التقرير المحاسبي - ${Utils.getToday()}</h2>
-                <h3>ملخص مالي</h3><p>الإيرادات: ${Utils.formatMoney(revenue)}</p><p>المصروفات: ${Utils.formatMoney(expenses)}</p><p>صافي الربح: ${Utils.formatMoney(revenue-expenses)}</p>
+                <h3>ملخص مالي</h3>
+                <p>الإيرادات: ${Utils.formatMoney(revenue)}</p>
+                <p>المصروفات: ${Utils.formatMoney(expenses)}</p>
+                <p>صافي الربح: ${Utils.formatMoney(profit)}</p>
                 <h3>شجرة الحسابات</h3>
-                ${Object.entries({ 'الأصول': ['نقدية', 'بنك', 'عملاء', 'مخزون'], 'الخصوم': ['موردين'], 'الإيرادات': ['مبيعات'], 'المصروفات': ['مشتريات', 'مصروفات'] }).map(([g, accs]) => `<h4>${g}</h4><ul>${accs.map(a => `<li>${a}: ${Utils.formatMoney(balances[a]||0)}</li>`).join('')}</ul>`).join('')}
+                ${Object.entries({
+                    'الأصول': ['نقدية', 'بنك', 'عملاء', 'مخزون'],
+                    'الخصوم': ['موردين'],
+                    'الإيرادات': ['مبيعات'],
+                    'المصروفات': ['مشتريات', 'مصروفات']
+                }).map(([g, accs]) => `<h4>${g}</h4><ul>${accs.map(a => `<li>${a}: ${Utils.formatMoney(balances[a] || 0)}</li>`).join('')}</ul>`).join('')}
                 </body></html>
             `);
             win.document.close(); win.print();
