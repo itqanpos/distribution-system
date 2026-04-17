@@ -48,7 +48,9 @@
         .user-profile {
             display: flex; align-items: center; gap: 12px; cursor: pointer;
             padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+            position: relative;
         }
+        .user-profile:hover { background: var(--light); }
         .user-avatar {
             width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -57,10 +59,22 @@
         .user-info { text-align: right; }
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
         .user-info p { font-size: 12px; color: #7f8c8d; }
-        .logout-btn {
-            background: none; border: none; color: var(--danger); font-size: 20px;
-            cursor: pointer; padding: 8px; border-radius: 10px; transition: all 0.2s;
+
+        /* قائمة المستخدم المنسدلة */
+        .user-dropdown {
+            position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #eee; overflow: hidden;
         }
+        .user-dropdown.show { display: block; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .user-dropdown a:last-child { border-bottom: none; }
+        .user-dropdown a:hover { background: var(--light); }
+        .user-dropdown a i { width: 20px; color: var(--secondary); }
 
         /* ========== الشريط الجانبي ========== */
         .sidebar {
@@ -215,14 +229,17 @@
             </div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile">
+            <div class="user-profile" id="userProfileBtn">
                 <div class="user-avatar" id="userAvatar">م</div>
                 <div class="user-info">
                     <h4 id="userName">مدير النظام</h4>
                     <p id="loginTime">اليوم</p>
                 </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
             </div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
@@ -334,20 +351,19 @@
     </div>
 
     <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
-<!-- التهيئة المركزية -->
-<script src="./js/firebase-init.js"></script>
+    <!-- التهيئة المركزية -->
+    <script src="./js/firebase-init.js"></script>
 
-<!-- الأدوات المساعدة -->
-<script src="./js/utils.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/storage-firebase.js"></script>
+    <!-- الأدوات المساعدة -->
+    <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/storage-firebase.js"></script>
 
-<!-- سكربت الصفحة الخاص (إن وجد) -->
     <script>
         // إدارة الشريط الجانبي
         const sidebar = document.getElementById('sidebar');
@@ -365,6 +381,15 @@
         document.querySelectorAll('.menu-item').forEach(link => {
             link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); });
         });
+
+        // القائمة المنسدلة للمستخدم
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
         let transactions = [];
 
@@ -384,41 +409,66 @@
         });
 
         async function loadTransactions() {
-            transactions = await Storage.getTransactions();
-            applyFilters();
+            try {
+                // استخدام الدالة المحسنة إن وجدت
+                if (Storage.getRecentTransactions) {
+                    transactions = await Storage.getRecentTransactions(100); // آخر 100 حركة
+                } else {
+                    transactions = await Storage.getTransactions();
+                }
+                applyFilters();
+            } catch (error) {
+                console.error('خطأ في تحميل الحركات:', error);
+                UI.showToast('فشل تحميل حركات الصندوق', 'danger');
+            }
         }
 
         function applyFilters() {
             const term = document.getElementById('searchInput').value.toLowerCase();
             let filtered = transactions.filter(t => 
-                t.description.toLowerCase().includes(term) || (t.reference||'').toLowerCase().includes(term)
+                (t.description || '').toLowerCase().includes(term) || 
+                (t.reference || '').toLowerCase().includes(term)
             );
-            filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
+            // ترتيب تنازلي حسب التاريخ
+            filtered.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
             renderTable(filtered);
             updateStats();
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('transactionsTableBody');
-            if (!data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">لا توجد حركات</td></tr>'; return; }
+            if (!data.length) { 
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">لا توجد حركات</td></tr>'; 
+                return; 
+            }
             tbody.innerHTML = data.map(t => {
                 const typeBadge = t.type === 'income' ? 'badge-income' : 'badge-expense';
                 const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
                 const amountClass = t.type === 'income' ? 'amount-income' : 'amount-expense';
+                const sign = t.type === 'income' ? '+' : '-';
                 return `<tr>
-                    <td>${t.date}</td><td><span class="badge ${typeBadge}">${typeText}</span></td>
-                    <td class="${amountClass}">${t.type==='income'?'+':'-'} ${Utils.formatMoney(t.amount)}</td>
-                    <td>${t.description}</td><td>${getMethodName(t.paymentMethod)}</td><td>${t.reference||'-'}</td>
-                    <td><i class="fas fa-eye action-icon" onclick="showDetails(${t.id})"></i></td>
+                    <td>${t.date || ''}</td>
+                    <td><span class="badge ${typeBadge}">${typeText}</span></td>
+                    <td class="${amountClass}">${sign} ${Utils.formatMoney(t.amount)}</td>
+                    <td>${t.description || ''}</td>
+                    <td>${getMethodName(t.paymentMethod)}</td>
+                    <td>${t.reference || '-'}</td>
+                    <td>
+                        <i class="fas fa-eye action-icon" style="cursor:pointer; margin-left:10px;" onclick="showDetails('${t.id}')" title="عرض التفاصيل"></i>
+                        <i class="fas fa-trash action-icon" style="cursor:pointer; color:var(--danger);" onclick="deleteTransaction('${t.id}')" title="حذف"></i>
+                    </td>
                 </tr>`;
             }).join('');
         }
 
-        function getMethodName(m) { return { cash: 'نقدي', bank: 'تحويل', check: 'شيك' }[m] || m; }
+        function getMethodName(m) { 
+            const methods = { cash: 'نقدي', bank: 'تحويل', check: 'شيك' };
+            return methods[m] || m || 'نقدي';
+        }
 
         function updateStats() {
-            const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-            const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
             const balance = income - expense;
             document.getElementById('currentBalance').textContent = Utils.formatMoney(balance);
             document.getElementById('totalIncome').textContent = Utils.formatMoney(income);
@@ -435,7 +485,9 @@
             document.getElementById('transactionModal').style.display = 'flex';
         }
 
-        function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
+        function closeTransactionModal() { 
+            document.getElementById('transactionModal').style.display = 'none'; 
+        }
 
         function updateModalTitle() {
             const type = document.getElementById('typeSelect').value;
@@ -447,49 +499,89 @@
             event.preventDefault();
             const type = document.getElementById('typeSelect').value;
             const amount = parseFloat(document.getElementById('amount').value);
-            const description = document.getElementById('description').value;
+            const description = document.getElementById('description').value.trim();
             const paymentMethod = document.getElementById('paymentMethod').value;
-            const reference = document.getElementById('reference').value;
+            const reference = document.getElementById('reference').value.trim();
             const date = document.getElementById('transDate').value;
-            const notes = document.getElementById('notes').value;
+            const notes = document.getElementById('notes').value.trim();
 
-            if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
+            if (!amount || amount <= 0) {
+                UI.showToast('المبلغ غير صحيح', 'warning');
+                return;
+            }
+            if (!description) {
+                UI.showToast('البيان مطلوب', 'warning');
+                return;
+            }
 
             // التحقق من الرصيد عند السحب
             if (type === 'expense') {
-                const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-                const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+                const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+                const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
                 const balance = income - expense;
                 if (amount > balance) {
-                    alert(`لا يمكن سحب ${Utils.formatMoney(amount)} لأن الرصيد الحالي هو ${Utils.formatMoney(balance)}`);
+                    UI.showToast(`لا يمكن سحب ${Utils.formatMoney(amount)} لأن الرصيد الحالي هو ${Utils.formatMoney(balance)}`, 'warning');
                     return;
                 }
             }
 
-            const newTrans = { id: Date.now(), date, type, amount, description, paymentMethod, reference, notes };
-            transactions.push(newTrans);
-            await Storage.saveTransactions(transactions);
-            applyFilters();
-            closeTransactionModal();
-            alert(`تم ${type==='income'?'إيداع':'سحب'} ${Utils.formatMoney(amount)}`);
+            const newTrans = {
+                date,
+                type,
+                amount,
+                description,
+                paymentMethod,
+                reference: reference || null,
+                notes: notes || null,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                const saved = await Storage.saveTransaction(newTrans);
+                UI.showToast(`تم ${type === 'income' ? 'إيداع' : 'سحب'} ${Utils.formatMoney(amount)} بنجاح`, 'success');
+                closeTransactionModal();
+                await loadTransactions();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل حفظ الحركة', 'danger');
+            }
         }
 
         function showDetails(id) {
             const t = transactions.find(x => x.id === id);
             if (!t) return;
             document.getElementById('detailsBody').innerHTML = `
-                <p><strong>النوع:</strong> ${t.type==='income'?'إيداع':'سحب'}</p>
+                <p><strong>النوع:</strong> ${t.type === 'income' ? 'إيداع' : 'سحب'}</p>
                 <p><strong>المبلغ:</strong> ${Utils.formatMoney(t.amount)}</p>
                 <p><strong>البيان:</strong> ${t.description}</p>
                 <p><strong>طريقة الدفع:</strong> ${getMethodName(t.paymentMethod)}</p>
-                <p><strong>المرجع:</strong> ${t.reference||'-'}</p>
+                <p><strong>المرجع:</strong> ${t.reference || '-'}</p>
                 <p><strong>التاريخ:</strong> ${t.date}</p>
-                <p><strong>ملاحظات:</strong> ${t.notes||'-'}</p>
+                <p><strong>ملاحظات:</strong> ${t.notes || '-'}</p>
             `;
             document.getElementById('detailsModal').style.display = 'flex';
         }
 
-        function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
+        function closeDetailsModal() { 
+            document.getElementById('detailsModal').style.display = 'none'; 
+        }
+
+        async function deleteTransaction(id) {
+            if (!await UI.confirmDelete('هل أنت متأكد من حذف هذه الحركة؟')) return;
+            try {
+                // نحتاج دالة في Storage لحذف حركة - نستخدم deleteDoc
+                await window.db.collection('transactions').doc(id).delete();
+                UI.showToast('تم حذف الحركة بنجاح', 'success');
+                await loadTransactions();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل حذف الحركة', 'danger');
+            }
+        }
+
+        // تعريض دالة الحذف للنافذة
+        window.deleteTransaction = deleteTransaction;
+        window.showDetails = showDetails;
     </script>
 </body>
 </html>
