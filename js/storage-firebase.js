@@ -1,6 +1,6 @@
 // js/storage-firebase.js
 (function() {
-    // التأكد من وجود Firebase و db
+    // التأكد من وجود Firebase و db (يجب تحميل firebase-init.js أولاً)
     if (typeof firebase === 'undefined') {
         console.error('❌ Firebase SDK not loaded.');
         alert('خطأ: مكتبة Firebase غير محملة.');
@@ -9,6 +9,7 @@
 
     // إذا لم يتم التهيئة بعد (احتياط)
     if (!window.db) {
+        console.warn('⚠️ firebase-init.js لم يتم تحميله، جار التهيئة الاحتياطية...');
         const firebaseConfig = {
             apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
             authDomain: "parq-893ca.firebaseapp.com",
@@ -25,37 +26,25 @@
 
     const db = window.db;
 
-    // باقي الكود كما هو ...
-    // (نفس دوال Storage السابقة)
-})();
-
-    // دالة مساعدة لإزالة الحقول ذات القيمة undefined
+    // دالة تنظيف الكائن من undefined
     function sanitizeObject(obj) {
         return Object.fromEntries(
             Object.entries(obj).filter(([_, v]) => v !== undefined)
         );
     }
 
+    // باقي الدوال كما هي مع استخدام sanitizeObject ...
     window.Storage = {
-        // --- المنتجات ---
         async getProducts() {
             const snapshot = await db.collection('products').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
         async saveProduct(product) {
-            // معالجة حقل units: إذا كان نصاً JSON نحوله إلى كائن
             if (typeof product.units === 'string') {
-                try {
-                    product.units = JSON.parse(product.units);
-                } catch (e) {
-                    product.units = [];
-                }
+                try { product.units = JSON.parse(product.units); } catch(e) { product.units = []; }
             }
             if (!product.units) product.units = [];
-
-            // تنظيف الكائن من أي undefined
             const cleanProduct = sanitizeObject(product);
-
             if (cleanProduct.id) {
                 await db.collection('products').doc(cleanProduct.id).set(cleanProduct);
                 return cleanProduct;
@@ -67,7 +56,6 @@
         },
         async deleteProduct(id) { await db.collection('products').doc(id).delete(); },
 
-        // --- العملاء ---
         async getCustomers() {
             const snapshot = await db.collection('parties').where('type', '==', 'customer').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -88,7 +76,6 @@
             return cleanCustomer;
         },
 
-        // --- الموردين ---
         async getSuppliers() {
             const snapshot = await db.collection('parties').where('type', '==', 'supplier').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -105,7 +92,6 @@
             return cleanSupplier;
         },
 
-        // --- المندوبين ---
         async getReps() {
             const snapshot = await db.collection('reps').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -121,16 +107,13 @@
             return cleanRep;
         },
 
-        // --- الفواتير (مبيعات) ---
         async getInvoices() {
             const snapshot = await db.collection('invoices').orderBy('date', 'desc').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
         async getTodayInvoices() {
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-            const snapshot = await db.collection('invoices')
-                .where('date', '==', today)
-                .get();
+            const today = new Date().toISOString().split('T')[0];
+            const snapshot = await db.collection('invoices').where('date', '==', today).get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
         async saveInvoice(invoice) {
@@ -144,16 +127,13 @@
             return cleanInvoice;
         },
 
-        // --- المشتريات ---
         async getPurchases() {
             const snapshot = await db.collection('purchases').orderBy('date', 'desc').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
         async getTodayPurchases() {
             const today = new Date().toISOString().split('T')[0];
-            const snapshot = await db.collection('purchases')
-                .where('date', '==', today)
-                .get();
+            const snapshot = await db.collection('purchases').where('date', '==', today).get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         },
         async savePurchase(purchase) {
@@ -167,7 +147,6 @@
             return cleanPurchase;
         },
 
-        // --- حركات الصندوق ---
         async getTransactions() {
             const snapshot = await db.collection('transactions').orderBy('date', 'desc').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -189,8 +168,6 @@
             }
             return cleanTransaction;
         },
-
-        // --- رصيد الصندوق الحالي (يحسب من مجموع الحركات) ---
         async getCurrentCashBalance() {
             const snapshot = await db.collection('transactions').get();
             let balance = 0;
@@ -202,7 +179,6 @@
             return balance;
         },
 
-        // --- الإعدادات ---
         async getSettings() {
             const doc = await db.collection('settings').doc('main').get();
             return doc.exists ? doc.data() : {};
@@ -213,7 +189,6 @@
             return cleanSettings;
         },
 
-        // --- المستخدمين ---
         async getUsers() {
             const snapshot = await db.collection('users').get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -230,5 +205,5 @@
         }
     };
 
-    console.log('✅ Storage (Firebase) module loaded with optimized queries');
+    console.log('✅ Storage (Firebase) module loaded');
 })();
