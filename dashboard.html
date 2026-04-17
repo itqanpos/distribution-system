@@ -8,11 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
     <style>
+        /* ========== نفس التنسيقات السابقة (بدون تغيير) ========== */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
             --success: #2ecc71;
-            --danger: #74bd6c;
+            --danger: #e74c3c;
             --warning: #f39c12;
             --info: #1abc9c;
             --light: #ecf0f1;
@@ -37,7 +38,7 @@
             overflow-x: hidden;
         }
 
-        /* ========== شريط التنقل العلوي ========== */
+        /* شريط التنقل العلوي */
         .navbar {
             position: fixed;
             top: 0;
@@ -171,7 +172,7 @@
             background: rgba(231, 76, 60, 0.1);
         }
 
-        /* ========== الشريط الجانبي ========== */
+        /* الشريط الجانبي */
         .sidebar {
             position: fixed;
             top: var(--header-height);
@@ -268,7 +269,7 @@
             border-radius: 10px;
         }
 
-        /* ========== المحتوى الرئيسي ========== */
+        /* المحتوى الرئيسي */
         .main-content {
             margin-right: var(--sidebar-width);
             margin-top: var(--header-height);
@@ -281,7 +282,7 @@
             margin-right: var(--sidebar-collapsed-width);
         }
 
-        /* ========== البطاقات والإحصائيات ========== */
+        /* البطاقات والإحصائيات */
         .page-header {
             display: flex;
             justify-content: space-between;
@@ -396,7 +397,7 @@
             font-weight: 500;
         }
 
-        /* ========== الجداول والتنبيهات ========== */
+        /* الجداول والتنبيهات */
         .alerts-panel {
             background: white;
             border-radius: 20px;
@@ -480,7 +481,7 @@
         .badge-warning { background: rgba(243,156,18,0.1); color: #e67e22; }
         .badge-danger { background: rgba(231,76,60,0.1); color: #c0392b; }
 
-        /* ========== استجابة الجوال ========== */
+        /* استجابة الجوال */
         @media (max-width: 992px) {
             .sidebar {
                 width: var(--sidebar-width);
@@ -524,6 +525,21 @@
 
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: 1fr; }
+        }
+
+        .loading-placeholder {
+            opacity: 0.7;
+        }
+        .toast-message {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 30px;
+            z-index: 9999;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
     </style>
 </head>
@@ -648,7 +664,6 @@
         // === إدارة الشريط الجانبي (طي/فتح) ===
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
-        const mainContent = document.querySelector('.main-content');
 
         function toggleSidebar() {
             if (window.innerWidth <= 992) {
@@ -656,7 +671,6 @@
             } else {
                 sidebar.classList.toggle('collapsed');
             }
-            // حفظ الحالة في localStorage
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
         }
 
@@ -684,7 +698,7 @@
             }
         });
 
-        // === تحميل البيانات ===
+        // === تحميل البيانات (مُحسَّنة) ===
         document.addEventListener('DOMContentLoaded', async function() {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
@@ -698,40 +712,123 @@
             });
 
             const user = Auth.getUser();
-            document.getElementById('userName').textContent = user.name;
-            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
-            document.getElementById('userAvatar').textContent = user.avatar;
+            document.getElementById('userName').textContent = user.name || 'مدير النظام';
+            document.getElementById('loginTime').textContent = user.loginTime || new Date().toLocaleDateString('ar-EG');
+            document.getElementById('userAvatar').textContent = user.avatar || 'م';
 
             await loadDashboardData();
         });
 
+        // دالة محسنة لجلب بيانات لوحة التحكم
         async function loadDashboardData() {
-            const invoices = await Storage.getInvoices();
-            const purchases = await Storage.getPurchases();
-            const transactions = await Storage.getTransactions();
-            const customers = await Storage.getCustomers();
-            const today = Utils.getToday();
+            try {
+                // استخدام دوال محسنة تجلب بيانات اليوم فقط بدلاً من كل البيانات
+                // (إذا كانت هذه الدوال غير موجودة في storage.js بعد، نستخدم الطريقة القديمة مع تحذير)
+                let todayInvoices = [];
+                let todayPurchases = [];
+                let recentTransactions = [];
+                let customersCount = 0;
 
-            document.getElementById('todaySales').textContent = Utils.formatMoney(invoices.filter(i => i.type === 'sale' && i.date === today).reduce((s,i) => s + i.total, 0));
-            document.getElementById('todayPurchases').textContent = Utils.formatMoney(purchases.filter(p => p.date === today).reduce((s,p) => s + p.total, 0));
-            document.getElementById('customersCount').textContent = customers.length;
-            document.getElementById('cashBalance').textContent = Utils.formatMoney(Utils.calculateBalance(transactions));
+                // جلب البيانات بالتوازي لتحسين الأداء
+                const [invoicesResult, purchasesResult, transactionsResult, customersResult] = await Promise.allSettled([
+                    Storage.getTodayInvoices ? Storage.getTodayInvoices() : Storage.getInvoices().then(all => all.filter(i => i.date === Utils.getToday())),
+                    Storage.getTodayPurchases ? Storage.getTodayPurchases() : Storage.getPurchases().then(all => all.filter(p => p.date === Utils.getToday())),
+                    Storage.getRecentTransactions ? Storage.getRecentTransactions(10) : Storage.getTransactions().then(all => Utils.sortByDateDesc(all).slice(0, 10)),
+                    Storage.getCustomersCount ? Storage.getCustomersCount() : Storage.getCustomers().then(custs => custs.length)
+                ]);
 
-            // التنبيهات
-            const unpaidInvoices = invoices.filter(i => i.remaining > 0);
-            const unpaidPurchases = purchases.filter(p => p.remaining > 0);
-            let alertsHtml = '';
-            if (unpaidInvoices.length) alertsHtml += `<div class="alert-item" onclick="UI.navigateTo('invoices')"><div class="alert-icon" style="background:#e74c3c;"><i class="fas fa-exclamation"></i></div><div><strong>فواتير مستحقة</strong><p>${unpaidInvoices.length} فواتير بقيمة ${Utils.formatMoney(unpaidInvoices.reduce((s,i)=>s+i.remaining,0))}</p></div></div>`;
-            if (unpaidPurchases.length) alertsHtml += `<div class="alert-item" onclick="UI.navigateTo('purchases')"><div class="alert-icon" style="background:#f39c12;"><i class="fas fa-clock"></i></div><div><strong>فواتير شراء مستحقة</strong><p>${unpaidPurchases.length} فواتير بقيمة ${Utils.formatMoney(unpaidPurchases.reduce((s,p)=>s+p.remaining,0))}</p></div></div>`;
-            document.getElementById('alertsList').innerHTML = alertsHtml || '<p style="text-align:center;padding:20px;color:#95a5a6;">لا توجد تنبيهات</p>';
+                if (invoicesResult.status === 'fulfilled') todayInvoices = invoicesResult.value;
+                if (purchasesResult.status === 'fulfilled') todayPurchases = purchasesResult.value;
+                if (transactionsResult.status === 'fulfilled') recentTransactions = transactionsResult.value;
+                if (customersResult.status === 'fulfilled') customersCount = customersResult.value;
 
-            // آخر الفواتير
-            const recentInv = Utils.sortByDateDesc(invoices.filter(i => i.type === 'sale')).slice(0,5);
-            document.getElementById('recentInvoices').innerHTML = recentInv.map(i => `<tr><td>${i.id}</td><td>${i.customer}</td><td>${Utils.formatMoney(i.total)}</td><td><span class="badge ${i.status==='paid'?'badge-success':(i.status==='partial'?'badge-warning':'badge-danger')}">${i.status==='paid'?'مدفوعة':(i.status==='partial'?'متبقي':'غير مدفوعة')}</span></td></tr>`).join('') || '<tr><td colspan="4">لا توجد فواتير</td></tr>';
+                // حساب الإجماليات
+                const todaySalesTotal = todayInvoices.filter(i => i.type === 'sale').reduce((sum, inv) => sum + (inv.total || 0), 0);
+                const todayPurchasesTotal = todayPurchases.reduce((sum, pur) => sum + (pur.total || 0), 0);
 
-            // آخر حركات الصندوق
-            const recentTrans = Utils.sortByDateDesc(transactions).slice(0,5);
-            document.getElementById('recentTransactions').innerHTML = recentTrans.map(t => `<tr><td>${t.description}</td><td style="color:${t.type==='income'?'var(--success)':'var(--danger)'};">${t.type==='income'?'+':'-'}${Utils.formatMoney(t.amount)}</td><td><span class="badge ${t.type==='income'?'badge-success':'badge-danger'}">${t.type==='income'?'إيداع':'سحب'}</span></td></tr>`).join('') || '<tr><td colspan="3">لا توجد حركات</td></tr>';
+                // حساب رصيد الصندوق: إما من دالة مخصصة أو بحساب جميع الحركات
+                let cashBalance = 0;
+                if (Storage.getCurrentCashBalance) {
+                    cashBalance = await Storage.getCurrentCashBalance();
+                } else {
+                    const allTransactions = await Storage.getTransactions();
+                    cashBalance = Utils.calculateBalance(allTransactions);
+                }
+
+                // تحديث واجهة المستخدم
+                document.getElementById('todaySales').textContent = Utils.formatMoney(todaySalesTotal);
+                document.getElementById('todayPurchases').textContent = Utils.formatMoney(todayPurchasesTotal);
+                document.getElementById('customersCount').textContent = customersCount;
+                document.getElementById('cashBalance').textContent = Utils.formatMoney(cashBalance);
+
+                // --- التنبيهات (فواتير مستحقة) ---
+                // نحتاج جميع الفواتير والمشتريات للتحقق من المستحقات
+                const allInvoices = await Storage.getInvoices();
+                const allPurchases = await Storage.getPurchases();
+                
+                const unpaidInvoices = allInvoices.filter(i => (i.remaining || 0) > 0);
+                const unpaidPurchases = allPurchases.filter(p => (p.remaining || 0) > 0);
+                
+                let alertsHtml = '';
+                if (unpaidInvoices.length) {
+                    const totalUnpaid = unpaidInvoices.reduce((s, i) => s + i.remaining, 0);
+                    alertsHtml += `<div class="alert-item" onclick="UI.navigateTo('invoices')"><div class="alert-icon" style="background:#e74c3c;"><i class="fas fa-exclamation"></i></div><div><strong>فواتير مستحقة</strong><p>${unpaidInvoices.length} فواتير بقيمة ${Utils.formatMoney(totalUnpaid)}</p></div></div>`;
+                }
+                if (unpaidPurchases.length) {
+                    const totalUnpaid = unpaidPurchases.reduce((s, p) => s + p.remaining, 0);
+                    alertsHtml += `<div class="alert-item" onclick="UI.navigateTo('purchases')"><div class="alert-icon" style="background:#f39c12;"><i class="fas fa-clock"></i></div><div><strong>فواتير شراء مستحقة</strong><p>${unpaidPurchases.length} فواتير بقيمة ${Utils.formatMoney(totalUnpaid)}</p></div></div>`;
+                }
+                document.getElementById('alertsList').innerHTML = alertsHtml || '<p style="text-align:center;padding:20px;color:#95a5a6;">لا توجد تنبيهات</p>';
+
+                // --- آخر الفواتير ---
+                const recentInvoices = Utils.sortByDateDesc(allInvoices.filter(i => i.type === 'sale')).slice(0, 5);
+                const invoicesHtml = recentInvoices.map(i => {
+                    const statusClass = i.status === 'paid' ? 'badge-success' : (i.status === 'partial' ? 'badge-warning' : 'badge-danger');
+                    const statusText = i.status === 'paid' ? 'مدفوعة' : (i.status === 'partial' ? 'متبقي' : 'غير مدفوعة');
+                    return `<tr><td>${i.id || '-'}</td><td>${i.customer || 'نقدي'}</td><td>${Utils.formatMoney(i.total)}</td><td><span class="badge ${statusClass}">${statusText}</span></td></tr>`;
+                }).join('');
+                document.getElementById('recentInvoices').innerHTML = invoicesHtml || '<tr><td colspan="4">لا توجد فواتير</td></tr>';
+
+                // --- آخر حركات الصندوق ---
+                const recentTrans = recentTransactions.slice(0, 5);
+                const transHtml = recentTrans.map(t => {
+                    const isIncome = t.type === 'income';
+                    const amountFormatted = `${isIncome ? '+' : '-'}${Utils.formatMoney(t.amount)}`;
+                    const typeBadge = isIncome ? '<span class="badge badge-success">إيداع</span>' : '<span class="badge badge-danger">سحب</span>';
+                    return `<tr><td>${t.description || ''}</td><td style="color:${isIncome ? 'var(--success)' : 'var(--danger)'};">${amountFormatted}</td><td>${typeBadge}</td></tr>`;
+                }).join('');
+                document.getElementById('recentTransactions').innerHTML = transHtml || '<tr><td colspan="3">لا توجد حركات</td></tr>';
+
+            } catch (error) {
+                console.error('❌ فشل تحميل بيانات لوحة التحكم:', error);
+                // عرض رسالة خطأ للمستخدم (إذا كانت UI.showToast موجودة)
+                if (typeof UI !== 'undefined' && UI.showToast) {
+                    UI.showToast('تعذر تحميل بعض البيانات. الرجاء المحاولة مرة أخرى.', 'warning');
+                } else {
+                    alert('تعذر تحميل بيانات لوحة التحكم. تأكد من اتصالك بالإنترنت.');
+                }
+                // يمكنك وضع قيم افتراضية في حالة الفشل
+            }
+        }
+
+        // تعريف دالة مساعدة للتنقل إذا لم تكن موجودة في UI
+        if (typeof UI !== 'undefined' && !UI.navigateTo) {
+            UI.navigateTo = function(page) {
+                const pagesMap = {
+                    'sales': './sales.html',
+                    'purchases': './purchases.html',
+                    'customers': './customers.html',
+                    'cashbox': './cashbox.html',
+                    'invoices': './invoices.html'
+                };
+                if (pagesMap[page]) window.location.href = pagesMap[page];
+                else console.warn('صفحة غير معروفة:', page);
+            };
+        }
+        if (typeof UI !== 'undefined' && !UI.manualRefresh) {
+            UI.manualRefresh = function() {
+                loadDashboardData();
+            };
         }
     </script>
 </body>
