@@ -127,7 +127,6 @@
         }
         .btn-primary { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(52,152,219,0.2); }
         .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
-        .btn-danger { background: var(--danger); color: white; }
 
         .stats-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -179,7 +178,6 @@
             display: inline-block;
         }
         .badge-success { background: rgba(46,204,113,0.1); color: #27ae60; }
-        .badge-warning { background: rgba(243,156,18,0.1); color: #e67e22; }
         .badge-danger { background: rgba(231,76,60,0.1); color: #c0392b; }
 
         .action-icon {
@@ -222,7 +220,7 @@
 
         /* استجابة */
         @media (max-width: 992px) {
-            .sidebar { transform: translateX(100%); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+            .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
             .sidebar.collapsed { width: var(--sidebar-width); transform: translateX(100%); }
             .sidebar.collapsed.mobile-open { transform: translateX(0); }
@@ -238,15 +236,15 @@
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
+            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>Food Distribution</h2></div></div>
         </div>
         <div class="navbar-right">
             <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">م</div>
-                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-info"><h4 id="userName">Admin</h4><p id="loginTime">Today</p></div>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -254,29 +252,29 @@
 
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item active" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <div class="menu-section">Main</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">Dashboard</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">Sales</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">POS</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">Invoices</span></a></li>
+            <li><a class="menu-item active" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">Purchases</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">Cashbox</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">Reports</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">Accounting</span></a></li>
+            <div class="menu-section">Management</div>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">Customers & Suppliers</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">Reps</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">Products</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">Settings</span></a></li>
         </ul>
     </aside>
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><i class="fas fa-shopping-cart" style="font-size:28px; color:var(--secondary);"></i><h1>المشتريات</h1></div>
+            <div class="page-title"><i class="fas fa-shopping-cart" style="font-size:28px; color:var(--secondary);"></i><h1>Purchases</h1></div>
             <div>
-                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> تحديث</button>
-                <button class="btn btn-primary" onclick="openPurchaseModal()"><i class="fas fa-plus"></i> فاتورة شراء جديدة</button>
+                <button class="btn btn-outline" onclick="UI.manualRefresh()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button class="btn btn-primary" onclick="openPurchaseModal()"><i class="fas fa-plus"></i> New Purchase Bill</button>
             </div>
         </div>
 
@@ -284,39 +282,39 @@
         <div class="stats-grid">
             <div class="stat-card" onclick="filterByStatus('all')">
                 <div class="icon"><i class="fas fa-shopping-cart"></i></div>
-                <div class="value" id="totalPurchases">0 ج</div>
-                <div class="label">إجمالي المشتريات</div>
+                <div class="value" id="totalPurchases">0 EGP</div>
+                <div class="label">Total Purchases</div>
             </div>
             <div class="stat-card" onclick="filterByStatus('paid')">
                 <div class="icon"><i class="fas fa-check-circle"></i></div>
-                <div class="value" id="paidPurchases">0 ج</div>
-                <div class="label">المدفوع</div>
+                <div class="value" id="paidPurchases">0 EGP</div>
+                <div class="label">Paid</div>
             </div>
             <div class="stat-card" onclick="filterByStatus('unpaid')">
                 <div class="icon"><i class="fas fa-clock"></i></div>
-                <div class="value" id="unpaidPurchases">0 ج</div>
-                <div class="label">المتبقي</div>
+                <div class="value" id="unpaidPurchases">0 EGP</div>
+                <div class="label">Remaining</div>
             </div>
             <div class="stat-card" onclick="filterByStatus('count')">
                 <div class="icon"><i class="fas fa-receipt"></i></div>
                 <div class="value" id="invoiceCount">0</div>
-                <div class="label">عدد الفواتير</div>
+                <div class="label">Bill Count</div>
             </div>
         </div>
 
         <!-- جدول المشتريات -->
         <div class="table-container">
             <div class="table-header">
-                <h3><i class="fas fa-list"></i> فواتير المشتريات</h3>
+                <h3><i class="fas fa-list"></i> Purchase Bills</h3>
                 <div style="display:flex; gap:10px;">
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو المورد...">
+                        <input type="text" id="searchInput" placeholder="Search by ID or supplier...">
                     </div>
                     <div class="filter-buttons">
-                        <button class="filter-btn active" onclick="setFilter('all')">الكل</button>
-                        <button class="filter-btn" onclick="setFilter('paid')">مدفوعة</button>
-                        <button class="filter-btn" onclick="setFilter('unpaid')">غير مدفوعة</button>
+                        <button class="filter-btn active" onclick="setFilter('all')">All</button>
+                        <button class="filter-btn" onclick="setFilter('paid')">Paid</button>
+                        <button class="filter-btn" onclick="setFilter('unpaid')">Unpaid</button>
                     </div>
                 </div>
             </div>
@@ -324,8 +322,8 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th>
-                            <th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th>
+                            <th>Bill No.</th><th>Date</th><th>Supplier</th><th>Total</th>
+                            <th>Paid</th><th>Remaining</th><th>Status</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="purchasesTableBody"></tbody>
@@ -337,24 +335,24 @@
     <!-- مودال إضافة فاتورة شراء -->
     <div class="modal" id="purchaseModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="modalTitle">فاتورة شراء جديدة</h2><button onclick="closePurchaseModal()">&times;</button></div>
+            <div class="modal-header"><h2 id="modalTitle">New Purchase Bill</h2><button onclick="closePurchaseModal()">&times;</button></div>
             <form id="purchaseForm" onsubmit="savePurchase(event)">
                 <input type="hidden" id="purchaseId">
-                <div class="form-group"><label>المورد</label><select id="supplierSelect" required></select></div>
-                <div class="form-group"><label>التاريخ</label><input type="date" id="purchaseDate" required></div>
-                <div class="form-group"><label>رقم الفاتورة (اختياري)</label><input type="text" id="invoiceNumber" placeholder="رقم فاتورة المورد"></div>
+                <div class="form-group"><label>Supplier</label><select id="supplierSelect" required></select></div>
+                <div class="form-group"><label>Date</label><input type="date" id="purchaseDate" required></div>
+                <div class="form-group"><label>Invoice Number (Optional)</label><input type="text" id="invoiceNumber" placeholder="Supplier invoice number"></div>
                 
                 <div class="items-container">
-                    <label>الأصناف</label>
+                    <label>Items</label>
                     <div id="itemsContainer"></div>
-                    <div class="add-item-btn" onclick="addItemRow()"><i class="fas fa-plus"></i> إضافة صنف</div>
+                    <div class="add-item-btn" onclick="addItemRow()"><i class="fas fa-plus"></i> Add Item</div>
                 </div>
 
-                <div class="form-group"><label>المدفوع</label><input type="number" id="paidAmount" min="0" step="0.01" value="0"></div>
-                <div class="form-group"><label>ملاحظات</label><textarea id="purchaseNotes" rows="2"></textarea></div>
+                <div class="form-group"><label>Amount Paid</label><input type="number" id="paidAmount" min="0" step="0.01" value="0"></div>
+                <div class="form-group"><label>Notes</label><textarea id="purchaseNotes" rows="2"></textarea></div>
                 <div class="modal-footer" style="display:flex; gap:10px; margin-top:20px;">
-                    <button type="button" class="btn btn-outline" onclick="closePurchaseModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ الفاتورة</button>
+                    <button type="button" class="btn btn-outline" onclick="closePurchaseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Bill</button>
                 </div>
             </form>
         </div>
@@ -363,7 +361,7 @@
     <!-- مودال تفاصيل الفاتورة -->
     <div class="modal" id="detailsModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>تفاصيل فاتورة الشراء</h2><button onclick="closeDetailsModal()">&times;</button></div>
+            <div class="modal-header"><h2>Bill Details</h2><button onclick="closeDetailsModal()">&times;</button></div>
             <div id="detailsBody"></div>
         </div>
     </div>
@@ -379,7 +377,7 @@
     <script src="./js/storage-firebase.js"></script>
 
     <script>
-        // الشريط الجانبي والقائمة المنسدلة
+        // Sidebar & dropdown
         const sidebar = document.getElementById('sidebar'), menuToggle = document.getElementById('menuToggle');
         function toggleSidebar() {
             if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
@@ -395,20 +393,18 @@
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
         let purchases = [], suppliers = [], products = [], currentFilter = 'all';
-        let editingPurchaseId = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             if (!Auth.requireRole(['admin'])) return;
-            await UI.initPage('المشتريات', { enablePullToRefresh: true, refreshCallback: loadData, autoSync: true, syncCallback: loadData });
+            await UI.initPage('Purchases', { enablePullToRefresh: true, refreshCallback: loadData, autoSync: true, syncCallback: loadData });
             const user = Auth.getUser();
             document.getElementById('userName').textContent = user.name;
-            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
+            document.getElementById('loginTime').textContent = user.loginTime || 'Today';
             document.getElementById('userAvatar').textContent = user.avatar;
-
             document.getElementById('purchaseDate').value = Utils.getToday();
             await loadData();
-            document.getElementById('searchInput').addEventListener('input', filterPurchases);
+            document.getElementById('searchInput').addEventListener('input', applyFilter);
         });
 
         async function loadData() {
@@ -418,15 +414,12 @@
                 products = await Storage.getProducts();
                 
                 const suppSelect = document.getElementById('supplierSelect');
-                suppSelect.innerHTML = '<option value="">اختر المورد</option>' + 
+                suppSelect.innerHTML = '<option value="">Select Supplier</option>' + 
                     suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                 
                 applyFilter();
                 updateStats();
-            } catch (e) {
-                console.error(e);
-                UI.showToast('فشل تحميل البيانات', 'danger');
-            }
+            } catch (e) { UI.showToast('Failed to load data', 'danger'); }
         }
 
         function updateStats() {
@@ -471,18 +464,16 @@
             renderPurchases(filtered);
         }
 
-        function filterPurchases() { applyFilter(); }
-
         function renderPurchases(data) {
             const tbody = document.getElementById('purchasesTableBody');
             if (!data.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا توجد فواتير شراء</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">No purchase bills found</td></tr>';
                 return;
             }
             tbody.innerHTML = data.sort((a,b) => (b.date || '').localeCompare(a.date || '')).map(p => {
                 const status = p.status === 'paid' || p.remaining === 0 ? 
-                    '<span class="badge badge-success">مدفوعة</span>' : 
-                    '<span class="badge badge-danger">غير مدفوعة</span>';
+                    '<span class="badge badge-success">Paid</span>' : 
+                    '<span class="badge badge-danger">Unpaid</span>';
                 return `<tr onclick="viewDetails('${p.id}')" style="cursor:pointer;">
                     <td>${p.invoiceNumber || p.id}</td>
                     <td>${p.date}</td>
@@ -492,17 +483,16 @@
                     <td>${Utils.formatMoney(p.remaining)}</td>
                     <td>${status}</td>
                     <td onclick="event.stopPropagation()">
-                        <i class="fas fa-edit action-icon" onclick="editPurchase('${p.id}')" title="تعديل"></i>
-                        <i class="fas fa-money-bill action-icon" onclick="addPayment('${p.id}')" title="تسجيل دفعة"></i>
-                        <i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deletePurchase('${p.id}')" title="حذف"></i>
+                        <i class="fas fa-edit action-icon" onclick="editPurchase('${p.id}')" title="Edit"></i>
+                        <i class="fas fa-money-bill action-icon" onclick="addPayment('${p.id}')" title="Add Payment"></i>
+                        <i class="fas fa-trash action-icon" style="color:var(--danger);" onclick="deletePurchase('${p.id}')" title="Delete"></i>
                     </td>
                 </tr>`;
             }).join('');
         }
 
         function openPurchaseModal() {
-            editingPurchaseId = null;
-            document.getElementById('modalTitle').textContent = 'فاتورة شراء جديدة';
+            document.getElementById('modalTitle').textContent = 'New Purchase Bill';
             document.getElementById('purchaseForm').reset();
             document.getElementById('purchaseId').value = '';
             document.getElementById('purchaseDate').value = Utils.getToday();
@@ -519,8 +509,8 @@
             row.className = 'item-row';
             row.innerHTML = `
                 <select class="product-select" onchange="updateItemPrice(this)">${products.map(p => `<option value="${p.id}" ${p.id === item.productId ? 'selected' : ''}>${p.name}</option>`).join('')}</select>
-                <input type="number" class="item-qty" placeholder="الكمية" value="${item.quantity}" min="0.001" step="0.001">
-                <input type="number" class="item-price" placeholder="سعر الوحدة" value="${item.price}" step="0.01">
+                <input type="number" class="item-qty" placeholder="Qty" value="${item.quantity}" min="0.001" step="0.001">
+                <input type="number" class="item-price" placeholder="Unit Price" value="${item.price}" step="0.01">
                 <span class="item-total">${Utils.formatMoney(item.quantity * item.price)}</span>
                 <button type="button" class="btn btn-outline" onclick="this.closest('.item-row').remove()"><i class="fas fa-trash"></i></button>
             `;
@@ -536,11 +526,10 @@
             }
         };
 
-        async function editPurchase(id) {
+        function editPurchase(id) {
             const p = purchases.find(x => x.id === id);
             if (!p) return;
-            editingPurchaseId = id;
-            document.getElementById('modalTitle').textContent = 'تعديل فاتورة شراء';
+            document.getElementById('modalTitle').textContent = 'Edit Purchase Bill';
             document.getElementById('purchaseId').value = p.id;
             document.getElementById('supplierSelect').value = p.supplierId || '';
             document.getElementById('purchaseDate').value = p.date;
@@ -550,11 +539,8 @@
             
             const container = document.getElementById('itemsContainer');
             container.innerHTML = '';
-            if (p.items && p.items.length) {
-                p.items.forEach(item => addItemRow(item));
-            } else {
-                addItemRow();
-            }
+            if (p.items && p.items.length) p.items.forEach(item => addItemRow(item));
+            else addItemRow();
             document.getElementById('purchaseModal').style.display = 'flex';
         }
 
@@ -567,7 +553,7 @@
             const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
             const notes = document.getElementById('purchaseNotes').value.trim();
 
-            if (!supplierId) { UI.showToast('اختر المورد', 'warning'); return; }
+            if (!supplierId) { UI.showToast('Please select a supplier', 'warning'); return; }
 
             const supplier = suppliers.find(s => s.id === supplierId);
             if (!supplier) return;
@@ -585,7 +571,7 @@
                     total += qty * price;
                 }
             }
-            if (!items.length) { UI.showToast('أضف صنفاً واحداً على الأقل', 'warning'); return; }
+            if (!items.length) { UI.showToast('Add at least one item', 'warning'); return; }
 
             const purchaseData = {
                 supplierId, supplier: supplier.name, date, invoiceNumber: invoiceNumber || null,
@@ -598,7 +584,7 @@
             try {
                 const saved = await Storage.savePurchase(purchaseData);
                 
-                // تحديث المخزون (زيادة)
+                // Update stock (increase)
                 for (const item of items) {
                     const product = products.find(p => p.id === item.productId);
                     if (product && product.units && product.units[0]) {
@@ -607,40 +593,37 @@
                     }
                 }
 
-                // تحديث رصيد المورد (زيادة المديونية)
+                // Update supplier balance
                 supplier.balance = (supplier.balance || 0) + purchaseData.remaining;
                 supplier.lastTransaction = date;
                 await Storage.saveSupplier(supplier);
 
-                // حركة صندوق إذا تم دفع
+                // Add cash transaction if paid
                 if (paid > 0) {
                     await Storage.saveTransaction({
                         date, type: 'expense', amount: paid,
-                        description: `دفع فاتورة شراء ${saved.id} للمورد ${supplier.name}`,
+                        description: `Payment for purchase bill ${saved.id} to ${supplier.name}`,
                         paymentMethod: 'cash', timestamp: new Date().toISOString()
                     });
                 }
 
-                UI.showToast(id ? 'تم التحديث بنجاح' : 'تمت الإضافة بنجاح', 'success');
+                UI.showToast(id ? 'Bill updated' : 'Bill added', 'success');
                 closePurchaseModal();
                 await loadData();
-            } catch (err) {
-                console.error(err);
-                UI.showToast('فشل حفظ الفاتورة', 'danger');
-            }
+            } catch (err) { UI.showToast('Failed to save bill', 'danger'); }
         }
 
         async function addPayment(id) {
             const purchase = purchases.find(p => p.id === id);
             if (!purchase) return;
             const remaining = purchase.remaining;
-            if (remaining <= 0) { UI.showToast('الفاتورة مدفوعة بالكامل', 'info'); return; }
+            if (remaining <= 0) { UI.showToast('Bill is fully paid', 'info'); return; }
             
-            const amount = prompt(`المبلغ المتبقي: ${Utils.formatMoney(remaining)}\nأدخل قيمة الدفعة:`);
+            const amount = prompt(`Remaining amount: ${Utils.formatMoney(remaining)}\nEnter payment amount:`);
             if (!amount) return;
             const paid = parseFloat(amount);
-            if (isNaN(paid) || paid <= 0) { UI.showToast('المبلغ غير صحيح', 'warning'); return; }
-            if (paid > remaining) { UI.showToast('المبلغ أكبر من المتبقي', 'warning'); return; }
+            if (isNaN(paid) || paid <= 0) { UI.showToast('Invalid amount', 'warning'); return; }
+            if (paid > remaining) { UI.showToast('Amount exceeds remaining', 'warning'); return; }
 
             try {
                 purchase.paid = (purchase.paid || 0) + paid;
@@ -648,31 +631,29 @@
                 purchase.status = purchase.remaining === 0 ? 'paid' : 'unpaid';
                 await Storage.savePurchase(purchase);
 
-                // تحديث رصيد المورد
                 const supplier = suppliers.find(s => s.id === purchase.supplierId);
                 if (supplier) {
                     supplier.balance = (supplier.balance || 0) - paid;
                     await Storage.saveSupplier(supplier);
                 }
 
-                // حركة صندوق
                 await Storage.saveTransaction({
                     date: Utils.getToday(), type: 'expense', amount: paid,
-                    description: `دفعة إضافية لفاتورة شراء ${purchase.id}`,
+                    description: `Additional payment for purchase bill ${purchase.id}`,
                     paymentMethod: 'cash', timestamp: new Date().toISOString()
                 });
 
-                UI.showToast('تم تسجيل الدفعة', 'success');
+                UI.showToast('Payment recorded', 'success');
                 await loadData();
-            } catch (e) { UI.showToast('فشل تسجيل الدفعة', 'danger'); }
+            } catch (e) { UI.showToast('Payment failed', 'danger'); }
         }
 
         async function deletePurchase(id) {
-            if (!await UI.confirmDelete('حذف هذه الفاتورة؟')) return;
+            if (!await UI.confirmDelete('Delete this purchase bill?')) return;
             try {
                 const purchase = purchases.find(p => p.id === id);
                 if (purchase) {
-                    // إعادة المخزون (ناقص)
+                    // Revert stock
                     for (const item of purchase.items || []) {
                         const product = products.find(p => p.id === item.productId);
                         if (product && product.units && product.units[0]) {
@@ -680,7 +661,7 @@
                             await Storage.saveProduct(product);
                         }
                     }
-                    // تحديث رصيد المورد
+                    // Revert supplier balance
                     const supplier = suppliers.find(s => s.id === purchase.supplierId);
                     if (supplier) {
                         supplier.balance = (supplier.balance || 0) - purchase.remaining;
@@ -688,9 +669,9 @@
                     }
                 }
                 await window.db.collection('purchases').doc(id).delete();
-                UI.showToast('تم الحذف', 'success');
+                UI.showToast('Bill deleted', 'success');
                 await loadData();
-            } catch (e) { UI.showToast('فشل الحذف', 'danger'); }
+            } catch (e) { UI.showToast('Delete failed', 'danger'); }
         }
 
         function viewDetails(id) {
@@ -700,15 +681,15 @@
                 `<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.quantity * i.price)}</td></tr>`
             ).join('');
             document.getElementById('detailsBody').innerHTML = `
-                <p><strong>رقم الفاتورة:</strong> ${p.invoiceNumber || p.id}</p>
-                <p><strong>المورد:</strong> ${p.supplier}</p>
-                <p><strong>التاريخ:</strong> ${p.date}</p>
-                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(p.total)}</p>
-                <p><strong>المدفوع:</strong> ${Utils.formatMoney(p.paid)}</p>
-                <p><strong>المتبقي:</strong> ${Utils.formatMoney(p.remaining)}</p>
-                <h4 style="margin:15px 0;">الأصناف</h4>
-                <table style="width:100%"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table>
-                <p style="margin-top:15px;"><strong>ملاحظات:</strong> ${p.notes || '-'}</p>
+                <p><strong>Bill No.:</strong> ${p.invoiceNumber || p.id}</p>
+                <p><strong>Supplier:</strong> ${p.supplier}</p>
+                <p><strong>Date:</strong> ${p.date}</p>
+                <p><strong>Total:</strong> ${Utils.formatMoney(p.total)}</p>
+                <p><strong>Paid:</strong> ${Utils.formatMoney(p.paid)}</p>
+                <p><strong>Remaining:</strong> ${Utils.formatMoney(p.remaining)}</p>
+                <h4 style="margin:15px 0;">Items</h4>
+                <table style="width:100%"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+                <p style="margin-top:15px;"><strong>Notes:</strong> ${p.notes || '-'}</p>
             `;
             document.getElementById('detailsModal').style.display = 'flex';
         }
