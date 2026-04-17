@@ -25,7 +25,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
 
-        /* شريط التنقل */
+        /* ========== شريط التنقل ========== */
         .navbar {
             position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
             background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -33,25 +33,50 @@
             z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .navbar-left { display: flex; align-items: center; gap: 15px; }
-        .menu-toggle { background: none; border: none; font-size: 24px; color: var(--primary); cursor: pointer; width: 40px; height: 40px; border-radius: 10px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
+        }
         .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
         .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
         .navbar-right { display: flex; align-items: center; gap: 15px; }
-        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 5px 10px; border-radius: 40px; position: relative; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+            position: relative;
+        }
         .user-profile:hover { background: var(--light); }
-        .user-avatar { width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
         .user-info { text-align: right; }
         .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
         .user-info p { font-size: 12px; color: #7f8c8d; }
-        .user-dropdown { position: absolute; top: 55px; left: 0; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none; z-index: 1050; border: 1px solid #eee; overflow: hidden; }
+
+        /* قائمة منسدلة للمستخدم */
+        .user-dropdown {
+            position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #eee; overflow: hidden;
+        }
         .user-dropdown.show { display: block; }
-        .user-dropdown a { display: flex; align-items: center; gap: 12px; padding: 14px 18px; color: var(--primary); text-decoration: none; transition: background 0.2s; border-bottom: 1px solid #f5f5f5; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
         .user-dropdown a:last-child { border-bottom: none; }
         .user-dropdown a:hover { background: var(--light); }
         .user-dropdown a i { width: 20px; color: var(--secondary); }
 
-        /* الشريط الجانبي */
+        /* ========== الشريط الجانبي ========== */
         .sidebar {
             position: fixed; top: var(--header-height); right: 0; bottom: 0;
             width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
@@ -59,17 +84,28 @@
             overflow-y: auto; overflow-x: hidden; padding: 20px 0;
         }
         .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
-        .sidebar .menu-section { padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        .sidebar .menu-section {
+            padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            opacity: 1; transition: opacity 0.15s;
+        }
         .sidebar.collapsed .menu-section { opacity: 0; pointer-events: none; padding: 20px 0 8px; text-align: center; }
         .menu { list-style: none; padding: 0 12px; }
-        .menu-item { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0; color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s; white-space: nowrap; font-weight: 500; font-size: 15px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
         .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; flex-shrink: 0; }
         .menu-text { transition: opacity 0.2s; }
         .sidebar.collapsed .menu-text { opacity: 0; pointer-events: none; }
         .menu-item:hover { background: var(--light); color: var(--secondary); }
-        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary); }
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
+            color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
+        }
 
-        /* المحتوى الرئيسي */
+        /* ========== المحتوى الرئيسي ========== */
         .main-content {
             margin-right: var(--sidebar-width); margin-top: var(--header-height);
             padding: 20px; transition: margin-right 0.25s ease;
@@ -146,15 +182,21 @@
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div>
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-truck"></i></div>
+                <div class="logo-text"><h2>Food Distribution</h2></div>
+            </div>
         </div>
         <div class="navbar-right">
             <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">م</div>
-                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-info">
+                    <h4 id="userName">Admin</h4>
+                    <p id="loginTime">Today</p>
+                </div>
                 <div class="user-dropdown" id="userDropdown">
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -162,42 +204,43 @@
 
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <div class="menu-section">Main</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">Dashboard</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">Sales</span></a></li>
+            <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">POS</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">Invoices</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">Purchases</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">Cashbox</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">Reports</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">Accounting</span></a></li>
+            <div class="menu-section">Management</div>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">Customers & Suppliers</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">Reps</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">Products</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">Settings</span></a></li>
         </ul>
     </aside>
 
     <main class="main-content">
         <div class="products-section">
-            <div class="section-header"><h3><i class="fas fa-box"></i> المنتجات</h3></div>
-            <div class="search-box"><i class="fas fa-search"></i><input type="text" id="productSearch" placeholder="بحث عن منتج..."></div>
+            <div class="section-header"><h3><i class="fas fa-box"></i> Products</h3></div>
+            <div class="search-box"><i class="fas fa-search"></i><input type="text" id="productSearch" placeholder="Search product..."></div>
             <div class="products-grid" id="productsGrid"></div>
         </div>
 
         <div class="cart-section">
-            <div class="section-header"><h3><i class="fas fa-shopping-cart"></i> سلة المشتريات</h3></div>
+            <div class="section-header"><h3><i class="fas fa-shopping-cart"></i> Cart</h3></div>
             <div class="customer-select">
-                <label>العميل</label>
-                <select id="customerSelect"><option value="">نقدي (بدون عميل)</option></select>
+                <label>Customer</label>
+                <select id="customerSelect"><option value="">Cash (No Customer)</option></select>
             </div>
             <div class="cart-items" id="cartItems"></div>
-            <div class="cart-total"><h3>الإجمالي</h3><h3 id="cartTotal">0 ج</h3></div>
-            <button class="btn btn-primary" onclick="checkout()"><i class="fas fa-check-circle"></i> إتمام البيع</button>
+            <div class="cart-total"><h3>Total</h3><h3 id="cartTotal">0 EGP</h3></div>
+            <button class="btn btn-primary" onclick="checkout()"><i class="fas fa-check-circle"></i> Complete Sale</button>
         </div>
     </main>
 
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
@@ -208,9 +251,8 @@
     <script src="./js/storage-firebase.js"></script>
 
     <script>
-        // الشريط الجانبي
-        const sidebar = document.getElementById('sidebar');
-        const menuToggle = document.getElementById('menuToggle');
+        // Sidebar toggle
+        const sidebar = document.getElementById('sidebar'), menuToggle = document.getElementById('menuToggle');
         function toggleSidebar() {
             if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open');
             else sidebar.classList.toggle('collapsed');
@@ -218,10 +260,10 @@
         }
         menuToggle.addEventListener('click', toggleSidebar);
         if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); }));
 
-        // القائمة المنسدلة
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+        // User dropdown
+        const userProfileBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
         userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
 
@@ -229,7 +271,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
-            await UI.initPage('نقطة البيع');
+            await UI.initPage('Point of Sale');
 
             const user = Auth.getUser();
             document.getElementById('userName').textContent = user.name;
@@ -244,24 +286,24 @@
                 products = await Storage.getProducts();
                 customers = await Storage.getCustomers();
                 const select = document.getElementById('customerSelect');
-                select.innerHTML = '<option value="">نقدي (بدون عميل)</option>' + 
+                select.innerHTML = '<option value="">Cash (No Customer)</option>' + 
                     customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                 renderProducts();
-            } catch (e) { UI.showToast('فشل تحميل البيانات', 'danger'); }
+            } catch (e) { UI.showToast('Failed to load data', 'danger'); }
         }
 
         function renderProducts() {
             const term = document.getElementById('productSearch').value.toLowerCase();
             const filtered = products.filter(p => p.name.toLowerCase().includes(term) && p.units?.[0]?.stock > 0);
             const grid = document.getElementById('productsGrid');
-            if (!filtered.length) { grid.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد منتجات</p>'; return; }
+            if (!filtered.length) { grid.innerHTML = '<p style="text-align:center;padding:20px;">No products</p>'; return; }
             grid.innerHTML = filtered.map(p => {
                 const price = p.units?.[0]?.price || 0;
                 const stock = p.units?.[0]?.stock || 0;
                 return `<div class="product-card" onclick="addToCart('${p.id}')">
                     <div class="product-name">${p.name}</div>
                     <div class="product-price">${Utils.formatMoney(price)}</div>
-                    <div class="product-stock">المخزون: ${stock}</div>
+                    <div class="product-stock">Stock: ${stock}</div>
                 </div>`;
             }).join('');
         }
@@ -270,11 +312,11 @@
             const product = products.find(p => p.id === productId);
             if (!product) return;
             const unit = product.units?.[0];
-            if (!unit || unit.stock <= 0) { UI.showToast('المخزون غير كافي', 'warning'); return; }
+            if (!unit || unit.stock <= 0) { UI.showToast('Out of stock', 'warning'); return; }
 
             const existing = cart.find(i => i.productId === productId);
             if (existing) {
-                if (existing.quantity >= unit.stock) { UI.showToast('الكمية تتجاوز المخزون', 'warning'); return; }
+                if (existing.quantity >= unit.stock) { UI.showToast('Not enough stock', 'warning'); return; }
                 existing.quantity++;
             } else {
                 cart.push({ productId, name: product.name, price: unit.price, quantity: 1, max: unit.stock });
@@ -284,13 +326,13 @@
 
         function renderCart() {
             const container = document.getElementById('cartItems');
-            if (!cart.length) { container.innerHTML = '<p style="text-align:center;padding:20px;">السلة فارغة</p>'; document.getElementById('cartTotal').textContent = '0 ج'; return; }
+            if (!cart.length) { container.innerHTML = '<p style="text-align:center;padding:20px;">Cart is empty</p>'; document.getElementById('cartTotal').textContent = '0 EGP'; return; }
             let total = 0;
             container.innerHTML = cart.map((item, idx) => {
                 const subtotal = item.price * item.quantity;
                 total += subtotal;
                 return `<div class="cart-item">
-                    <div class="cart-item-info"><h4>${item.name}</h4><p>${Utils.formatMoney(item.price)} × ${item.quantity}</p></div>
+                    <div class="cart-item-info"><h4>${item.name}</h4><p>${Utils.formatMoney(item.price)} x ${item.quantity}</p></div>
                     <div class="cart-item-actions">
                         <button onclick="updateQty(${idx}, -1)">-</button>
                         <span>${item.quantity}</span>
@@ -306,7 +348,7 @@
             const item = cart[idx];
             const newQty = item.quantity + delta;
             if (newQty < 1) cart.splice(idx, 1);
-            else if (newQty > item.max) UI.showToast('الكمية تتجاوز المخزون', 'warning');
+            else if (newQty > item.max) UI.showToast('Not enough stock', 'warning');
             else item.quantity = newQty;
             renderCart();
         };
@@ -314,7 +356,7 @@
         window.removeItem = function(idx) { cart.splice(idx, 1); renderCart(); };
 
         async function checkout() {
-            if (!cart.length) { UI.showToast('السلة فارغة', 'warning'); return; }
+            if (!cart.length) { UI.showToast('Cart is empty', 'warning'); return; }
             const customerId = document.getElementById('customerSelect').value;
             const customer = customers.find(c => c.id === customerId);
             const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -322,7 +364,7 @@
             const date = Utils.getToday();
 
             try {
-                // خصم المخزون
+                // Update stock
                 for (const item of cart) {
                     const prod = products.find(p => p.id === item.productId);
                     if (prod) {
@@ -331,21 +373,21 @@
                     }
                 }
 
-                // إنشاء فاتورة
+                // Create invoice
                 const invoice = {
                     id: invoiceId, type: 'sale', date, customerId: customerId || null,
-                    customer: customer?.name || 'نقدي', items: cart, total, paid: total, remaining: 0,
+                    customer: customer?.name || 'Cash', items: cart, total, paid: total, remaining: 0,
                     status: 'paid', createdAt: new Date().toISOString()
                 };
                 await Storage.saveInvoice(invoice);
 
-                // حركة صندوق
+                // Add cash transaction
                 await Storage.saveTransaction({
-                    date, type: 'income', amount: total, description: `فاتورة بيع ${invoiceId}`,
+                    date, type: 'income', amount: total, description: `Sale Invoice ${invoiceId}`,
                     paymentMethod: 'cash', timestamp: new Date().toISOString()
                 });
 
-                // تحديث رصيد العميل
+                // Update customer balance if applicable
                 if (customerId) {
                     const cust = customers.find(c => c.id === customerId);
                     if (cust) {
@@ -355,12 +397,48 @@
                     }
                 }
 
-                UI.showToast(`تم البيع بنجاح - ${Utils.formatMoney(total)}`, 'success');
+                // Print receipt popup
+                printReceipt(invoice);
+
+                UI.showToast(`Sale completed - ${Utils.formatMoney(total)}`, 'success');
                 cart = [];
                 renderCart();
                 await loadData();
-            } catch (e) { console.error(e); UI.showToast('فشل إتمام البيع', 'danger'); }
+            } catch (e) { console.error(e); UI.showToast('Checkout failed', 'danger'); }
         }
+
+        function printReceipt(invoice) {
+            const width = 320, height = 500;
+            const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
+            const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
+            win.document.write(`
+                <html dir="rtl">
+                <head><title>Receipt</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; margin: 8px; font-size: 12px; }
+                    .center { text-align: center; }
+                    .items { width: 100%; border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 8px 0; }
+                    .total { font-weight: bold; font-size: 14px; }
+                </style>
+                </head>
+                <body>
+                    <div class="center"><h3>Food Distribution Co.</h3></div>
+                    <p>Invoice: ${invoice.id}</p>
+                    <p>Date: ${invoice.date}</p>
+                    <p>Customer: ${invoice.customer || 'Cash'}</p>
+                    <table class="items">
+                        ${invoice.items.map(item => `<tr><td>${item.name}</td><td>${item.quantity} x ${item.price.toFixed(2)}</td><td>${(item.quantity*item.price).toFixed(2)}</td></tr>`).join('')}
+                    </table>
+                    <p class="total">Total: ${invoice.total.toFixed(2)} EGP</p>
+                    <p class="center">Thank you!</p>
+                    <script>window.print(); setTimeout(() => window.close(), 100);<\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
+        }
+
+        window.checkout = checkout;
     </script>
 </body>
 </html>
