@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار Firebase</title>
+</head>
+<body>
+    <h1>اختبار اتصال Firebase</h1>
+    <button onclick="testConnection()">اختبار الاتصال</button>
+    <pre id="result"></pre>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="./js/firebase-init.js"></script>
+    <script>
+        async function testConnection() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'جاري الاختبار...';
+            try {
+                // محاولة كتابة مستند اختبار
+                const testDoc = db.collection('_test').doc('connection');
+                await testDoc.set({ timestamp: new Date().toISOString() });
+                const readDoc = await testDoc.get();
+                resultEl.textContent = '✅ تم الاتصال بقاعدة البيانات بنجاح!\n' + JSON.stringify(readDoc.data(), null, 2);
+                await testDoc.delete(); // تنظيف
+            } catch (error) {
+                resultEl.textContent = '❌ فشل الاتصال:\n' + error.message;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
