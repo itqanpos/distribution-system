@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <base href="/distribution-system/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تفاصيل العميل - نظام التوزيع</title>
+    <title>تفاصيل العميل - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <style>
         :root {
             --primary: #2c3e50;
@@ -13,62 +14,231 @@
             --success: #2ecc71;
             --danger: #e74c3c;
             --warning: #f39c12;
+            --info: #1abc9c;
             --light: #ecf0f1;
             --dark: #34495e;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 65px;
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: #f5f6fa; color: #333; }
-        .navbar { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 0 15px; position: fixed; top: 0; right: 0; left: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; height: 60px; }
-        .logo { display: flex; align-items: center; gap: 10px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 35px; height: 35px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-        .logo-text h2 { color: var(--primary); font-size: 18px; }
-        .user-avatar { width: 40px; height: 40px; background: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
-        .logout-btn { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
-        .container { margin-top: 60px; padding: 15px 15px 30px; }
-        .back-btn { background: none; border: none; color: var(--secondary); font-size: 18px; cursor: pointer; margin-bottom: 15px; }
-        .customer-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .customer-card h2 { color: var(--primary); margin-bottom: 10px; }
-        .balance-large { font-size: 32px; font-weight: bold; margin: 15px 0; }
+        body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
+
+        /* ========== شريط التنقل ========== */
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1030; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .navbar-left { display: flex; align-items: center; gap: 15px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 10px;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), var(--info)); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .navbar-right { display: flex; align-items: center; gap: 15px; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 5px 10px; border-radius: 40px; transition: background 0.2s;
+            position: relative;
+        }
+        .user-profile:hover { background: var(--light); }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
+        .user-info { text-align: right; }
+        .user-info h4 { font-size: 15px; font-weight: 600; color: var(--primary); }
+        .user-info p { font-size: 12px; color: #7f8c8d; }
+
+        /* قائمة المستخدم المنسدلة */
+        .user-dropdown {
+            position: absolute; top: 55px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #eee; overflow: hidden;
+        }
+        .user-dropdown.show { display: block; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .user-dropdown a:last-child { border-bottom: none; }
+        .user-dropdown a:hover { background: var(--light); }
+        .user-dropdown a i { width: 20px; color: var(--secondary); }
+
+        /* ========== الشريط الجانبي (اختياري، لكننا نضيفه للتناسق) ========== */
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s ease; z-index: 1020;
+            overflow-y: auto; overflow-x: hidden; padding: 20px 0;
+        }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar .menu-section {
+            padding: 20px 20px 8px; color: #95a5a6; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            opacity: 1; transition: opacity 0.15s;
+        }
+        .sidebar.collapsed .menu-section { opacity: 0; pointer-events: none; padding: 20px 0 8px; text-align: center; }
+        .menu { list-style: none; padding: 0 12px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--dark); text-decoration: none; border-radius: 12px; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; flex-shrink: 0; }
+        .menu-text { transition: opacity 0.2s; }
+        .sidebar.collapsed .menu-text { opacity: 0; pointer-events: none; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: linear-gradient(to left, rgba(52,152,219,0.1), transparent);
+            color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary);
+        }
+
+        /* ========== المحتوى الرئيسي ========== */
+        .main-content {
+            margin-right: var(--sidebar-width); margin-top: var(--header-height);
+            padding: 25px; transition: margin-right 0.25s ease;
+            min-height: calc(100vh - var(--header-height));
+        }
+        .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
+
+        .back-btn {
+            background: none; border: none; color: var(--secondary); font-size: 18px;
+            cursor: pointer; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+        }
+        .back-btn i { font-size: 20px; }
+
+        .customer-card {
+            background: white; border-radius: 20px; padding: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.03);
+            margin-bottom: 25px;
+        }
+        .customer-card h2 { font-size: 24px; margin-bottom: 10px; }
+        .customer-card p { margin: 8px 0; color: #555; }
+        .balance-large { font-size: 36px; font-weight: 700; margin: 20px 0; }
         .balance-positive { color: var(--success); }
         .balance-negative { color: var(--danger); }
-        .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
-        .btn { padding: 12px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; flex: 1; }
+        .action-buttons { display: flex; gap: 12px; margin-top: 20px; }
+        .btn {
+            padding: 12px 20px; border: none; border-radius: 12px; font-weight: 600;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            transition: all 0.2s; font-size: 14px;
+        }
         .btn-primary { background: var(--secondary); color: white; }
         .btn-success { background: var(--success); color: white; }
-        .tabs { display: flex; border-bottom: 2px solid var(--light); margin-bottom: 15px; }
-        .tab-btn { flex: 1; padding: 12px; background: none; border: none; color: #7f8c8d; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; }
+        .btn-outline { background: white; border: 1px solid #ddd; color: var(--primary); }
+
+        .tabs { display: flex; gap: 5px; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
+        .tab-btn {
+            flex: 1; padding: 14px; background: none; border: none; color: #7f8c8d;
+            font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
         .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .invoice-item, .payment-item { background: white; border-radius: 10px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; }
-        .invoice-info h4, .payment-info h4 { font-size: 15px; margin-bottom: 4px; }
-        .invoice-info p, .payment-info p { font-size: 12px; color: #7f8c8d; }
-        .invoice-amount { font-weight: bold; }
-        .status-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; }
+
+        .invoice-item, .payment-item {
+            background: white; border-radius: 16px; padding: 16px;
+            margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            border: 1px solid #f1f1f1; display: flex; justify-content: space-between;
+            align-items: center;
+        }
+        .invoice-info h4, .payment-info h4 { font-size: 16px; margin-bottom: 4px; }
+        .invoice-info p, .payment-info p { font-size: 13px; color: #7f8c8d; }
+        .status-badge {
+            padding: 4px 12px; border-radius: 30px; font-size: 12px; font-weight: 600;
+        }
         .status-paid { background: rgba(46,204,113,0.1); color: var(--success); }
         .status-pending { background: rgba(243,156,18,0.1); color: var(--warning); }
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 450px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; }
+        .form-group input {
+            width: 100%; padding: 14px; border: 2px solid #eef2f6; border-radius: 14px;
+            font-size: 16px;
+        }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
+        }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
+    <!-- شريط التنقل العلوي -->
     <nav class="navbar">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-truck"></i></div>
-            <div class="logo-text"><h2>تفاصيل العميل</h2></div>
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-truck"></i></div>
+                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+            </div>
         </div>
-        <div class="user-info">
-            <div class="user-avatar" id="userAvatar">م</div>
-            <button class="logout-btn" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i></button>
+        <div class="navbar-right">
+            <div class="user-profile" id="userProfileBtn">
+                <div class="user-avatar" id="userAvatar">م</div>
+                <div class="user-info">
+                    <h4 id="userName">مدير النظام</h4>
+                    <p id="loginTime">اليوم</p>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
+            </div>
         </div>
     </nav>
 
-    <div class="container">
-        <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-right"></i> رجوع</button>
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar" id="sidebar">
+        <ul class="menu">
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الإدارة</div>
+            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="main-content">
+        <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-right"></i> رجوع إلى العملاء</button>
         
-        <div class="customer-card" id="customerInfo"></div>
+        <div class="customer-card" id="customerInfo">جاري التحميل...</div>
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('invoices')">الفواتير</button>
@@ -76,40 +246,67 @@
         </div>
 
         <div id="invoicesTab" class="tab-content active">
-            <div id="invoicesList"></div>
+            <div id="invoicesList">جاري التحميل...</div>
         </div>
         <div id="paymentsTab" class="tab-content">
-            <div id="paymentsList"></div>
+            <div id="paymentsList">جاري التحميل...</div>
         </div>
-    </div>
+    </main>
 
     <!-- مودال تسجيل دفعة -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
-            <h3>تسجيل دفعة</h3>
-            <div class="form-group"><label>المبلغ</label><input type="number" id="paymentAmount" min="0.01" step="0.01" required></div>
-            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
-            <button class="btn btn-success" onclick="submitPayment()">تسجيل</button>
-            <button class="btn" style="margin-top:10px; background:#eee;" onclick="closePaymentModal()">إلغاء</button>
+            <h3 style="margin-bottom:20px;">تسجيل دفعة من العميل</h3>
+            <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="0.00" required></div>
+            <div class="form-group"><label>ملاحظات (اختياري)</label><input type="text" id="paymentNotes" placeholder="مثال: دفعة نقدية"></div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-success" onclick="submitPayment()" style="flex:1;">تسجيل الدفعة</button>
+                <button class="btn btn-outline" onclick="closePaymentModal()" style="flex:1;">إلغاء</button>
+            </div>
         </div>
     </div>
 
     <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 
-<!-- التهيئة المركزية -->
-<script src="./js/firebase-init.js"></script>
+    <!-- التهيئة المركزية -->
+    <script src="./js/firebase-init.js"></script>
 
-<!-- الأدوات المساعدة -->
-<script src="./js/utils.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/storage-firebase.js"></script>
+    <!-- الأدوات المساعدة -->
+    <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/storage-firebase.js"></script>
 
-<!-- سكربت الصفحة الخاص (إن وجد) -->
     <script>
+        // إدارة الشريط الجانبي
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        function toggleSidebar() {
+            if (window.innerWidth <= 992) {
+                sidebar.classList.toggle('mobile-open');
+            } else {
+                sidebar.classList.toggle('collapsed');
+            }
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+        menuToggle.addEventListener('click', toggleSidebar);
+        if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => { if (window.innerWidth <= 992) sidebar.classList.remove('mobile-open'); });
+        });
+
+        // القائمة المنسدلة للمستخدم
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
+
         let customer = null;
         let customerInvoices = [];
         let customerPayments = [];
@@ -120,37 +317,69 @@
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.requireAuth()) return;
             await UI.initPage('تفاصيل العميل');
-            document.getElementById('userAvatar').textContent = Auth.getUser().avatar;
 
-            if (!customerId) { alert('لم يتم تحديد عميل'); history.back(); return; }
+            const user = Auth.getUser();
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('loginTime').textContent = user.loginTime || 'اليوم';
+            document.getElementById('userAvatar').textContent = user.avatar;
+
+            if (!customerId) {
+                UI.showToast('لم يتم تحديد عميل', 'warning');
+                setTimeout(() => history.back(), 1500);
+                return;
+            }
 
             await loadCustomerData();
             renderCustomerInfo();
-            renderInvoices();
-            renderPayments();
+            await renderInvoices();
+            await renderPayments();
         });
 
         async function loadCustomerData() {
-            const customers = await Storage.getCustomers();
-            customer = customers.find(c => c.id == customerId);
-            if (!customer) { alert('العميل غير موجود'); history.back(); return; }
+            try {
+                // جلب العميل مباشرة من Firestore
+                const doc = await window.db.collection('parties').doc(customerId).get();
+                if (!doc.exists) {
+                    UI.showToast('العميل غير موجود', 'danger');
+                    setTimeout(() => history.back(), 1500);
+                    return;
+                }
+                customer = { id: doc.id, ...doc.data() };
 
-            const invoices = await Storage.getInvoices();
-            customerInvoices = invoices.filter(inv => inv.type === 'sale' && inv.customerId == customerId);
-            
-            const transactions = await Storage.getTransactions();
-            customerPayments = transactions.filter(t => t.type === 'income' && t.description.includes(customer.name));
+                // جلب فواتير العميل
+                const invoicesSnap = await window.db.collection('invoices')
+                    .where('type', '==', 'sale')
+                    .where('customerId', '==', customerId)
+                    .orderBy('date', 'desc')
+                    .get();
+                customerInvoices = invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // جلب المدفوعات (حركات الصندوق المرتبطة بالعميل)
+                // نبحث عن حركات نوع income تحتوي على اسم العميل في الوصف
+                const transSnap = await window.db.collection('transactions')
+                    .where('type', '==', 'income')
+                    .orderBy('date', 'desc')
+                    .get();
+                const allIncome = transSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                customerPayments = allIncome.filter(t => 
+                    t.description && t.description.includes(customer.name)
+                );
+            } catch (error) {
+                console.error('خطأ في تحميل بيانات العميل:', error);
+                UI.showToast('فشل تحميل البيانات', 'danger');
+            }
         }
 
         function renderCustomerInfo() {
+            if (!customer) return;
             const balance = customer.balance || 0;
             const balanceClass = balance >= 0 ? 'balance-positive' : 'balance-negative';
             const balanceText = balance >= 0 ? `رصيد له: ${Utils.formatMoney(balance)}` : `مديونية: ${Utils.formatMoney(Math.abs(balance))}`;
             
             document.getElementById('customerInfo').innerHTML = `
                 <h2>${customer.name}</h2>
-                <p><i class="fas fa-phone"></i> ${customer.phone || 'غير محدد'}</p>
-                <p><i class="fas fa-map-marker-alt"></i> ${customer.address || 'غير محدد'}</p>
+                <p><i class="fas fa-phone" style="margin-left:8px;"></i> ${customer.phone || 'غير محدد'}</p>
+                <p><i class="fas fa-map-marker-alt" style="margin-left:8px;"></i> ${customer.address || 'غير محدد'}</p>
                 <div class="balance-large ${balanceClass}">${balanceText}</div>
                 <div class="action-buttons">
                     <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-money-bill"></i> تسجيل دفعة</button>
@@ -158,34 +387,39 @@
             `;
         }
 
-        function renderInvoices() {
+        async function renderInvoices() {
             const container = document.getElementById('invoicesList');
             if (customerInvoices.length === 0) {
-                container.innerHTML = '<p style="text-align:center; padding:20px;">لا توجد فواتير</p>';
+                container.innerHTML = '<p style="text-align:center; padding:30px; color:#95a5a6;">لا توجد فواتير لهذا العميل</p>';
                 return;
             }
-            container.innerHTML = customerInvoices.sort((a,b) => new Date(b.date) - new Date(a.date)).map(inv => `
-                <div class="invoice-item">
+            container.innerHTML = customerInvoices.map(inv => {
+                const statusClass = inv.status === 'paid' ? 'status-paid' : 'status-pending';
+                const statusText = inv.status === 'paid' ? 'مدفوعة' : (inv.status === 'partial' ? 'متبقي' : 'غير مدفوعة');
+                return `
+                <div class="invoice-item" onclick="window.location.href='./invoice-details.html?id=${inv.id}'" style="cursor:pointer;">
                     <div class="invoice-info">
                         <h4>فاتورة ${inv.id}</h4>
                         <p>${inv.date}</p>
                     </div>
-                    <div class="invoice-amount">${Utils.formatMoney(inv.total)}</div>
-                    <span class="status-badge ${inv.status === 'paid' ? 'status-paid' : 'status-pending'}">${inv.status === 'paid' ? 'مدفوعة' : 'معلقة'}</span>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="invoice-amount">${Utils.formatMoney(inv.total)}</div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
-        function renderPayments() {
+        async function renderPayments() {
             const container = document.getElementById('paymentsList');
             if (customerPayments.length === 0) {
-                container.innerHTML = '<p style="text-align:center; padding:20px;">لا توجد مدفوعات</p>';
+                container.innerHTML = '<p style="text-align:center; padding:30px; color:#95a5a6;">لا توجد مدفوعات مسجلة</p>';
                 return;
             }
-            container.innerHTML = customerPayments.sort((a,b) => new Date(b.date) - new Date(a.date)).map(p => `
+            container.innerHTML = customerPayments.map(p => `
                 <div class="payment-item">
                     <div class="payment-info">
-                        <h4>دفعة</h4>
+                        <h4>دفعة نقدية</h4>
                         <p>${p.date} - ${p.description}</p>
                     </div>
                     <div class="invoice-amount" style="color:var(--success);">+ ${Utils.formatMoney(p.amount)}</div>
@@ -202,6 +436,7 @@
 
         function openPaymentModal() {
             document.getElementById('paymentModal').style.display = 'flex';
+            document.getElementById('paymentAmount').focus();
         }
 
         function closePaymentModal() {
@@ -212,43 +447,64 @@
 
         async function submitPayment() {
             const amount = parseFloat(document.getElementById('paymentAmount').value);
-            const notes = document.getElementById('paymentNotes').value;
-            if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
+            const notes = document.getElementById('paymentNotes').value.trim();
 
-            // تحديث رصيد العميل
-            customer.balance += amount;
-            customer.lastTransaction = Utils.getToday();
-            await Storage.saveCustomer(customer);
-
-            // إضافة حركة صندوق
-            const trans = {
-                id: Date.now(),
-                date: Utils.getToday(),
-                type: 'income',
-                amount: amount,
-                description: `تحصيل من ${customer.name}${notes ? ' - ' + notes : ''}`,
-                paymentMethod: 'cash',
-                reference: ''
-            };
-            await Storage.saveTransaction(trans);
-
-            // تحديث تحصلات المندوب إذا كان مسجلاً كمندوب
-            const user = Auth.getUser();
-            if (user.role === 'rep' || user.repId) {
-                const reps = await Storage.getReps();
-                const rep = reps.find(r => r.id == (user.repId || user.id));
-                if (rep) {
-                    rep.collections = (rep.collections || 0) + amount;
-                    await Storage.saveRep(rep);
-                }
+            if (!amount || amount <= 0) {
+                UI.showToast('المبلغ غير صحيح', 'warning');
+                return;
             }
 
-            alert(`تم تسجيل دفعة بقيمة ${Utils.formatMoney(amount)}`);
-            closePaymentModal();
-            await loadCustomerData();
-            renderCustomerInfo();
-            renderPayments();
+            try {
+                // تحديث رصيد العميل
+                const newBalance = (customer.balance || 0) + amount;
+                await window.db.collection('parties').doc(customerId).update({
+                    balance: newBalance,
+                    lastTransaction: Utils.getToday()
+                });
+                customer.balance = newBalance;
+
+                // إضافة حركة صندوق
+                const trans = {
+                    date: Utils.getToday(),
+                    type: 'income',
+                    amount: amount,
+                    description: `تحصيل من ${customer.name}${notes ? ' - ' + notes : ''}`,
+                    paymentMethod: 'cash',
+                    reference: '',
+                    timestamp: new Date().toISOString()
+                };
+                await Storage.saveTransaction(trans);
+
+                // تحديث تحصلات المندوب إذا كان المستخدم الحالي مندوباً
+                const user = Auth.getUser();
+                if (user.role === 'rep' || user.repId) {
+                    const repId = user.repId || user.id;
+                    const repDoc = await window.db.collection('reps').doc(repId).get();
+                    if (repDoc.exists) {
+                        const rep = repDoc.data();
+                        const newCollections = (rep.collections || 0) + amount;
+                        await window.db.collection('reps').doc(repId).update({ collections: newCollections });
+                    }
+                }
+
+                UI.showToast(`تم تسجيل دفعة بقيمة ${Utils.formatMoney(amount)}`, 'success');
+                closePaymentModal();
+                
+                // إعادة تحميل البيانات
+                await loadCustomerData();
+                renderCustomerInfo();
+                await renderPayments();
+            } catch (error) {
+                console.error(error);
+                UI.showToast('فشل تسجيل الدفعة', 'danger');
+            }
         }
+
+        // تعريض الدوال للنافذة
+        window.switchTab = switchTab;
+        window.openPaymentModal = openPaymentModal;
+        window.closePaymentModal = closePaymentModal;
+        window.submitPayment = submitPayment;
     </script>
 </body>
 </html>
