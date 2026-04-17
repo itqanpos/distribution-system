@@ -1,20 +1,15 @@
 // js/utils.js
-const Utils = {
-    formatMoney(amount, currency = 'ج') {
-        if (amount === null || amount === undefined || isNaN(amount)) return '0 ' + currency;
-        return new Intl.NumberFormat('ar-EG').format(amount) + ' ' + currency;
+window.Utils = {
+    // تنسيق المبلغ كعملة
+    formatMoney(amount) {
+        if (amount === undefined || amount === null) amount = 0;
+        return Number(amount).toLocaleString('ar-EG', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }) + ' ج.م';
     },
 
-    formatDate(date, format = 'dd/mm/yyyy') {
-        if (!date) return '';
-        const d = new Date(date);
-        if (isNaN(d.getTime())) return '';
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return format.replace('dd', day).replace('mm', month).replace('yyyy', year);
-    },
-
+    // الحصول على تاريخ اليوم بصيغة YYYY-MM-DD
     getToday() {
         const d = new Date();
         const year = d.getFullYear();
@@ -23,39 +18,50 @@ const Utils = {
         return `${year}-${month}-${day}`;
     },
 
+    // الحصول على الوقت الحالي بصيغة HH:MM:SS
+    getCurrentTime() {
+        const d = new Date();
+        return d.toLocaleTimeString('ar-EG', { hour12: false });
+    },
+
+    // الحصول على طابع زمني كامل (ISO)
+    getTimestamp() {
+        return new Date().toISOString();
+    },
+
+    // ترتيب المصفوفة تنازلياً حسب التاريخ (يفترض وجود حقل date بصيغة YYYY-MM-DD)
+    sortByDateDesc(arr) {
+        return arr.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    },
+
+    // حساب رصيد الصندوق من مجموعة حركات
+    calculateBalance(transactions) {
+        let balance = 0;
+        transactions.forEach(t => {
+            if (t.type === 'income') balance += t.amount || 0;
+            else if (t.type === 'expense') balance -= t.amount || 0;
+        });
+        return balance;
+    },
+
+    // توليد معرف فريد قصير (للاستخدام المؤقت قبل الحفظ)
     generateId(prefix = '') {
         return prefix + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
     },
 
-    search(array, term, fields) {
-        if (!term) return array;
-        const lowerTerm = String(term).toLowerCase();
-        return array.filter(item => fields.some(field => {
-            const value = item[field];
-            return value && String(value).toLowerCase().includes(lowerTerm);
-        }));
+    // نسخ عميق آمن
+    deepClone(obj) {
+        return JSON.parse(JSON.stringify(obj));
     },
 
-    calculateBalance(transactions) {
-        return transactions.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
-    },
-
-    sortByDateDesc(array, dateKey = 'date') {
-        return [...array].sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey]));
-    },
-
-    groupBy(array, key) {
-        return array.reduce((result, item) => {
-            const groupKey = item[key];
-            if (!result[groupKey]) result[groupKey] = [];
-            result[groupKey].push(item);
-            return result;
-        }, {});
-    },
-
-    sumBy(array, key) {
-        return array.reduce((sum, item) => sum + (parseFloat(item[key]) || 0), 0);
+    // عرض رسالة خطأ / نجاح (ستُستخدم مع UI)
+    showToast(message, type = 'info') {
+        if (window.UI && window.UI.showToast) {
+            window.UI.showToast(message, type);
+        } else {
+            alert(message);
+        }
     }
 };
 
-window.Utils = Utils;
+console.log('✅ Utils module loaded');
