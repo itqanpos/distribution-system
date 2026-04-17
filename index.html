@@ -3,67 +3,195 @@
 <head>
     <base href="/distribution-system/">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - نظام التوزيع</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تسجيل الدخول - نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
     <style>
+        :root {
+            --primary: #1e293b;
+            --secondary: #3b82f6;
+            --accent: #10b981;
+            --surface: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-light: #e2e8f0;
+            --radius-xl: 28px;
+            --radius-md: 16px;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: linear-gradient(145deg, #1e293b, #334155); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-box { background: white; border-radius: 28px; padding: 40px 32px; width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
-        .logo { text-align: center; margin-bottom: 24px; }
-        .logo i { font-size: 48px; background: linear-gradient(135deg, #3498db, #1abc9c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        h2 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
-        .input-group { position: relative; margin-bottom: 20px; }
-        .input-group i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #7f8c8d; }
-        .input-group input { width: 100%; padding: 16px 48px 16px 16px; border: 2px solid #eef2f6; border-radius: 16px; font-size: 16px; }
-        .btn { width: 100%; padding: 16px; background: #3498db; color: white; border: none; border-radius: 16px; font-size: 17px; font-weight: bold; cursor: pointer; }
-        .demo-btns { display: flex; gap: 10px; margin-top: 20px; }
-        .demo-btn { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px; background: white; cursor: pointer; }
-        .error { color: #e74c3c; text-align: center; margin-top: 10px; display: none; }
+        body {
+            background: linear-gradient(145deg, var(--primary) 0%, #334155 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: var(--surface);
+            border-radius: var(--radius-xl);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 440px;
+            padding: 40px 32px;
+            animation: fadeSlideUp 0.5s;
+        }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            color: white;
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 20px;
+        }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 8px; }
+        p { text-align: center; color: var(--text-secondary); margin-bottom: 30px; }
+        .input-icon { position: relative; margin-bottom: 20px; }
+        .input-icon i {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .input-icon input {
+            width: 100%;
+            padding: 16px 52px 16px 18px;
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        .input-icon input:focus { border-color: var(--secondary); outline: none; }
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .login-btn:hover { background: #2563eb; }
+        .demo-section { margin-top: 30px; }
+        .demo-label { text-align: center; color: var(--text-secondary); margin-bottom: 12px; font-size: 14px; }
+        .demo-buttons { display: flex; gap: 12px; }
+        .demo-btn {
+            flex: 1;
+            padding: 12px;
+            border: 1.5px solid var(--border-light);
+            border-radius: 12px;
+            background: var(--surface);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .demo-btn:hover { background: #f8fafc; border-color: var(--secondary); }
+        .demo-btn.admin { color: #2563eb; }
+        .demo-btn.rep { color: #16a34a; }
+        .error-message {
+            color: #ef4444;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
-<div class="login-box">
-    <div class="logo"><i class="fas fa-truck"></i></div>
-    <h2>نظام التوزيع الغذائي</h2>
-    <form id="loginForm">
-        <div class="input-group"><i class="fas fa-user"></i><input type="text" id="username" placeholder="Username" value="admin" required></div>
-        <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="password" placeholder="Password" value="123456" required></div>
-        <div class="error" id="loginError">Invalid username or password</div>
-        <button type="submit" class="btn"><i class="fas fa-sign-in-alt"></i> Login</button>
-    </form>
-    <div class="demo-btns">
-        <button class="demo-btn" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> Admin</button>
-        <button class="demo-btn" onclick="fillDemo('rep')"><i class="fas fa-user"></i> Rep</button>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-icon"><i class="fas fa-truck"></i></div>
+            <h2>نظام التوزيع الغذائي</h2>
+            <p>الرجاء إدخال بيانات الدخول</p>
+        </div>
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="input-icon">
+                <i class="fas fa-user"></i>
+                <input type="text" id="username" placeholder="Username" value="admin" required>
+            </div>
+            <div class="input-icon">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="password" placeholder="Password" value="123456" required>
+            </div>
+            <div class="error-message" id="loginError">Invalid username or password</div>
+            <button type="submit" class="login-btn"><i class="fas fa-sign-in-alt"></i> Login</button>
+        </form>
+        <div class="demo-section">
+            <div class="demo-label">Demo Accounts</div>
+            <div class="demo-buttons">
+                <button class="demo-btn admin" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> Admin</button>
+                <button class="demo-btn rep" onclick="fillDemo('rep')"><i class="fas fa-user"></i> Rep</button>
+            </div>
+        </div>
+        <div class="login-footer">© 2025 Food Distribution System</div>
     </div>
-</div>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-<script src="./js/firebase-init.js"></script>
-<script src="./js/utils.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/ui.js"></script>
-<script>
-    if (Auth.isAuthenticated()) {
-        window.location.href = Auth.getRedirectUrl(Auth.getUser().role);
-    }
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const res = await Auth.login(username, password);
-        if (res.success) window.location.href = res.redirectUrl;
-        else {
-            document.getElementById('loginError').style.display = 'block';
-            document.getElementById('loginError').textContent = res.message;
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+
+    <!-- App Scripts -->
+    <script src="./js/firebase-init.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/ui.js"></script>
+
+    <script>
+        // Redirect if already logged in
+        (function() {
+            if (typeof Auth !== 'undefined' && Auth.isAuthenticated()) {
+                const user = Auth.getUser();
+                window.location.href = Auth.getRedirectUrl(user.role);
+            }
+        })();
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+
+            if (!username || !password) {
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'Username and password are required';
+                return;
+            }
+
+            const result = await Auth.login(username, password);
+            if (result.success) {
+                window.location.href = result.redirectUrl;
+            } else {
+                errorEl.style.display = 'block';
+                errorEl.textContent = result.message;
+            }
         }
-    });
-    function fillDemo(role) {
-        document.getElementById('username').value = role === 'admin' ? 'admin' : 'rep1';
-        document.getElementById('password').value = '123456';
-        document.getElementById('loginError').style.display = 'none';
-    }
-</script>
+
+        function fillDemo(role) {
+            document.getElementById('username').value = role === 'admin' ? 'admin' : 'rep1';
+            document.getElementById('password').value = '123456';
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        window.fillDemo = fillDemo;
+    </script>
 </body>
 </html>
