@@ -1,7 +1,10 @@
 // js/firebase-init.js
 (function() {
-    // منع التكرار
-    if (window.firebaseApp) return;
+    // منع إعادة التهيئة
+    if (window.firebaseApp) {
+        console.log('✅ Firebase already initialized');
+        return;
+    }
 
     const firebaseConfig = {
         apiKey: "AIzaSyABydV5hEXVNZyA87aoyyEGTmF7Ndc3LoE",
@@ -24,11 +27,11 @@
         .then(() => console.log('✅ Offline persistence enabled'))
         .catch(err => {
             if (err.code === 'failed-precondition') {
-                console.warn('⚠️ Multiple tabs open, persistence disabled');
+                console.warn('⚠️ Multiple tabs open, persistence can only be enabled in one tab.');
             } else if (err.code === 'unimplemented') {
-                console.warn('⚠️ Browser does not support persistence');
+                console.warn('⚠️ Browser does not support offline persistence.');
             }
         });
 
-    console.log('✅ Firebase initialized');
+    console.log('✅ Firebase initialized successfully');
 })();
