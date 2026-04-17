@@ -1,198 +1,127 @@
-// js/auth.js - إدارة المصادقة والجلسات باستخدام Firebase Authentication
-const Auth = {
-    STORAGE_KEY: 'foodDist_user',
+// js/auth.js
+(function() {
+    const STORAGE_KEY = 'auth_user';
+    const SESSION_KEY = 'auth_session';
 
-    // الحصول على بيانات المستخدم الحالي من التخزين المحلي
-    getUser() {
-        const data = localStorage.getItem(this.STORAGE_KEY);
-        return data ? JSON.parse(data) : null;
-    },
+    // مستخدم افتراضي (مدير)
+    const DEFAULT_ADMIN = {
+        id: 'admin',
+        name: 'مدير النظام',
+        role: 'admin',
+        password: '123456',
+        avatar: 'م'
+    };
 
-    // حفظ بيانات المستخدم في التخزين المحلي
-    setUser(user) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user));
-    },
+    // مستخدم مندوب تجريبي
+    const DEFAULT_REP = {
+        id: 'rep1',
+        name: 'مندوب مبيعات',
+        role: 'rep',
+        password: '123456',
+        avatar: 'م.م'
+    };
 
-    // تسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور
-    async login(email, password) {
-        if (!email || !password) {
-            return { success: false, message: 'البريد الإلكتروني وكلمة المرور مطلوبان' };
-        }
+    // قائمة المستخدمين المحليين (يمكن استبدالها بـ Firebase لاحقاً)
+    let localUsers = [DEFAULT_ADMIN, DEFAULT_REP];
 
-        try {
-            // محاولة تسجيل الدخول عبر Firebase Authentication
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
-            const firebaseUser = userCredential.user;
+    window.Auth = {
+        // تسجيل الدخول
+        async login(username, password) {
+            // تنظيف المدخلات
+            username = username.trim();
+            password = password.trim();
 
-            // جلب بيانات المستخدم الإضافية من Firestore
-            const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
+            // البحث في القائمة المحلية
+            const user = localUsers.find(u => u.id === username && u.password === password);
             
-            let userData = {};
-            if (userDoc.exists) {
-                userData = userDoc.data();
+            if (user) {
+                const sessionUser = {
+                    id: user.id,
+                    name: user.name,
+                    role: user.role,
+                    avatar: user.avatar,
+                    loginTime: new Date().toLocaleString('ar-EG')
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
+                sessionStorage.setItem(SESSION_KEY, 'active');
+                
+                // إعادة التوجيه حسب الدور
+                const redirectUrl = this.getRedirectUrl(user.role);
+                return { success: true, redirectUrl, user: sessionUser };
             } else {
-                // إذا لم تكن وثيقة المستخدم موجودة، ننشئ واحدة افتراضية
-                // (يمكن تحديد الدور بناءً على البريد الإلكتروني أو تركه كـ admin)
-                userData = {
-                    fullName: email.split('@')[0],
-                    role: email.includes('admin') ? 'admin' : 'rep',
-                    repId: null,
-                    status: 'active'
-                };
-                await db.collection('users').doc(firebaseUser.uid).set(userData);
+                return { success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
             }
+        },
 
-            // بناء كائن المستخدم للتطبيق
-            const user = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: userData.fullName || email,
-                role: userData.role || 'admin',
-                repId: userData.repId || null,
-                loginTime: new Date().toLocaleString('ar-EG', {
-                    year: 'numeric', month: 'numeric', day: 'numeric',
-                    hour: 'numeric', minute: 'numeric', hour12: true
-                }),
-                avatar: (userData.fullName || email).charAt(0).toUpperCase(),
-                permissions: userData.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
-            };
+        // تسجيل الخروج
+        logout() {
+            localStorage.removeItem(STORAGE_KEY);
+            sessionStorage.removeItem(SESSION_KEY);
+            window.location.href = './index.html';
+        },
 
-            // حفظ بيانات المستخدم محلياً
-            this.setUser(user);
+        // الحصول على المستخدم الحالي
+        getUser() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : null;
+        },
 
-            // تحديد صفحة التوجيه بناءً على الدور
-            const redirectUrl = user.role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
+        // التحقق من تسجيل الدخول
+        isAuthenticated() {
+            return !!this.getUser();
+        },
 
-            return { success: true, user, redirectUrl };
-
-        } catch (error) {
-            console.error('Login error:', error);
-            // ترجمة بعض رسائل الخطأ الشائعة
-            let message = 'فشل تسجيل الدخول';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-            } else if (error.code === 'auth/invalid-email') {
-                message = 'صيغة البريد الإلكتروني غير صالحة';
-            } else if (error.code === 'auth/too-many-requests') {
-                message = 'تم تجاوز عدد المحاولات. الرجاء المحاولة لاحقاً';
+        // التأكد من وجود جلسة صالحة (توجيه إلى تسجيل الدخول إذا لزم)
+        requireAuth() {
+            if (!this.isAuthenticated()) {
+                window.location.href = './index.html';
+                return false;
             }
-            return { success: false, message };
-        }
-    },
-
-    // تسجيل الخروج
-    async logout() {
-        try {
-            await auth.signOut();
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            localStorage.removeItem(this.STORAGE_KEY);
-        }
-    },
-
-    // التحقق من وجود جلسة نشطة
-    isAuthenticated() {
-        return !!this.getUser();
-    },
-
-    // الحصول على رابط التوجيه حسب الدور
-    getRedirectUrl(role) {
-        return role === 'admin' ? 'dashboard.html' : 'rep-dashboard.html';
-    },
-
-    // حماية الصفحات - توجيه إذا لم يكن مسجلاً
-    requireAuth(redirectUrl = 'index.html') {
-        if (!this.isAuthenticated()) {
-            window.location.href = redirectUrl;
-            return false;
-        }
-        return true;
-    },
-
-    // التحقق من أن المستخدم لديه الدور المطلوب
-    requireRole(allowedRoles, redirectUrl = 'index.html') {
-        const user = this.getUser();
-        if (!user) {
-            window.location.href = redirectUrl;
-            return false;
-        }
-        if (!allowedRoles.includes(user.role)) {
-            window.location.href = this.getRedirectUrl(user.role);
-            return false;
-        }
-        return true;
-    },
-
-    // توجيه إذا كان مسجلاً بالفعل
-    redirectIfAuth() {
-        const user = this.getUser();
-        if (user) {
-            window.location.href = this.getRedirectUrl(user.role);
             return true;
-        }
-        return false;
-    },
+        },
 
-    // التحقق من الصلاحية
-    hasPermission(permission) {
-        const user = this.getUser();
-        if (!user) return false;
-        if (user.permissions.includes('all')) return true;
-        return user.permissions.includes(permission);
-    },
+        // التحقق من صلاحية الدور
+        hasRole(allowedRoles) {
+            const user = this.getUser();
+            return user && allowedRoles.includes(user.role);
+        },
 
-    // الحصول على معرف المندوب المرتبط بالمستخدم
-    getRepId() {
-        const user = this.getUser();
-        return user?.repId || user?.uid || null;
-    },
-
-    // تحديث بيانات المستخدم (محلياً وفي Firestore)
-    async updateUser(updates) {
-        const user = this.getUser();
-        if (!user) return false;
-
-        try {
-            // تحديث Firestore
-            await db.collection('users').doc(user.uid).update(updates);
-            
-            // تحديث البيانات المحلية
-            Object.assign(user, updates);
-            this.setUser(user);
-            
-            return true;
-        } catch (error) {
-            console.error('Update user error:', error);
-            return false;
-        }
-    },
-
-    // إعادة تحميل بيانات المستخدم من Firestore
-    async refreshUser() {
-        const user = this.getUser();
-        if (!user) return null;
-
-        try {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                const updatedUser = {
-                    ...user,
-                    name: userData.fullName || user.name,
-                    role: userData.role || user.role,
-                    repId: userData.repId || user.repId,
-                    permissions: userData.role === 'admin' ? ['all'] : ['pos', 'customers', 'orders', 'collections']
-                };
-                this.setUser(updatedUser);
-                return updatedUser;
+        requireRole(allowedRoles) {
+            if (!this.hasRole(allowedRoles)) {
+                alert('غير مصرح لك بالوصول إلى هذه الصفحة');
+                window.location.href = './dashboard.html';
+                return false;
             }
-        } catch (error) {
-            console.error('Refresh user error:', error);
-        }
-        return null;
-    }
-};
+            return true;
+        },
 
-// تصدير الكائن للاستخدام العام
-window.Auth = Auth;
+        // رابط إعادة التوجيه حسب الدور
+        getRedirectUrl(role) {
+            if (role === 'admin') return './dashboard.html';
+            if (role === 'rep') return './pos.html';
+            return './dashboard.html';
+        },
+
+        // --- دوال إدارة المستخدمين (للمسؤول) ---
+        async getUsers() {
+            // محلياً فقط، يمكن ربطها مع Firebase لاحقاً
+            return localUsers.map(u => ({ id: u.id, name: u.name, role: u.role }));
+        },
+
+        async saveUser(user) {
+            const existing = localUsers.findIndex(u => u.id === user.id);
+            if (existing >= 0) {
+                localUsers[existing] = { ...localUsers[existing], ...user };
+            } else {
+                localUsers.push({ ...user, password: user.password || '123456' });
+            }
+            return user;
+        },
+
+        async deleteUser(userId) {
+            localUsers = localUsers.filter(u => u.id !== userId);
+        }
+    };
+
+    console.log('✅ Auth module loaded');
+})();
