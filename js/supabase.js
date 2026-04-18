@@ -1,55 +1,44 @@
 // js/supabase.js
-// الإصدار الاحترافي - Supabase Client
+// الإصدار الاحترافي - Supabase Client مع بيانات مشروعك
 (function() {
-    // ==================== الإعدادات ====================
-    const SUPABASE_URL = https://pvobuyltqwniinehadnx.supabase.co
-    const SUPABASE_ANON_KEY = 'your-anon-key'; // ⚠️ استبدلها بمفتاح anon/public
+    // ==================== بيانات مشروع Supabase الخاص بك ====================
+    const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
 
     // تأكد من وجود مكتبة Supabase
     if (typeof supabase === 'undefined') {
-        console.error('❌ Supabase library not loaded. Add script tag for @supabase/supabase-js');
-        alert('خطأ: مكتبة Supabase غير محملة.');
+        console.error('❌ Supabase library not loaded. Make sure to include @supabase/supabase-js');
+        alert('خطأ: مكتبة Supabase غير محملة. تأكد من اتصالك بالإنترنت.');
         return;
     }
-npm install @supabase/supabase-js @supabase/ssr
+
     // إنشاء عميل Supabase
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabase = supabaseClient;
+    console.log('✅ Supabase client initialized');
 
-    // ==================== دوال المصادقة ====================
-    // ملاحظة: سنستخدم جدول users مخصص لأن Supabase Auth قد لا يكون مفعلاً بالبريد
-    // ولكن يمكن تفعيله لاحقاً بسهولة.
-
-    // التحقق من وجود جلسة
+    // ==================== دوال المصادقة والجلسات ====================
     window.App = {
-        // ---- المستخدم الحالي ----
         getCurrentUser() {
             const session = localStorage.getItem('app_session');
             if (session) {
-                try {
-                    return JSON.parse(session);
-                } catch (e) {
-                    return null;
-                }
+                try { return JSON.parse(session); } catch { return null; }
             }
             return null;
         },
 
-        // ---- تسجيل الدخول (يستخدم جدول users في Supabase) ----
         async login(username, password) {
             try {
-                // البحث عن المستخدم في جدول users
                 const { data, error } = await supabaseClient
                     .from('users')
                     .select('*')
                     .eq('username', username)
-                    .eq('password', password) // في الإنتاج يجب تشفير كلمة المرور
+                    .eq('password', password)
                     .single();
 
                 if (error) throw error;
                 if (!data) return { success: false, message: 'Invalid username or password' };
 
-                // تخزين الجلسة
                 const session = {
                     id: data.id,
                     username: data.username,
@@ -60,7 +49,6 @@ npm install @supabase/supabase-js @supabase/ssr
                 };
                 localStorage.setItem('app_session', JSON.stringify(session));
 
-                // تحديد مسار إعادة التوجيه حسب الدور
                 const redirectUrl = data.role === 'admin' ? './dashboard.html' : './pos.html';
                 return { success: true, redirectUrl, user: session };
             } catch (err) {
@@ -69,13 +57,11 @@ npm install @supabase/supabase-js @supabase/ssr
             }
         },
 
-        // ---- تسجيل الخروج ----
         logout() {
             localStorage.removeItem('app_session');
             window.location.href = './index.html';
         },
 
-        // ---- التحقق من تسجيل الدخول ----
         requireAuth() {
             const user = this.getCurrentUser();
             if (!user) {
@@ -85,7 +71,6 @@ npm install @supabase/supabase-js @supabase/ssr
             return true;
         },
 
-        // ---- التحقق من الصلاحيات ----
         requireRole(allowedRoles) {
             const user = this.getCurrentUser();
             if (!user || !allowedRoles.includes(user.role)) {
@@ -96,7 +81,6 @@ npm install @supabase/supabase-js @supabase/ssr
             return true;
         },
 
-        // ---- تهيئة واجهة المستخدم بالمعلومات الأساسية ----
         initUserInterface() {
             const user = this.getCurrentUser();
             if (user) {
@@ -110,16 +94,15 @@ npm install @supabase/supabase-js @supabase/ssr
         }
     };
 
-    // ==================== دوال قاعدة البيانات العامة ====================
+    // ==================== دوال قاعدة البيانات (Supabase) ====================
     window.DB = {
-        // ---- المنتجات ----
+        // المنتجات
         async getProducts() {
             const { data, error } = await supabaseClient.from('products').select('*').order('name');
             if (error) throw error;
             return data;
         },
         async saveProduct(product) {
-            // تحويل units إلى JSONB
             if (product.units && typeof product.units === 'string') {
                 try { product.units = JSON.parse(product.units); } catch { product.units = []; }
             }
@@ -139,7 +122,7 @@ npm install @supabase/supabase-js @supabase/ssr
             if (error) throw error;
         },
 
-        // ---- العملاء والموردين (الأطراف) ----
+        // الأطراف (عملاء وموردين)
         async getParties(type = null) {
             let query = supabaseClient.from('parties').select('*').order('name');
             if (type) query = query.eq('type', type);
@@ -164,7 +147,7 @@ npm install @supabase/supabase-js @supabase/ssr
             if (error) throw error;
         },
 
-        // ---- الفواتير (مبيعات) ----
+        // الفواتير (مبيعات)
         async getInvoices() {
             const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
             if (error) throw error;
@@ -183,7 +166,7 @@ npm install @supabase/supabase-js @supabase/ssr
             }
         },
 
-        // ---- المشتريات ----
+        // المشتريات
         async getPurchases() {
             const { data, error } = await supabaseClient.from('purchases').select('*').order('date', { ascending: false });
             if (error) throw error;
@@ -202,7 +185,7 @@ npm install @supabase/supabase-js @supabase/ssr
             }
         },
 
-        // ---- حركات الصندوق ----
+        // حركات الصندوق
         async getTransactions() {
             const { data, error } = await supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false });
             if (error) throw error;
@@ -231,10 +214,10 @@ npm install @supabase/supabase-js @supabase/ssr
             return balance;
         },
 
-        // ---- الإعدادات ----
+        // الإعدادات
         async getSettings() {
             const { data, error } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
-            if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+            if (error && error.code !== 'PGRST116') throw error;
             return data ? data.data : {};
         },
         async saveSettings(settingsData) {
@@ -243,7 +226,7 @@ npm install @supabase/supabase-js @supabase/ssr
             return data[0];
         },
 
-        // ---- المستخدمين ----
+        // المستخدمين
         async getUsers() {
             const { data, error } = await supabaseClient.from('users').select('*').order('username');
             if (error) throw error;
@@ -280,7 +263,7 @@ npm install @supabase/supabase-js @supabase/ssr
             return new Date().toISOString().split('T')[0];
         },
         showToast(message, type = 'info') {
-            // تنفيذ بسيط، يمكن تخصيصه لاحقاً
+            // يمكن استبدالها بمكتبة توست احترافية لاحقًا
             alert(message);
         },
         async confirmDelete(message = 'Are you sure?') {
@@ -288,5 +271,5 @@ npm install @supabase/supabase-js @supabase/ssr
         }
     };
 
-    console.log('✅ Supabase module initialized');
+    console.log('✅ Supabase module ready with your project data');
 })();
