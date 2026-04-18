@@ -1,48 +1,49 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <base href="/distribution-system/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تسجيل الدخول - نظام التوزيع الغذائي</title>
+    <title>تسجيل الدخول · نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="./manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
     <style>
         :root {
             --primary: #1e293b;
             --secondary: #3b82f6;
-            --accent: #10b981;
+            --success: #10b981;
+            --danger: #ef4444;
             --surface: #ffffff;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
             --border-light: #e2e8f0;
-            --radius-xl: 28px;
-            --radius-md: 16px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body {
-            background: linear-gradient(145deg, var(--primary) 0%, #334155 100%);
+            background: linear-gradient(145deg, #0f172a, #1e293b);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
-        .login-container {
+        .login-card {
             background: var(--surface);
-            border-radius: var(--radius-xl);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
             width: 100%;
             max-width: 440px;
             padding: 40px 32px;
-            animation: fadeSlideUp 0.5s;
+            animation: fadeSlide 0.5s;
         }
-        @keyframes fadeSlideUp {
-            from { opacity: 0; transform: translateY(24px); }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .logo {
+            text-align: center;
+            margin-bottom: 24px;
+        }
         .logo-icon {
-            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            background: linear-gradient(135deg, var(--secondary), #06b6d4);
             color: white;
             width: 80px;
             height: 80px;
@@ -51,146 +52,154 @@
             align-items: center;
             justify-content: center;
             font-size: 36px;
-            margin: 0 auto 20px;
+            margin: 0 auto 16px;
         }
-        h2 { text-align: center; color: var(--primary); margin-bottom: 8px; }
-        p { text-align: center; color: var(--text-secondary); margin-bottom: 30px; }
-        .input-icon { position: relative; margin-bottom: 20px; }
-        .input-icon i {
+        h2 {
+            color: var(--primary);
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 32px;
+        }
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .input-group i {
             position: absolute;
             right: 18px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-secondary);
+            color: #94a3b8;
         }
-        .input-icon input {
+        .input-group input {
             width: 100%;
             padding: 16px 52px 16px 18px;
             border: 2px solid var(--border-light);
-            border-radius: var(--radius-md);
+            border-radius: 18px;
             font-size: 16px;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
-        .input-icon input:focus { border-color: var(--secondary); outline: none; }
+        .input-group input:focus {
+            border-color: var(--secondary);
+            outline: none;
+        }
         .login-btn {
             width: 100%;
             padding: 16px;
             background: var(--secondary);
             color: white;
             border: none;
-            border-radius: var(--radius-md);
-            font-size: 17px;
+            border-radius: 18px;
+            font-size: 18px;
             font-weight: 700;
             cursor: pointer;
             transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         .login-btn:hover { background: #2563eb; }
-        .demo-section { margin-top: 30px; }
-        .demo-label { text-align: center; color: var(--text-secondary); margin-bottom: 12px; font-size: 14px; }
-        .demo-buttons { display: flex; gap: 12px; }
+        .error-msg {
+            color: var(--danger);
+            text-align: center;
+            margin-top: 12px;
+            display: none;
+        }
+        .demo-section {
+            margin-top: 28px;
+            text-align: center;
+        }
+        .demo-label {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        .demo-buttons {
+            display: flex;
+            gap: 12px;
+        }
         .demo-btn {
             flex: 1;
             padding: 12px;
             border: 1.5px solid var(--border-light);
-            border-radius: 12px;
-            background: var(--surface);
-            cursor: pointer;
+            border-radius: 14px;
+            background: white;
+            color: var(--primary);
             font-weight: 600;
+            cursor: pointer;
             transition: all 0.2s;
         }
-        .demo-btn:hover { background: #f8fafc; border-color: var(--secondary); }
         .demo-btn.admin { color: #2563eb; }
         .demo-btn.rep { color: #16a34a; }
-        .error-message {
-            color: #ef4444;
-            text-align: center;
-            margin-top: 10px;
-            display: none;
-        }
-        .login-footer {
-            text-align: center;
-            margin-top: 25px;
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
+        .demo-btn:hover { background: #f8fafc; }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
+    <div class="login-card">
+        <div class="logo">
             <div class="logo-icon"><i class="fas fa-truck"></i></div>
             <h2>نظام التوزيع الغذائي</h2>
-            <p>الرجاء إدخال بيانات الدخول</p>
+            <p class="subtitle">الرجاء إدخال بيانات الدخول</p>
         </div>
-        <form id="loginForm" onsubmit="handleLogin(event)">
-            <div class="input-icon">
+        <form id="loginForm">
+            <div class="input-group">
                 <i class="fas fa-user"></i>
-                <input type="text" id="username" placeholder="Username" value="admin" required>
+                <input type="text" id="username" placeholder="اسم المستخدم" value="admin" required>
             </div>
-            <div class="input-icon">
+            <div class="input-group">
                 <i class="fas fa-lock"></i>
-                <input type="password" id="password" placeholder="Password" value="123456" required>
+                <input type="password" id="password" placeholder="كلمة المرور" value="123456" required>
             </div>
-            <div class="error-message" id="loginError">Invalid username or password</div>
-            <button type="submit" class="login-btn"><i class="fas fa-sign-in-alt"></i> Login</button>
+            <div class="error-msg" id="loginError">بيانات الدخول غير صحيحة</div>
+            <button type="submit" class="login-btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
         </form>
         <div class="demo-section">
-            <div class="demo-label">Demo Accounts</div>
+            <p class="demo-label">حسابات تجريبية</p>
             <div class="demo-buttons">
-                <button class="demo-btn admin" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> Admin</button>
-                <button class="demo-btn rep" onclick="fillDemo('rep')"><i class="fas fa-user"></i> Rep</button>
+                <button class="demo-btn admin" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
+                <button class="demo-btn rep" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
             </div>
         </div>
-        <div class="login-footer">© 2025 Food Distribution System</div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-
-    <!-- App Scripts -->
-    <script src="./js/firebase-init.js"></script>
-    <script src="./js/utils.js"></script>
-    <script src="./js/auth.js"></script>
-    <script src="./js/ui.js"></script>
-
     <script>
-        // Redirect if already logged in
-        (function() {
-            if (typeof Auth !== 'undefined' && Auth.isAuthenticated()) {
-                const user = Auth.getUser();
-                window.location.href = Auth.getRedirectUrl(user.role);
-            }
-        })();
+        // تحويل تلقائي إذا كان المستخدم مسجلاً بالفعل
+        if (App.getCurrentUser()) {
+            const user = App.getCurrentUser();
+            window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+        }
 
-        async function handleLogin(e) {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('loginError');
-
+            
             if (!username || !password) {
                 errorEl.style.display = 'block';
-                errorEl.textContent = 'Username and password are required';
+                errorEl.textContent = 'الرجاء إدخال اسم المستخدم وكلمة المرور';
                 return;
             }
 
-            const result = await Auth.login(username, password);
+            const result = await App.login(username, password);
             if (result.success) {
                 window.location.href = result.redirectUrl;
             } else {
                 errorEl.style.display = 'block';
                 errorEl.textContent = result.message;
             }
-        }
+        });
 
         function fillDemo(role) {
             document.getElementById('username').value = role === 'admin' ? 'admin' : 'rep1';
             document.getElementById('password').value = '123456';
             document.getElementById('loginError').style.display = 'none';
         }
-
         window.fillDemo = fillDemo;
     </script>
 </body>
