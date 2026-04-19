@@ -311,7 +311,7 @@
             <div class="summary-row"><span>الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
             <div class="form-group"><label>طريقة الدفع</label><select id="paymentMethod"><option value="cash">نقدي</option></select></div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
-            <button class="btn btn-success" onclick="completePayment()">تأكيد الدفع</button>
+            <button class="btn btn-success" id="confirmPaymentBtn" onclick="completePayment()">تأكيد الدفع</button>
         </div>
     </div>
 
@@ -501,60 +501,65 @@
         }
 
         async function completePayment() {
-            const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
-            const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
-            const notes = document.getElementById('paymentNotes').value;
-            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            try {
+                const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
+                const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+                const notes = document.getElementById('paymentNotes').value;
+                const discount = parseFloat(document.getElementById('discount').value) || 0;
 
-            // تحديث رصيد العميل
-            const diff = paid - net;
-            selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
-            selectedCustomer.last_transaction = Utils.getToday();
-            await DB.saveParty(selectedCustomer);
+                // تحديث رصيد العميل
+                const diff = paid - net;
+                selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
+                selectedCustomer.last_transaction = Utils.getToday();
+                await DB.saveParty(selectedCustomer);
 
-            const invoice = {
-                type: 'sale',
-                date: Utils.getToday(),
-                customer_id: selectedCustomer.id,
-                customer_name: selectedCustomer.name,
-                items: cart,
-                total: net,
-                paid: paid,
-                remaining: diff >= 0 ? 0 : -diff,
-                discount: discount,
-                status: diff >= 0 ? 'paid' : 'partial',
-                notes: notes
-            };
-            const savedInv = await DB.saveInvoice(invoice);
+                const invoice = {
+                    type: 'sale',
+                    date: Utils.getToday(),
+                    customer_id: selectedCustomer.id,
+                    customer_name: selectedCustomer.name,
+                    items: cart,
+                    total: net,
+                    paid: paid,
+                    remaining: diff >= 0 ? 0 : -diff,
+                    discount: discount,
+                    status: diff >= 0 ? 'paid' : 'partial',
+                    notes: notes
+                };
+                const savedInv = await DB.saveInvoice(invoice);
 
-            // تحديث المخزون
-            for (const item of cart) {
-                const prod = products.find(p => p.id === item.productId);
-                if (prod) {
-                    prod.units[item.unitIndex].stock -= item.quantity;
-                    await DB.saveProduct(prod);
+                // تحديث المخزون
+                for (const item of cart) {
+                    const prod = products.find(p => p.id === item.productId);
+                    if (prod) {
+                        prod.units[item.unitIndex].stock -= item.quantity;
+                        await DB.saveProduct(prod);
+                    }
                 }
+
+                // حركة صندوق
+                await DB.saveTransaction({
+                    date: Utils.getToday(),
+                    type: 'income',
+                    amount: paid,
+                    description: `فاتورة بيع ${savedInv.id}`,
+                    payment_method: 'cash'
+                });
+
+                // طباعة الإيصال
+                printReceipt(savedInv, selectedCustomer, cart, net, discount, paid, diff);
+
+                alert(`تم البيع. الفاتورة ${savedInv.id}`);
+                cart = []; renderCart(); document.getElementById('discount').value = 0;
+                selectedCustomer = null;
+                document.getElementById('customerSearchInput').value = '';
+                document.getElementById('customerBalanceDisplay').innerHTML = '';
+                closePaymentModal();
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                alert('فشل إتمام الدفع: ' + err.message);
             }
-
-            // حركة صندوق
-            await DB.saveTransaction({
-                date: Utils.getToday(),
-                type: 'income',
-                amount: paid,
-                description: `فاتورة بيع ${savedInv.id}`,
-                payment_method: 'cash'
-            });
-
-            // طباعة الإيصال
-            printReceipt(savedInv, selectedCustomer, cart, net, discount, paid, diff);
-
-            alert(`تم البيع. الفاتورة ${savedInv.id}`);
-            cart = []; renderCart(); document.getElementById('discount').value = 0;
-            selectedCustomer = null;
-            document.getElementById('customerSearchInput').value = '';
-            document.getElementById('customerBalanceDisplay').innerHTML = '';
-            closePaymentModal();
-            await loadData();
         }
 
         function printReceipt(invoice, customer, items, total, discount, paid, diff) {
