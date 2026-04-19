@@ -232,8 +232,8 @@
             <div class="page-title"><h1><i class="fas fa-cash-register" style="color:var(--secondary); margin-left:12px;"></i>الصندوق</h1></div>
             <div>
                 <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-success" onclick="openTransactionModal('income')"><i class="fas fa-plus-circle"></i> إيداع</button>
-                <button class="btn btn-danger" onclick="openTransactionModal('expense')"><i class="fas fa-minus-circle"></i> سحب</button>
+                <button class="btn btn-success" id="depositBtn"><i class="fas fa-plus-circle"></i> إيداع</button>
+                <button class="btn btn-danger" id="withdrawBtn"><i class="fas fa-minus-circle"></i> سحب</button>
             </div>
         </div>
 
@@ -244,7 +244,7 @@
             </div>
             <div class="stat-card transfer">
                 <div class="stat-icon"><i class="fas fa-university"></i></div>
-                <div class="stat-info"><h3 id="transferBalance">0 ج.م</h3><p>رصيد التحويلات (بنك/شيك)</p></div>
+                <div class="stat-info"><h3 id="transferBalance">0 ج.م</h3><p>رصيد التحويلات</p></div>
             </div>
             <div class="stat-card total">
                 <div class="stat-icon"><i class="fas fa-coins"></i></div>
@@ -258,17 +258,17 @@
                 <input type="text" id="searchInput" placeholder="بحث في البيان أو المرجع...">
             </div>
             <div class="filter-buttons">
-                <button class="filter-btn active" onclick="setFilter('all')">الكل</button>
-                <button class="filter-btn" onclick="setFilter('income')">إيداع</button>
-                <button class="filter-btn" onclick="setFilter('expense')">سحب</button>
+                <button class="filter-btn active" id="filterAll">الكل</button>
+                <button class="filter-btn" id="filterIncome">إيداع</button>
+                <button class="filter-btn" id="filterExpense">سحب</button>
             </div>
-            <select id="methodFilter" class="filter-btn" onchange="applyFilters()">
+            <select id="methodFilter" class="filter-btn">
                 <option value="all">كل الطرق</option>
                 <option value="cash">نقدي</option>
                 <option value="bank">تحويل بنكي</option>
                 <option value="check">شيك</option>
             </select>
-            <button class="btn" onclick="loadTransactions()"><i class="fas fa-sync-alt"></i> تحديث</button>
+            <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
         <div class="table-container">
@@ -284,10 +284,10 @@
     <!-- مودال إضافة حركة -->
     <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="modalTitle">إضافة حركة</h2><button onclick="closeTransactionModal()">&times;</button></div>
-            <form onsubmit="saveTransaction(event)">
+            <div class="modal-header"><h2 id="modalTitle">إضافة حركة</h2><button id="closeModalBtn">&times;</button></div>
+            <form id="transactionForm">
                 <input type="hidden" id="transType" value="income">
-                <div class="form-group"><label>النوع</label><select id="typeSelect" onchange="updateModalTitle()" required>
+                <div class="form-group"><label>النوع</label><select id="typeSelect" required>
                     <option value="income">إيداع</option><option value="expense">سحب</option>
                 </select></div>
                 <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" id="amount" min="0.01" step="0.01" required></div>
@@ -302,7 +302,7 @@
                 <div class="form-group"><label>ملاحظات</label><textarea id="notes" rows="2"></textarea></div>
                 <div style="display:flex; gap:10px;">
                     <button type="submit" class="btn btn-primary" style="flex:1;">حفظ</button>
-                    <button type="button" class="btn" onclick="closeTransactionModal()" style="flex:1;">إلغاء</button>
+                    <button type="button" class="btn" id="cancelModalBtn" style="flex:1;">إلغاء</button>
                 </div>
             </form>
         </div>
@@ -311,219 +311,243 @@
     <!-- مودال تفاصيل -->
     <div class="modal" id="detailsModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>تفاصيل الحركة</h2><button onclick="closeDetailsModal()">&times;</button></div>
+            <div class="modal-header"><h2>تفاصيل الحركة</h2><button id="closeDetailsBtn">&times;</button></div>
             <div id="detailsBody"></div>
             <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn" onclick="closeDetailsModal()">إغلاق</button>
-                <button class="btn btn-danger" id="deleteTransactionBtn" onclick="deleteCurrentTransaction()">حذف</button>
+                <button class="btn" id="closeDetailsModalBtn">إغلاق</button>
+                <button class="btn btn-danger" id="deleteTransactionBtn">حذف</button>
             </div>
         </div>
     </div>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        (function() {
+            // واجهة المستخدم
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let transactions = [], currentFilter = 'all', selectedTransactionId = null;
+            let transactions = [], currentFilter = 'all', selectedTransactionId = null;
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            document.getElementById('transDate').value = Utils.getToday();
-            await loadTransactions();
-            document.getElementById('searchInput').addEventListener('input', applyFilters);
-        });
-
-        async function loadTransactions() {
-            try {
-                transactions = await DB.getTransactions();
-                applyFilters();
-                updateBalances();
-            } catch (e) { alert('فشل تحميل الحركات'); }
-        }
-
-        function updateBalances() {
-            let cash = 0, transfer = 0;
-            transactions.forEach(t => {
-                const amount = t.amount || 0;
-                if (t.type === 'income') {
-                    if (t.payment_method === 'cash') cash += amount;
-                    else transfer += amount;
-                } else {
-                    if (t.payment_method === 'cash') cash -= amount;
-                    else transfer -= amount;
-                }
-            });
-            document.getElementById('cashBalance').textContent = Utils.formatMoney(cash);
-            document.getElementById('transferBalance').textContent = Utils.formatMoney(transfer);
-            document.getElementById('totalBalance').textContent = Utils.formatMoney(cash + transfer);
-        }
-
-        function setFilter(filter) {
-            currentFilter = filter;
-            document.querySelectorAll('.filter-btn').forEach((btn, i) => {
-                btn.classList.toggle('active', ['all','income','expense'][i] === filter);
-            });
-            applyFilters();
-        }
-
-        function applyFilters() {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const method = document.getElementById('methodFilter').value;
-            let filtered = transactions.filter(t => 
-                (t.description || '').toLowerCase().includes(term) || 
-                (t.reference || '').toLowerCase().includes(term)
-            );
-            if (currentFilter !== 'all') filtered = filtered.filter(t => t.type === currentFilter);
-            if (method !== 'all') filtered = filtered.filter(t => t.payment_method === method);
-            filtered.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-            renderTable(filtered);
-        }
-
-        function renderTable(data) {
-            const tbody = document.getElementById('transactionsBody');
-            if (!data.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">لا توجد حركات</td></tr>';
-                return;
+            // دوال مساعدة
+            function getMethodName(m) {
+                const methods = { cash: 'نقدي', bank: 'تحويل بنكي', check: 'شيك' };
+                return methods[m] || m;
             }
-            tbody.innerHTML = data.map(t => {
-                const typeBadge = t.type === 'income' ? 'badge-income' : 'badge-expense';
-                const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
-                const amountClass = t.type === 'income' ? 'amount-income' : 'amount-expense';
-                const sign = t.type === 'income' ? '+' : '-';
-                return `<tr>
-                    <td>${t.date}</td>
-                    <td><span class="badge ${typeBadge}">${typeText}</span></td>
-                    <td class="${amountClass}">${sign} ${Utils.formatMoney(t.amount)}</td>
-                    <td>${t.description}</td>
-                    <td>${getMethodName(t.payment_method)}</td>
-                    <td>${t.reference || '-'}</td>
-                    <td class="action-icons">
-                        <i class="fas fa-eye" onclick="viewDetails('${t.id}')" title="عرض"></i>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
 
-        function getMethodName(m) {
-            const methods = { cash: 'نقدي', bank: 'تحويل بنكي', check: 'شيك' };
-            return methods[m] || m;
-        }
-
-        function openTransactionModal(type) {
-            document.getElementById('transType').value = type;
-            document.getElementById('typeSelect').value = type;
-            updateModalTitle();
-            document.getElementById('transactionForm').reset();
-            document.getElementById('transDate').value = Utils.getToday();
-            document.getElementById('transactionModal').style.display = 'flex';
-        }
-
-        function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
-
-        function updateModalTitle() {
-            const type = document.getElementById('typeSelect').value;
-            document.getElementById('modalTitle').innerHTML = type === 'income' ? 
-                '<i class="fas fa-plus-circle"></i> إضافة إيداع' : '<i class="fas fa-minus-circle"></i> إضافة سحب';
-        }
-
-        async function saveTransaction(e) {
-            e.preventDefault();
-            const type = document.getElementById('typeSelect').value;
-            const amount = parseFloat(document.getElementById('amount').value);
-            const description = document.getElementById('description').value.trim();
-            const paymentMethod = document.getElementById('paymentMethod').value;
-            const reference = document.getElementById('reference').value.trim();
-            const date = document.getElementById('transDate').value;
-            const notes = document.getElementById('notes').value.trim();
-
-            if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
-            if (!description) { alert('البيان مطلوب'); return; }
-
-            // التحقق من الرصيد الكافي للسحب
-            if (type === 'expense') {
-                let cashBalance = 0, transferBalance = 0;
-                transactions.forEach(t => {
-                    if (t.type === 'income') {
-                        if (t.payment_method === 'cash') cashBalance += t.amount;
-                        else transferBalance += t.amount;
+            async function loadTransactions() {
+                try {
+                    if (DB && DB.getTransactions) {
+                        transactions = await DB.getTransactions();
                     } else {
-                        if (t.payment_method === 'cash') cashBalance -= t.amount;
-                        else transferBalance -= t.amount;
+                        const { data, error } = await supabase.from('transactions').select('*').order('timestamp', { ascending: false });
+                        if (error) throw error;
+                        transactions = data;
+                    }
+                    applyFilters();
+                    updateBalances();
+                } catch (e) {
+                    console.error(e);
+                    alert('فشل تحميل الحركات: ' + (e.message || 'خطأ غير معروف'));
+                }
+            }
+
+            function updateBalances() {
+                let cash = 0, transfer = 0;
+                transactions.forEach(t => {
+                    const amount = t.amount || 0;
+                    if (t.type === 'income') {
+                        if (t.payment_method === 'cash') cash += amount;
+                        else transfer += amount;
+                    } else {
+                        if (t.payment_method === 'cash') cash -= amount;
+                        else transfer -= amount;
                     }
                 });
-                if (paymentMethod === 'cash' && amount > cashBalance) {
-                    alert(`الرصيد النقدي غير كافٍ. المتاح: ${Utils.formatMoney(cashBalance)}`);
-                    return;
-                }
-                if (paymentMethod !== 'cash' && amount > transferBalance) {
-                    alert(`رصيد التحويلات غير كافٍ. المتاح: ${Utils.formatMoney(transferBalance)}`);
-                    return;
-                }
+                document.getElementById('cashBalance').textContent = Utils.formatMoney(cash);
+                document.getElementById('transferBalance').textContent = Utils.formatMoney(transfer);
+                document.getElementById('totalBalance').textContent = Utils.formatMoney(cash + transfer);
             }
 
-            const transaction = {
-                date,
-                type,
-                amount,
-                description,
-                payment_method: paymentMethod,
-                reference: reference || null,
-                notes: notes || null,
-                timestamp: new Date().toISOString()
+            function applyFilters() {
+                const term = document.getElementById('searchInput').value.toLowerCase();
+                const method = document.getElementById('methodFilter').value;
+                let filtered = transactions.filter(t => 
+                    (t.description || '').toLowerCase().includes(term) || 
+                    (t.reference || '').toLowerCase().includes(term)
+                );
+                if (currentFilter !== 'all') filtered = filtered.filter(t => t.type === currentFilter);
+                if (method !== 'all') filtered = filtered.filter(t => t.payment_method === method);
+                filtered.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+                renderTable(filtered);
+            }
+
+            function renderTable(data) {
+                const tbody = document.getElementById('transactionsBody');
+                if (!data.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">لا توجد حركات</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(t => {
+                    const typeBadge = t.type === 'income' ? 'badge-income' : 'badge-expense';
+                    const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
+                    const amountClass = t.type === 'income' ? 'amount-income' : 'amount-expense';
+                    const sign = t.type === 'income' ? '+' : '-';
+                    return `<tr>
+                        <td>${t.date}</td>
+                        <td><span class="badge ${typeBadge}">${typeText}</span></td>
+                        <td class="${amountClass}">${sign} ${Utils.formatMoney(t.amount)}</td>
+                        <td>${t.description}</td>
+                        <td>${getMethodName(t.payment_method)}</td>
+                        <td>${t.reference || '-'}</td>
+                        <td class="action-icons">
+                            <i class="fas fa-eye" onclick="viewDetails('${t.id}')" title="عرض"></i>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+
+            // ربط الأحداث
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+                App.initUserInterface();
+                document.getElementById('transDate').value = Utils.getToday();
+                await loadTransactions();
+
+                document.getElementById('searchInput').addEventListener('input', applyFilters);
+                document.getElementById('methodFilter').addEventListener('change', applyFilters);
+                document.getElementById('refreshBtn').addEventListener('click', loadTransactions);
+
+                document.getElementById('filterAll').addEventListener('click', () => {
+                    currentFilter = 'all';
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('filterAll').classList.add('active');
+                    applyFilters();
+                });
+                document.getElementById('filterIncome').addEventListener('click', () => {
+                    currentFilter = 'income';
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('filterIncome').classList.add('active');
+                    applyFilters();
+                });
+                document.getElementById('filterExpense').addEventListener('click', () => {
+                    currentFilter = 'expense';
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('filterExpense').classList.add('active');
+                    applyFilters();
+                });
+
+                document.getElementById('depositBtn').addEventListener('click', () => openTransactionModal('income'));
+                document.getElementById('withdrawBtn').addEventListener('click', () => openTransactionModal('expense'));
+
+                document.getElementById('closeModalBtn').addEventListener('click', closeTransactionModal);
+                document.getElementById('cancelModalBtn').addEventListener('click', closeTransactionModal);
+                document.getElementById('transactionForm').addEventListener('submit', saveTransaction);
+
+                document.getElementById('closeDetailsBtn').addEventListener('click', closeDetailsModal);
+                document.getElementById('closeDetailsModalBtn').addEventListener('click', closeDetailsModal);
+                document.getElementById('deleteTransactionBtn').addEventListener('click', deleteCurrentTransaction);
+            });
+
+            function openTransactionModal(type) {
+                document.getElementById('transType').value = type;
+                document.getElementById('typeSelect').value = type;
+                document.getElementById('modalTitle').innerHTML = type === 'income' ? 
+                    '<i class="fas fa-plus-circle"></i> إضافة إيداع' : '<i class="fas fa-minus-circle"></i> إضافة سحب';
+                document.getElementById('transactionForm').reset();
+                document.getElementById('transDate').value = Utils.getToday();
+                document.getElementById('transactionModal').style.display = 'flex';
+            }
+
+            function closeTransactionModal() { 
+                document.getElementById('transactionModal').style.display = 'none'; 
+            }
+
+            async function saveTransaction(e) {
+                e.preventDefault();
+                const type = document.getElementById('typeSelect').value;
+                const amount = parseFloat(document.getElementById('amount').value);
+                const description = document.getElementById('description').value.trim();
+                const paymentMethod = document.getElementById('paymentMethod').value;
+                const reference = document.getElementById('reference').value.trim();
+                const date = document.getElementById('transDate').value;
+                const notes = document.getElementById('notes').value.trim();
+
+                if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
+                if (!description) { alert('البيان مطلوب'); return; }
+
+                // التحقق من الرصيد
+                if (type === 'expense') {
+                    let cashBalance = 0, transferBalance = 0;
+                    transactions.forEach(t => {
+                        if (t.type === 'income') {
+                            if (t.payment_method === 'cash') cashBalance += t.amount;
+                            else transferBalance += t.amount;
+                        } else {
+                            if (t.payment_method === 'cash') cashBalance -= t.amount;
+                            else transferBalance -= t.amount;
+                        }
+                    });
+                    if (paymentMethod === 'cash' && amount > cashBalance) {
+                        alert(`الرصيد النقدي غير كافٍ. المتاح: ${Utils.formatMoney(cashBalance)}`);
+                        return;
+                    }
+                    if (paymentMethod !== 'cash' && amount > transferBalance) {
+                        alert(`رصيد التحويلات غير كافٍ. المتاح: ${Utils.formatMoney(transferBalance)}`);
+                        return;
+                    }
+                }
+
+                const transaction = {
+                    date, type, amount, description, payment_method: paymentMethod,
+                    reference: reference || null, notes: notes || null, timestamp: new Date().toISOString()
+                };
+
+                try {
+                    if (DB && DB.saveTransaction) {
+                        await DB.saveTransaction(transaction);
+                    } else {
+                        const { error } = await supabase.from('transactions').insert([transaction]);
+                        if (error) throw error;
+                    }
+                    alert('تم حفظ الحركة');
+                    closeTransactionModal();
+                    await loadTransactions();
+                } catch (e) { alert('فشل الحفظ: ' + e.message); }
+            }
+
+            window.viewDetails = function(id) {
+                const t = transactions.find(x => x.id === id);
+                if (!t) return;
+                selectedTransactionId = id;
+                document.getElementById('detailsBody').innerHTML = `
+                    <p><strong>النوع:</strong> ${t.type === 'income' ? 'إيداع' : 'سحب'}</p>
+                    <p><strong>المبلغ:</strong> ${Utils.formatMoney(t.amount)}</p>
+                    <p><strong>البيان:</strong> ${t.description}</p>
+                    <p><strong>طريقة الدفع:</strong> ${getMethodName(t.payment_method)}</p>
+                    <p><strong>المرجع:</strong> ${t.reference || '-'}</p>
+                    <p><strong>التاريخ:</strong> ${t.date}</p>
+                    <p><strong>ملاحظات:</strong> ${t.notes || '-'}</p>
+                `;
+                document.getElementById('detailsModal').style.display = 'flex';
             };
 
-            try {
-                await DB.saveTransaction(transaction);
-                alert('تم حفظ الحركة');
-                closeTransactionModal();
-                await loadTransactions();
-            } catch (e) { alert('فشل الحفظ'); }
-        }
+            function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
 
-        function viewDetails(id) {
-            const t = transactions.find(x => x.id === id);
-            if (!t) return;
-            selectedTransactionId = id;
-            document.getElementById('detailsBody').innerHTML = `
-                <p><strong>النوع:</strong> ${t.type === 'income' ? 'إيداع' : 'سحب'}</p>
-                <p><strong>المبلغ:</strong> ${Utils.formatMoney(t.amount)}</p>
-                <p><strong>البيان:</strong> ${t.description}</p>
-                <p><strong>طريقة الدفع:</strong> ${getMethodName(t.payment_method)}</p>
-                <p><strong>المرجع:</strong> ${t.reference || '-'}</p>
-                <p><strong>التاريخ:</strong> ${t.date}</p>
-                <p><strong>ملاحظات:</strong> ${t.notes || '-'}</p>
-            `;
-            document.getElementById('detailsModal').style.display = 'flex';
-        }
-
-        function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
-
-        async function deleteCurrentTransaction() {
-            if (!selectedTransactionId) return;
-            if (!confirm('حذف الحركة؟')) return;
-            try {
-                await supabase.from('transactions').delete().eq('id', selectedTransactionId);
-                alert('تم الحذف');
-                closeDetailsModal();
-                await loadTransactions();
-            } catch (e) { alert('فشل الحذف'); }
-        }
-
-        window.setFilter = setFilter;
-        window.applyFilters = applyFilters;
-        window.openTransactionModal = openTransactionModal;
-        window.closeTransactionModal = closeTransactionModal;
-        window.updateModalTitle = updateModalTitle;
-        window.viewDetails = viewDetails;
-        window.closeDetailsModal = closeDetailsModal;
-        window.deleteCurrentTransaction = deleteCurrentTransaction;
-        window.loadTransactions = loadTransactions;
+            async function deleteCurrentTransaction() {
+                if (!selectedTransactionId) return;
+                if (!confirm('حذف الحركة؟')) return;
+                try {
+                    await supabase.from('transactions').delete().eq('id', selectedTransactionId);
+                    alert('تم الحذف');
+                    closeDetailsModal();
+                    await loadTransactions();
+                } catch (e) { alert('فشل الحذف'); }
+            }
+        })();
     </script>
 </body>
 </html>
