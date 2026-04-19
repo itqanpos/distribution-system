@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <style>
+        /* (نفس التنسيقات السابقة - لم يتم تغييرها) */
         :root {
             --primary: #1e293b;
             --secondary: #3b82f6;
@@ -235,7 +236,7 @@
             <div class="page-title"><h1><i class="fas fa-shopping-cart" style="color:var(--secondary); margin-left:12px;"></i>المشتريات</h1></div>
             <div>
                 <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-primary" onclick="openPurchaseModal()"><i class="fas fa-plus"></i> فاتورة شراء جديدة</button>
+                <button class="btn btn-primary" id="newPurchaseBtn"><i class="fas fa-plus"></i> فاتورة شراء جديدة</button>
             </div>
         </div>
 
@@ -295,6 +296,7 @@
     </div>
 
     <script>
+        // تهيئة القائمة الجانبية والمستخدم
         const userBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
         userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
@@ -304,10 +306,15 @@
 
         let purchases = [], suppliers = [], products = [], editingPurchase = null;
 
+        // ربط الزر مباشرة عند التحميل
         document.addEventListener('DOMContentLoaded', async () => {
             if (!App.requireAuth() || !App.requireRole(['admin'])) return;
             App.initUserInterface();
             document.getElementById('purchaseDate').value = Utils.getToday();
+            
+            // ربط زر الفاتورة الجديدة
+            document.getElementById('newPurchaseBtn').addEventListener('click', openPurchaseModal);
+            
             await loadData();
             document.getElementById('searchInput').addEventListener('input', filterPurchases);
         });
@@ -320,12 +327,17 @@
                 updateStats();
                 renderPurchases(purchases);
                 populateSuppliersList();
-            } catch (e) { console.error(e); alert('فشل تحميل البيانات'); }
+            } catch (e) {
+                console.error(e);
+                alert('فشل تحميل البيانات');
+            }
         }
 
         function populateSuppliersList() {
             const list = document.getElementById('suppliersList');
-            list.innerHTML = suppliers.map(s => `<option value="${s.name}" data-id="${s.id}">${s.name}</option>`).join('');
+            if (list) {
+                list.innerHTML = suppliers.map(s => `<option value="${s.name}" data-id="${s.id}">${s.name}</option>`).join('');
+            }
         }
 
         function updateStats() {
@@ -339,16 +351,35 @@
 
         function renderPurchases(data) {
             const tbody = document.getElementById('purchasesBody');
-            if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا توجد فواتير شراء</td></tr>'; return; }
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا توجد فواتير شراء</td></tr>';
+                return;
+            }
             tbody.innerHTML = data.sort((a,b) => (b.date||'').localeCompare(a.date||'')).map(p => {
                 const status = p.status === 'paid' || p.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
-                return `<tr><td>${p.invoice_number || p.id}</td><td>${p.date}</td><td>${p.supplier_name}</td><td>${Utils.formatMoney(p.total)}</td><td>${Utils.formatMoney(p.paid)}</td><td>${Utils.formatMoney(p.remaining)}</td><td>${status}</td><td class="action-icons"><i class="fas fa-edit" onclick="editPurchase('${p.id}')"></i><i class="fas fa-print" onclick="printPurchase('${p.id}')"></i></td></tr>`;
+                return `<tr>
+                    <td>${p.invoice_number || p.id}</td>
+                    <td>${p.date}</td>
+                    <td>${p.supplier_name}</td>
+                    <td>${Utils.formatMoney(p.total)}</td>
+                    <td>${Utils.formatMoney(p.paid)}</td>
+                    <td>${Utils.formatMoney(p.remaining)}</td>
+                    <td>${status}</td>
+                    <td class="action-icons">
+                        <i class="fas fa-edit" onclick="editPurchase('${p.id}')"></i>
+                        <i class="fas fa-print" onclick="printPurchase('${p.id}')"></i>
+                    </td>
+                </tr>`;
             }).join('');
         }
 
         function filterPurchases() {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = purchases.filter(p => (p.id||'').toLowerCase().includes(term) || (p.supplier_name||'').toLowerCase().includes(term) || (p.invoice_number||'').toLowerCase().includes(term));
+            const filtered = purchases.filter(p => 
+                (p.id||'').toLowerCase().includes(term) || 
+                (p.supplier_name||'').toLowerCase().includes(term) || 
+                (p.invoice_number||'').toLowerCase().includes(term)
+            );
             renderPurchases(filtered);
         }
 
@@ -366,7 +397,9 @@
             document.getElementById('purchaseModal').style.display = 'flex';
         }
 
-        function closePurchaseModal() { document.getElementById('purchaseModal').style.display = 'none'; }
+        function closePurchaseModal() {
+            document.getElementById('purchaseModal').style.display = 'none';
+        }
 
         function addItemRow(item = { productName: '', quantity: 1, price: 0 }) {
             const container = document.getElementById('itemsContainer');
@@ -374,7 +407,7 @@
             row.className = 'item-row';
             row.innerHTML = `
                 <input type="text" class="item-name" placeholder="اسم الصنف" list="productsList" value="${item.productName}" autocomplete="off">
-                <datalist id="productsList">${products.map(p => `<option value="${p.name}" data-price="${p.units[0].price}">${p.name}</option>`).join('')}</datalist>
+                <datalist id="productsList">${products.map(p => `<option value="${p.name}" data-price="${p.units?.[0]?.price || 0}">${p.name}</option>`).join('')}</datalist>
                 <input type="number" class="item-qty" placeholder="الكمية" value="${item.quantity}" min="0.001" step="0.001">
                 <input type="number" class="item-price" placeholder="سعر الشراء" value="${item.price}" step="0.01">
                 <span class="item-total">${Utils.formatMoney(item.quantity * item.price)}</span>
@@ -395,8 +428,11 @@
             document.getElementById('purchaseNotes').value = editingPurchase.notes || '';
             const container = document.getElementById('itemsContainer');
             container.innerHTML = '';
-            if (editingPurchase.items) editingPurchase.items.forEach(item => addItemRow(item));
-            else addItemRow();
+            if (editingPurchase.items) {
+                editingPurchase.items.forEach(item => addItemRow(item));
+            } else {
+                addItemRow();
+            }
             document.getElementById('purchaseModal').style.display = 'flex';
         }
 
@@ -407,13 +443,21 @@
             const supplierOption = Array.from(document.querySelectorAll('#suppliersList option')).find(o => o.value === supplierInput);
             let supplierId = supplierOption?.dataset.id;
             let supplierName = supplierInput;
+            
             if (!supplierId) {
                 // إنشاء مورد جديد إذا لم يكن موجوداً
-                const newSupplier = await DB.saveParty({ name: supplierInput, type: 'supplier', balance: 0 });
-                supplierId = newSupplier.id;
-                supplierName = newSupplier.name;
-                suppliers.push(newSupplier);
+                try {
+                    const newSupplier = await DB.saveParty({ name: supplierInput, type: 'supplier', balance: 0 });
+                    supplierId = newSupplier.id;
+                    supplierName = newSupplier.name;
+                    suppliers.push(newSupplier);
+                    populateSuppliersList();
+                } catch (err) {
+                    alert('فشل إنشاء المورد: ' + err.message);
+                    return;
+                }
             }
+            
             const date = document.getElementById('purchaseDate').value;
             const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
             const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
@@ -431,7 +475,10 @@
                     total += qty * price;
                 }
             }
-            if (!items.length) { alert('أضف صنفاً واحداً على الأقل'); return; }
+            if (!items.length) {
+                alert('أضف صنفاً واحداً على الأقل');
+                return;
+            }
 
             const purchaseData = {
                 supplier_id: supplierId,
@@ -453,26 +500,32 @@
 
                 // تحديث المخزون وتكلفة المنتجات
                 if (id) {
-                    // إعادة المخزون القديم
                     const oldPurchase = purchases.find(p => p.id === id);
                     if (oldPurchase) {
                         for (const oldItem of oldPurchase.items) {
                             const prod = products.find(p => p.name === oldItem.productName);
-                            if (prod) { prod.units[0].stock -= oldItem.quantity; await DB.saveProduct(prod); }
+                            if (prod && prod.units?.[0]) {
+                                prod.units[0].stock -= oldItem.quantity;
+                                await DB.saveProduct(prod);
+                            }
                         }
                     }
                 }
-                // إضافة المخزون الجديد وتحديث التكلفة
+                
                 for (const item of items) {
                     let prod = products.find(p => p.name === item.productName);
                     if (!prod) {
                         // إنشاء منتج جديد إذا لم يكن موجوداً
-                        prod = { name: item.productName, units: [{ name: 'قطعة', price: item.price * 1.2, stock: 0, factor: 1, cost: item.price }] };
+                        prod = {
+                            name: item.productName,
+                            units: [{ name: 'قطعة', price: item.price * 1.2, stock: 0, factor: 1, cost: item.price }]
+                        };
                         prod = await DB.saveProduct(prod);
                         products.push(prod);
                     } else {
+                        if (!prod.units) prod.units = [{ name: 'قطعة', price: item.price * 1.2, stock: 0, factor: 1 }];
                         prod.units[0].stock += item.quantity;
-                        prod.units[0].cost = item.price; // تحديث تكلفة الشراء لحساب الأرباح
+                        prod.units[0].cost = item.price;
                         await DB.saveProduct(prod);
                     }
                 }
@@ -486,13 +539,21 @@
 
                 // حركة صندوق
                 if (paid > 0) {
-                    await DB.saveTransaction({ date, type: 'expense', amount: paid, description: `دفع فاتورة شراء ${saved.id}`, payment_method: 'cash' });
+                    await DB.saveTransaction({
+                        date,
+                        type: 'expense',
+                        amount: paid,
+                        description: `دفع فاتورة شراء ${saved.id}`,
+                        payment_method: 'cash'
+                    });
                 }
 
                 alert('تم حفظ فاتورة الشراء');
                 closePurchaseModal();
                 await loadData();
-            } catch (err) { alert('فشل الحفظ: ' + err.message); }
+            } catch (err) {
+                alert('فشل الحفظ: ' + err.message);
+            }
         }
 
         function printPurchase(id) {
@@ -502,30 +563,34 @@
             const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
             const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
             const itemsHtml = (p.items || []).map(i => `<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.quantity*i.price)}</td></tr>`).join('');
-            win.document.write(`<html dir="rtl"><head><title>فاتورة شراء</title><style>body{font-family:'Courier New',monospace;margin:10px;font-size:13px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:10px 0;}.total{font-weight:bold;font-size:16px;}</style></head><body><div class="center"><h2>فاتورة شراء</h2><p>${p.supplier_name}</p></div><p>رقم: ${p.invoice_number || p.id}</p><p>تاريخ: ${p.date}</p><table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table><div class="line"></div><p>الإجمالي: ${Utils.formatMoney(p.total)}</p><p>مدفوع: ${Utils.formatMoney(p.paid)}</p><p>متبقي: ${Utils.formatMoney(p.remaining)}</p><div class="center">---</div><script>window.print();setTimeout(()=>window.close(),500);<\/script></body></html>`);
+            win.document.write(`
+                <html dir="rtl">
+                <head><title>فاتورة شراء</title>
+                <style>body{font-family:'Courier New',monospace;margin:10px;font-size:13px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:10px 0;}.total{font-weight:bold;font-size:16px;}</style>
+                </head>
+                <body>
+                <div class="center"><h2>فاتورة شراء</h2><p>${p.supplier_name}</p></div>
+                <p>رقم: ${p.invoice_number || p.id}</p>
+                <p>تاريخ: ${p.date}</p>
+                <table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table>
+                <div class="line"></div>
+                <p>الإجمالي: ${Utils.formatMoney(p.total)}</p>
+                <p>مدفوع: ${Utils.formatMoney(p.paid)}</p>
+                <p>متبقي: ${Utils.formatMoney(p.remaining)}</p>
+                <div class="center">---</div>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
+                </body>
+                </html>
+            `);
             win.document.close();
         }
 
-        async function deletePurchase(id) {
-            if (!confirm('حذف فاتورة الشراء؟')) return;
-            const purchase = purchases.find(p => p.id === id);
-            if (!purchase) return;
-            for (const item of purchase.items) {
-                const prod = products.find(p => p.name === item.productName);
-                if (prod) { prod.units[0].stock -= item.quantity; await DB.saveProduct(prod); }
-            }
-            const supplier = suppliers.find(s => s.id === purchase.supplier_id);
-            if (supplier) { supplier.balance -= purchase.remaining; await DB.saveParty(supplier); }
-            await supabase.from('purchases').delete().eq('id', id);
-            await loadData();
-        }
-
+        // تعريض الدوال عالمياً
         window.openPurchaseModal = openPurchaseModal;
         window.closePurchaseModal = closePurchaseModal;
-        window.addItemRow = () => addItemRow();
+        window.addItemRow = addItemRow;
         window.editPurchase = editPurchase;
         window.printPurchase = printPurchase;
-        window.deletePurchase = deletePurchase;
         window.loadPurchases = loadData;
         window.filterPurchases = filterPurchases;
     </script>
