@@ -97,9 +97,10 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
+            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
+            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .btn-success { background: var(--success); color: white; }
@@ -166,9 +167,14 @@
         .form-group input, .form-group select {
             width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px;
         }
-        @media (max-width: 768px) {
-            .main-content { padding: 20px; }
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; padding: 20px; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
         }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
@@ -205,8 +211,12 @@
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
@@ -216,14 +226,13 @@
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-user-tie" style="color:var(--secondary); margin-left:12px;"></i>العملاء والموردين</h1></div>
             <div>
-                <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-primary" onclick="openPartyModal()"><i class="fas fa-plus"></i> إضافة جديد</button>
+                <button class="btn btn-primary" id="addPartyBtn"><i class="fas fa-plus"></i> إضافة جديد</button>
             </div>
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('customers')"><i class="fas fa-users"></i> العملاء</button>
-            <button class="tab-btn" onclick="switchTab('suppliers')"><i class="fas fa-truck"></i> الموردين</button>
+            <button class="tab-btn active" id="customersTabBtn"><i class="fas fa-users"></i> العملاء</button>
+            <button class="tab-btn" id="suppliersTabBtn"><i class="fas fa-truck"></i> الموردين</button>
         </div>
 
         <!-- تبويب العملاء -->
@@ -234,7 +243,7 @@
                     <h3>قائمة العملاء</h3>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="customerSearch" placeholder="بحث..." oninput="filterTable('customer')">
+                        <input type="text" id="customerSearch" placeholder="بحث...">
                     </div>
                 </div>
                 <table>
@@ -252,7 +261,7 @@
                     <h3>قائمة الموردين</h3>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="supplierSearch" placeholder="بحث..." oninput="filterTable('supplier')">
+                        <input type="text" id="supplierSearch" placeholder="بحث...">
                     </div>
                 </div>
                 <table>
@@ -263,11 +272,11 @@
         </div>
     </main>
 
-    <!-- مودال إضافة/تعديل -->
+    <!-- مودال إضافة/تعديل طرف -->
     <div class="modal" id="partyModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="modalTitle">إضافة جديد</h2><button onclick="closePartyModal()">&times;</button></div>
-            <form onsubmit="saveParty(event)">
+            <div class="modal-header"><h2 id="modalTitle">إضافة جديد</h2><button id="closePartyModalBtn">&times;</button></div>
+            <form id="partyForm">
                 <input type="hidden" id="partyId">
                 <div class="form-group"><label>النوع</label><select id="partyType" required><option value="customer">عميل</option><option value="supplier">مورد</option></select></div>
                 <div class="form-group"><label>الاسم</label><input type="text" id="partyName" required></div>
@@ -280,141 +289,251 @@
         </div>
     </div>
 
+    <!-- مودال كشف حساب -->
+    <div class="modal" id="statementModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header"><h2 id="statementTitle">كشف حساب</h2><button id="closeStatementBtn">&times;</button></div>
+            <div id="statementBody"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-success" id="collectPaymentBtn"><i class="fas fa-money-bill"></i> تحصيل</button>
+                <button class="btn btn-primary" id="addBalanceBtn"><i class="fas fa-plus-circle"></i> إضافة رصيد</button>
+                <button class="btn" id="printStatementBtn"><i class="fas fa-print"></i> طباعة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تحصيل / إضافة رصيد -->
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="transModalTitle">تحصيل دفعة</h2><button id="closeTransModalBtn">&times;</button></div>
+            <form id="transactionForm">
+                <input type="hidden" id="transPartyId">
+                <input type="hidden" id="transPartyType">
+                <input type="hidden" id="transAction" value="collect"> <!-- collect أو add_balance -->
+                <div class="form-group"><label>المبلغ</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
+                <div class="form-group"><label>ملاحظات</label><input type="text" id="transNotes"></div>
+                <button type="submit" class="btn btn-primary">حفظ</button>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        (function() {
+            // واجهة المستخدم
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let customers = [], suppliers = [];
+            let customers = [], suppliers = [], invoices = [], purchases = [], transactions = [], currentParty = null;
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            await loadData();
-        });
-
-        async function loadData() {
-            customers = await DB.getParties('customer');
-            suppliers = await DB.getParties('supplier');
-            renderTables();
-            updateStats();
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Tab').classList.add('active');
-        }
-
-        function renderTables() {
-            renderTable('customer', customers);
-            renderTable('supplier', suppliers);
-        }
-
-        function renderTable(type, data) {
-            const tbody = document.getElementById(type + 'sBody');
-            const term = document.getElementById(type + 'Search').value.toLowerCase();
-            const filtered = data.filter(p => (p.name || '').toLowerCase().includes(term) || (p.phone || '').includes(term));
-            if (!filtered.length) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;">لا يوجد ${type === 'customer' ? 'عملاء' : 'موردين'}</td></tr>`;
-                return;
+            async function loadData() {
+                customers = await DB.getParties('customer');
+                suppliers = await DB.getParties('supplier');
+                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                purchases = await DB.getPurchases();
+                transactions = await DB.getTransactions();
+                renderTables();
+                updateStats();
             }
-            tbody.innerHTML = filtered.map(p => {
-                const balance = p.balance || 0;
-                const balanceClass = balance >= 0 ? 'badge-success' : 'badge-danger';
-                const balanceText = type === 'customer' ? (balance < 0 ? `مدين ${Utils.formatMoney(-balance)}` : `دائن ${Utils.formatMoney(balance)}`) : (balance > 0 ? `لنا ${Utils.formatMoney(balance)}` : `علينا ${Utils.formatMoney(-balance)}`);
-                return `<tr>
-                    <td>${p.name}</td><td>${p.phone || '-'}</td><td><span class="badge ${balanceClass}">${balanceText}</span></td><td>${p.last_transaction || '-'}</td>
-                    <td class="action-icons">
-                        <i class="fas fa-eye" onclick="viewParty('${p.id}', '${type}')" title="عرض التفاصيل"></i>
-                        <i class="fas fa-edit" onclick="editParty('${p.id}', '${type}')" title="تعديل"></i>
-                        <i class="fas fa-trash" onclick="deleteParty('${p.id}')" title="حذف"></i>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
 
-        function filterTable(type) {
-            renderTable(type, type === 'customer' ? customers : suppliers);
-        }
+            function updateStats() {
+                const custBalance = customers.reduce((s, c) => s + (c.balance || 0), 0);
+                const suppBalance = suppliers.reduce((s, s_) => s_ + (s_.balance || 0), 0);
+                document.getElementById('customersStats').innerHTML = `
+                    <div class="stat-card"><div class="icon"><i class="fas fa-users"></i></div><div class="value">${customers.length}</div><div class="label">عدد العملاء</div></div>
+                    <div class="stat-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(custBalance)}</div><div class="label">صافي الرصيد</div></div>
+                `;
+                document.getElementById('suppliersStats').innerHTML = `
+                    <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="value">${suppliers.length}</div><div class="label">عدد الموردين</div></div>
+                    <div class="stat-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(suppBalance)}</div><div class="label">صافي الرصيد</div></div>
+                `;
+            }
 
-        function updateStats() {
-            const customerBalance = customers.reduce((s, c) => s + (c.balance || 0), 0);
-            const supplierBalance = suppliers.reduce((s, s_) => s_ + (s_.balance || 0), 0);
-            document.getElementById('customersStats').innerHTML = `
-                <div class="stat-card"><div class="icon"><i class="fas fa-users"></i></div><div class="value">${customers.length}</div><div class="label">عدد العملاء</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(customerBalance)}</div><div class="label">صافي الرصيد</div></div>
-            `;
-            document.getElementById('suppliersStats').innerHTML = `
-                <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="value">${suppliers.length}</div><div class="label">عدد الموردين</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-scale-balanced"></i></div><div class="value">${Utils.formatMoney(supplierBalance)}</div><div class="label">صافي الرصيد</div></div>
-            `;
-        }
+            function renderTables() {
+                renderTable('customers', customers);
+                renderTable('suppliers', suppliers);
+            }
 
-        function openPartyModal() {
-            document.getElementById('modalTitle').textContent = 'إضافة جديد';
-            document.getElementById('partyId').value = '';
-            document.getElementById('partyForm').reset();
-            document.getElementById('partyModal').style.display = 'flex';
-        }
+            function renderTable(type, data) {
+                const tbody = document.getElementById(type + 'Body');
+                const term = document.getElementById(type + 'Search').value.toLowerCase();
+                const filtered = data.filter(p => (p.name || '').toLowerCase().includes(term) || (p.phone || '').includes(term));
+                if (!filtered.length) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;">لا يوجد ${type === 'customers' ? 'عملاء' : 'موردين'}</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = filtered.map(p => {
+                    const balance = p.balance || 0;
+                    const balanceClass = balance >= 0 ? 'badge-success' : 'badge-danger';
+                    const balanceText = type === 'customers' ? (balance < 0 ? `مدين ${Utils.formatMoney(-balance)}` : `دائن ${Utils.formatMoney(balance)}`) : (balance > 0 ? `لنا ${Utils.formatMoney(balance)}` : `علينا ${Utils.formatMoney(-balance)}`);
+                    return `<tr>
+                        <td>${p.name}</td><td>${p.phone || '-'}</td><td><span class="badge ${balanceClass}">${balanceText}</span></td><td>${p.last_transaction || '-'}</td>
+                        <td class="action-icons">
+                            <i class="fas fa-file-invoice" onclick="showStatement('${p.id}', '${type === 'customers' ? 'customer' : 'supplier'}')" title="كشف حساب"></i>
+                            <i class="fas fa-edit" onclick="editParty('${p.id}', '${type === 'customers' ? 'customer' : 'supplier'}')" title="تعديل"></i>
+                            <i class="fas fa-trash" onclick="deleteParty('${p.id}')" title="حذف"></i>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
 
-        function editParty(id, type) {
-            const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
-            if (!p) return;
-            document.getElementById('modalTitle').textContent = 'تعديل';
-            document.getElementById('partyId').value = p.id;
-            document.getElementById('partyType').value = type;
-            document.getElementById('partyName').value = p.name;
-            document.getElementById('partyPhone').value = p.phone || '';
-            document.getElementById('partyAddress').value = p.address || '';
-            document.getElementById('partyEmail').value = p.email || '';
-            document.getElementById('partyBalance').value = p.balance || 0;
-            document.getElementById('partyModal').style.display = 'flex';
-        }
+            // كشف حساب
+            window.showStatement = function(id, type) {
+                currentParty = (type === 'customer' ? customers : suppliers).find(p => p.id === id);
+                if (!currentParty) return;
+                document.getElementById('statementTitle').textContent = `كشف حساب ${currentParty.name}`;
+                
+                const partyInvoices = type === 'customer' ? invoices.filter(i => i.customer_id === id) : purchases.filter(p => p.supplier_id === id);
+                const partyTrans = transactions.filter(t => t.description && t.description.includes(currentParty.name));
+                
+                const totalInvoices = partyInvoices.reduce((s, i) => s + i.total, 0);
+                const totalPaid = partyInvoices.reduce((s, i) => s + i.paid, 0);
+                const totalRemaining = partyInvoices.reduce((s, i) => s + i.remaining, 0);
+                
+                let html = `
+                    <p><strong>الرصيد الحالي:</strong> ${Utils.formatMoney(currentParty.balance || 0)}</p>
+                    <h4>الفواتير</h4>
+                    <table><tr><th>الرقم</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr>
+                    ${partyInvoices.map(i => `<tr><td>${i.id}</td><td>${i.date}</td><td>${Utils.formatMoney(i.total)}</td><td>${Utils.formatMoney(i.paid)}</td><td>${Utils.formatMoney(i.remaining)}</td></tr>`).join('')}
+                    </table>
+                    <h4>المدفوعات</h4>
+                    <table><tr><th>التاريخ</th><th>المبلغ</th><th>البيان</th></tr>
+                    ${partyTrans.map(t => `<tr><td>${t.date}</td><td>${Utils.formatMoney(t.amount)}</td><td>${t.description}</td></tr>`).join('')}
+                    </table>
+                `;
+                document.getElementById('statementBody').innerHTML = html;
+                
+                document.getElementById('transPartyId').value = currentParty.id;
+                document.getElementById('transPartyType').value = type;
+                document.getElementById('statementModal').style.display = 'flex';
+            };
 
-        function closePartyModal() { document.getElementById('partyModal').style.display = 'none'; }
+            // إضافة رصيد / تحصيل
+            function openTransactionModal(action) {
+                if (!currentParty) return;
+                document.getElementById('transModalTitle').textContent = action === 'collect' ? 'تحصيل دفعة' : 'إضافة رصيد';
+                document.getElementById('transAction').value = action;
+                document.getElementById('transAmount').value = '';
+                document.getElementById('transNotes').value = '';
+                document.getElementById('transactionModal').style.display = 'flex';
+            }
 
-        async function saveParty(e) {
-            e.preventDefault();
-            const id = document.getElementById('partyId').value;
-            const type = document.getElementById('partyType').value;
-            const name = document.getElementById('partyName').value.trim();
-            const phone = document.getElementById('partyPhone').value.trim();
-            const address = document.getElementById('partyAddress').value.trim();
-            const email = document.getElementById('partyEmail').value.trim();
-            const balance = parseFloat(document.getElementById('partyBalance').value) || 0;
-            const party = { name, phone, address, email, balance, type };
-            if (id) party.id = id;
-            try {
-                await DB.saveParty(party);
-                closePartyModal();
+            async function saveTransaction(e) {
+                e.preventDefault();
+                const amount = parseFloat(document.getElementById('transAmount').value);
+                if (!amount || amount <= 0) return alert('المبلغ غير صحيح');
+                const date = document.getElementById('transDate').value;
+                const notes = document.getElementById('transNotes').value;
+                const action = document.getElementById('transAction').value;
+                const type = document.getElementById('transPartyType').value;
+                
+                const balanceChange = action === 'collect' ? amount : -amount;
+                currentParty.balance += balanceChange;
+                currentParty.last_transaction = date;
+                await DB.saveParty(currentParty);
+                
+                const transType = action === 'collect' ? 'income' : 'expense';
+                await DB.saveTransaction({
+                    date, type: transType, amount,
+                    description: `${action === 'collect' ? 'تحصيل من' : 'إضافة رصيد إلى'} ${currentParty.name}${notes ? ' - ' + notes : ''}`,
+                    payment_method: 'cash'
+                });
+                
+                alert('تم بنجاح');
+                document.getElementById('transactionModal').style.display = 'none';
                 await loadData();
-            } catch (err) { alert('فشل الحفظ'); }
-        }
+                showStatement(currentParty.id, type);
+            }
 
-        async function deleteParty(id) {
-            if (!confirm('هل أنت متأكد؟')) return;
-            await DB.deleteParty(id);
-            await loadData();
-        }
+            // طباعة كشف حساب
+            function printStatement() {
+                if (!currentParty) return;
+                const win = window.open('', '_blank');
+                win.document.write(`<html dir="rtl"><head><title>كشف حساب</title><style>body{font-family:Segoe UI;}</style></head><body>${document.getElementById('statementBody').innerHTML}</body></html>`);
+                win.document.close();
+                win.print();
+            }
 
-        function viewParty(id, type) {
-            window.location.href = `./party-details.html?id=${id}&type=${type}`;
-        }
+            // إضافة/تعديل طرف
+            function openPartyModal() {
+                document.getElementById('modalTitle').textContent = 'إضافة جديد';
+                document.getElementById('partyForm').reset();
+                document.getElementById('partyId').value = '';
+                document.getElementById('partyModal').style.display = 'flex';
+            }
 
-        window.switchTab = switchTab;
-        window.filterTable = filterTable;
-        window.openPartyModal = openPartyModal;
-        window.closePartyModal = closePartyModal;
-        window.editParty = editParty;
-        window.deleteParty = deleteParty;
-        window.viewParty = viewParty;
-        window.saveParty = saveParty;
+            window.editParty = function(id, type) {
+                const p = (type === 'customer' ? customers : suppliers).find(x => x.id === id);
+                if (!p) return;
+                document.getElementById('modalTitle').textContent = 'تعديل';
+                document.getElementById('partyId').value = p.id;
+                document.getElementById('partyType').value = type;
+                document.getElementById('partyName').value = p.name;
+                document.getElementById('partyPhone').value = p.phone || '';
+                document.getElementById('partyAddress').value = p.address || '';
+                document.getElementById('partyEmail').value = p.email || '';
+                document.getElementById('partyBalance').value = p.balance || 0;
+                document.getElementById('partyModal').style.display = 'flex';
+            };
+
+            async function saveParty(e) {
+                e.preventDefault();
+                const id = document.getElementById('partyId').value;
+                const type = document.getElementById('partyType').value;
+                const name = document.getElementById('partyName').value.trim();
+                const phone = document.getElementById('partyPhone').value.trim();
+                const address = document.getElementById('partyAddress').value.trim();
+                const email = document.getElementById('partyEmail').value.trim();
+                const balance = parseFloat(document.getElementById('partyBalance').value) || 0;
+                if (!name) return alert('الاسم مطلوب');
+                const party = { name, phone, address, email, balance, type };
+                if (id) party.id = id;
+                await DB.saveParty(party);
+                document.getElementById('partyModal').style.display = 'none';
+                await loadData();
+            }
+
+            async function deleteParty(id) {
+                if (!confirm('حذف الطرف؟')) return;
+                await DB.deleteParty(id);
+                await loadData();
+            }
+
+            // ربط الأحداث
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth()) return;
+                App.initUserInterface();
+                await loadData();
+                document.getElementById('customerSearch').addEventListener('input', () => renderTable('customers', customers));
+                document.getElementById('supplierSearch').addEventListener('input', () => renderTable('suppliers', suppliers));
+                document.getElementById('customersTabBtn').addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('customersTabBtn').classList.add('active');
+                    document.getElementById('customersTab').classList.add('active');
+                    document.getElementById('suppliersTab').classList.remove('active');
+                });
+                document.getElementById('suppliersTabBtn').addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('suppliersTabBtn').classList.add('active');
+                    document.getElementById('suppliersTab').classList.add('active');
+                    document.getElementById('customersTab').classList.remove('active');
+                });
+                document.getElementById('addPartyBtn').addEventListener('click', openPartyModal);
+                document.getElementById('closePartyModalBtn').addEventListener('click', () => document.getElementById('partyModal').style.display = 'none');
+                document.getElementById('partyForm').addEventListener('submit', saveParty);
+                document.getElementById('closeStatementBtn').addEventListener('click', () => document.getElementById('statementModal').style.display = 'none');
+                document.getElementById('collectPaymentBtn').addEventListener('click', () => openTransactionModal('collect'));
+                document.getElementById('addBalanceBtn').addEventListener('click', () => openTransactionModal('add_balance'));
+                document.getElementById('printStatementBtn').addEventListener('click', printStatement);
+                document.getElementById('closeTransModalBtn').addEventListener('click', () => document.getElementById('transactionModal').style.display = 'none');
+                document.getElementById('transactionForm').addEventListener('submit', saveTransaction);
+                document.getElementById('transDate').value = Utils.getToday();
+            });
+        })();
     </script>
 </body>
 </html>
