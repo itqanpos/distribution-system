@@ -97,13 +97,13 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
+            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
+            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
         .tabs-container {
             background: white; border-radius: 16px; padding: 8px; margin-bottom: 24px;
             display: flex; flex-wrap: wrap; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
@@ -117,7 +117,7 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 20px; margin-bottom: 30px;
         }
         .stat-card {
@@ -140,20 +140,18 @@
         table { width: 100%; border-collapse: collapse; }
         th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
         td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
-        .badge {
-            padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600;
-            display: inline-block;
-        }
+        .debit { color: var(--danger); }
+        .credit { color: var(--success); }
+        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; display: inline-block; }
         .badge-success { background: #d1fae5; color: #065f46; }
         .badge-warning { background: #fef3c7; color: #92400e; }
-        .badge-danger { background: #fee2e2; color: #991b1b; }
         .action-icons i { margin: 0 5px; color: var(--secondary); cursor: pointer; }
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
         }
         .modal-content {
-            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 500px;
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 700px;
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
@@ -162,9 +160,22 @@
         .form-group input, .form-group select, .form-group textarea {
             width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px;
         }
-        @media (max-width: 768px) {
-            .main-content { padding: 20px; }
+        .entry-row {
+            display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px;
+            align-items: center; margin-bottom: 10px;
         }
+        .add-entry-btn {
+            background: var(--light); border: 1px dashed var(--secondary);
+            padding: 10px; border-radius: 12px; text-align: center; cursor: pointer;
+        }
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; padding: 20px; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
+        }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
@@ -191,7 +202,6 @@
         </div>
     </nav>
 
-    <!-- الشريط الجانبي -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -202,8 +212,12 @@
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item active" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
@@ -212,65 +226,72 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-calculator" style="color:var(--secondary); margin-left:12px;"></i>المحاسبة</h1></div>
-            <div><button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button></div>
+            <div>
+                <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-primary" onclick="openJournalModal()"><i class="fas fa-plus"></i> قيد يومية</button>
+            </div>
         </div>
 
         <div class="tabs-container">
-            <button class="tab-btn active" onclick="switchTab('employees')"><i class="fas fa-users"></i> الموظفون والرواتب</button>
-            <button class="tab-btn" onclick="switchTab('loans')"><i class="fas fa-hand-holding-usd"></i> السلف</button>
+            <button class="tab-btn active" onclick="switchTab('chart')"><i class="fas fa-sitemap"></i> شجرة الحسابات</button>
+            <button class="tab-btn" onclick="switchTab('ledger')"><i class="fas fa-book"></i> دفتر الأستاذ</button>
+            <button class="tab-btn" onclick="switchTab('payroll')"><i class="fas fa-users"></i> الرواتب</button>
             <button class="tab-btn" onclick="switchTab('expenses')"><i class="fas fa-receipt"></i> المصروفات</button>
-            <button class="tab-btn" onclick="switchTab('summary')"><i class="fas fa-chart-pie"></i> ملخص</button>
+            <button class="tab-btn" onclick="switchTab('trialBalance')"><i class="fas fa-balance-scale"></i> ميزان المراجعة</button>
+            <button class="tab-btn" onclick="switchTab('income')"><i class="fas fa-chart-line"></i> قائمة الدخل</button>
         </div>
 
-        <!-- تبويب الموظفون والرواتب -->
-        <div id="employeesTab" class="tab-content active">
+        <!-- شجرة الحسابات -->
+        <div id="chartTab" class="tab-content active">
             <div class="stats-grid">
-                <div class="stat-card"><div class="icon"><i class="fas fa-users"></i></div><div class="value" id="empCount">0</div><div class="label">عدد الموظفين</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-money-bill-wave"></i></div><div class="value" id="totalSalaries">0 ج.م</div><div class="label">إجمالي الرواتب</div></div>
+                <div class="stat-card"><div class="icon"><i class="fas fa-arrow-up"></i></div><div class="value" id="totalAssets">0 ج.م</div><div class="label">إجمالي الأصول</div></div>
+                <div class="stat-card"><div class="icon"><i class="fas fa-arrow-down"></i></div><div class="value" id="totalLiabilities">0 ج.م</div><div class="label">إجمالي الخصوم</div></div>
+                <div class="stat-card"><div class="icon"><i class="fas fa-chart-pie"></i></div><div class="value" id="totalEquity">0 ج.م</div><div class="label">حقوق الملكية</div></div>
+            </div>
+            <div class="table-container" id="chartOfAccounts"></div>
+        </div>
+
+        <!-- دفتر الأستاذ -->
+        <div id="ledgerTab" class="tab-content">
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead>
+                    <tbody id="ledgerBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- الرواتب -->
+        <div id="payrollTab" class="tab-content">
+            <div class="table-header">
+                <h3>الموظفون</h3>
+                <button class="btn btn-primary" onclick="openEmployeeModal()"><i class="fas fa-plus"></i> إضافة موظف</button>
             </div>
             <div class="table-container">
-                <div class="table-header">
-                    <h3>الموظفون</h3>
-                    <button class="btn btn-primary" onclick="openEmployeeModal()"><i class="fas fa-plus"></i> إضافة موظف</button>
-                </div>
                 <table>
-                    <thead><tr><th>الاسم</th><th>الراتب الأساسي</th><th>تاريخ التعيين</th><th>الإضافيات</th><th>إجراءات</th></tr></thead>
+                    <thead><tr><th>الاسم</th><th>الراتب الأساسي</th><th>الإضافيات</th><th>السلف</th><th>الخصومات</th><th>الصافي</th><th>إجراءات</th></tr></thead>
                     <tbody id="employeesBody"></tbody>
                 </table>
             </div>
-            <div class="table-container">
-                <div class="table-header">
-                    <h3>كشف الرواتب - شهر <select id="salaryMonth" onchange="loadPayroll()"></select></h3>
-                    <button class="btn btn-success" onclick="calculatePayroll()"><i class="fas fa-calculator"></i> احتساب الرواتب</button>
-                </div>
-                <table>
-                    <thead><tr><th>الموظف</th><th>الأساسي</th><th>الإضافيات</th><th>السلف المخصومة</th><th>الصافي</th><th>حالة الدفع</th><th>إجراءات</th></tr></thead>
-                    <tbody id="payrollBody"></tbody>
-                </table>
+            <div class="table-header" style="margin-top:20px;">
+                <h3>سلف الموظفين</h3>
+                <button class="btn btn-primary" onclick="openLoanModal()"><i class="fas fa-plus"></i> إضافة سلفة</button>
             </div>
-        </div>
-
-        <!-- تبويب السلف -->
-        <div id="loansTab" class="tab-content">
             <div class="table-container">
-                <div class="table-header">
-                    <h3>سلف الموظفين</h3>
-                    <button class="btn btn-primary" onclick="openLoanModal()"><i class="fas fa-plus"></i> إضافة سلفة</button>
-                </div>
                 <table>
-                    <thead><tr><th>الموظف</th><th>المبلغ</th><th>التاريخ</th><th>القسط الشهري</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                    <thead><tr><th>الموظف</th><th>المبلغ</th><th>القسط</th><th>المتبقي</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
                     <tbody id="loansBody"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- تبويب المصروفات -->
+        <!-- المصروفات -->
         <div id="expensesTab" class="tab-content">
+            <div class="table-header">
+                <h3>المصروفات العامة</h3>
+                <button class="btn btn-primary" onclick="openExpenseModal()"><i class="fas fa-plus"></i> إضافة مصروف</button>
+            </div>
             <div class="table-container">
-                <div class="table-header">
-                    <h3>المصروفات العامة</h3>
-                    <button class="btn btn-primary" onclick="openExpenseModal()"><i class="fas fa-plus"></i> إضافة مصروف</button>
-                </div>
                 <table>
                     <thead><tr><th>البيان</th><th>المبلغ</th><th>التاريخ</th><th>الفئة</th><th>إجراءات</th></tr></thead>
                     <tbody id="expensesBody"></tbody>
@@ -278,25 +299,38 @@
             </div>
         </div>
 
-        <!-- تبويب الملخص -->
-        <div id="summaryTab" class="tab-content">
-            <div class="stats-grid">
-                <div class="stat-card"><div class="icon"><i class="fas fa-money-bill-wave"></i></div><div class="value" id="monthlyPayroll">0 ج.م</div><div class="label">الرواتب الشهرية</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-hand-holding-usd"></i></div><div class="value" id="totalLoans">0 ج.م</div><div class="label">إجمالي السلف القائمة</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value" id="totalExpenses">0 ج.م</div><div class="label">إجمالي المصروفات</div></div>
-            </div>
+        <!-- ميزان المراجعة -->
+        <div id="trialBalanceTab" class="tab-content">
+            <div class="table-container" id="trialBalanceTable"></div>
+        </div>
+
+        <!-- قائمة الدخل -->
+        <div id="incomeTab" class="tab-content">
+            <div class="table-container" id="incomeStatement"></div>
         </div>
     </main>
+
+    <!-- مودال قيد يومية -->
+    <div class="modal" id="journalModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>قيد يومية جديد</h2><button onclick="closeJournalModal()">&times;</button></div>
+            <form onsubmit="saveJournalEntry(event)">
+                <div class="form-group"><label>التاريخ</label><input type="date" id="entryDate" required></div>
+                <div class="form-group"><label>البيان</label><input type="text" id="entryDescription" required></div>
+                <div id="entriesContainer"></div>
+                <div class="add-entry-btn" onclick="addEntryRow()"><i class="fas fa-plus"></i> إضافة بند</div>
+                <button type="submit" class="btn btn-primary" style="margin-top:20px;">حفظ</button>
+            </form>
+        </div>
+    </div>
 
     <!-- مودال موظف -->
     <div class="modal" id="employeeModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="empModalTitle">إضافة موظف</h2><button onclick="closeEmployeeModal()">&times;</button></div>
+            <div class="modal-header"><h2>إضافة موظف</h2><button onclick="closeEmployeeModal()">&times;</button></div>
             <form onsubmit="saveEmployee(event)">
-                <input type="hidden" id="empId">
                 <div class="form-group"><label>الاسم</label><input type="text" id="empName" required></div>
-                <div class="form-group"><label>الراتب الأساسي</label><input type="number" id="empSalary" min="0" step="0.01" required></div>
-                <div class="form-group"><label>تاريخ التعيين</label><input type="date" id="empHireDate"></div>
+                <div class="form-group"><label>الراتب الأساسي</label><input type="number" id="empSalary" min="0" required></div>
                 <button type="submit" class="btn btn-primary">حفظ</button>
             </form>
         </div>
@@ -308,10 +342,9 @@
             <div class="modal-header"><h2>إضافة سلفة</h2><button onclick="closeLoanModal()">&times;</button></div>
             <form onsubmit="saveLoan(event)">
                 <div class="form-group"><label>الموظف</label><select id="loanEmpId" required></select></div>
-                <div class="form-group"><label>المبلغ</label><input type="number" id="loanAmount" min="0.01" step="0.01" required></div>
-                <div class="form-group"><label>القسط الشهري</label><input type="number" id="loanInstallment" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>المبلغ</label><input type="number" id="loanAmount" min="0.01" required></div>
+                <div class="form-group"><label>القسط الشهري</label><input type="number" id="loanInstallment" min="0.01" required></div>
                 <div class="form-group"><label>التاريخ</label><input type="date" id="loanDate" required></div>
-                <div class="form-group"><label>ملاحظات</label><input type="text" id="loanNotes"></div>
                 <button type="submit" class="btn btn-primary">حفظ</button>
             </form>
         </div>
@@ -322,10 +355,10 @@
         <div class="modal-content">
             <div class="modal-header"><h2>إضافة مصروف</h2><button onclick="closeExpenseModal()">&times;</button></div>
             <form onsubmit="saveExpense(event)">
-                <div class="form-group"><label>البيان</label><input type="text" id="expenseDesc" required></div>
-                <div class="form-group"><label>المبلغ</label><input type="number" id="expenseAmount" min="0.01" step="0.01" required></div>
-                <div class="form-group"><label>الفئة</label><select id="expenseCategory"><option value="إيجار">إيجار</option><option value="فواتير">فواتير</option><option value="صيانة">صيانة</option><option value="أخرى">أخرى</option></select></div>
-                <div class="form-group"><label>التاريخ</label><input type="date" id="expenseDate" required></div>
+                <div class="form-group"><label>البيان</label><input type="text" id="expDesc" required></div>
+                <div class="form-group"><label>المبلغ</label><input type="number" id="expAmount" min="0.01" required></div>
+                <div class="form-group"><label>الفئة</label><select id="expCategory"><option value="إيجار">إيجار</option><option value="فواتير">فواتير</option><option value="صيانة">صيانة</option><option value="أخرى">أخرى</option></select></div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="expDate" required></div>
                 <button type="submit" class="btn btn-primary">حفظ</button>
             </form>
         </div>
@@ -340,24 +373,26 @@
         const sidebar = document.getElementById('sidebar');
         document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let employees = [], loans = [], expenses = [];
+        let employees = [], loans = [], expenses = [], ledger = [];
+        const accounts = ['نقدية', 'بنك', 'عملاء', 'موردين', 'مبيعات', 'مشتريات', 'مصروفات', 'رواتب', 'سلف', 'إيرادات أخرى', 'رأس المال'];
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!App.requireAuth() || !App.requireRole(['admin'])) return;
             App.initUserInterface();
             await loadAllData();
-            populateMonthSelect();
-            document.getElementById('loanDate').value = document.getElementById('expenseDate').value = Utils.getToday();
+            document.getElementById('entryDate').value = Utils.getToday();
+            document.getElementById('loanDate').value = Utils.getToday();
+            document.getElementById('expDate').value = Utils.getToday();
         });
 
         async function loadAllData() {
-            // هنا نفترض وجود دوال DB مخصصة، سنضيفها لاحقاً أو نستخدم supabase مباشرة
-            const { data: emp } = await supabase.from('employees').select('*');
-            const { data: ln } = await supabase.from('loans').select('*');
-            const { data: exp } = await supabase.from('expenses').select('*');
-            employees = emp || []; loans = ln || []; expenses = exp || [];
-            renderEmployees(); renderLoans(); renderExpenses(); updateStats();
-            populateLoanEmployeeSelect();
+            await buildLedger();
+            renderChartOfAccounts();
+            renderLedger();
+            await loadPayrollData();
+            await loadExpenses();
+            renderTrialBalance();
+            renderIncomeStatement();
         }
 
         function switchTab(tab) {
@@ -367,98 +402,236 @@
             document.getElementById(tab + 'Tab').classList.add('active');
         }
 
-        // الموظفون
+        // بناء دفتر الأستاذ من العمليات
+        async function buildLedger() {
+            ledger = [];
+            const invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+            const purchases = await DB.getPurchases();
+            const transactions = await DB.getTransactions();
+            const expensesData = await DB.getExpenses ? await DB.getExpenses() : [];
+            
+            invoices.forEach(inv => {
+                ledger.push({ date: inv.date, description: `فاتورة بيع ${inv.id}`, debitAccount: 'عملاء', creditAccount: 'مبيعات', debit: inv.total, credit: inv.total });
+                if (inv.paid > 0) ledger.push({ date: inv.date, description: `دفعة ${inv.id}`, debitAccount: 'نقدية', creditAccount: 'عملاء', debit: inv.paid, credit: inv.paid });
+            });
+            purchases.forEach(p => {
+                ledger.push({ date: p.date, description: `فاتورة شراء ${p.id}`, debitAccount: 'مشتريات', creditAccount: 'موردين', debit: p.total, credit: p.total });
+                if (p.paid > 0) ledger.push({ date: p.date, description: `دفع ${p.id}`, debitAccount: 'موردين', creditAccount: 'نقدية', debit: p.paid, credit: p.paid });
+            });
+            transactions.forEach(t => {
+                ledger.push({ date: t.date, description: t.description, debitAccount: t.type === 'income' ? 'نقدية' : 'مصروفات', creditAccount: t.type === 'income' ? (t.description.includes('فاتورة') ? 'عملاء' : 'إيرادات أخرى') : 'نقدية', debit: t.amount, credit: t.amount });
+            });
+            expensesData.forEach(e => {
+                ledger.push({ date: e.date, description: e.description, debitAccount: 'مصروفات', creditAccount: 'نقدية', debit: e.amount, credit: e.amount });
+            });
+            ledger.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+        }
+
+        function getAccountBalance(account) {
+            let balance = 0;
+            ledger.forEach(e => {
+                if (e.debitAccount === account) balance += e.debit;
+                if (e.creditAccount === account) balance -= e.credit;
+            });
+            return balance;
+        }
+
+        function renderChartOfAccounts() {
+            const assets = ['نقدية', 'بنك', 'عملاء', 'مخزون'];
+            const liabilities = ['موردين', 'سلف'];
+            const equity = ['رأس المال'];
+            const revenue = ['مبيعات', 'إيرادات أخرى'];
+            const expenses = ['مشتريات', 'مصروفات', 'رواتب'];
+            
+            const balances = {};
+            accounts.forEach(acc => balances[acc] = getAccountBalance(acc));
+            
+            let html = '<div style="display:grid; gap:20px;">';
+            html += renderAccountGroup('الأصول', assets, balances);
+            html += renderAccountGroup('الخصوم', liabilities, balances);
+            html += renderAccountGroup('حقوق الملكية', equity, balances);
+            html += renderAccountGroup('الإيرادات', revenue, balances);
+            html += renderAccountGroup('المصروفات', expenses, balances);
+            html += '</div>';
+            document.getElementById('chartOfAccounts').innerHTML = html;
+            
+            const totalAssets = assets.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
+            const totalLiabilities = liabilities.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
+            const totalEquity = equity.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
+            document.getElementById('totalAssets').textContent = Utils.formatMoney(totalAssets);
+            document.getElementById('totalLiabilities').textContent = Utils.formatMoney(totalLiabilities);
+            document.getElementById('totalEquity').textContent = Utils.formatMoney(totalEquity);
+        }
+
+        function renderAccountGroup(title, accounts, balances) {
+            return `<div><h3>${title}</h3><table><tr><th>الحساب</th><th>الرصيد</th></tr>${accounts.map(a => `<tr><td>${a}</td><td>${Utils.formatMoney(balances[a] || 0)}</td></tr>`).join('')}</table></div>`;
+        }
+
+        function renderLedger() {
+            const tbody = document.getElementById('ledgerBody');
+            tbody.innerHTML = ledger.slice(0, 100).map(e => `<tr><td>${e.date}</td><td>${e.description}</td><td class="debit">${e.debitAccount} ${Utils.formatMoney(e.debit)}</td><td class="credit">${e.creditAccount} ${Utils.formatMoney(e.credit)}</td></tr>`).join('');
+        }
+
+        // الرواتب
+        async function loadPayrollData() {
+            employees = await DB.getEmployees ? await DB.getEmployees() : [];
+            loans = await DB.getLoans ? await DB.getLoans() : [];
+            renderEmployees();
+            renderLoans();
+            populateLoanEmployeeSelect();
+        }
+
         function renderEmployees() {
-            document.getElementById('employeesBody').innerHTML = employees.map(e => `<tr><td>${e.name}</td><td>${Utils.formatMoney(e.salary)}</td><td>${e.hire_date || '-'}</td><td>${Utils.formatMoney(e.allowances || 0)}</td><td><i class="fas fa-edit" onclick="editEmployee('${e.id}')"></i></td></tr>`).join('');
-            document.getElementById('empCount').textContent = employees.length;
-            document.getElementById('totalSalaries').textContent = Utils.formatMoney(employees.reduce((s,e)=>s+e.salary,0));
+            const tbody = document.getElementById('employeesBody');
+            tbody.innerHTML = employees.map(e => {
+                const empLoans = loans.filter(l => l.employee_id === e.id && l.paid < l.amount);
+                const loanDeduction = empLoans.reduce((s, l) => s + Math.min(l.installment, l.amount - l.paid), 0);
+                const net = e.salary + (e.allowances || 0) - loanDeduction;
+                return `<tr><td>${e.name}</td><td>${Utils.formatMoney(e.salary)}</td><td>${Utils.formatMoney(e.allowances || 0)}</td><td>${Utils.formatMoney(loanDeduction)}</td><td>0</td><td>${Utils.formatMoney(net)}</td><td><i class="fas fa-edit"></i></td></tr>`;
+            }).join('');
         }
 
-        function openEmployeeModal() { document.getElementById('empModalTitle').textContent='إضافة موظف'; document.getElementById('empId').value=''; document.getElementById('employeeModal').style.display='flex'; }
-        function closeEmployeeModal() { document.getElementById('employeeModal').style.display='none'; }
-        async function saveEmployee(e) {
-            e.preventDefault();
-            const id = document.getElementById('empId').value;
-            const name = document.getElementById('empName').value;
-            const salary = parseFloat(document.getElementById('empSalary').value);
-            const hire_date = document.getElementById('empHireDate').value;
-            const emp = { name, salary, hire_date, allowances: 0 };
-            if (id) emp.id = id;
-            const { error } = id ? await supabase.from('employees').update(emp).eq('id', id) : await supabase.from('employees').insert([emp]);
-            if (!error) { closeEmployeeModal(); await loadAllData(); }
+        function renderLoans() {
+            const tbody = document.getElementById('loansBody');
+            tbody.innerHTML = loans.map(l => {
+                const emp = employees.find(e => e.id === l.employee_id);
+                const remaining = l.amount - (l.paid || 0);
+                return `<tr><td>${emp?.name || '-'}</td><td>${Utils.formatMoney(l.amount)}</td><td>${Utils.formatMoney(l.installment)}</td><td>${Utils.formatMoney(remaining)}</td><td>${l.date}</td><td><i class="fas fa-check-circle" onclick="payInstallment('${l.id}')"></i></td></tr>`;
+            }).join('');
         }
 
-        // السلف
         function populateLoanEmployeeSelect() {
             const sel = document.getElementById('loanEmpId');
             sel.innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
         }
-        function renderLoans() {
-            document.getElementById('loansBody').innerHTML = loans.map(l => {
-                const emp = employees.find(e => e.id === l.employee_id);
-                const remaining = l.amount - (l.paid || 0);
-                const status = remaining <= 0 ? '<span class="badge badge-success">منتهية</span>' : '<span class="badge badge-warning">نشطة</span>';
-                return `<tr><td>${emp?.name || '-'}</td><td>${Utils.formatMoney(l.amount)}</td><td>${l.date}</td><td>${Utils.formatMoney(l.installment)}</td><td>${Utils.formatMoney(remaining)}</td><td>${status}</td><td><i class="fas fa-check-circle" onclick="payInstallment('${l.id}')" title="سداد قسط"></i></td></tr>`;
-            }).join('');
+
+        // المصروفات
+        async function loadExpenses() {
+            expenses = await DB.getExpenses ? await DB.getExpenses() : [];
+            renderExpenses();
         }
 
-        function openLoanModal() { document.getElementById('loanModal').style.display='flex'; }
-        function closeLoanModal() { document.getElementById('loanModal').style.display='none'; }
+        function renderExpenses() {
+            const tbody = document.getElementById('expensesBody');
+            tbody.innerHTML = expenses.map(e => `<tr><td>${e.description}</td><td>${Utils.formatMoney(e.amount)}</td><td>${e.date}</td><td>${e.category}</td><td><i class="fas fa-trash" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('');
+        }
+
+        // ميزان المراجعة
+        function renderTrialBalance() {
+            const balances = {};
+            ledger.forEach(e => {
+                balances[e.debitAccount] = (balances[e.debitAccount] || 0) + e.debit;
+                balances[e.creditAccount] = (balances[e.creditAccount] || 0) + e.credit;
+            });
+            const rows = Object.entries(balances).map(([acc, bal]) => `<tr><td>${acc}</td><td>${Utils.formatMoney(bal)}</td><td>${Utils.formatMoney(bal)}</td></tr>`).join('');
+            document.getElementById('trialBalanceTable').innerHTML = `<table><tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr>${rows}</table>`;
+        }
+
+        // قائمة الدخل
+        function renderIncomeStatement() {
+            const revenue = getAccountBalance('مبيعات') + getAccountBalance('إيرادات أخرى');
+            const cogs = getAccountBalance('مشتريات');
+            const grossProfit = revenue - cogs;
+            const operatingExpenses = getAccountBalance('مصروفات') + getAccountBalance('رواتب');
+            const netProfit = grossProfit - operatingExpenses;
+            document.getElementById('incomeStatement').innerHTML = `
+                <table>
+                    <tr><td>الإيرادات</td><td>${Utils.formatMoney(revenue)}</td></tr>
+                    <tr><td>تكلفة البضاعة المباعة</td><td>${Utils.formatMoney(cogs)}</td></tr>
+                    <tr><td>مجمل الربح</td><td>${Utils.formatMoney(grossProfit)}</td></tr>
+                    <tr><td>المصروفات التشغيلية</td><td>${Utils.formatMoney(operatingExpenses)}</td></tr>
+                    <tr><td>صافي الربح</td><td>${Utils.formatMoney(netProfit)}</td></tr>
+                </table>
+            `;
+        }
+
+        // قيد يومية
+        function openJournalModal() { document.getElementById('journalModal').style.display = 'flex'; addEntryRow(); }
+        function closeJournalModal() { document.getElementById('journalModal').style.display = 'none'; }
+        function addEntryRow() {
+            const container = document.getElementById('entriesContainer');
+            const row = document.createElement('div'); row.className = 'entry-row';
+            row.innerHTML = `<select class="entry-account">${accounts.map(a => `<option>${a}</option>`)}</select><input type="number" class="entry-debit" placeholder="مدين" value="0"><input type="number" class="entry-credit" placeholder="دائن" value="0"><button onclick="this.closest('.entry-row').remove()">X</button>`;
+            container.appendChild(row);
+        }
+        function saveJournalEntry(e) {
+            e.preventDefault();
+            const date = document.getElementById('entryDate').value;
+            const desc = document.getElementById('entryDescription').value;
+            const rows = document.querySelectorAll('.entry-row');
+            let totalDebit = 0, totalCredit = 0;
+            rows.forEach(r => {
+                const acc = r.querySelector('.entry-account').value;
+                const debit = parseFloat(r.querySelector('.entry-debit').value) || 0;
+                const credit = parseFloat(r.querySelector('.entry-credit').value) || 0;
+                if (debit > 0) { ledger.push({ date, description: desc, debitAccount: acc, creditAccount: 'مقابل', debit, credit: debit }); totalDebit += debit; }
+                if (credit > 0) { ledger.push({ date, description: desc, debitAccount: 'مقابل', creditAccount: acc, debit: credit, credit }); totalCredit += credit; }
+            });
+            if (Math.abs(totalDebit - totalCredit) > 0.01) { alert('يجب أن يتساوى المدين والدائن'); return; }
+            closeJournalModal();
+            renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
+        }
+
+        // دوال المودالات الأخرى
+        function openEmployeeModal() { document.getElementById('employeeModal').style.display = 'flex'; }
+        function closeEmployeeModal() { document.getElementById('employeeModal').style.display = 'none'; }
+        async function saveEmployee(e) {
+            e.preventDefault();
+            const name = document.getElementById('empName').value;
+            const salary = parseFloat(document.getElementById('empSalary').value);
+            if (!name || salary < 0) return;
+            await DB.saveEmployee({ name, salary });
+            closeEmployeeModal();
+            await loadPayrollData();
+        }
+
+        function openLoanModal() { document.getElementById('loanModal').style.display = 'flex'; }
+        function closeLoanModal() { document.getElementById('loanModal').style.display = 'none'; }
         async function saveLoan(e) {
             e.preventDefault();
             const employee_id = document.getElementById('loanEmpId').value;
             const amount = parseFloat(document.getElementById('loanAmount').value);
             const installment = parseFloat(document.getElementById('loanInstallment').value);
             const date = document.getElementById('loanDate').value;
-            const notes = document.getElementById('loanNotes').value;
-            const { error } = await supabase.from('loans').insert([{ employee_id, amount, installment, date, notes, paid: 0 }]);
-            if (!error) { closeLoanModal(); await loadAllData(); }
+            await DB.saveLoan({ employee_id, amount, installment, date, paid: 0 });
+            closeLoanModal();
+            await loadPayrollData();
         }
 
-        // المصروفات
-        function renderExpenses() {
-            document.getElementById('expensesBody').innerHTML = expenses.map(e => `<tr><td>${e.description}</td><td>${Utils.formatMoney(e.amount)}</td><td>${e.date}</td><td>${e.category}</td><td><i class="fas fa-trash" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('');
-            document.getElementById('totalExpenses').textContent = Utils.formatMoney(expenses.reduce((s,e)=>s+e.amount,0));
-        }
-
-        function openExpenseModal() { document.getElementById('expenseModal').style.display='flex'; }
-        function closeExpenseModal() { document.getElementById('expenseModal').style.display='none'; }
+        function openExpenseModal() { document.getElementById('expenseModal').style.display = 'flex'; }
+        function closeExpenseModal() { document.getElementById('expenseModal').style.display = 'none'; }
         async function saveExpense(e) {
             e.preventDefault();
-            const description = document.getElementById('expenseDesc').value;
-            const amount = parseFloat(document.getElementById('expenseAmount').value);
-            const category = document.getElementById('expenseCategory').value;
-            const date = document.getElementById('expenseDate').value;
-            await supabase.from('expenses').insert([{ description, amount, category, date }]);
-            closeExpenseModal(); await loadAllData();
+            const description = document.getElementById('expDesc').value;
+            const amount = parseFloat(document.getElementById('expAmount').value);
+            const category = document.getElementById('expCategory').value;
+            const date = document.getElementById('expDate').value;
+            await DB.saveExpense({ description, amount, category, date });
+            closeExpenseModal();
+            await loadExpenses();
+            await buildLedger();
+            renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
         }
 
-        // كشف الرواتب
-        function populateMonthSelect() {
-            const sel = document.getElementById('salaryMonth');
-            const now = new Date();
-            for (let i=0; i<12; i++) {
-                const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-                sel.innerHTML += `<option value="${d.toISOString().slice(0,7)}">${d.toLocaleDateString('ar-EG',{month:'long',year:'numeric'})}</option>`;
-            }
-        }
-
-        async function loadPayroll() {
-            // تحميل بيانات الرواتب لشهر محدد (يمكن تخزينها في جدول payroll)
-        }
-
-        async function calculatePayroll() {
-            const month = document.getElementById('salaryMonth').value;
-            const payroll = employees.map(e => {
-                const empLoans = loans.filter(l => l.employee_id === e.id && l.paid < l.amount);
-                const loanDeduction = empLoans.reduce((s, l) => s + Math.min(l.installment, l.amount - l.paid), 0);
-                const net = e.salary + (e.allowances||0) - loanDeduction;
-                return { employee_id: e.id, name: e.name, salary: e.salary, allowances: e.allowances||0, loanDeduction, net, month, paid: false };
-            });
-            // حفظ في جدول payroll وعرضه
+        async function payInstallment(id) {
+            const loan = loans.find(l => l.id === id);
+            if (!loan) return;
+            const amount = Math.min(loan.installment, loan.amount - loan.paid);
+            if (amount <= 0) { alert('تم سداد السلفة بالكامل'); return; }
+            loan.paid += amount;
+            await DB.saveLoan(loan);
+            // إضافة حركة صندوق
+            await DB.saveTransaction({ date: Utils.getToday(), type: 'expense', amount, description: `سداد قسط سلفة للموظف`, payment_method: 'cash' });
+            await loadPayrollData();
+            await buildLedger();
+            renderLedger(); renderChartOfAccounts();
         }
 
         window.switchTab = switchTab;
+        window.openJournalModal = openJournalModal;
+        window.closeJournalModal = closeJournalModal;
+        window.addEntryRow = addEntryRow;
+        window.saveJournalEntry = saveJournalEntry;
         window.openEmployeeModal = openEmployeeModal;
         window.closeEmployeeModal = closeEmployeeModal;
         window.saveEmployee = saveEmployee;
@@ -468,8 +641,7 @@
         window.openExpenseModal = openExpenseModal;
         window.closeExpenseModal = closeExpenseModal;
         window.saveExpense = saveExpense;
-        window.loadPayroll = loadPayroll;
-        window.calculatePayroll = calculatePayroll;
+        window.payInstallment = payInstallment;
     </script>
 </body>
 </html>
