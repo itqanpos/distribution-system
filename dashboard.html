@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>لوحة التحكم · نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <style>
@@ -121,11 +120,40 @@
         .stat-card.cash .stat-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
         .stat-info h3 { font-size: 26px; font-weight: 700; }
         .stat-info p { color: #64748b; font-size: 14px; }
-        .chart-card {
-            background: white; border-radius: 20px; padding: 24px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
+
+        /* بطاقة الملخص المالي (بديل الرسم البياني) */
+        .financial-summary {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
             margin-bottom: 30px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+            border: 1px solid #f1f5f9;
         }
+        .financial-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+        .financial-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        .financial-item {
+            text-align: center;
+            padding: 20px;
+            border-radius: 16px;
+            background: var(--light);
+        }
+        .financial-item i { font-size: 32px; margin-bottom: 10px; }
+        .financial-item .amount { font-size: 24px; font-weight: 700; }
+        .financial-item .label { color: #64748b; font-size: 14px; margin-top: 5px; }
+        .revenue i { color: var(--success); }
+        .expense i { color: var(--danger); }
+        .profit i { color: var(--secondary); }
+
         .tables-row {
             display: grid; grid-template-columns: 1fr 1fr; gap: 25px;
         }
@@ -149,6 +177,7 @@
             .menu-toggle { display: flex; }
             .user-info { display: none; }
             .tables-row { grid-template-columns: 1fr; }
+            .financial-cards { grid-template-columns: 1fr; }
         }
         @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
@@ -177,6 +206,7 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية الكاملة -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -188,6 +218,9 @@
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
+            
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
@@ -221,9 +254,26 @@
             </div>
         </div>
 
-        <div class="chart-card">
-            <h3 style="margin-bottom:20px;">مبيعات آخر 7 أيام</h3>
-            <canvas id="salesChart" style="height:250px;"></canvas>
+        <!-- بطاقة الملخص المالي (بديل الرسم البياني) -->
+        <div class="financial-summary">
+            <div class="financial-title"><i class="fas fa-chart-pie"></i> ملخص مالي سريع</div>
+            <div class="financial-cards">
+                <div class="financial-item revenue">
+                    <i class="fas fa-arrow-up"></i>
+                    <div class="amount" id="totalRevenue">0 ج.م</div>
+                    <div class="label">إجمالي الإيرادات</div>
+                </div>
+                <div class="financial-item expense">
+                    <i class="fas fa-arrow-down"></i>
+                    <div class="amount" id="totalExpense">0 ج.م</div>
+                    <div class="label">إجمالي المصروفات</div>
+                </div>
+                <div class="financial-item profit">
+                    <i class="fas fa-dollar-sign"></i>
+                    <div class="amount" id="netProfit">0 ج.م</div>
+                    <div class="label">صافي الربح</div>
+                </div>
+            </div>
         </div>
 
         <div class="tables-row">
@@ -232,8 +282,8 @@
                 <table><thead><tr><th>الفاتورة</th><th>العميل</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody id="recentInvoices"></tbody></table>
             </div>
             <div class="table-card">
-                <h3>آخر حركات الصندوق</h3>
-                <table><thead><tr><th>البيان</th><th>المبلغ</th><th>النوع</th></tr></thead><tbody id="recentTransactions"></tbody></table>
+                <h3>أعلى المنتجات مبيعاً</h3>
+                <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإيرادات</th></tr></thead><tbody id="topProducts"></tbody></table>
             </div>
         </div>
     </main>
@@ -248,8 +298,6 @@
         const menuToggle = document.getElementById('menuToggle');
         menuToggle.addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let chart;
-
         document.addEventListener('DOMContentLoaded', async () => {
             if (!App.requireAuth()) return;
             if (!App.requireRole(['admin'])) return;
@@ -259,17 +307,14 @@
 
         async function loadDashboardData() {
             try {
-                const today = new Date().toISOString().split('T')[0];
+                const today = Utils.getToday();
                 
-                // جلب البيانات من Supabase
-                const { data: invoices, error: invError } = await supabase.from('invoices').select('*').eq('type', 'sale');
-                const { data: purchases, error: purError } = await supabase.from('purchases').select('*');
-                const { data: customers, error: custError } = await supabase.from('parties').select('*').eq('type', 'customer');
-                const { data: transactions, error: transError } = await supabase.from('transactions').select('*');
+                const { data: invoices } = await supabase.from('invoices').select('*').eq('type', 'sale');
+                const { data: purchases } = await supabase.from('purchases').select('*');
+                const { data: customers } = await supabase.from('parties').select('*').eq('type', 'customer');
+                const { data: transactions } = await supabase.from('transactions').select('*');
 
-                if (invError || purError || custError || transError) throw new Error('فشل جلب البيانات');
-
-                // حساب الإحصائيات
+                // بطاقات اليوم
                 const todaySales = invoices.filter(i => i.date === today).reduce((s, i) => s + i.total, 0);
                 const todayPurchases = purchases.filter(p => p.date === today).reduce((s, p) => s + p.total, 0);
                 const balance = transactions.reduce((s, t) => t.type === 'income' ? s + t.amount : s - t.amount, 0);
@@ -279,6 +324,16 @@
                 document.getElementById('customersCount').textContent = customers.length;
                 document.getElementById('cashBalance').textContent = Utils.formatMoney(balance);
 
+                // ملخص مالي
+                const totalRevenue = invoices.reduce((s, i) => s + i.total, 0);
+                const totalPurchasesAmount = purchases.reduce((s, p) => s + p.total, 0);
+                const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                const netProfit = totalRevenue - (totalPurchasesAmount + totalExpenses);
+
+                document.getElementById('totalRevenue').textContent = Utils.formatMoney(totalRevenue);
+                document.getElementById('totalExpense').textContent = Utils.formatMoney(totalPurchasesAmount + totalExpenses);
+                document.getElementById('netProfit').textContent = Utils.formatMoney(netProfit);
+
                 // آخر الفواتير
                 const recentInv = invoices.sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
                 document.getElementById('recentInvoices').innerHTML = recentInv.map(i => {
@@ -286,37 +341,27 @@
                     return `<tr><td>${i.id}</td><td>${i.customer_name || 'نقدي'}</td><td>${Utils.formatMoney(i.total)}</td><td>${status}</td></tr>`;
                 }).join('') || '<tr><td colspan="4">لا توجد فواتير</td></tr>';
 
-                // آخر حركات الصندوق
-                const recentTrans = transactions.sort((a,b) => (b.timestamp || b.date).localeCompare(a.timestamp || a.date)).slice(0,5);
-                document.getElementById('recentTransactions').innerHTML = recentTrans.map(t => {
-                    const type = t.type === 'income' ? '<span class="badge badge-success">إيداع</span>' : '<span class="badge badge-danger">سحب</span>';
-                    return `<tr><td>${t.description}</td><td>${Utils.formatMoney(t.amount)}</td><td>${type}</td></tr>`;
-                }).join('') || '<tr><td colspan="3">لا توجد حركات</td></tr>';
+                // أعلى المنتجات مبيعاً
+                const productMap = {};
+                invoices.forEach(inv => {
+                    if (inv.items) {
+                        inv.items.forEach(item => {
+                            const name = item.productName;
+                            if (!productMap[name]) productMap[name] = { qty: 0, revenue: 0 };
+                            productMap[name].qty += item.quantity || 0;
+                            productMap[name].revenue += (item.price * item.quantity) || 0;
+                        });
+                    }
+                });
+                const top = Object.entries(productMap).sort((a,b) => b[1].revenue - a[1].revenue).slice(0,5);
+                document.getElementById('topProducts').innerHTML = top.map(([name, d]) => 
+                    `<tr><td>${name}</td><td>${d.qty}</td><td>${Utils.formatMoney(d.revenue)}</td></tr>`
+                ).join('') || '<tr><td colspan="3">لا توجد بيانات</td></tr>';
 
-                // رسم بياني
-                renderChart(invoices);
             } catch (err) {
                 console.error(err);
                 alert('فشل تحميل البيانات');
             }
-        }
-
-        function renderChart(invoices) {
-            const last7Days = [...Array(7)].map((_, i) => {
-                const d = new Date(); d.setDate(d.getDate() - i);
-                return d.toISOString().split('T')[0];
-            }).reverse();
-            const dailySales = last7Days.map(day => invoices.filter(i => i.date === day).reduce((s, i) => s + i.total, 0));
-            const ctx = document.getElementById('salesChart').getContext('2d');
-            if (chart) chart.destroy();
-            chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: last7Days.map(d => new Date(d).toLocaleDateString('ar-EG', { weekday: 'short' })),
-                    datasets: [{ label: 'المبيعات (ج.م)', data: dailySales, backgroundColor: '#3b82f6', borderRadius: 8 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
         }
 
         window.loadDashboardData = loadDashboardData;
