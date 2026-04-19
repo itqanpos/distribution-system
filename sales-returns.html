@@ -97,9 +97,10 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
+            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
+            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .btn-danger { background: var(--danger); color: white; }
@@ -109,42 +110,50 @@
         }
         .search-wrapper {
             display: flex; align-items: center; background: white;
-            border-radius: 30px; padding: 5px 15px; border: 1px solid #cbd5e1;
+            border-radius: 40px; padding: 8px 20px; border: 1px solid #cbd5e1;
         }
         .search-wrapper input {
-            border: none; padding: 10px 0; width: 200px; outline: none;
+            border: none; padding: 12px 0; width: 250px; outline: none; font-size: 16px;
         }
         .table-container {
             background: white; border-radius: 20px; padding: 24px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            overflow-x: auto; margin-bottom: 30px;
+            overflow-x: auto;
         }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
         td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
-        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; }
+        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; display: inline-block; }
         .badge-success { background: #d1fae5; color: #065f46; }
+        .action-icons i { margin: 0 8px; color: var(--secondary); cursor: pointer; font-size: 18px; }
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
         }
         .modal-content {
-            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 700px;
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 800px;
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
-        .form-group input, .form-group select { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px;
+        }
         .items-container { border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px; }
         .item-row {
             display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px;
             align-items: center; margin-bottom: 10px;
         }
-        @media (max-width: 768px) {
-            .main-content { padding: 20px; }
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; padding: 20px; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
             .item-row { grid-template-columns: 1fr; }
         }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
@@ -181,8 +190,12 @@
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item active" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
@@ -193,7 +206,7 @@
             <div class="page-title"><h1><i class="fas fa-undo-alt" style="color:var(--danger); margin-left:12px;"></i>مرتجعات المبيعات</h1></div>
             <div>
                 <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-danger" onclick="openReturnModal()"><i class="fas fa-plus"></i> مرتجع جديد</button>
+                <button class="btn btn-danger" id="newReturnBtn"><i class="fas fa-plus"></i> مرتجع جديد</button>
             </div>
         </div>
 
@@ -202,12 +215,14 @@
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="بحث برقم المرتجع أو العميل...">
             </div>
-            <button class="btn" onclick="loadReturns()"><i class="fas fa-sync-alt"></i> تحديث</button>
+            <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
         <div class="table-container">
             <table>
-                <thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>الفاتورة الأصلية</th><th>العميل</th><th>المبلغ</th><th>إجراءات</th></tr></thead>
+                <thead>
+                    <tr><th>رقم المرتجع</th><th>التاريخ</th><th>الفاتورة الأصلية</th><th>العميل</th><th>المبلغ</th><th>إجراءات</th></tr>
+                </thead>
                 <tbody id="returnsBody"></tbody>
             </table>
         </div>
@@ -216,173 +231,183 @@
     <!-- مودال مرتجع جديد -->
     <div class="modal" id="returnModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>مرتجع مبيعات جديد</h2><button onclick="closeReturnModal()">&times;</button></div>
-            <form onsubmit="saveReturn(event)">
-                <div class="form-group"><label>الفاتورة الأصلية</label><select id="invoiceSelect" required onchange="loadInvoiceItems()"></select></div>
+            <div class="modal-header"><h2>مرتجع مبيعات جديد</h2><button id="closeModalBtn">&times;</button></div>
+            <form id="returnForm">
+                <div class="form-group"><label>الفاتورة الأصلية</label><select id="invoiceSelect" required><option value="">اختر فاتورة</option></select></div>
                 <div class="items-container">
                     <label>الأصناف المرتجعة</label>
                     <div id="returnItemsContainer"></div>
                 </div>
-                <div class="form-group"><label>المبلغ المرتجع</label><input type="number" id="returnAmount" step="0.01" required></div>
+                <div class="form-group"><label>المبلغ المرتجع</label><input type="number" id="returnAmount" step="0.01" readonly required></div>
                 <div class="form-group"><label>التاريخ</label><input type="date" id="returnDate" required></div>
                 <div class="form-group"><label>ملاحظات</label><input type="text" id="returnNotes"></div>
-                <button type="submit" class="btn btn-danger">حفظ المرتجع</button>
+                <div style="display:flex; gap:10px;">
+                    <button type="submit" class="btn btn-danger" style="flex:1;">حفظ المرتجع</button>
+                    <button type="button" class="btn" id="cancelModalBtn" style="flex:1;">إلغاء</button>
+                </div>
             </form>
         </div>
     </div>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        (function() {
+            // واجهة المستخدم
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let invoices = [], returns = [], products = [], customers = [];
-        let selectedInvoice = null;
+            let invoices = [], returns = [], products = [], customers = [], selectedInvoice = null;
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            document.getElementById('returnDate').value = Utils.getToday();
-            await loadData();
-            document.getElementById('searchInput').addEventListener('input', filterReturns);
-        });
-
-        async function loadData() {
-            try {
-                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-                products = await DB.getProducts();
-                customers = await DB.getParties('customer');
-                // نفترض وجود جدول returns
-                const { data: ret } = await supabase.from('returns').select('*').eq('type', 'sale');
-                returns = ret || [];
-                populateInvoiceSelect();
-                renderReturns(returns);
-            } catch (e) { console.error(e); }
-        }
-
-        function populateInvoiceSelect() {
-            const sel = document.getElementById('invoiceSelect');
-            sel.innerHTML = '<option value="">اختر فاتورة</option>' + invoices.map(i => `<option value="${i.id}">${i.id} - ${i.customer_name}</option>`).join('');
-        }
-
-        async function loadInvoiceItems() {
-            const invoiceId = document.getElementById('invoiceSelect').value;
-            selectedInvoice = invoices.find(i => i.id === invoiceId);
-            if (!selectedInvoice) return;
-            const container = document.getElementById('returnItemsContainer');
-            container.innerHTML = selectedInvoice.items.map((item, idx) => `
-                <div class="item-row">
-                    <span>${item.productName}</span>
-                    <span>الكمية الأصلية: ${item.quantity}</span>
-                    <input type="number" class="return-qty" placeholder="الكمية المرتجعة" min="0" max="${item.quantity}" step="0.001" onchange="calculateReturnAmount()">
-                    <input type="number" class="return-price" value="${item.price}" step="0.01" readonly>
-                    <span>الإجمالي: ${Utils.formatMoney(item.price * item.quantity)}</span>
-                </div>
-            `).join('');
-        }
-
-        function calculateReturnAmount() {
-            let total = 0;
-            document.querySelectorAll('.item-row').forEach(row => {
-                const qty = parseFloat(row.querySelector('.return-qty').value) || 0;
-                const price = parseFloat(row.querySelector('.return-price').value) || 0;
-                total += qty * price;
-            });
-            document.getElementById('returnAmount').value = total.toFixed(2);
-        }
-
-        function renderReturns(data) {
-            const tbody = document.getElementById('returnsBody');
-            if (!data.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;">لا توجد مرتجعات</td></tr>';
-                return;
-            }
-            tbody.innerHTML = data.map(r => `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.invoice_id}</td><td>${r.customer_name}</td><td>${Utils.formatMoney(r.amount)}</td><td><i class="fas fa-print" onclick="printReturn('${r.id}')"></i></td></tr>`).join('');
-        }
-
-        function filterReturns() {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = returns.filter(r => r.id.includes(term) || r.customer_name.includes(term));
-            renderReturns(filtered);
-        }
-
-        function openReturnModal() {
-            document.getElementById('returnModal').style.display = 'flex';
-            document.getElementById('returnItemsContainer').innerHTML = '';
-        }
-
-        function closeReturnModal() { document.getElementById('returnModal').style.display = 'none'; }
-
-        async function saveReturn(e) {
-            e.preventDefault();
-            if (!selectedInvoice) { alert('اختر فاتورة'); return; }
-            const amount = parseFloat(document.getElementById('returnAmount').value) || 0;
-            const date = document.getElementById('returnDate').value;
-            const notes = document.getElementById('returnNotes').value;
-            if (amount <= 0) { alert('المبلغ غير صحيح'); return; }
-
-            const returnItems = [];
-            const rows = document.querySelectorAll('.item-row');
-            for (let i = 0; i < rows.length; i++) {
-                const qty = parseFloat(rows[i].querySelector('.return-qty').value) || 0;
-                if (qty > 0) {
-                    returnItems.push({
-                        ...selectedInvoice.items[i],
-                        quantity: qty
-                    });
-                }
+            async function loadData() {
+                try {
+                    invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                    products = await DB.getProducts();
+                    customers = await DB.getParties('customer');
+                    const { data } = await supabase.from('returns').select('*').eq('type', 'sale').order('date', { ascending: false });
+                    returns = data || [];
+                    populateInvoiceSelect();
+                    applyFilters();
+                } catch (e) { alert('فشل تحميل البيانات'); }
             }
 
-            try {
-                const retId = 'RET-' + Date.now();
-                // حفظ المرتجع
-                await supabase.from('returns').insert([{
-                    id: retId, type: 'sale', invoice_id: selectedInvoice.id,
-                    customer_id: selectedInvoice.customer_id, customer_name: selectedInvoice.customer_name,
-                    amount, date, notes, items: returnItems
-                }]);
+            function populateInvoiceSelect() {
+                const sel = document.getElementById('invoiceSelect');
+                sel.innerHTML = '<option value="">اختر فاتورة</option>' + invoices.map(i => `<option value="${i.id}">${i.id} - ${i.customer_name}</option>`).join('');
+            }
 
-                // تحديث المخزون
-                for (const item of returnItems) {
-                    const prod = products.find(p => p.id === item.productId);
-                    if (prod) {
-                        const unit = prod.units.find(u => u.name === item.unitName);
-                        if (unit) unit.stock += item.quantity;
-                        await DB.saveProduct(prod);
+            function applyFilters() {
+                const term = document.getElementById('searchInput').value.toLowerCase();
+                const filtered = returns.filter(r => r.id.includes(term) || (r.customer_name||'').includes(term));
+                renderReturns(filtered);
+            }
+
+            function renderReturns(data) {
+                const tbody = document.getElementById('returnsBody');
+                if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;">لا توجد مرتجعات</td></tr>'; return; }
+                tbody.innerHTML = data.map(r => `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.invoice_id}</td><td>${r.customer_name}</td><td>${Utils.formatMoney(r.amount)}</td><td><i class="fas fa-print" onclick="printReturn('${r.id}')"></i></td></tr>`).join('');
+            }
+
+            // تحميل أصناف الفاتورة عند الاختيار
+            window.loadInvoiceItems = function() {
+                const invoiceId = document.getElementById('invoiceSelect').value;
+                selectedInvoice = invoices.find(i => i.id === invoiceId);
+                if (!selectedInvoice) return;
+                const container = document.getElementById('returnItemsContainer');
+                container.innerHTML = selectedInvoice.items.map((item, idx) => `
+                    <div class="item-row">
+                        <span>${item.productName} (${item.unitName || 'قطعة'})</span>
+                        <span>الكمية المباعة: ${item.quantity}</span>
+                        <input type="number" class="return-qty" placeholder="الكمية المرتجعة" min="0" max="${item.quantity}" step="0.001" value="0" onchange="calculateReturnAmount()">
+                        <input type="number" class="return-price" value="${item.price}" step="0.01" readonly>
+                        <span>${Utils.formatMoney(item.price * item.quantity)}</span>
+                    </div>
+                `).join('');
+                calculateReturnAmount();
+            };
+
+            window.calculateReturnAmount = function() {
+                let total = 0;
+                document.querySelectorAll('.item-row').forEach(row => {
+                    const qty = parseFloat(row.querySelector('.return-qty').value) || 0;
+                    const price = parseFloat(row.querySelector('.return-price').value) || 0;
+                    total += qty * price;
+                });
+                document.getElementById('returnAmount').value = total.toFixed(2);
+            };
+
+            async function saveReturn(e) {
+                e.preventDefault();
+                if (!selectedInvoice) { alert('اختر فاتورة'); return; }
+                const amount = parseFloat(document.getElementById('returnAmount').value) || 0;
+                if (amount <= 0) { alert('المبلغ المرتجع صفر'); return; }
+                const date = document.getElementById('returnDate').value;
+                const notes = document.getElementById('returnNotes').value;
+
+                const returnItems = [];
+                document.querySelectorAll('.item-row').forEach((row, idx) => {
+                    const qty = parseFloat(row.querySelector('.return-qty').value) || 0;
+                    if (qty > 0) {
+                        const origItem = selectedInvoice.items[idx];
+                        returnItems.push({ ...origItem, quantity: qty });
                     }
-                }
-
-                // تحديث رصيد العميل (تقليل المديونية أو زيادة الدائن)
-                if (selectedInvoice.customer_id) {
-                    const customer = customers.find(c => c.id === selectedInvoice.customer_id);
-                    if (customer) {
-                        customer.balance += amount;
-                        await DB.saveParty(customer);
-                    }
-                }
-
-                // إضافة حركة صندوق (سحب)
-                await DB.saveTransaction({
-                    date, type: 'expense', amount,
-                    description: `مرتجع فاتورة ${selectedInvoice.id} - ${selectedInvoice.customer_name}`,
-                    payment_method: 'cash'
                 });
 
-                alert('تم حفظ المرتجع');
-                closeReturnModal();
-                await loadData();
-            } catch (err) { alert('فشل الحفظ'); }
-        }
+                try {
+                    const retId = 'RET-' + Date.now();
+                    // حفظ المرتجع
+                    await supabase.from('returns').insert([{
+                        id: retId, type: 'sale', invoice_id: selectedInvoice.id,
+                        customer_id: selectedInvoice.customer_id, customer_name: selectedInvoice.customer_name,
+                        amount, date, notes, items: returnItems
+                    }]);
 
-        window.openReturnModal = openReturnModal;
-        window.closeReturnModal = closeReturnModal;
-        window.loadInvoiceItems = loadInvoiceItems;
-        window.calculateReturnAmount = calculateReturnAmount;
-        window.loadReturns = loadData;
+                    // تحديث المخزون
+                    for (const item of returnItems) {
+                        const prod = products.find(p => p.id === item.productId);
+                        if (prod) {
+                            const unit = prod.units.find(u => u.name === (item.unitName || 'قطعة')) || prod.units[0];
+                            unit.stock += item.quantity;
+                            await DB.saveProduct(prod);
+                        }
+                    }
+
+                    // تحديث رصيد العميل
+                    if (selectedInvoice.customer_id) {
+                        const customer = customers.find(c => c.id === selectedInvoice.customer_id);
+                        if (customer) {
+                            customer.balance += amount;
+                            await DB.saveParty(customer);
+                        }
+                    }
+
+                    // إضافة حركة صندوق (سحب)
+                    await DB.saveTransaction({
+                        date, type: 'expense', amount,
+                        description: `مرتجع فاتورة ${selectedInvoice.id} - ${selectedInvoice.customer_name}`,
+                        payment_method: 'cash'
+                    });
+
+                    alert('تم حفظ المرتجع');
+                    document.getElementById('returnModal').style.display = 'none';
+                    await loadData();
+                } catch (err) { alert('فشل الحفظ: ' + err.message); }
+            }
+
+            // ربط الأحداث
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+                App.initUserInterface();
+                document.getElementById('returnDate').value = Utils.getToday();
+                await loadData();
+                document.getElementById('searchInput').addEventListener('input', applyFilters);
+                document.getElementById('refreshBtn').addEventListener('click', loadData);
+                document.getElementById('newReturnBtn').addEventListener('click', () => {
+                    document.getElementById('returnModal').style.display = 'flex';
+                });
+                document.getElementById('closeModalBtn').addEventListener('click', () => {
+                    document.getElementById('returnModal').style.display = 'none';
+                });
+                document.getElementById('cancelModalBtn').addEventListener('click', () => {
+                    document.getElementById('returnModal').style.display = 'none';
+                });
+                document.getElementById('returnForm').addEventListener('submit', saveReturn);
+                document.getElementById('invoiceSelect').addEventListener('change', loadInvoiceItems);
+            });
+
+            window.printReturn = function(id) {
+                const ret = returns.find(r => r.id === id);
+                if (!ret) return;
+                const width = 350, height = 600;
+                const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
+                const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
+                const itemsHtml = (ret.items || []).map(i => `<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.price*i.quantity)}</td></tr>`).join('');
+                win.document.write(`<html dir="rtl"><head><title>مرتجع مبيعات</title><style>body{font-family:'Courier New',monospace;margin:10px;}.center{text-align:center;}</style></head><body><div class="center"><h3>مرتجع مبيعات</h3></div><p>رقم: ${ret.id}</p><p>تاريخ: ${ret.date}</p><p>فاتورة: ${ret.invoice_id}</p><p>عميل: ${ret.customer_name}</p><table>${itemsHtml}</table><p>الإجمالي: ${Utils.formatMoney(ret.amount)}</p><script>window.print();setTimeout(()=>window.close(),500);<\/script></body></html>`);
+                win.document.close();
+            };
+        })();
     </script>
 </body>
 </html>
