@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تفاصيل الحساب · نظام التوزيع الغذائي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    <style>
+        :root {
+            --primary: #1e293b;
+            --secondary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --light: #f8fafc;
+            --header-height: 65px;
+            --sidebar-width: 260px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1001; border-bottom: 1px solid #e2e8f0;
+        }
+        .navbar-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), #06b6d4); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .navbar-right { display: flex; align-items: center; gap: 20px; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 6px 12px; border-radius: 40px; background: var(--light);
+            position: relative;
+        }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), #06b6d4);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
+        .user-info { text-align: right; }
+        .user-info h4 { font-size: 15px; font-weight: 600; }
+        .user-info p { font-size: 12px; color: #64748b; }
+        .user-dropdown {
+            position: absolute; top: 58px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #e2e8f0; overflow: hidden;
+        }
+        .user-dropdown.show { display: block; }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; border-bottom: 1px solid #f1f5f9;
+        }
+        .user-dropdown a:hover { background: var(--light); }
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid #e2e8f0; transition: width 0.25s; z-index: 999;
+            overflow-y: auto; padding: 20px 0; transform: translateX(100%);
+        }
+        .sidebar.mobile-open { transform: translateX(0); }
+        .menu-section {
+            padding: 20px 20px 8px; color: #94a3b8; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+        }
+        .menu { list-style: none; padding: 0 12px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--primary); text-decoration: none; border-radius: 12px;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: #eff6ff; color: var(--secondary); font-weight: 600;
+            border-right: 4px solid var(--secondary);
+        }
+        .main-content {
+            margin-top: var(--header-height); padding: 28px 32px;
+            min-height: calc(100vh - var(--header-height));
+        }
+        .back-btn {
+            background: none; border: none; color: var(--secondary); font-size: 16px;
+            cursor: pointer; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+        }
+        .party-card {
+            background: white; border-radius: 20px; padding: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
+            margin-bottom: 30px;
+        }
+        .party-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            flex-wrap: wrap; margin-bottom: 20px;
+        }
+        .party-info h2 { font-size: 24px; margin-bottom: 8px; }
+        .party-info p { color: #64748b; margin-bottom: 4px; }
+        .balance-large {
+            font-size: 36px; font-weight: 700; margin: 15px 0;
+        }
+        .balance-positive { color: var(--success); }
+        .balance-negative { color: var(--danger); }
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 14px; font-weight: 600;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            background: white; border: 1px solid #cbd5e1; color: var(--primary);
+        }
+        .btn-primary { background: var(--secondary); color: white; border: none; }
+        .btn-success { background: var(--success); color: white; }
+        .tabs {
+            display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 12px 24px; background: none; border: none; color: #64748b;
+            font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent;
+        }
+        .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .table-container {
+            background: white; border-radius: 20px; padding: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
+            overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
+        .badge {
+            padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600;
+            display: inline-block;
+        }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 450px;
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .form-group input { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px; }
+        @media (max-width: 768px) { .main-content { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-truck"></i></div>
+                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <div class="user-profile" id="userProfileBtn">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <h4 id="userName">مدير النظام</h4>
+                    <p id="loginTime">اليوم</p>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <aside class="sidebar" id="sidebar">
+        <ul class="menu">
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <div class="menu-section">الإدارة</div>
+            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-right"></i> رجوع إلى القائمة</button>
+        
+        <div class="party-card" id="partyInfo"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('invoices')">الفواتير</button>
+            <button class="tab-btn" onclick="switchTab('payments')">المدفوعات</button>
+        </div>
+
+        <div id="invoicesTab" class="tab-content active">
+            <div class="table-container" id="invoicesContainer"></div>
+        </div>
+        <div id="paymentsTab" class="tab-content">
+            <div class="table-container" id="paymentsContainer"></div>
+        </div>
+    </main>
+
+    <!-- مودال تسجيل دفعة -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>تسجيل دفعة</h2><button onclick="closePaymentModal()">&times;</button></div>
+            <form onsubmit="submitPayment(event)">
+                <div class="form-group"><label>المبلغ</label><input type="number" id="paymentAmount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
+                <button type="submit" class="btn btn-success">تسجيل الدفعة</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // واجهة المستخدم
+        const userBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+        document.addEventListener('click', () => userDropdown.classList.remove('show'));
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const partyId = urlParams.get('id');
+        const partyType = urlParams.get('type');
+
+        let party = null, invoices = [], payments = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!App.requireAuth()) return;
+            App.initUserInterface();
+            if (!partyId) { alert('لم يتم تحديد الطرف'); history.back(); return; }
+            await loadPartyData();
+        });
+
+        async function loadPartyData() {
+            try {
+                const parties = await DB.getParties(partyType === 'customer' ? 'customer' : 'supplier');
+                party = parties.find(p => p.id === partyId);
+                if (!party) { alert('الطرف غير موجود'); history.back(); return; }
+
+                const allInvoices = await DB.getInvoices();
+                const allPurchases = await DB.getPurchases();
+                const allTransactions = await DB.getTransactions();
+
+                if (partyType === 'customer') {
+                    invoices = allInvoices.filter(i => i.type === 'sale' && i.customer_id === partyId);
+                    payments = allTransactions.filter(t => t.type === 'income' && t.description && t.description.includes(party.name));
+                } else {
+                    invoices = allPurchases.filter(p => p.supplier_id === partyId);
+                    payments = allTransactions.filter(t => t.type === 'expense' && t.description && t.description.includes(party.name));
+                }
+
+                renderPartyInfo();
+                renderInvoices();
+                renderPayments();
+            } catch (e) { console.error(e); }
+        }
+
+        function renderPartyInfo() {
+            const balance = party.balance || 0;
+            const balanceClass = balance >= 0 ? 'balance-positive' : 'balance-negative';
+            const balanceText = partyType === 'customer' 
+                ? (balance < 0 ? `مدين: ${Utils.formatMoney(-balance)}` : `دائن: ${Utils.formatMoney(balance)}`)
+                : (balance > 0 ? `لنا: ${Utils.formatMoney(balance)}` : `علينا: ${Utils.formatMoney(-balance)}`);
+            
+            document.getElementById('partyInfo').innerHTML = `
+                <div class="party-header">
+                    <div class="party-info">
+                        <h2>${party.name}</h2>
+                        <p><i class="fas fa-phone"></i> ${party.phone || 'غير محدد'}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> ${party.address || 'غير محدد'}</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-money-bill"></i> تسجيل دفعة</button>
+                </div>
+                <div class="balance-large ${balanceClass}">${balanceText}</div>
+                <p>آخر تعامل: ${party.last_transaction || 'لا يوجد'}</p>
+            `;
+        }
+
+        function renderInvoices() {
+            const container = document.getElementById('invoicesContainer');
+            if (!invoices.length) {
+                container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير</p>';
+                return;
+            }
+            const html = `
+                <table>
+                    <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
+                    <tbody>
+                        ${invoices.map(inv => {
+                            const status = inv.status === 'paid' || inv.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
+                            return `<tr><td>${inv.id}</td><td>${inv.date}</td><td>${Utils.formatMoney(inv.total)}</td><td>${Utils.formatMoney(inv.paid)}</td><td>${Utils.formatMoney(inv.remaining)}</td><td>${status}</td></tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        function renderPayments() {
+            const container = document.getElementById('paymentsContainer');
+            if (!payments.length) {
+                container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد مدفوعات</p>';
+                return;
+            }
+            const html = `
+                <table>
+                    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>البيان</th><th>طريقة الدفع</th></tr></thead>
+                    <tbody>
+                        ${payments.map(p => `<tr><td>${p.date}</td><td>${Utils.formatMoney(p.amount)}</td><td>${p.description}</td><td>${p.payment_method || 'نقدي'}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        function openPaymentModal() {
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentNotes').value = '';
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() { document.getElementById('paymentModal').style.display = 'none'; }
+
+        async function submitPayment(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const notes = document.getElementById('paymentNotes').value.trim();
+            if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
+
+            try {
+                // تحديث رصيد الطرف
+                const newBalance = partyType === 'customer' ? party.balance + amount : party.balance - amount;
+                await supabase.from('parties').update({ balance: newBalance, last_transaction: Utils.getToday() }).eq('id', partyId);
+
+                // إضافة حركة صندوق
+                const transaction = {
+                    date: Utils.getToday(),
+                    type: partyType === 'customer' ? 'income' : 'expense',
+                    amount: amount,
+                    description: `${partyType === 'customer' ? 'تحصيل من' : 'دفع إلى'} ${party.name}${notes ? ' - ' + notes : ''}`,
+                    payment_method: 'cash'
+                };
+                await DB.saveTransaction(transaction);
+
+                alert('تم تسجيل الدفعة بنجاح');
+                closePaymentModal();
+                await loadPartyData();
+            } catch (err) { alert('فشل تسجيل الدفعة'); }
+        }
+
+        window.switchTab = switchTab;
+        window.openPaymentModal = openPaymentModal;
+        window.closePaymentModal = closePaymentModal;
+        window.submitPayment = submitPayment;
+    </script>
+</body>
+</html>
