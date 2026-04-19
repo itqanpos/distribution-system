@@ -1,53 +1,176 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <base href="/distribution-system/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مرتجعات المبيعات - نظام التوزيع الغذائي</title>
+    <title>مرتجعات المبيعات · نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="./manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
     <style>
         :root {
-            --primary: #2c3e50; --secondary: #3498db; --success: #2ecc71; --danger: #e74c3c;
-            --warning: #f39c12; --info: #1abc9c; --light: #ecf0f1; --dark: #34495e;
-            --sidebar-width: 260px; --sidebar-collapsed-width: 70px; --header-height: 65px;
+            --primary: #1e293b;
+            --secondary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --light: #f8fafc;
+            --header-height: 65px;
+            --sidebar-width: 260px;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: #f5f7fa; color: #2c3e50; overflow-x: hidden; }
-        .navbar { position: fixed; top: 0; right: 0; left: 0; height: var(--header-height); background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; z-index: 1030; }
-        .navbar-left { display: flex; align-items: center; gap: 15px; }
-        .menu-toggle { background: none; border: none; font-size: 24px; color: var(--primary); cursor: pointer; width: 40px; height: 40px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
+        .navbar {
+            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
+            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+            z-index: 1001; border-bottom: 1px solid #e2e8f0;
+        }
+        .navbar-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle {
+            background: none; border: none; font-size: 24px; color: var(--primary);
+            cursor: pointer; width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
         .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { background: linear-gradient(135deg, var(--secondary), var(--info)); color: white; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .navbar-right { display: flex; align-items: center; gap: 15px; }
-        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 5px 10px; border-radius: 40px; position: relative; }
-        .user-avatar { width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), var(--info)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--secondary), #06b6d4); color: white;
+            width: 38px; height: 38px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 20px;
+        }
+        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .navbar-right { display: flex; align-items: center; gap: 20px; }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            padding: 6px 12px; border-radius: 40px; background: var(--light);
+            position: relative;
+        }
+        .user-avatar {
+            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), #06b6d4);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 18px;
+        }
         .user-info { text-align: right; }
-        .user-dropdown { position: absolute; top: 55px; left: 0; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none; z-index: 1050; }
+        .user-info h4 { font-size: 15px; font-weight: 600; }
+        .user-info p { font-size: 12px; color: #64748b; }
+        .user-dropdown {
+            position: absolute; top: 58px; left: 0; background: white; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
+            z-index: 1050; border: 1px solid #e2e8f0; overflow: hidden;
+        }
         .user-dropdown.show { display: block; }
-        .user-dropdown a { display: flex; align-items: center; gap: 12px; padding: 14px 18px; color: var(--primary); text-decoration: none; }
-        .sidebar { position: fixed; top: var(--header-height); right: 0; bottom: 0; width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02); border-left: 1px solid rgba(0,0,0,0.05); transition: width 0.25s; z-index: 1020; overflow-y: auto; padding: 20px 0; }
-        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .user-dropdown a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+            color: var(--primary); text-decoration: none; border-bottom: 1px solid #f1f5f9;
+        }
+        .user-dropdown a:hover { background: var(--light); }
+        .sidebar {
+            position: fixed; top: var(--header-height); right: 0; bottom: 0;
+            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            border-left: 1px solid #e2e8f0; transition: width 0.25s; z-index: 999;
+            overflow-y: auto; padding: 20px 0; transform: translateX(100%);
+        }
+        .sidebar.mobile-open { transform: translateX(0); }
+        .menu-section {
+            padding: 20px 20px 8px; color: #94a3b8; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+        }
         .menu { list-style: none; padding: 0 12px; }
-        .menu-item { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0; color: var(--dark); text-decoration: none; border-radius: 12px; white-space: nowrap; }
-        .menu-item.active { background: linear-gradient(to left, rgba(52,152,219,0.1), transparent); color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary); }
-        .main-content { margin-right: var(--sidebar-width); margin-top: var(--header-height); padding: 25px; transition: margin-right 0.25s; }
-        .sidebar.collapsed ~ .main-content { margin-right: var(--sidebar-collapsed-width); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .btn { padding: 10px 18px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; }
-        .btn-primary { background: var(--secondary); color: white; }
-        .table-container { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.02); }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
+            color: var(--primary); text-decoration: none; border-radius: 12px;
+            white-space: nowrap; font-weight: 500; font-size: 15px;
+        }
+        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; }
+        .menu-item:hover { background: var(--light); color: var(--secondary); }
+        .menu-item.active {
+            background: #eff6ff; color: var(--secondary); font-weight: 600;
+            border-right: 4px solid var(--secondary);
+        }
+        .main-content {
+            margin-top: var(--header-height); padding: 28px 32px;
+            min-height: calc(100vh - var(--header-height));
+        }
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 32px; flex-wrap: wrap;
+        }
+        .page-title h1 { font-size: 28px; font-weight: 700; }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            background: white; border: 1px solid #cbd5e1; color: var(--primary);
+        }
+        .btn-primary { background: var(--secondary); color: white; border: none; }
+        .btn-danger { background: var(--danger); color: white; }
+        .filter-bar {
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-wrapper {
+            display: flex; align-items: center; background: white;
+            border-radius: 30px; padding: 5px 15px; border: 1px solid #cbd5e1;
+        }
+        .search-wrapper input {
+            border: none; padding: 10px 0; width: 200px; outline: none;
+        }
+        .table-container {
+            background: white; border-radius: 20px; padding: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
+            overflow-x: auto; margin-bottom: 30px;
+        }
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: right; padding: 15px 10px; color: #7f8c8d; border-bottom: 1px solid #eee; }
-        td { padding: 14px 10px; border-bottom: 1px solid #f5f5f5; }
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 500px; }
-        @media (max-width: 992px) { .sidebar { transform: translateX(100%); } .sidebar.mobile-open { transform: translateX(0); } .main-content { margin-right: 0 !important; } .menu-toggle { display: flex; } .user-info { display: none; } }
+        th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
+        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 700px;
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .form-group input, .form-group select { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px; }
+        .items-container { border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px; }
+        .item-row {
+            display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px;
+            align-items: center; margin-bottom: 10px;
+        }
+        @media (max-width: 768px) {
+            .main-content { padding: 20px; }
+            .item-row { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar"><div class="navbar-left"><button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button><div class="logo"><div class="logo-icon"><i class="fas fa-truck"></i></div><div class="logo-text"><h2>نظام التوزيع</h2></div></div></div><div class="navbar-right"><div class="user-profile" id="userProfileBtn"><div class="user-avatar" id="userAvatar">م</div><div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div><div class="user-dropdown" id="userDropdown"><a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a><a href="#" onclick="UI.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></div></div></div></nav>
+    <nav class="navbar">
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-truck"></i></div>
+                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <div class="user-profile" id="userProfileBtn">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <h4 id="userName">مدير النظام</h4>
+                    <p id="loginTime">اليوم</p>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -57,100 +180,209 @@
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
+            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
     </aside>
+
     <main class="main-content">
-        <div class="page-header"><div class="page-title"><i class="fas fa-undo-alt" style="font-size:28px; color:var(--danger);"></i><h1>مرتجعات المبيعات</h1></div><div><button class="btn btn-primary" onclick="openReturnModal()"><i class="fas fa-plus"></i> مرتجع جديد</button></div></div>
+        <div class="page-header">
+            <div class="page-title"><h1><i class="fas fa-undo-alt" style="color:var(--danger); margin-left:12px;"></i>مرتجعات المبيعات</h1></div>
+            <div>
+                <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-danger" onclick="openReturnModal()"><i class="fas fa-plus"></i> مرتجع جديد</button>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="بحث برقم المرتجع أو العميل...">
+            </div>
+            <button class="btn" onclick="loadReturns()"><i class="fas fa-sync-alt"></i> تحديث</button>
+        </div>
+
         <div class="table-container">
-            <table><thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>الفاتورة الأصلية</th><th>العميل</th><th>المبلغ</th><th></th></tr></thead><tbody id="returnsBody"></tbody></table>
+            <table>
+                <thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>الفاتورة الأصلية</th><th>العميل</th><th>المبلغ</th><th>إجراءات</th></tr></thead>
+                <tbody id="returnsBody"></tbody>
+            </table>
         </div>
     </main>
+
+    <!-- مودال مرتجع جديد -->
     <div class="modal" id="returnModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>مرتجع مبيعات</h2><button onclick="closeReturnModal()">&times;</button></div>
+            <div class="modal-header"><h2>مرتجع مبيعات جديد</h2><button onclick="closeReturnModal()">&times;</button></div>
             <form onsubmit="saveReturn(event)">
-                <div class="form-group"><label>الفاتورة الأصلية</label><select id="invoiceSelect" required></select></div>
-                <div class="form-group"><label>المنتجات المرتجعة</label><div id="returnItems"></div></div>
+                <div class="form-group"><label>الفاتورة الأصلية</label><select id="invoiceSelect" required onchange="loadInvoiceItems()"></select></div>
+                <div class="items-container">
+                    <label>الأصناف المرتجعة</label>
+                    <div id="returnItemsContainer"></div>
+                </div>
                 <div class="form-group"><label>المبلغ المرتجع</label><input type="number" id="returnAmount" step="0.01" required></div>
                 <div class="form-group"><label>التاريخ</label><input type="date" id="returnDate" required></div>
-                <button type="submit" class="btn btn-primary">حفظ</button>
+                <div class="form-group"><label>ملاحظات</label><input type="text" id="returnNotes"></div>
+                <button type="submit" class="btn btn-danger">حفظ المرتجع</button>
             </form>
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="./js/firebase-init.js"></script>
-    <script src="./js/utils.js"></script>
-    <script src="./js/auth.js"></script>
-    <script src="./js/ui.js"></script>
-    <script src="./js/storage-firebase.js"></script>
     <script>
-        // الشريط الجانبي والقائمة (مختصرة)
-        const sidebar = document.getElementById('sidebar'), menuToggle = document.getElementById('menuToggle');
-        function toggleSidebar() { if (window.innerWidth <= 992) sidebar.classList.toggle('mobile-open'); else sidebar.classList.toggle('collapsed'); localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed')); }
-        menuToggle.addEventListener('click', toggleSidebar);
-        if (window.innerWidth > 992 && localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
-        const userProfileBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
-        userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+        // واجهة المستخدم
+        const userBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => userDropdown.classList.remove('show'));
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let returns = [], invoices = [];
+        let invoices = [], returns = [], products = [], customers = [];
+        let selectedInvoice = null;
+
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!Auth.requireAuth()) return;
-            await UI.initPage('مرتجعات المبيعات');
-            const user = Auth.getUser();
-            document.getElementById('userName').textContent = user.name;
-            document.getElementById('userAvatar').textContent = user.avatar;
+            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+            App.initUserInterface();
             document.getElementById('returnDate').value = Utils.getToday();
             await loadData();
+            document.getElementById('searchInput').addEventListener('input', filterReturns);
         });
 
         async function loadData() {
-            invoices = (await Storage.getInvoices()).filter(i => i.type === 'sale');
-            // افترض وجود مجموعة returns في Firestore
-            const snap = await window.db.collection('returns').where('type', '==', 'sale').get();
-            returns = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderReturns();
-            const select = document.getElementById('invoiceSelect');
-            select.innerHTML = invoices.map(i => `<option value="${i.id}">${i.id} - ${i.customer}</option>`).join('');
+            try {
+                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                products = await DB.getProducts();
+                customers = await DB.getParties('customer');
+                // نفترض وجود جدول returns
+                const { data: ret } = await supabase.from('returns').select('*').eq('type', 'sale');
+                returns = ret || [];
+                populateInvoiceSelect();
+                renderReturns(returns);
+            } catch (e) { console.error(e); }
         }
 
-        function renderReturns() {
-            document.getElementById('returnsBody').innerHTML = returns.map(r => `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.invoiceId}</td><td>${r.customer}</td><td>${Utils.formatMoney(r.amount)}</td><td><i class="fas fa-trash" onclick="deleteReturn('${r.id}')"></i></td></tr>`).join('');
+        function populateInvoiceSelect() {
+            const sel = document.getElementById('invoiceSelect');
+            sel.innerHTML = '<option value="">اختر فاتورة</option>' + invoices.map(i => `<option value="${i.id}">${i.id} - ${i.customer_name}</option>`).join('');
         }
 
-        function openReturnModal() { document.getElementById('returnModal').style.display = 'flex'; }
+        async function loadInvoiceItems() {
+            const invoiceId = document.getElementById('invoiceSelect').value;
+            selectedInvoice = invoices.find(i => i.id === invoiceId);
+            if (!selectedInvoice) return;
+            const container = document.getElementById('returnItemsContainer');
+            container.innerHTML = selectedInvoice.items.map((item, idx) => `
+                <div class="item-row">
+                    <span>${item.productName}</span>
+                    <span>الكمية الأصلية: ${item.quantity}</span>
+                    <input type="number" class="return-qty" placeholder="الكمية المرتجعة" min="0" max="${item.quantity}" step="0.001" onchange="calculateReturnAmount()">
+                    <input type="number" class="return-price" value="${item.price}" step="0.01" readonly>
+                    <span>الإجمالي: ${Utils.formatMoney(item.price * item.quantity)}</span>
+                </div>
+            `).join('');
+        }
+
+        function calculateReturnAmount() {
+            let total = 0;
+            document.querySelectorAll('.item-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.return-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.return-price').value) || 0;
+                total += qty * price;
+            });
+            document.getElementById('returnAmount').value = total.toFixed(2);
+        }
+
+        function renderReturns(data) {
+            const tbody = document.getElementById('returnsBody');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;">لا توجد مرتجعات</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(r => `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.invoice_id}</td><td>${r.customer_name}</td><td>${Utils.formatMoney(r.amount)}</td><td><i class="fas fa-print" onclick="printReturn('${r.id}')"></i></td></tr>`).join('');
+        }
+
+        function filterReturns() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = returns.filter(r => r.id.includes(term) || r.customer_name.includes(term));
+            renderReturns(filtered);
+        }
+
+        function openReturnModal() {
+            document.getElementById('returnModal').style.display = 'flex';
+            document.getElementById('returnItemsContainer').innerHTML = '';
+        }
+
         function closeReturnModal() { document.getElementById('returnModal').style.display = 'none'; }
 
         async function saveReturn(e) {
             e.preventDefault();
-            const invoiceId = document.getElementById('invoiceSelect').value;
-            const amount = parseFloat(document.getElementById('returnAmount').value);
+            if (!selectedInvoice) { alert('اختر فاتورة'); return; }
+            const amount = parseFloat(document.getElementById('returnAmount').value) || 0;
             const date = document.getElementById('returnDate').value;
-            const invoice = invoices.find(i => i.id === invoiceId);
-            if (!invoice) return;
-            const ret = { id: 'RET-' + Date.now(), type: 'sale', invoiceId, customer: invoice.customer, amount, date };
-            await window.db.collection('returns').add(ret);
-            // تحديث رصيد العميل (إضافة)
-            const cust = (await Storage.getCustomers()).find(c => c.name === invoice.customer);
-            if (cust) { cust.balance += amount; await Storage.saveCustomer(cust); }
-            // إضافة حركة صندوق (سحب)
-            await Storage.saveTransaction({ date, type: 'expense', amount, description: `مرتجع فاتورة ${invoiceId}` });
-            UI.showToast('تم حفظ المرتجع', 'success');
-            closeReturnModal();
-            await loadData();
+            const notes = document.getElementById('returnNotes').value;
+            if (amount <= 0) { alert('المبلغ غير صحيح'); return; }
+
+            const returnItems = [];
+            const rows = document.querySelectorAll('.item-row');
+            for (let i = 0; i < rows.length; i++) {
+                const qty = parseFloat(rows[i].querySelector('.return-qty').value) || 0;
+                if (qty > 0) {
+                    returnItems.push({
+                        ...selectedInvoice.items[i],
+                        quantity: qty
+                    });
+                }
+            }
+
+            try {
+                const retId = 'RET-' + Date.now();
+                // حفظ المرتجع
+                await supabase.from('returns').insert([{
+                    id: retId, type: 'sale', invoice_id: selectedInvoice.id,
+                    customer_id: selectedInvoice.customer_id, customer_name: selectedInvoice.customer_name,
+                    amount, date, notes, items: returnItems
+                }]);
+
+                // تحديث المخزون
+                for (const item of returnItems) {
+                    const prod = products.find(p => p.id === item.productId);
+                    if (prod) {
+                        const unit = prod.units.find(u => u.name === item.unitName);
+                        if (unit) unit.stock += item.quantity;
+                        await DB.saveProduct(prod);
+                    }
+                }
+
+                // تحديث رصيد العميل (تقليل المديونية أو زيادة الدائن)
+                if (selectedInvoice.customer_id) {
+                    const customer = customers.find(c => c.id === selectedInvoice.customer_id);
+                    if (customer) {
+                        customer.balance += amount;
+                        await DB.saveParty(customer);
+                    }
+                }
+
+                // إضافة حركة صندوق (سحب)
+                await DB.saveTransaction({
+                    date, type: 'expense', amount,
+                    description: `مرتجع فاتورة ${selectedInvoice.id} - ${selectedInvoice.customer_name}`,
+                    payment_method: 'cash'
+                });
+
+                alert('تم حفظ المرتجع');
+                closeReturnModal();
+                await loadData();
+            } catch (err) { alert('فشل الحفظ'); }
         }
 
-        window.openReturnModal = openReturnModal; window.closeReturnModal = closeReturnModal;
+        window.openReturnModal = openReturnModal;
+        window.closeReturnModal = closeReturnModal;
+        window.loadInvoiceItems = loadInvoiceItems;
+        window.calculateReturnAmount = calculateReturnAmount;
+        window.loadReturns = loadData;
     </script>
 </body>
 </html>
