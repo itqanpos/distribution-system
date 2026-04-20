@@ -97,9 +97,10 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
+            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
+            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .btn-danger { background: var(--danger); color: white; }
@@ -146,11 +147,14 @@
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .printer-item {
-            padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px;
-            display: flex; justify-content: space-between; align-items: center;
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; padding: 20px; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
         }
-        @media (max-width: 768px) { .main-content { padding: 20px; } }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
@@ -187,8 +191,12 @@
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
             <li><a class="menu-item active" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
@@ -197,15 +205,16 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-cog" style="color:var(--secondary); margin-left:12px;"></i>الإعدادات</h1></div>
-            <div><button class="btn btn-primary" onclick="saveAllSettings()"><i class="fas fa-save"></i> حفظ جميع الإعدادات</button></div>
+            <div><button class="btn btn-primary" id="saveAllSettingsBtn"><i class="fas fa-save"></i> حفظ جميع الإعدادات</button></div>
         </div>
 
         <div class="tabs-container">
-            <button class="tab-btn active" onclick="switchTab('general')"><i class="fas fa-building"></i> عامة</button>
-            <button class="tab-btn" onclick="switchTab('printing')"><i class="fas fa-print"></i> الطباعة</button>
-            <button class="tab-btn" onclick="switchTab('users')"><i class="fas fa-users-cog"></i> المستخدمين</button>
-            <button class="tab-btn" onclick="switchTab('system')"><i class="fas fa-desktop"></i> النظام</button>
-            <button class="tab-btn" onclick="switchTab('backup')"><i class="fas fa-database"></i> النسخ الاحتياطي</button>
+            <button class="tab-btn active" id="tabGeneral"><i class="fas fa-building"></i> عامة</button>
+            <button class="tab-btn" id="tabPrinting"><i class="fas fa-print"></i> الطباعة</button>
+            <button class="tab-btn" id="tabUsers"><i class="fas fa-users-cog"></i> المستخدمين</button>
+            <button class="tab-btn" id="tabSystem"><i class="fas fa-desktop"></i> النظام</button>
+            <button class="tab-btn" id="tabBackup"><i class="fas fa-database"></i> النسخ الاحتياطي</button>
+            <button class="tab-btn" id="tabAdvanced"><i class="fas fa-sliders-h"></i> متقدمة</button>
         </div>
 
         <!-- عامة -->
@@ -230,12 +239,15 @@
                     <div class="form-group"><label>نوع الطابعة الافتراضي</label><select id="printerType"><option value="thermal">حرارية 80mm</option><option value="a4">A4</option></select></div>
                     <div class="form-group"><label>عدد النسخ</label><input type="number" id="printCopies" min="1" value="1"></div>
                     <div class="form-group"><label>تذييل الإيصال</label><input type="text" id="receiptFooter" value="شكراً لتعاملكم معنا"></div>
-                    <div class="form-group checkbox"><input type="checkbox" id="showLogo" checked> <label>عرض الشعار في الإيصال</label></div>
+                    <div class="form-group"><input type="checkbox" id="showLogo" checked> <label>عرض الشعار في الإيصال</label></div>
                 </div>
                 <h3 class="settings-section-title" style="margin-top:20px;"><i class="fas fa-bluetooth"></i> طابعات البلوتوث</h3>
-                <button class="btn btn-primary" onclick="searchBluetoothPrinters()"><i class="fas fa-search"></i> البحث عن طابعات بلوتوث</button>
-                <div id="bluetoothPrintersList" style="margin:15px 0;"></div>
-                <button class="btn btn-success" onclick="testPrint()"><i class="fas fa-vial"></i> اختبار طباعة</button>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
+                    <button class="btn btn-primary" id="searchBluetoothBtn"><i class="fas fa-search"></i> البحث عن طابعة بلوتوث</button>
+                    <button class="btn btn-success" id="testPrintBtn"><i class="fas fa-vial"></i> اختبار طباعة</button>
+                </div>
+                <div id="bluetoothStatus" style="margin:10px 0; padding:10px; border-radius:12px; background:var(--light);"></div>
+                <div id="savedPrintersList" style="margin-top:15px;"></div>
             </div>
         </div>
 
@@ -244,7 +256,7 @@
             <div class="settings-card">
                 <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
                     <h3 class="settings-section-title" style="margin:0;"><i class="fas fa-users-cog"></i> إدارة المستخدمين</h3>
-                    <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-plus"></i> مستخدم جديد</button>
+                    <button class="btn btn-primary" id="addUserBtn"><i class="fas fa-plus"></i> مستخدم جديد</button>
                 </div>
                 <div class="table-container">
                     <table><thead><tr><th>المستخدم</th><th>الاسم الكامل</th><th>الدور</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="usersBody"></tbody></table>
@@ -263,7 +275,7 @@
                     <div class="form-group"><label>نسبة الضريبة (%)</label><input type="number" id="taxRate" value="14"></div>
                 </div>
                 <h3 class="settings-section-title" style="margin-top:20px;">منطقة خطيرة</h3>
-                <button class="btn btn-danger" onclick="deleteAllData()"><i class="fas fa-trash-alt"></i> حذف جميع البيانات</button>
+                <button class="btn btn-danger" id="deleteAllDataBtn"><i class="fas fa-trash-alt"></i> حذف جميع البيانات</button>
             </div>
         </div>
 
@@ -272,11 +284,23 @@
             <div class="settings-card">
                 <h3 class="settings-section-title"><i class="fas fa-database"></i> النسخ الاحتياطي والاستعادة</h3>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button class="btn btn-primary" onclick="createBackup()"><i class="fas fa-download"></i> إنشاء نسخة احتياطية</button>
-                    <button class="btn" onclick="document.getElementById('restoreFile').click()"><i class="fas fa-upload"></i> استعادة نسخة</button>
-                    <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreBackup(this)">
+                    <button class="btn btn-primary" id="createBackupBtn"><i class="fas fa-download"></i> إنشاء نسخة احتياطية</button>
+                    <button class="btn" id="restoreBackupBtn"><i class="fas fa-upload"></i> استعادة نسخة</button>
+                    <input type="file" id="restoreFile" accept=".json" style="display:none;">
                 </div>
                 <p style="margin-top:15px;">آخر نسخة: <span id="lastBackup">-</span></p>
+            </div>
+        </div>
+
+        <!-- متقدمة -->
+        <div id="advancedTab" class="tab-content">
+            <div class="settings-card">
+                <h3 class="settings-section-title"><i class="fas fa-sliders-h"></i> إعدادات متقدمة</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>بادئة الفواتير</label><input type="text" id="invoicePrefix" value="INV-"></div>
+                    <div class="form-group"><label>بادئة فواتير الشراء</label><input type="text" id="purchasePrefix" value="PUR-"></div>
+                    <div class="form-group"><label>مدة الجلسة (دقيقة)</label><input type="number" id="sessionTimeout" value="120"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -284,8 +308,8 @@
     <!-- مودال مستخدم -->
     <div class="modal" id="userModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="userModalTitle">مستخدم جديد</h2><button onclick="closeUserModal()">&times;</button></div>
-            <form onsubmit="saveUser(event)">
+            <div class="modal-header"><h2 id="userModalTitle">مستخدم جديد</h2><button id="closeUserModalBtn">&times;</button></div>
+            <form id="userForm">
                 <input type="hidden" id="userId">
                 <div class="form-group"><label>اسم المستخدم</label><input type="text" id="username" required></div>
                 <div class="form-group"><label>الاسم الكامل</label><input type="text" id="fullName" required></div>
@@ -298,204 +322,274 @@
     </div>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        (function() {
+            // واجهة المستخدم
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-        let users = [];
+            let users = [];
+            let bluetoothDevice = null;
+            let settings = {};
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            await loadSettings();
-            await loadUsers();
-        });
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Tab').classList.add('active');
-        }
-
-        async function loadSettings() {
-            const s = await DB.getSettings();
-            if (s.company) {
-                document.getElementById('companyName').value = s.company.name || '';
-                document.getElementById('commercialReg').value = s.company.commercialReg || '';
-                document.getElementById('companyPhone').value = s.company.phone || '';
-                document.getElementById('companyEmail').value = s.company.email || '';
-                document.getElementById('companyAddress').value = s.company.address || '';
-            }
-            if (s.printing) {
-                document.getElementById('printerType').value = s.printing.printerType || 'thermal';
-                document.getElementById('printCopies').value = s.printing.copies || 1;
-                document.getElementById('receiptFooter').value = s.printing.footer || '';
-                document.getElementById('showLogo').checked = s.printing.showLogo !== false;
-            }
-            if (s.system) {
-                document.getElementById('systemLang').value = s.system.lang || 'ar';
-                document.getElementById('currency').value = s.system.currency || 'ج.م';
-                document.getElementById('lowStockAlert').value = s.system.lowStockAlert || 10;
-                document.getElementById('taxRate').value = s.system.taxRate || 14;
-            }
-        }
-
-        async function saveAllSettings() {
-            const settings = {
-                company: {
-                    name: document.getElementById('companyName').value,
-                    commercialReg: document.getElementById('commercialReg').value,
-                    phone: document.getElementById('companyPhone').value,
-                    email: document.getElementById('companyEmail').value,
-                    address: document.getElementById('companyAddress').value
-                },
-                printing: {
-                    printerType: document.getElementById('printerType').value,
-                    copies: parseInt(document.getElementById('printCopies').value),
-                    footer: document.getElementById('receiptFooter').value,
-                    showLogo: document.getElementById('showLogo').checked
-                },
-                system: {
-                    lang: document.getElementById('systemLang').value,
-                    currency: document.getElementById('currency').value,
-                    lowStockAlert: parseInt(document.getElementById('lowStockAlert').value),
-                    taxRate: parseFloat(document.getElementById('taxRate').value)
-                }
-            };
-            await DB.saveSettings(settings);
-            alert('تم حفظ الإعدادات');
-        }
-
-        // إدارة المستخدمين
-        async function loadUsers() {
-            users = await DB.getUsers();
-            renderUsers();
-        }
-
-        function renderUsers() {
-            document.getElementById('usersBody').innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.full_name}</td><td>${u.role}</td><td>${u.status || 'active'}</td><td><i class="fas fa-edit" onclick="editUser('${u.id}')"></i> <i class="fas fa-trash" onclick="deleteUser('${u.id}')"></i></td></tr>`).join('');
-        }
-
-        function openUserModal() {
-            document.getElementById('userModalTitle').textContent = 'مستخدم جديد';
-            document.getElementById('userId').value = '';
-            document.getElementById('username').value = '';
-            document.getElementById('fullName').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('userRole').value = 'rep';
-            document.getElementById('userStatus').value = 'active';
-            document.getElementById('userModal').style.display = 'flex';
-        }
-
-        function editUser(id) {
-            const u = users.find(x => x.id === id);
-            if (!u) return;
-            document.getElementById('userModalTitle').textContent = 'تعديل مستخدم';
-            document.getElementById('userId').value = u.id;
-            document.getElementById('username').value = u.username;
-            document.getElementById('fullName').value = u.full_name;
-            document.getElementById('userRole').value = u.role;
-            document.getElementById('userStatus').value = u.status || 'active';
-            document.getElementById('userModal').style.display = 'flex';
-        }
-
-        function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
-
-        async function saveUser(e) {
-            e.preventDefault();
-            const id = document.getElementById('userId').value;
-            const username = document.getElementById('username').value.trim();
-            const full_name = document.getElementById('fullName').value.trim();
-            const password = document.getElementById('password').value;
-            const role = document.getElementById('userRole').value;
-            const status = document.getElementById('userStatus').value;
-            if (!username || !full_name) return;
-            const user = { username, full_name, role, status };
-            if (id) user.id = id;
-            if (password) user.password = password;
-            await DB.saveUser(user);
-            closeUserModal();
-            await loadUsers();
-        }
-
-        async function deleteUser(id) {
-            if (!confirm('حذف المستخدم؟')) return;
-            await DB.deleteUser(id);
-            await loadUsers();
-        }
-
-        // طباعة بلوتوث
-        async function searchBluetoothPrinters() {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
+            // التبويبات
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(btn.id.replace('tab', '').toLowerCase() + 'Tab').classList.add('active');
                 });
-                alert(`تم العثور على: ${device.name}`);
-                localStorage.setItem('btPrinter', JSON.stringify({ name: device.name, id: device.id }));
-            } catch (e) {
-                alert('لم يتم العثور على طابعة أو تم الإلغاء');
-            }
-        }
+            });
 
-        function testPrint() {
-            alert('اختبار الطباعة: سيتم إرسال أمر طباعة تجريبي');
-        }
-
-        // نسخ احتياطي
-        async function createBackup() {
-            const data = {
-                products: await DB.getProducts(),
-                customers: await DB.getParties('customer'),
-                suppliers: await DB.getParties('supplier'),
-                invoices: await DB.getInvoices(),
-                purchases: await DB.getPurchases(),
-                transactions: await DB.getTransactions(),
-                settings: await DB.getSettings()
-            };
-            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `backup_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-            document.getElementById('lastBackup').textContent = new Date().toLocaleString();
-        }
-
-        async function restoreBackup(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
+            // تحميل الإعدادات والمستخدمين
+            async function loadSettings() {
                 try {
-                    const data = JSON.parse(e.target.result);
-                    if (!confirm('استعادة النسخة ستؤدي إلى فقدان البيانات الحالية. متابعة؟')) return;
-                    // استعادة الجداول
-                    alert('تمت الاستعادة بنجاح');
-                } catch (ex) { alert('ملف غير صالح'); }
+                    settings = await DB.getSettings();
+                    if (settings.company) {
+                        document.getElementById('companyName').value = settings.company.name || '';
+                        document.getElementById('commercialReg').value = settings.company.commercialReg || '';
+                        document.getElementById('companyPhone').value = settings.company.phone || '';
+                        document.getElementById('companyEmail').value = settings.company.email || '';
+                        document.getElementById('companyAddress').value = settings.company.address || '';
+                    }
+                    if (settings.printing) {
+                        document.getElementById('printerType').value = settings.printing.printerType || 'thermal';
+                        document.getElementById('printCopies').value = settings.printing.copies || 1;
+                        document.getElementById('receiptFooter').value = settings.printing.footer || '';
+                        document.getElementById('showLogo').checked = settings.printing.showLogo !== false;
+                        displaySavedPrinter();
+                    }
+                    if (settings.system) {
+                        document.getElementById('systemLang').value = settings.system.lang || 'ar';
+                        document.getElementById('currency').value = settings.system.currency || 'ج.م';
+                        document.getElementById('lowStockAlert').value = settings.system.lowStockAlert || 10;
+                        document.getElementById('taxRate').value = settings.system.taxRate || 14;
+                    }
+                    if (settings.advanced) {
+                        document.getElementById('invoicePrefix').value = settings.advanced.invoicePrefix || 'INV-';
+                        document.getElementById('purchasePrefix').value = settings.advanced.purchasePrefix || 'PUR-';
+                        document.getElementById('sessionTimeout').value = settings.advanced.sessionTimeout || 120;
+                    }
+                } catch (e) { console.warn('لم يتم تحميل الإعدادات'); }
+            }
+
+            async function loadUsers() {
+                try {
+                    users = await DB.getUsers();
+                    renderUsers();
+                } catch (e) { alert('فشل تحميل المستخدمين'); }
+            }
+
+            function renderUsers() {
+                const tbody = document.getElementById('usersBody');
+                if (!users.length) { tbody.innerHTML = '<tr><td colspan="5">لا يوجد مستخدمين</td></tr>'; return; }
+                tbody.innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.full_name}</td><td>${u.role}</td><td>${u.status||'active'}</td><td><i class="fas fa-edit" onclick="editUser('${u.id}')"></i> <i class="fas fa-trash" onclick="deleteUser('${u.id}')"></i></td></tr>`).join('');
+            }
+
+            // حفظ الإعدادات
+            async function saveAllSettings() {
+                const newSettings = {
+                    company: {
+                        name: document.getElementById('companyName').value,
+                        commercialReg: document.getElementById('commercialReg').value,
+                        phone: document.getElementById('companyPhone').value,
+                        email: document.getElementById('companyEmail').value,
+                        address: document.getElementById('companyAddress').value
+                    },
+                    printing: {
+                        printerType: document.getElementById('printerType').value,
+                        copies: parseInt(document.getElementById('printCopies').value) || 1,
+                        footer: document.getElementById('receiptFooter').value,
+                        showLogo: document.getElementById('showLogo').checked,
+                        bluetoothPrinter: settings.printing?.bluetoothPrinter || null
+                    },
+                    system: {
+                        lang: document.getElementById('systemLang').value,
+                        currency: document.getElementById('currency').value,
+                        lowStockAlert: parseInt(document.getElementById('lowStockAlert').value) || 10,
+                        taxRate: parseFloat(document.getElementById('taxRate').value) || 14
+                    },
+                    advanced: {
+                        invoicePrefix: document.getElementById('invoicePrefix').value,
+                        purchasePrefix: document.getElementById('purchasePrefix').value,
+                        sessionTimeout: parseInt(document.getElementById('sessionTimeout').value) || 120
+                    }
+                };
+                await DB.saveSettings(newSettings);
+                settings = newSettings;
+                alert('تم حفظ الإعدادات');
+            }
+
+            // بلوتوث
+            async function searchBluetoothPrinter() {
+                try {
+                    const device = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+                        optionalServices: []
+                    });
+                    bluetoothDevice = device;
+                    document.getElementById('bluetoothStatus').innerHTML = `✅ تم العثور على: ${device.name || 'طابعة بلوتوث'}`;
+                    // حفظ في الإعدادات
+                    if (!settings.printing) settings.printing = {};
+                    settings.printing.bluetoothPrinter = { name: device.name, id: device.id };
+                    await DB.saveSettings(settings);
+                    displaySavedPrinter();
+                } catch (e) {
+                    document.getElementById('bluetoothStatus').innerHTML = '❌ لم يتم العثور على طابعة أو تم الإلغاء';
+                }
+            }
+
+            function displaySavedPrinter() {
+                const printer = settings.printing?.bluetoothPrinter;
+                const div = document.getElementById('savedPrintersList');
+                if (printer) {
+                    div.innerHTML = `<p>الطابعة المحفوظة: <strong>${printer.name}</strong></p>`;
+                } else {
+                    div.innerHTML = '<p>لا توجد طابعة محفوظة</p>';
+                }
+            }
+
+            async function testPrint() {
+                if (!bluetoothDevice && !settings.printing?.bluetoothPrinter) {
+                    alert('الرجاء البحث عن طابعة وحفظها أولاً');
+                    return;
+                }
+                try {
+                    if (!bluetoothDevice) {
+                        // محاولة إعادة الاتصال بالجهاز المحفوظ
+                        const saved = settings.printing.bluetoothPrinter;
+                        const devices = await navigator.bluetooth.getDevices();
+                        bluetoothDevice = devices.find(d => d.id === saved.id);
+                        if (!bluetoothDevice) {
+                            alert('تعذر الاتصال بالطابعة المحفوظة، ابحث عنها مرة أخرى');
+                            return;
+                        }
+                    }
+                    const server = await bluetoothDevice.gatt.connect();
+                    const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+                    const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+                    const encoder = new TextEncoder();
+                    const testData = 'اختبار طباعة من نظام التوزيع\n------------------------\nتم الاتصال بنجاح\n';
+                    await characteristic.writeValue(encoder.encode(testData));
+                    alert('تم إرسال أمر الطباعة');
+                } catch (e) {
+                    alert('فشل الطباعة: ' + e.message);
+                }
+            }
+
+            // المستخدمين
+            function openUserModal() {
+                document.getElementById('userModalTitle').textContent = 'مستخدم جديد';
+                document.getElementById('userForm').reset();
+                document.getElementById('userId').value = '';
+                document.getElementById('userModal').style.display = 'flex';
+            }
+
+            window.editUser = function(id) {
+                const u = users.find(x => x.id === id);
+                if (!u) return;
+                document.getElementById('userModalTitle').textContent = 'تعديل مستخدم';
+                document.getElementById('userId').value = u.id;
+                document.getElementById('username').value = u.username;
+                document.getElementById('fullName').value = u.full_name;
+                document.getElementById('userRole').value = u.role;
+                document.getElementById('userStatus').value = u.status || 'active';
+                document.getElementById('userModal').style.display = 'flex';
             };
-            reader.readAsText(file);
-        }
 
-        function deleteAllData() {
-            if (confirm('تحذير: سيتم حذف جميع البيانات نهائياً!')) alert('لم تنفذ بعد');
-        }
+            async function saveUser(e) {
+                e.preventDefault();
+                const id = document.getElementById('userId').value;
+                const username = document.getElementById('username').value.trim();
+                const full_name = document.getElementById('fullName').value.trim();
+                const password = document.getElementById('password').value;
+                const role = document.getElementById('userRole').value;
+                const status = document.getElementById('userStatus').value;
+                if (!username || !full_name) return;
+                const user = { username, full_name, role, status };
+                if (id) user.id = id;
+                if (password) user.password = password;
+                await DB.saveUser(user);
+                document.getElementById('userModal').style.display = 'none';
+                await loadUsers();
+            }
 
-        window.switchTab = switchTab;
-        window.saveAllSettings = saveAllSettings;
-        window.openUserModal = openUserModal;
-        window.closeUserModal = closeUserModal;
-        window.editUser = editUser;
-        window.deleteUser = deleteUser;
-        window.saveUser = saveUser;
-        window.searchBluetoothPrinters = searchBluetoothPrinters;
-        window.testPrint = testPrint;
-        window.createBackup = createBackup;
-        window.restoreBackup = restoreBackup;
-        window.deleteAllData = deleteAllData;
+            async function deleteUser(id) {
+                if (!confirm('حذف المستخدم؟')) return;
+                await DB.deleteUser(id);
+                await loadUsers();
+            }
+
+            // نسخ احتياطي
+            async function createBackup() {
+                const data = {
+                    products: await DB.getProducts(),
+                    customers: await DB.getParties('customer'),
+                    suppliers: await DB.getParties('supplier'),
+                    invoices: await DB.getInvoices(),
+                    purchases: await DB.getPurchases(),
+                    transactions: await DB.getTransactions(),
+                    settings: await DB.getSettings()
+                };
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `backup_${Utils.getToday()}.json`;
+                a.click();
+                document.getElementById('lastBackup').textContent = new Date().toLocaleString();
+            }
+
+            async function restoreBackup(file) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (!confirm('استعادة النسخة ستؤدي إلى فقدان البيانات الحالية. متابعة؟')) return;
+                        if (data.products) for (const p of data.products) await DB.saveProduct(p);
+                        if (data.customers) for (const c of data.customers) await DB.saveParty(c);
+                        if (data.suppliers) for (const s of data.suppliers) await DB.saveParty(s);
+                        if (data.invoices) for (const i of data.invoices) await DB.saveInvoice(i);
+                        if (data.purchases) for (const p of data.purchases) await DB.savePurchase(p);
+                        if (data.transactions) for (const t of data.transactions) await DB.saveTransaction(t);
+                        if (data.settings) await DB.saveSettings(data.settings);
+                        alert('تمت الاستعادة بنجاح');
+                        location.reload();
+                    } catch (ex) { alert('ملف غير صالح'); }
+                };
+                reader.readAsText(file);
+            }
+
+            function deleteAllData() {
+                if (confirm('تحذير: سيتم حذف جميع البيانات نهائياً!')) {
+                    alert('سيتم تنفيذ الحذف قريباً');
+                }
+            }
+
+            // ربط الأحداث
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+                App.initUserInterface();
+                await loadSettings();
+                await loadUsers();
+
+                document.getElementById('saveAllSettingsBtn').addEventListener('click', saveAllSettings);
+                document.getElementById('searchBluetoothBtn').addEventListener('click', searchBluetoothPrinter);
+                document.getElementById('testPrintBtn').addEventListener('click', testPrint);
+                document.getElementById('addUserBtn').addEventListener('click', openUserModal);
+                document.getElementById('closeUserModalBtn').addEventListener('click', () => document.getElementById('userModal').style.display = 'none');
+                document.getElementById('userForm').addEventListener('submit', saveUser);
+                document.getElementById('createBackupBtn').addEventListener('click', createBackup);
+                document.getElementById('restoreBackupBtn').addEventListener('click', () => document.getElementById('restoreFile').click());
+                document.getElementById('restoreFile').addEventListener('change', (e) => restoreBackup(e.target.files[0]));
+                document.getElementById('deleteAllDataBtn').addEventListener('click', deleteAllData);
+            });
+
+            window.deleteUser = deleteUser;
+        })();
     </script>
 </body>
 </html>
