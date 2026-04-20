@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>العملاء والموردين · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>العملاء والموردين · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -182,8 +185,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -195,7 +198,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -315,6 +318,10 @@
     </div>
 
     <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js');
+        }
+
         (function() {
             const userBtn = document.getElementById('userProfileBtn');
             const userDropdown = document.getElementById('userDropdown');
@@ -322,6 +329,7 @@
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
             const sidebar = document.getElementById('sidebar');
             document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
             let customers = [], suppliers = [], invoices = [], purchases = [], transactions = [], currentParty = null;
 
@@ -431,9 +439,8 @@
                 await DB.saveParty(currentParty);
                 
                 const transType = action === 'collect' ? 'income' : 'expense';
-                const transId = crypto.randomUUID();
                 await DB.saveTransaction({
-                    id: transId,
+                    id: crypto.randomUUID(),
                     date, type: transType, amount,
                     description: `${action === 'collect' ? 'تحصيل من' : 'إضافة رصيد إلى'} ${currentParty.name}${notes ? ' - ' + notes : ''}`,
                     payment_method: 'cash'
@@ -447,10 +454,7 @@
 
             function printStatement() {
                 if (!currentParty) return;
-                const win = window.open('', '_blank');
-                win.document.write(`<html dir="rtl"><head><title>كشف حساب</title><style>body{font-family:Segoe UI;}</style></head><body>${document.getElementById('statementBody').innerHTML}</body></html>`);
-                win.document.close();
-                win.print();
+                printCustomerStatement(currentParty, invoices.filter(i => i.customer_id === currentParty.id), transactions.filter(t => t.description.includes(currentParty.name)));
             }
 
             function openPartyModal() {
@@ -484,25 +488,11 @@
                 const email = document.getElementById('partyEmail').value.trim();
                 const balance = parseFloat(document.getElementById('partyBalance').value) || 0;
 
-                if (!name) {
-                    alert('الاسم مطلوب');
-                    return;
-                }
+                if (!name) { alert('الاسم مطلوب'); return; }
 
-                const party = { 
-                    name, 
-                    phone: phone || null, 
-                    address: address || null, 
-                    email: email || null, 
-                    balance, 
-                    type 
-                };
-                
-                if (!id) {
-                    party.id = crypto.randomUUID();
-                } else {
-                    party.id = id;
-                }
+                const party = { name, phone: phone || null, address: address || null, email: email || null, balance, type };
+                if (id) party.id = id;
+                else party.id = crypto.randomUUID();
 
                 try {
                     await DB.saveParty(party);
