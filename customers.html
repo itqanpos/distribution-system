@@ -233,7 +233,6 @@
             <button class="tab-btn" id="suppliersTabBtn"><i class="fas fa-truck"></i> الموردين</button>
         </div>
 
-        <!-- تبويب العملاء -->
         <div id="customersTab" class="tab-content active">
             <div class="stats-grid" id="customersStats"></div>
             <div class="table-container">
@@ -251,7 +250,6 @@
             </div>
         </div>
 
-        <!-- تبويب الموردين -->
         <div id="suppliersTab" class="tab-content">
             <div class="stats-grid" id="suppliersStats"></div>
             <div class="table-container">
@@ -433,7 +431,9 @@
                 await DB.saveParty(currentParty);
                 
                 const transType = action === 'collect' ? 'income' : 'expense';
+                const transId = crypto.randomUUID();
                 await DB.saveTransaction({
+                    id: transId,
                     date, type: transType, amount,
                     description: `${action === 'collect' ? 'تحصيل من' : 'إضافة رصيد إلى'} ${currentParty.name}${notes ? ' - ' + notes : ''}`,
                     payment_method: 'cash'
@@ -497,16 +497,19 @@
                     balance, 
                     type 
                 };
-                if (id) party.id = id;
+                
+                if (!id) {
+                    party.id = crypto.randomUUID();
+                } else {
+                    party.id = id;
+                }
 
                 try {
-                    console.log('حفظ الطرف:', party);
                     await DB.saveParty(party);
                     document.getElementById('partyModal').style.display = 'none';
                     await loadData();
                     alert('تم الحفظ بنجاح');
                 } catch (err) {
-                    console.error('فشل الحفظ:', err);
                     alert('فشل حفظ العميل: ' + (err.message || 'خطأ غير معروف'));
                 }
             }
