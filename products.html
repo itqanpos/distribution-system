@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>المنتجات · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>المنتجات · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -110,8 +113,9 @@
         .stat-card {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center; cursor: pointer;
+            text-align: center; cursor: pointer; transition: transform 0.2s;
         }
+        .stat-card:hover { transform: translateY(-3px); }
         .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
         .stat-card .value { font-size: 24px; font-weight: 700; }
         .stat-card .label { color: #64748b; font-size: 13px; }
@@ -123,10 +127,16 @@
             display: flex; align-items: center; background: white;
             border-radius: 40px; padding: 8px 20px; border: 1px solid #cbd5e1;
         }
-        .search-wrapper i { color: #94a3b8; margin-left: 10px; }
+        .search-wrapper i { color: #94a3b8; margin-left: 10px; font-size: 18px; }
         .search-wrapper input {
             border: none; padding: 12px 0; width: 250px; outline: none; font-size: 16px;
         }
+        .filter-buttons { display: flex; gap: 8px; }
+        .filter-btn {
+            padding: 8px 16px; border-radius: 30px; border: 1px solid #cbd5e1;
+            background: white; cursor: pointer;
+        }
+        .filter-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
         .table-container {
             background: white; border-radius: 20px; padding: 24px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
@@ -151,6 +161,7 @@
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 28px; }
+        .modal-header h2 { font-size: 26px; }
         .form-group { margin-bottom: 24px; }
         .form-group label { display: block; margin-bottom: 10px; font-weight: 600; font-size: 16px; }
         .form-group input, .form-group select, .form-group textarea {
@@ -197,8 +208,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -210,7 +221,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -299,6 +310,10 @@
     </div>
 
     <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js');
+        }
+
         (function() {
             const userBtn = document.getElementById('userProfileBtn');
             const userDropdown = document.getElementById('userDropdown');
@@ -306,6 +321,7 @@
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
             const sidebar = document.getElementById('sidebar');
             document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
             let products = [], editingProductId = null;
 
