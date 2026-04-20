@@ -110,9 +110,8 @@
         .stat-card {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center; cursor: pointer; transition: transform 0.2s;
+            text-align: center; cursor: pointer;
         }
-        .stat-card:hover { transform: translateY(-3px); }
         .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
         .stat-card .value { font-size: 24px; font-weight: 700; }
         .stat-card .label { color: #64748b; font-size: 13px; }
@@ -124,16 +123,10 @@
             display: flex; align-items: center; background: white;
             border-radius: 40px; padding: 8px 20px; border: 1px solid #cbd5e1;
         }
-        .search-wrapper i { color: #94a3b8; margin-left: 10px; font-size: 18px; }
+        .search-wrapper i { color: #94a3b8; margin-left: 10px; }
         .search-wrapper input {
             border: none; padding: 12px 0; width: 250px; outline: none; font-size: 16px;
         }
-        .filter-buttons { display: flex; gap: 8px; }
-        .filter-btn {
-            padding: 8px 16px; border-radius: 30px; border: 1px solid #cbd5e1;
-            background: white; cursor: pointer;
-        }
-        .filter-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
         .table-container {
             background: white; border-radius: 20px; padding: 24px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
@@ -158,7 +151,6 @@
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 28px; }
-        .modal-header h2 { font-size: 26px; }
         .form-group { margin-bottom: 24px; }
         .form-group label { display: block; margin-bottom: 10px; font-weight: 600; font-size: 16px; }
         .form-group input, .form-group select, .form-group textarea {
@@ -170,12 +162,11 @@
             margin-top: 10px;
         }
         .unit-header {
-            display: grid; grid-template-columns: 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.8fr 0.5fr;
+            display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.2fr 0.5fr;
             gap: 8px; font-weight: 600; margin-bottom: 15px; padding: 0 8px;
-            color: var(--primary);
         }
         .unit-row {
-            display: grid; grid-template-columns: 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.8fr 0.5fr;
+            display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.2fr 0.5fr;
             gap: 8px; align-items: center; margin-bottom: 12px;
         }
         .unit-row input {
@@ -186,6 +177,9 @@
             background: var(--light); border: 2px dashed var(--secondary);
             padding: 14px; border-radius: 18px; text-align: center; cursor: pointer;
             font-size: 16px; font-weight: 600; margin-top: 15px;
+        }
+        .help-text {
+            font-size: 13px; color: #64748b; margin-top: 8px;
         }
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
@@ -253,56 +247,46 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card" onclick="filterByStock('all')"><div class="icon"><i class="fas fa-box"></i></div><div class="value" id="totalProducts">0</div><div class="label">إجمالي المنتجات</div></div>
-            <div class="stat-card" onclick="filterByStock('low')"><div class="icon"><i class="fas fa-exclamation-triangle"></i></div><div class="value" id="lowStockCount">0</div><div class="label">منخفضة المخزون</div></div>
-            <div class="stat-card" onclick="filterByStock('out')"><div class="icon"><i class="fas fa-times-circle"></i></div><div class="value" id="outOfStockCount">0</div><div class="label">نفذت</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="value" id="totalProducts">0</div><div class="label">إجمالي المنتجات</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-exclamation-triangle"></i></div><div class="value" id="lowStockCount">0</div><div class="label">منخفضة المخزون</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-times-circle"></i></div><div class="value" id="outOfStockCount">0</div><div class="label">نفذت</div></div>
             <div class="stat-card"><div class="icon"><i class="fas fa-tags"></i></div><div class="value" id="categoriesCount">0</div><div class="label">التصنيفات</div></div>
         </div>
 
         <div class="filter-bar">
             <div class="search-wrapper">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="بحث بالاسم أو الباركود...">
+                <input type="text" id="searchInput" placeholder="بحث باسم المنتج...">
             </div>
-            <select id="categoryFilter" class="filter-btn">
-                <option value="all">كل التصنيفات</option>
-            </select>
-            <div class="filter-buttons">
-                <button class="filter-btn active" id="filterAllStock">الكل</button>
-                <button class="filter-btn" id="filterLowStock">منخفض</button>
-                <button class="filter-btn" id="filterOutStock">نفذ</button>
-            </div>
+            <select id="categoryFilter" class="filter-btn"><option value="all">كل التصنيفات</option></select>
             <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
         <div class="table-container">
             <table>
-                <thead>
-                    <tr><th>الباركود</th><th>المنتج</th><th>التصنيف</th><th>الوحدات</th><th>الحالة</th><th>إجراءات</th></tr>
-                </thead>
+                <thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات</th><th>الحالة</th><th>إجراءات</th></tr></thead>
                 <tbody id="productsBody"></tbody>
             </table>
         </div>
     </main>
 
-    <!-- مودال المنتج -->
+    <!-- مودال المنتج (بدون باركود) -->
     <div class="modal" id="productModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalTitle">منتج جديد</h2><button id="closeModalBtn">&times;</button></div>
             <form id="productForm">
                 <input type="hidden" id="productId">
-                <div class="form-group"><label>الباركود</label><input type="text" id="barcode" placeholder="اختياري"></div>
                 <div class="form-group"><label>اسم المنتج</label><input type="text" id="productName" required></div>
                 <div class="form-group"><label>التصنيف</label><input type="text" id="category" list="categoriesList" placeholder="مثال: مشروبات، ألبان..."><datalist id="categoriesList"></datalist></div>
                 
                 <div class="units-container">
-                    <label style="font-size:18px; margin-bottom:15px;">وحدات القياس والتسعير</label>
+                    <label style="font-size:18px; margin-bottom:15px;">وحدات القياس</label>
                     <div class="unit-header">
                         <span>اسم الوحدة</span><span>سعر البيع</span><span>الحد الأدنى</span><span>الحد الأقصى</span><span>المخزون</span><span>عامل التحويل</span><span></span>
                     </div>
                     <div id="unitsContainer"></div>
                     <div class="add-unit-btn" id="addUnitBtn"><i class="fas fa-plus-circle"></i> إضافة وحدة</div>
-                    <small style="display:block; margin-top:10px;">عامل التحويل: عدد القطع في هذه الوحدة (مثال: كرتونة = 12، اكتب 12)</small>
+                    <div class="help-text">عامل التحويل = كم وحدة أساسية (قطعة) في هذه الوحدة. مثال: كرتونة = 20، اكتب 20</div>
                 </div>
                 
                 <div class="form-group" style="margin-top:15px;"><label>ملاحظات</label><textarea id="notes" rows="2"></textarea></div>
@@ -323,7 +307,7 @@
             const sidebar = document.getElementById('sidebar');
             document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
-            let products = [], currentStockFilter = 'all', editingProductId = null;
+            let products = [], editingProductId = null;
 
             async function loadProducts() {
                 try {
@@ -359,37 +343,17 @@
                 datalist.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
             }
 
-            function setStockFilter(filter) {
-                currentStockFilter = filter;
-                document.querySelectorAll('.filter-btn').forEach((btn, i) => {
-                    btn.classList.toggle('active', ['all','low','out'][i] === filter);
-                });
-                applyFilters();
-            }
-
-            function filterByStock(filter) { setStockFilter(filter); }
-
             function applyFilters() {
                 const term = document.getElementById('searchInput').value.toLowerCase();
                 const category = document.getElementById('categoryFilter').value;
-                let filtered = products.filter(p => 
-                    (p.name || '').toLowerCase().includes(term) || (p.barcode || '').includes(term)
-                );
+                let filtered = products.filter(p => (p.name || '').toLowerCase().includes(term));
                 if (category !== 'all') filtered = filtered.filter(p => p.category === category);
-                if (currentStockFilter === 'low') {
-                    filtered = filtered.filter(p => {
-                        const stock = p.units?.[0]?.stock || 0;
-                        return stock > 0 && stock <= (p.min_stock || 5);
-                    });
-                } else if (currentStockFilter === 'out') {
-                    filtered = filtered.filter(p => (p.units?.[0]?.stock || 0) <= 0);
-                }
                 renderTable(filtered);
             }
 
             function renderTable(data) {
                 const tbody = document.getElementById('productsBody');
-                if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;">لا توجد منتجات</td></tr>'; return; }
+                if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">لا توجد منتجات</td></tr>'; return; }
                 tbody.innerHTML = data.map(p => {
                     const units = p.units || [];
                     const mainUnit = units[0];
@@ -398,15 +362,11 @@
                     const status = stock <= 0 ? '<span class="badge badge-danger">نفذ</span>' : (stock <= minStock ? '<span class="badge badge-danger">منخفض</span>' : '<span class="badge badge-success">متوفر</span>');
                     const unitsText = units.map(u => `${u.name} (${Utils.formatMoney(u.price)})`).join('، ');
                     return `<tr>
-                        <td>${p.barcode || '-'}</td>
-                        <td>${p.name}</td>
-                        <td>${p.category || '-'}</td>
-                        <td>${unitsText}</td>
-                        <td>${status}</td>
+                        <td>${p.name}</td><td>${p.category || '-'}</td><td>${unitsText}</td><td>${status}</td>
                         <td class="action-icons">
-                            <i class="fas fa-edit" onclick="editProduct('${p.id}')" title="تعديل"></i>
-                            <i class="fas fa-copy" onclick="duplicateProduct('${p.id}')" title="نسخ"></i>
-                            <i class="fas fa-trash" onclick="deleteProduct('${p.id}')" title="حذف"></i>
+                            <i class="fas fa-edit" onclick="editProduct('${p.id}')"></i>
+                            <i class="fas fa-copy" onclick="duplicateProduct('${p.id}')"></i>
+                            <i class="fas fa-trash" onclick="deleteProduct('${p.id}')"></i>
                         </td>
                     </tr>`;
                 }).join('');
@@ -430,9 +390,7 @@
                     const firstPrice = parseFloat(rows[0].querySelector('.unit-price')?.value) || 0;
                     const firstFactor = parseFloat(rows[0].querySelector('.unit-factor')?.value) || 1;
                     const currentFactor = parseFloat(document.querySelector('.unit-row:last-child .unit-factor')?.value) || 1;
-                    if (firstPrice && firstFactor) {
-                        return (firstPrice / firstFactor) * currentFactor;
-                    }
+                    if (firstPrice && firstFactor) return (firstPrice / firstFactor) * currentFactor;
                 }
                 return 0;
             }
@@ -448,7 +406,7 @@
                     <input type="number" class="unit-min" placeholder="الحد الأدنى" value="${unit.minPrice || 0}" step="0.01">
                     <input type="number" class="unit-max" placeholder="الحد الأقصى" value="${unit.maxPrice || 0}" step="0.01">
                     <input type="number" class="unit-stock" placeholder="المخزون" value="${unit.stock}" step="0.001">
-                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" title="عدد القطع في هذه الوحدة" onchange="updateUnitPriceSuggestion(this)">
+                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" onchange="updateUnitPriceSuggestion(this)">
                     <button type="button" class="btn" onclick="this.closest('.unit-row').remove()"><i class="fas fa-trash"></i></button>
                 `;
                 container.appendChild(row);
@@ -457,8 +415,7 @@
             window.updateUnitPriceSuggestion = function(input) {
                 const row = input.closest('.unit-row');
                 const priceInput = row.querySelector('.unit-price');
-                const newPrice = getSuggestedPrice();
-                priceInput.value = newPrice.toFixed(2);
+                priceInput.value = getSuggestedPrice().toFixed(2);
             };
 
             window.editProduct = function(id) {
@@ -467,7 +424,6 @@
                 editingProductId = id;
                 document.getElementById('modalTitle').textContent = 'تعديل منتج';
                 document.getElementById('productId').value = p.id;
-                document.getElementById('barcode').value = p.barcode || '';
                 document.getElementById('productName').value = p.name;
                 document.getElementById('category').value = p.category || '';
                 document.getElementById('notes').value = p.notes || '';
@@ -483,7 +439,6 @@
                 if (!p) return;
                 document.getElementById('modalTitle').textContent = 'نسخ منتج';
                 document.getElementById('productId').value = '';
-                document.getElementById('barcode').value = p.barcode ? p.barcode + '_copy' : '';
                 document.getElementById('productName').value = p.name + ' (نسخة)';
                 document.getElementById('category').value = p.category || '';
                 document.getElementById('notes').value = p.notes || '';
@@ -497,7 +452,6 @@
             async function saveProduct(e) {
                 e.preventDefault();
                 const id = document.getElementById('productId').value;
-                const barcode = document.getElementById('barcode').value.trim();
                 const name = document.getElementById('productName').value.trim();
                 const category = document.getElementById('category').value.trim();
                 const notes = document.getElementById('notes').value.trim();
@@ -514,16 +468,14 @@
                 });
                 if (!name) { alert('اسم المنتج مطلوب'); return; }
                 if (!units.length) { alert('أضف وحدة واحدة على الأقل'); return; }
-                const product = { barcode: barcode || null, name, category: category || null, units, notes: notes || null };
+                const product = { name, category: category || null, units, notes: notes || null };
                 if (id) product.id = id;
                 else product.id = crypto.randomUUID();
                 try {
                     await DB.saveProduct(product);
                     closeProductModal();
                     await loadProducts();
-                } catch (err) {
-                    alert('فشل حفظ المنتج: ' + err.message);
-                }
+                } catch (err) { alert('فشل حفظ المنتج: ' + err.message); }
             }
 
             async function deleteProduct(id) {
@@ -545,13 +497,8 @@
                 document.getElementById('cancelModalBtn').addEventListener('click', closeProductModal);
                 document.getElementById('productForm').addEventListener('submit', saveProduct);
                 document.getElementById('addUnitBtn').addEventListener('click', () => addUnitRow());
-
-                document.getElementById('filterAllStock').addEventListener('click', () => setStockFilter('all'));
-                document.getElementById('filterLowStock').addEventListener('click', () => setStockFilter('low'));
-                document.getElementById('filterOutStock').addEventListener('click', () => setStockFilter('out'));
             });
 
-            window.filterByStock = filterByStock;
             window.deleteProduct = deleteProduct;
         })();
     </script>
