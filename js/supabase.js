@@ -1,13 +1,11 @@
 // js/supabase.js
-// الإصدار النهائي المتوافق تماماً مع جداول Supabase
+// الإصدار النهائي المتوافق مع جميع الجداول والحقول الجديدة
 (function() {
-    // ==================== بيانات مشروع Supabase ====================
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
-    
+
     if (typeof supabase === 'undefined') {
         console.error('❌ Supabase library not loaded.');
-        alert('خطأ: مكتبة Supabase غير محملة.');
         return;
     }
 
@@ -88,7 +86,7 @@
         }
     };
 
-    // ==================== دوال قاعدة البيانات (متوافقة مع أسماء الأعمدة الفعلية) ====================
+    // ==================== دوال قاعدة البيانات ====================
     window.DB = {
         // ---- المنتجات ----
         async getProducts() {
@@ -97,11 +95,10 @@
             return data;
         },
         async saveProduct(product) {
-            // التأكد من أن units هو JSON صالح
             if (product.units && typeof product.units === 'string') {
                 try { product.units = JSON.parse(product.units); } catch { product.units = []; }
             }
-            if (!product.units) product.units = [{ name: 'قطعة', price: 0, stock: 0, factor: 1 }];
+            if (!product.units) product.units = [{ name: 'قطعة', price: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }];
             
             const clean = { ...product };
             if (!clean.id) clean.id = 'PRD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
@@ -119,7 +116,7 @@
             if (error) throw error;
         },
 
-        // ---- الأطراف (عملاء وموردين) ----
+        // ---- الأطراف ----
         async getParties(type = null) {
             let query = supabaseClient.from('parties').select('*').order('name');
             if (type) query = query.eq('type', type);
@@ -159,7 +156,7 @@
             if (error) throw error;
         },
 
-        // ---- الفواتير (مبيعات) ----
+        // ---- الفواتير ----
         async getInvoices() {
             const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
             if (error) throw error;
@@ -300,7 +297,7 @@
             return new Date().toISOString().split('T')[0];
         },
         showToast(message, type = 'info') {
-            alert(message); // يمكن تحسينها لاحقاً
+            alert(message);
         },
         async confirmDelete(message = 'هل أنت متأكد؟') {
             return confirm(message);
