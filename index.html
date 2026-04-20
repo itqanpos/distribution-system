@@ -2,156 +2,61 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>تسجيل الدخول · نظام التوزيع الغذائي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <style>
-        :root {
-            --primary: #1e293b;
-            --secondary: #3b82f6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --surface: #ffffff;
-            --border-light: #e2e8f0;
-        }
+        :root { --primary: #1e293b; --secondary: #3b82f6; --success: #10b981; --danger: #ef4444; --surface: #ffffff; --border-light: #e2e8f0; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body {
             background: linear-gradient(145deg, #0f172a, #1e293b);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 16px;
         }
         .card {
-            background: var(--surface);
-            border-radius: 32px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-            width: 100%;
-            max-width: 460px;
-            padding: 32px 28px;
+            background: var(--surface); border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            width: 100%; max-width: 440px; padding: 32px 24px;
         }
-        .logo {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+        .logo { text-align: center; margin-bottom: 24px; }
         .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), #06b6d4);
-            color: white;
-            width: 70px;
-            height: 70px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            margin: 0 auto 16px;
+            background: linear-gradient(135deg, var(--secondary), #06b6d4); color: white;
+            width: 72px; height: 72px; border-radius: 24px; display: flex; align-items: center;
+            justify-content: center; font-size: 36px; margin: 0 auto 16px;
         }
-        h2 { color: var(--primary); font-size: 24px; font-weight: 700; }
-        .subtitle { color: #64748b; margin-bottom: 20px; font-size: 14px; }
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 28px;
-            background: #f1f5f9;
-            padding: 6px;
-            border-radius: 16px;
-        }
+        h2 { color: var(--primary); font-size: 26px; font-weight: 700; text-align: center; }
+        .subtitle { color: #64748b; text-align: center; margin-bottom: 24px; }
+        .tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 6px; border-radius: 16px; margin-bottom: 28px; }
         .tab-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            color: #64748b;
-            transition: all 0.2s;
+            flex: 1; padding: 12px; border: none; background: transparent; border-radius: 12px;
+            font-weight: 600; cursor: pointer; color: #64748b;
         }
-        .tab-btn.active {
-            background: white;
-            color: var(--secondary);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
+        .tab-btn.active { background: white; color: var(--secondary); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .form-panel { display: none; }
         .form-panel.active { display: block; }
-        .input-group {
-            position: relative;
-            margin-bottom: 18px;
+        .input-group { position: relative; margin-bottom: 18px; }
+        .input-group i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 16px 48px 16px 16px; border: 2px solid var(--border-light);
+            border-radius: 16px; font-size: 16px; background: white;
         }
-        .input-group i {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
+        .btn {
+            width: 100%; padding: 16px; background: var(--secondary); color: white;
+            border: none; border-radius: 16px; font-size: 17px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
         }
-        .input-group input {
-            width: 100%;
-            padding: 15px 50px 15px 16px;
-            border: 2px solid var(--border-light);
-            border-radius: 16px;
-            font-size: 15px;
-        }
-        .input-group input:focus { border-color: var(--secondary); outline: none; }
-        .submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: var(--secondary);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: background 0.2s;
-        }
-        .submit-btn:hover { background: #2563eb; }
-        .error-msg {
-            color: var(--danger);
-            text-align: center;
-            margin-top: 12px;
-            display: none;
-        }
-        .success-msg {
-            color: var(--success);
-            text-align: center;
-            margin-top: 12px;
-            display: none;
-        }
-        .demo-section {
-            margin-top: 24px;
-            text-align: center;
-            border-top: 1px solid var(--border-light);
-            padding-top: 20px;
-        }
-        .demo-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-        }
+        .error-msg { color: var(--danger); text-align: center; margin-top: 12px; display: none; }
+        .success-msg { color: var(--success); text-align: center; margin-top: 12px; display: none; }
+        .demo-section { margin-top: 24px; text-align: center; border-top: 1px solid var(--border-light); padding-top: 20px; }
         .demo-btn {
-            flex: 1;
-            padding: 12px;
-            border: 1.5px solid var(--border-light);
-            border-radius: 14px;
-            background: white;
-            font-weight: 600;
-            cursor: pointer;
+            padding: 10px 16px; border: 1.5px solid var(--border-light); border-radius: 14px;
+            background: white; font-weight: 600; cursor: pointer;
         }
-        .demo-btn.admin { color: #2563eb; }
-        .demo-btn.rep { color: #16a34a; }
-        .note {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 12px;
-        }
+        .note { font-size: 13px; color: #64748b; margin-top: 12px; }
+        .register-success { color: var(--success); margin: 10px 0; display: none; }
     </style>
 </head>
 <body>
@@ -162,184 +67,124 @@
             <p class="subtitle">منصة إدارة المبيعات والمخزون</p>
         </div>
 
-        <!-- التبويبات -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('login')">تسجيل الدخول</button>
-            <button class="tab-btn" onclick="switchTab('signup')">إنشاء حساب</button>
+            <button class="tab-btn active" id="tabLogin">تسجيل الدخول</button>
+            <button class="tab-btn" id="tabSignup">إنشاء حساب</button>
         </div>
 
-        <!-- نموذج تسجيل الدخول -->
+        <!-- تسجيل الدخول -->
         <div id="loginPanel" class="form-panel active">
             <form id="loginForm">
-                <div class="input-group">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="loginUsername" placeholder="اسم المستخدم" value="admin" required>
-                </div>
-                <div class="input-group">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="loginPassword" placeholder="كلمة المرور" value="123456" required>
-                </div>
-                <div class="error-msg" id="loginError">بيانات الدخول غير صحيحة</div>
-                <button type="submit" class="submit-btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
+                <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="loginEmail" placeholder="البريد الإلكتروني" value="admin@example.com" required></div>
+                <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="loginPassword" placeholder="كلمة المرور" value="123456" required></div>
+                <div class="error-msg" id="loginError"></div>
+                <button type="submit" class="btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
             </form>
         </div>
 
-        <!-- نموذج إنشاء حساب -->
+        <!-- إنشاء حساب -->
         <div id="signupPanel" class="form-panel">
             <form id="signupForm">
-                <div class="input-group">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="signupUsername" placeholder="اسم المستخدم" required>
-                </div>
-                <div class="input-group">
-                    <i class="fas fa-user-circle"></i>
-                    <input type="text" id="signupFullName" placeholder="الاسم الكامل" required>
-                </div>
-                <div class="input-group">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="signupPassword" placeholder="كلمة المرور" required>
-                </div>
-                <div class="input-group">
-                    <i class="fas fa-user-tag"></i>
-                    <select id="signupRole" style="width:100%; padding:15px 16px; border:2px solid var(--border-light); border-radius:16px; font-size:15px; background:white;">
+                <div class="input-group"><i class="fas fa-user"></i><input type="text" id="signupFullName" placeholder="الاسم الكامل" required></div>
+                <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="signupEmail" placeholder="البريد الإلكتروني" required></div>
+                <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="signupPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" minlength="6" required></div>
+                <div class="input-group"><i class="fas fa-user-tag"></i>
+                    <select id="signupRole">
                         <option value="admin">مدير</option>
                         <option value="rep" selected>مندوب</option>
                     </select>
                 </div>
-                <div class="error-msg" id="signupError">حدث خطأ</div>
-                <div class="success-msg" id="signupSuccess">تم إنشاء الحساب بنجاح!</div>
-                <button type="submit" class="submit-btn"><i class="fas fa-user-plus"></i> إنشاء حساب</button>
+                <div class="error-msg" id="signupError"></div>
+                <div class="success-msg" id="signupSuccess"></div>
+                <button type="submit" class="btn"><i class="fas fa-user-plus"></i> إنشاء حساب</button>
             </form>
-            <p class="note"><i class="fas fa-info-circle"></i> سيتم إنشاء حساب جديد ويمكنك تسجيل الدخول مباشرة.</p>
+            <p class="note"><i class="fas fa-info-circle"></i> سيتم إرسال بريد تأكيدي (يمكن تعطيله من إعدادات Supabase)</p>
         </div>
 
-        <!-- حسابات تجريبية -->
         <div class="demo-section">
             <p style="color:#64748b; margin-bottom:8px;">حسابات تجريبية</p>
-            <div class="demo-buttons">
-                <button class="demo-btn admin" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
-                <button class="demo-btn rep" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
+            <div style="display:flex; gap:10px;">
+                <button class="demo-btn" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
+                <button class="demo-btn" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
             </div>
         </div>
     </div>
 
     <script>
-        // التبديل بين التبويبات
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.form-panel').forEach(panel => panel.classList.remove('active'));
-            if (tab === 'login') {
-                document.querySelector('.tab-btn:first-child').classList.add('active');
-                document.getElementById('loginPanel').classList.add('active');
-            } else {
-                document.querySelector('.tab-btn:last-child').classList.add('active');
-                document.getElementById('signupPanel').classList.add('active');
-            }
-            // إخفاء رسائل الخطأ
-            document.querySelectorAll('.error-msg, .success-msg').forEach(el => el.style.display = 'none');
-        }
+        const loginPanel = document.getElementById('loginPanel');
+        const signupPanel = document.getElementById('signupPanel');
+        const tabLogin = document.getElementById('tabLogin');
+        const tabSignup = document.getElementById('tabSignup');
 
-        // تعبئة بيانات تجريبية
-        function fillDemo(role) {
-            document.getElementById('loginUsername').value = role === 'admin' ? 'admin' : 'rep1';
-            document.getElementById('loginPassword').value = '123456';
-            switchTab('login');
-        }
+        tabLogin.addEventListener('click', () => {
+            tabLogin.classList.add('active'); tabSignup.classList.remove('active');
+            loginPanel.classList.add('active'); signupPanel.classList.remove('active');
+        });
+        tabSignup.addEventListener('click', () => {
+            tabSignup.classList.add('active'); tabLogin.classList.remove('active');
+            signupPanel.classList.add('active'); loginPanel.classList.remove('active');
+        });
 
-        // تحويل تلقائي إذا كان مسجلاً بالفعل
+        // التحقق من وجود جلسة
         if (App.getCurrentUser()) {
             const user = App.getCurrentUser();
             window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
         }
 
-        // === تسجيل الدخول ===
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('loginUsername').value.trim();
+            const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorEl = document.getElementById('loginError');
-            
-            if (!username || !password) {
-                errorEl.style.display = 'block';
-                errorEl.textContent = 'الرجاء إدخال اسم المستخدم وكلمة المرور';
-                return;
-            }
+            errorEl.style.display = 'none';
 
-            const result = await App.login(username, password);
+            const result = await App.login(email, password);
             if (result.success) {
                 window.location.href = result.redirectUrl;
             } else {
-                errorEl.style.display = 'block';
                 errorEl.textContent = result.message;
+                errorEl.style.display = 'block';
             }
         });
 
-        // === إنشاء حساب جديد ===
         document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('signupUsername').value.trim();
             const fullName = document.getElementById('signupFullName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
             const password = document.getElementById('signupPassword').value;
             const role = document.getElementById('signupRole').value;
-            
             const errorEl = document.getElementById('signupError');
             const successEl = document.getElementById('signupSuccess');
             errorEl.style.display = 'none';
             successEl.style.display = 'none';
 
-            if (!username || !fullName || !password) {
-                errorEl.style.display = 'block';
-                errorEl.textContent = 'جميع الحقول مطلوبة';
-                return;
-            }
+            if (password.length < 6) { errorEl.textContent = 'كلمة المرور 6 أحرف على الأقل'; errorEl.style.display = 'block'; return; }
 
-            try {
-                // التحقق من عدم وجود مستخدم بنفس الاسم
-                const { data: existing } = await supabase
-                    .from('users')
-                    .select('username')
-                    .eq('username', username)
-                    .single();
-
-                if (existing) {
-                    errorEl.style.display = 'block';
-                    errorEl.textContent = 'اسم المستخدم موجود مسبقاً';
-                    return;
-                }
-
-                // إنشاء معرف فريد
-                const userId = 'USR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
-                
-                const { error } = await supabase
-                    .from('users')
-                    .insert([{
-                        id: userId,
-                        username: username,
-                        full_name: fullName,
-                        password: password,
-                        role: role,
-                        status: 'active'
-                    }]);
-
-                if (error) throw error;
-
+            const result = await App.signup(email, password, fullName, role);
+            if (result.success) {
+                successEl.textContent = result.message;
                 successEl.style.display = 'block';
                 document.getElementById('signupForm').reset();
-                
-                // بعد ثانيتين، حوّل إلى تبويب تسجيل الدخول
                 setTimeout(() => {
-                    switchTab('login');
-                    document.getElementById('loginUsername').value = username;
-                    document.getElementById('loginPassword').value = password;
-                }, 1500);
-            } catch (err) {
-                console.error(err);
+                    tabLogin.click();
+                    document.getElementById('loginEmail').value = email;
+                }, 2000);
+            } else {
+                errorEl.textContent = result.message;
                 errorEl.style.display = 'block';
-                errorEl.textContent = 'فشل إنشاء الحساب: ' + err.message;
             }
         });
 
-        window.switchTab = switchTab;
+        function fillDemo(role) {
+            if (role === 'admin') {
+                document.getElementById('loginEmail').value = 'admin@example.com';
+                document.getElementById('loginPassword').value = '123456';
+            } else {
+                document.getElementById('loginEmail').value = 'rep@example.com';
+                document.getElementById('loginPassword').value = '123456';
+            }
+            tabLogin.click();
+        }
         window.fillDemo = fillDemo;
     </script>
 </body>
