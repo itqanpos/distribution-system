@@ -182,15 +182,10 @@
             padding: 12px 10px; border: 2px solid #e2e8f0; border-radius: 14px;
             font-size: 14px; width: 100%;
         }
-        .unit-row input[readonly] { background: #f1f5f9; }
         .add-unit-btn {
             background: var(--light); border: 2px dashed var(--secondary);
             padding: 14px; border-radius: 18px; text-align: center; cursor: pointer;
             font-size: 16px; font-weight: 600; margin-top: 15px;
-        }
-        .suggest-price-btn {
-            background: none; border: none; color: var(--secondary);
-            cursor: pointer; font-size: 13px; margin-top: 5px;
         }
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
@@ -307,6 +302,7 @@
                     </div>
                     <div id="unitsContainer"></div>
                     <div class="add-unit-btn" id="addUnitBtn"><i class="fas fa-plus-circle"></i> إضافة وحدة</div>
+                    <small style="display:block; margin-top:10px;">عامل التحويل: عدد القطع في هذه الوحدة (مثال: كرتونة = 12، اكتب 12)</small>
                 </div>
                 
                 <div class="form-group" style="margin-top:15px;"><label>ملاحظات</label><textarea id="notes" rows="2"></textarea></div>
@@ -428,7 +424,6 @@
 
             function closeProductModal() { document.getElementById('productModal').style.display = 'none'; }
 
-            // دالة مساعدة لاقتراح السعر من الوحدة الأساسية
             function getSuggestedPrice() {
                 const rows = document.querySelectorAll('.unit-row');
                 if (rows.length > 0) {
@@ -453,7 +448,7 @@
                     <input type="number" class="unit-min" placeholder="الحد الأدنى" value="${unit.minPrice || 0}" step="0.01">
                     <input type="number" class="unit-max" placeholder="الحد الأقصى" value="${unit.maxPrice || 0}" step="0.01">
                     <input type="number" class="unit-stock" placeholder="المخزون" value="${unit.stock}" step="0.001">
-                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" title="مثلاً: الكرتونة = 12 قطعة" onchange="updateUnitPriceSuggestion(this)">
+                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" title="عدد القطع في هذه الوحدة" onchange="updateUnitPriceSuggestion(this)">
                     <button type="button" class="btn" onclick="this.closest('.unit-row').remove()"><i class="fas fa-trash"></i></button>
                 `;
                 container.appendChild(row);
@@ -521,6 +516,7 @@
                 if (!units.length) { alert('أضف وحدة واحدة على الأقل'); return; }
                 const product = { barcode: barcode || null, name, category: category || null, units, notes: notes || null };
                 if (id) product.id = id;
+                else product.id = crypto.randomUUID();
                 try {
                     await DB.saveProduct(product);
                     closeProductModal();
