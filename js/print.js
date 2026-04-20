@@ -1,217 +1,167 @@
 // js/print.js
-// وظائف الطباعة الموحدة للنظام
+// نظام طباعة مركزي لجميع أجزاء التطبيق
 
 (function() {
     // الإعدادات الافتراضية
     const defaultSettings = {
-        companyName: 'Food Distribution Co.',
+        companyName: 'شركة التوزيع الغذائي',
         companyPhone: '+20 123 456 7890',
-        companyAddress: 'Cairo, Egypt',
-        footerMessage: 'Thank you for your business!',
-        currency: 'EGP'
+        companyAddress: 'القاهرة، مصر',
+        footerMessage: 'شكراً لتعاملكم معنا',
+        currency: 'ج.م',
+        taxRate: 0.14 // 14% افتراضياً
     };
 
-    // الحصول على إعدادات الشركة من Firestore إذا كانت متاحة
+    // جلب إعدادات الشركة من Supabase
     async function getCompanySettings() {
         try {
-            if (window.Storage && window.Storage.getSettings) {
-                const settings = await window.Storage.getSettings();
+            if (window.DB && window.DB.getSettings) {
+                const settings = await window.DB.getSettings();
                 return {
                     companyName: settings.company?.name || defaultSettings.companyName,
                     companyPhone: settings.company?.phone || defaultSettings.companyPhone,
                     companyAddress: settings.company?.address || defaultSettings.companyAddress,
                     footerMessage: settings.printing?.footer || defaultSettings.footerMessage,
-                    currency: settings.system?.currency || defaultSettings.currency
+                    currency: settings.system?.currency || defaultSettings.currency,
+                    taxRate: (settings.system?.taxRate || 14) / 100
                 };
             }
         } catch (e) {
-            console.warn('Could not load company settings, using defaults');
+            console.warn('تعذر جلب إعدادات الشركة، استخدام القيم الافتراضية', e);
         }
         return defaultSettings;
     }
 
     /**
-     * طباعة إيصال بيع (فاتورة)
-     * @param {Object} invoice - بيانات الفاتورة
-     * @param {Array} invoice.items - الأصناف المباعة
-     * @param {string} invoice.id - رقم الفاتورة
-     * @param {string} invoice.date - التاريخ
-     * @param {string} invoice.customer - اسم العميل
-     * @param {number} invoice.total - الإجمالي
-     * @param {number} invoice.paid - المدفوع
-     * @param {number} invoice.remaining - المتبقي
+     * طباعة إيصال فاتورة بيع
+     * @param {Object} invoice - الفاتورة (id, date, paid, remaining, discount, notes)
+     * @param {Object} customer - العميل (name, balance)
+     * @param {Array} items - الأصناف [{ productName, unitName, quantity, price, factor }]
+     * @param {Object} totals - الحسابات { subtotal, discount, net }
      */
-    window.printReceipt = async function(invoice) {
+    window.printSaleReceipt = async function(invoice, customer, items, totals) {
         const settings = await getCompanySettings();
-        
-        const width = 320;
-        const height = 600;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-        
+        const width = 360, height = 700;
+        const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
         const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
         if (!win) {
-            alert('Popup blocked! Please allow popups for this site.');
+            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة.');
             return;
         }
 
-        const itemsHtml = (invoice.items || []).map(item => {
-            const itemTotal = (item.quantity || 0) * (item.price || 0);
-            return `
-                <tr>
-                    <td>${item.name || 'Item'}</td>
-                    <td>${item.quantity || 0}</td>
-                    <td>${(item.price || 0).toFixed(2)}</td>
-                    <td>${itemTotal.toFixed(2)}</td>
-                </tr>
-            `;
-        }).join('');
+        const itemsHtml = items.map(i => `
+            <tr>
+                <td>${i.productName} ${i.unitName ? '(' + i.unitName + ')' : ''}</td>
+                <td>${i.quantity}</td>
+                <td>${Utils.formatMoney(i.price)}</td>
+                <td>${Utils.formatMoney(i.price * i.quantity)}</td>
+            </tr>
+        `).join('');
 
-        const now = new Date().toLocaleString('en-US', { hour12: true });
+        const balanceText = customer.balance >= 0 
+            ? `رصيد للعميل: ${Utils.formatMoney(customer.balance)}` 
+            : `رصيد على العميل: ${Utils.formatMoney(-customer.balance)}`;
 
         win.document.write(`
-            <!DOCTYPE html>
-            <html>
+            <html dir="rtl">
             <head>
-                <title>Receipt ${invoice.id || ''}</title>
+                <title>إيصال فاتورة - ${invoice.id}</title>
                 <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body {
-                        font-family: 'Courier New', Courier, monospace;
-                        font-size: 12px;
-                        padding: 10px;
-                        width: 100%;
-                        max-width: 300px;
-                        margin: 0 auto;
-                        background: white;
-                        color: #000;
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 10px;
-                        border-bottom: 1px dashed #333;
-                        padding-bottom: 8px;
-                    }
-                    .header h3 {
-                        font-size: 16px;
-                        font-weight: bold;
-                        margin-bottom: 3px;
-                    }
-                    .header p {
-                        font-size: 11px;
-                        line-height: 1.3;
-                    }
-                    .info {
-                        margin: 10px 0;
-                    }
-                    .info-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin-bottom: 3px;
-                    }
-                    .items-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin: 10px 0;
-                        border-top: 1px dashed #333;
-                        border-bottom: 1px dashed #333;
-                    }
-                    .items-table th,
-                    .items-table td {
-                        text-align: left;
-                        padding: 4px 2px;
-                        font-size: 11px;
-                    }
-                    .items-table th {
-                        border-bottom: 1px solid #999;
-                        font-weight: bold;
-                    }
-                    .items-table td:last-child,
-                    .items-table th:last-child {
-                        text-align: right;
-                    }
-                    .totals {
-                        margin: 10px 0;
-                    }
-                    .total-row {
-                        display: flex;
-                        justify-content: space-between;
-                        font-weight: bold;
-                        font-size: 13px;
-                        margin-top: 5px;
-                    }
-                    .footer {
-                        text-align: center;
-                        margin-top: 15px;
-                        font-size: 11px;
-                        border-top: 1px dashed #333;
-                        padding-top: 8px;
-                    }
-                    .barcode {
-                        text-align: center;
-                        margin: 10px 0;
-                        font-family: 'Libre Barcode 39', cursive;
-                        font-size: 24px;
-                    }
-                    @media print {
-                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    }
+                    body { font-family: 'Courier New', monospace; margin: 15px; font-size: 14px; color: #000; }
+                    .center { text-align: center; }
+                    .line { border-top: 1px dashed #000; margin: 12px 0; }
+                    .total { font-weight: bold; font-size: 16px; }
+                    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                    th, td { padding: 8px 5px; text-align: right; border-bottom: 1px solid #ccc; }
+                    th { background: #f1f5f9; }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h3>${settings.companyName}</h3>
-                    <p>${settings.companyAddress}</p>
-                    <p>Tel: ${settings.companyPhone}</p>
+                <div class="center">
+                    <h2>${settings.companyName}</h2>
+                    <p>${settings.companyPhone} - ${settings.companyAddress}</p>
                 </div>
-                
-                <div class="info">
-                    <div class="info-row"><span>Invoice #:</span><span>${invoice.id || ''}</span></div>
-                    <div class="info-row"><span>Date:</span><span>${invoice.date || ''}</span></div>
-                    <div class="info-row"><span>Time:</span><span>${now}</span></div>
-                    <div class="info-row"><span>Customer:</span><span>${invoice.customer || 'Cash'}</span></div>
-                </div>
-                
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
+                <div class="line"></div>
+                <p><strong>فاتورة:</strong> ${invoice.id}</p>
+                <p><strong>التاريخ:</strong> ${invoice.date}</p>
+                <p><strong>العميل:</strong> ${customer.name}</p>
+                <table>
+                    <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
                 </table>
-                
-                <div class="totals">
-                    <div class="info-row"><span>Subtotal:</span><span>${(invoice.total || 0).toFixed(2)} ${settings.currency}</span></div>
-                    ${invoice.tax ? `<div class="info-row"><span>Tax:</span><span>${invoice.tax.toFixed(2)} ${settings.currency}</span></div>` : ''}
-                    <div class="total-row">
-                        <span>TOTAL:</span>
-                        <span>${(invoice.total || 0).toFixed(2)} ${settings.currency}</span>
-                    </div>
-                    ${invoice.paid !== undefined ? `
-                        <div class="info-row"><span>Paid:</span><span>${invoice.paid.toFixed(2)} ${settings.currency}</span></div>
-                        <div class="info-row"><span>Remaining:</span><span>${(invoice.remaining || 0).toFixed(2)} ${settings.currency}</span></div>
-                    ` : ''}
+                <div class="line"></div>
+                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>
+                <p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>
+                <p class="total"><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p>
+                <p><strong>المدفوع:</strong> ${Utils.formatMoney(invoice.paid)}</p>
+                <p><strong>المتبقي:</strong> ${Utils.formatMoney(invoice.remaining)}</p>
+                <p>${balanceText}</p>
+                ${invoice.notes ? `<p><strong>ملاحظات:</strong> ${invoice.notes}</p>` : ''}
+                <div class="center" style="margin-top:20px;">${settings.footerMessage}</div>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
+            </body>
+            </html>
+        `);
+        win.document.close();
+    };
+
+    /**
+     * طباعة فاتورة شراء
+     * @param {Object} purchase - فاتورة الشراء
+     */
+    window.printPurchaseOrder = async function(purchase) {
+        const settings = await getCompanySettings();
+        const width = 360, height = 700;
+        const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
+        const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
+        if (!win) {
+            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة.');
+            return;
+        }
+
+        const itemsHtml = (purchase.items || []).map(i => `
+            <tr>
+                <td>${i.productName}</td>
+                <td>${i.quantity}</td>
+                <td>${Utils.formatMoney(i.price)}</td>
+                <td>${Utils.formatMoney(i.quantity * i.price)}</td>
+            </tr>
+        `).join('');
+
+        win.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>فاتورة شراء - ${purchase.invoice_number || purchase.id}</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; margin: 15px; font-size: 14px; color: #000; }
+                    .center { text-align: center; }
+                    .line { border-top: 1px dashed #000; margin: 12px 0; }
+                    .total { font-weight: bold; font-size: 16px; }
+                    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                    th, td { padding: 8px 5px; text-align: right; border-bottom: 1px solid #ccc; }
+                    th { background: #f1f5f9; }
+                </style>
+            </head>
+            <body>
+                <div class="center">
+                    <h2>${settings.companyName}</h2>
+                    <p>${settings.companyPhone} - ${settings.companyAddress}</p>
                 </div>
-                
-                <div class="footer">
-                    <p>${settings.footerMessage}</p>
-                    <p>${new Date().toLocaleDateString('en-US')}</p>
-                </div>
-                
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(function() {
-                            window.close();
-                        }, 500);
-                    };
-                <\/script>
+                <div class="line"></div>
+                <p><strong>فاتورة شراء:</strong> ${purchase.invoice_number || purchase.id}</p>
+                <p><strong>التاريخ:</strong> ${purchase.date}</p>
+                <p><strong>المورد:</strong> ${purchase.supplier_name}</p>
+                <table>
+                    <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div class="line"></div>
+                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(purchase.total)}</p>
+                <p><strong>المدفوع:</strong> ${Utils.formatMoney(purchase.paid)}</p>
+                <p><strong>المتبقي:</strong> ${Utils.formatMoney(purchase.remaining)}</p>
+                ${purchase.notes ? `<p><strong>ملاحظات:</strong> ${purchase.notes}</p>` : ''}
+                <div class="center" style="margin-top:20px;">${settings.footerMessage}</div>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
             </body>
             </html>
         `);
@@ -220,76 +170,228 @@
 
     /**
      * طباعة كشف حساب عميل
-     * @param {Object} customer - بيانات العميل
+     * @param {Object} customer - العميل
      * @param {Array} invoices - فواتير العميل
-     * @param {Array} payments - مدفوعات العميل
+     * @param {Array} payments - المدفوعات (اختياري)
      */
-    window.printCustomerStatement = async function(customer, invoices, payments) {
+    window.printCustomerStatement = async function(customer, invoices, payments = []) {
         const settings = await getCompanySettings();
-        
-        const width = 400;
-        const height = 600;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-        
+        const width = 450, height = 700;
+        const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
         const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
-        
-        const invoicesHtml = (invoices || []).map(inv => `
+        if (!win) {
+            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة.');
+            return;
+        }
+
+        const invoicesHtml = invoices.map(inv => `
             <tr>
                 <td>${inv.id}</td>
                 <td>${inv.date}</td>
-                <td>${(inv.total || 0).toFixed(2)}</td>
-                <td>${(inv.remaining || 0).toFixed(2)}</td>
-            </tr>
-        `).join('');
-        
-        const paymentsHtml = (payments || []).map(p => `
-            <tr>
-                <td>${p.date}</td>
-                <td>${p.description || 'Payment'}</td>
-                <td>${(p.amount || 0).toFixed(2)}</td>
+                <td>${Utils.formatMoney(inv.total)}</td>
+                <td>${Utils.formatMoney(inv.paid)}</td>
+                <td>${Utils.formatMoney(inv.remaining)}</td>
             </tr>
         `).join('');
 
+        const paymentsHtml = payments.map(p => `
+            <tr>
+                <td>${p.date}</td>
+                <td>${Utils.formatMoney(p.amount)}</td>
+                <td>${p.description || ''}</td>
+            </tr>
+        `).join('');
+
+        const balanceText = customer.balance >= 0 
+            ? `رصيد للعميل: ${Utils.formatMoney(customer.balance)}` 
+            : `رصيد على العميل: ${Utils.formatMoney(-customer.balance)}`;
+
         win.document.write(`
-            <html>
-            <head><title>Statement - ${customer.name}</title>
-            <style>
-                body { font-family: 'Segoe UI', sans-serif; padding: 20px; font-size: 14px; }
-                .header { text-align: center; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background: #f2f2f2; }
-                .total { font-weight: bold; }
-            </style>
+            <html dir="rtl">
+            <head>
+                <title>كشف حساب - ${customer.name}</title>
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; margin: 20px; font-size: 14px; }
+                    h2, h3 { color: #1e293b; }
+                    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                    th, td { padding: 10px; text-align: right; border: 1px solid #ddd; }
+                    th { background: #f8fafc; }
+                    .header { text-align: center; margin-bottom: 20px; }
+                    .balance { font-size: 18px; font-weight: bold; margin: 15px 0; }
+                </style>
             </head>
             <body>
                 <div class="header">
                     <h2>${settings.companyName}</h2>
-                    <h3>Customer Statement</h3>
+                    <p>${settings.companyPhone} - ${settings.companyAddress}</p>
+                    <h3>كشف حساب عميل</h3>
                 </div>
-                <p><strong>Customer:</strong> ${customer.name}</p>
-                <p><strong>Current Balance:</strong> ${(customer.balance || 0).toFixed(2)} ${settings.currency}</p>
+                <p><strong>العميل:</strong> ${customer.name}</p>
+                <p><strong>الهاتف:</strong> ${customer.phone || '-'}</p>
+                <p class="balance">${balanceText}</p>
                 
-                <h4>Invoices</h4>
+                <h4>الفواتير</h4>
                 <table>
-                    <thead><tr><th>Invoice #</th><th>Date</th><th>Total</th><th>Remaining</th></tr></thead>
+                    <thead><tr><th>الرقم</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
                     <tbody>${invoicesHtml}</tbody>
                 </table>
-                
-                <h4>Payments</h4>
+
+                <h4>المدفوعات</h4>
                 <table>
-                    <thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>
-                    <tbody>${paymentsHtml}</tbody>
+                    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>البيان</th></tr></thead>
+                    <tbody>${paymentsHtml || '<tr><td colspan="3">لا توجد مدفوعات</td></tr>'}</tbody>
                 </table>
-                
-                <p>Printed on: ${new Date().toLocaleString()}</p>
-                <script>window.print(); setTimeout(() => window.close(), 500);<\/script>
+
+                <p style="margin-top:20px;">تاريخ الطباعة: ${new Date().toLocaleString('ar-EG')}</p>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
             </body>
             </html>
         `);
         win.document.close();
     };
 
-    console.log('✅ Print module loaded');
+    /**
+     * طباعة كشف حساب مندوب
+     * @param {Object} rep - المندوب
+     * @param {Array} invoices - فواتير المندوب
+     */
+    window.printRepStatement = async function(rep, invoices) {
+        const settings = await getCompanySettings();
+        const width = 450, height = 700;
+        const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
+        const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
+        if (!win) {
+            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة.');
+            return;
+        }
+
+        const invoicesHtml = invoices.map(inv => `
+            <tr>
+                <td>${inv.id}</td>
+                <td>${inv.date}</td>
+                <td>${inv.customer_name || 'نقدي'}</td>
+                <td>${Utils.formatMoney(inv.total)}</td>
+                <td>${Utils.formatMoney(inv.paid)}</td>
+                <td>${Utils.formatMoney(inv.remaining)}</td>
+            </tr>
+        `).join('');
+
+        const totalSales = invoices.reduce((s, i) => s + i.total, 0);
+        const totalPaid = invoices.reduce((s, i) => s + i.paid, 0);
+        const commission = totalPaid * (rep.commission || 0) / 100;
+
+        win.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>كشف حساب مندوب - ${rep.name}</title>
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; margin: 20px; font-size: 14px; }
+                    h2, h3 { color: #1e293b; }
+                    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                    th, td { padding: 10px; text-align: right; border: 1px solid #ddd; }
+                    th { background: #f8fafc; }
+                    .header { text-align: center; margin-bottom: 20px; }
+                    .summary { background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 15px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>${settings.companyName}</h2>
+                    <p>${settings.companyPhone} - ${settings.companyAddress}</p>
+                    <h3>كشف حساب مندوب</h3>
+                </div>
+                <p><strong>المندوب:</strong> ${rep.name}</p>
+                <p><strong>الهاتف:</strong> ${rep.phone || '-'}</p>
+                <p><strong>المنطقة:</strong> ${rep.area || '-'}</p>
+                <p><strong>نسبة العمولة:</strong> ${rep.commission || 0}%</p>
+                
+                <div class="summary">
+                    <p><strong>إجمالي المبيعات:</strong> ${Utils.formatMoney(totalSales)}</p>
+                    <p><strong>إجمالي التحصيلات:</strong> ${Utils.formatMoney(totalPaid)}</p>
+                    <p><strong>العمولة المستحقة:</strong> ${Utils.formatMoney(commission)}</p>
+                </div>
+
+                <h4>الفواتير</h4>
+                <table>
+                    <thead><tr><th>الرقم</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+                    <tbody>${invoicesHtml}</tbody>
+                </table>
+
+                <p style="margin-top:20px;">تاريخ الطباعة: ${new Date().toLocaleString('ar-EG')}</p>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
+            </body>
+            </html>
+        `);
+        win.document.close();
+    };
+
+    /**
+     * طباعة مرتجع (بيع أو شراء)
+     * @param {Object} ret - المرتجع
+     * @param {string} type - 'sale' أو 'purchase'
+     */
+    window.printReturnReceipt = async function(ret, type) {
+        const settings = await getCompanySettings();
+        const width = 360, height = 600;
+        const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
+        const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
+        if (!win) {
+            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة.');
+            return;
+        }
+
+        const itemsHtml = (ret.items || []).map(i => `
+            <tr>
+                <td>${i.productName}</td>
+                <td>${i.quantity}</td>
+                <td>${Utils.formatMoney(i.price)}</td>
+                <td>${Utils.formatMoney(i.quantity * i.price)}</td>
+            </tr>
+        `).join('');
+
+        const partyName = type === 'sale' ? ret.customer_name : ret.supplier_name;
+        const partyLabel = type === 'sale' ? 'العميل' : 'المورد';
+        const refLabel = type === 'sale' ? 'الفاتورة الأصلية' : 'فاتورة الشراء';
+        const refId = type === 'sale' ? ret.invoice_id : ret.purchase_id;
+
+        win.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>مرتجع ${type === 'sale' ? 'مبيعات' : 'مشتريات'} - ${ret.id}</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; margin: 15px; font-size: 14px; color: #000; }
+                    .center { text-align: center; }
+                    .line { border-top: 1px dashed #000; margin: 12px 0; }
+                    .total { font-weight: bold; font-size: 16px; }
+                    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                    th, td { padding: 8px 5px; text-align: right; border-bottom: 1px solid #ccc; }
+                    th { background: #f1f5f9; }
+                </style>
+            </head>
+            <body>
+                <div class="center">
+                    <h2>${settings.companyName}</h2>
+                    <p>${settings.companyPhone} - ${settings.companyAddress}</p>
+                </div>
+                <div class="line"></div>
+                <p><strong>مرتجع ${type === 'sale' ? 'مبيعات' : 'مشتريات'}</strong> ${ret.id}</p>
+                <p><strong>التاريخ:</strong> ${ret.date}</p>
+                <p><strong>${partyLabel}:</strong> ${partyName}</p>
+                <p><strong>${refLabel}:</strong> ${refId}</p>
+                <table>
+                    <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div class="line"></div>
+                <p class="total"><strong>إجمالي المرتجع:</strong> ${Utils.formatMoney(ret.amount)}</p>
+                ${ret.notes ? `<p><strong>ملاحظات:</strong> ${ret.notes}</p>` : ''}
+                <div class="center" style="margin-top:20px;">${settings.footerMessage}</div>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
+            </body>
+            </html>
+        `);
+        win.document.close();
+    };
+
+    console.log('✅ نظام الطباعة المركزي جاهز');
 })();
