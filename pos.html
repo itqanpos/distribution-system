@@ -170,11 +170,11 @@
             font-size: 16px;
         }
         .unit-selector {
-            display: flex; gap: 10px; margin-bottom: 15px;
+            display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;
         }
         .unit-btn {
-            flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 12px;
-            background: white; cursor: pointer;
+            flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px;
+            background: white; cursor: pointer; font-weight: 600;
         }
         .unit-btn.active {
             background: var(--secondary); color: white; border-color: var(--secondary);
@@ -183,7 +183,6 @@
             .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
             .pos-container { grid-template-columns: 1fr; }
-            .main-content { margin-right: 0 !important; }
             .menu-toggle { display: flex; }
             .user-info { display: none; }
         }
@@ -214,7 +213,6 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية الكاملة -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -228,7 +226,6 @@
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
-            
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
@@ -285,10 +282,7 @@
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button onclick="closeUnitModal()">&times;</button></div>
-            <div class="form-group">
-                <label>اختر الوحدة</label>
-                <div id="unitButtons" class="unit-selector"></div>
-            </div>
+            <div class="form-group"><label>اختر الوحدة</label><div id="unitButtons" class="unit-selector"></div></div>
             <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
             <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
             <small id="stockInfo"></small>
@@ -311,7 +305,7 @@
             <div class="summary-row"><span>الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
             <div class="form-group"><label>طريقة الدفع</label><select id="paymentMethod"><option value="cash">نقدي</option></select></div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
-            <button class="btn btn-success" id="confirmPaymentBtn" onclick="completePayment()">تأكيد الدفع</button>
+            <button class="btn btn-success" onclick="completePayment()">تأكيد الدفع</button>
         </div>
     </div>
 
@@ -325,7 +319,7 @@
         document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
 
         let products = [], customers = [], cart = [];
-        let selectedProduct = null, selectedCustomer = null;
+        let selectedProduct = null, selectedUnit = null, selectedCustomer = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!App.requireAuth()) return;
@@ -349,15 +343,9 @@
         function filterProducts() {
             const term = document.getElementById('productSearchInput').value.trim().toLowerCase();
             const container = document.getElementById('productListContainer');
-            if (!term) {
-                container.innerHTML = '<div class="empty-message">🔍 ابدأ بكتابة اسم المنتج للبحث</div>';
-                return;
-            }
-            const filtered = products.filter(p => p.name.toLowerCase().includes(term) || p.barcode?.includes(term));
-            if (!filtered.length) {
-                container.innerHTML = '<div class="empty-message">❌ لا توجد منتجات</div>';
-                return;
-            }
+            if (!term) { container.innerHTML = '<div class="empty-message">🔍 ابدأ بكتابة اسم المنتج للبحث</div>'; return; }
+            const filtered = products.filter(p => p.name.toLowerCase().includes(term));
+            if (!filtered.length) { container.innerHTML = '<div class="empty-message">❌ لا توجد منتجات</div>'; return; }
             container.innerHTML = filtered.map(p => {
                 const u = p.units[0];
                 return `<div class="product-item" onclick="openUnitModal('${p.id}')">
@@ -371,61 +359,47 @@
             const val = document.getElementById('customerSearchInput').value;
             const option = Array.from(document.querySelectorAll('#customerList option')).find(o => o.value === val);
             if (option) {
-                const id = option.dataset.id;
-                selectedCustomer = customers.find(c => c.id === id);
+                selectedCustomer = customers.find(c => c.id === option.dataset.id);
                 const balance = selectedCustomer.balance || 0;
-                const text = balance >= 0 ? `رصيد له: ${Utils.formatMoney(balance)}` : `مديونية: ${Utils.formatMoney(Math.abs(balance))}`;
-                document.getElementById('customerBalanceDisplay').innerHTML = text;
-            } else {
-                selectedCustomer = null;
-                document.getElementById('customerBalanceDisplay').innerHTML = '';
-            }
+                document.getElementById('customerBalanceDisplay').innerHTML = balance >= 0 ? `رصيد له: ${Utils.formatMoney(balance)}` : `مديونية: ${Utils.formatMoney(Math.abs(balance))}`;
+            } else { selectedCustomer = null; document.getElementById('customerBalanceDisplay').innerHTML = ''; }
         }
 
         function openUnitModal(productId) {
             selectedProduct = products.find(p => p.id === productId);
             if (!selectedProduct) return;
             document.getElementById('modalProductName').textContent = selectedProduct.name;
-            
             const container = document.getElementById('unitButtons');
-            container.innerHTML = selectedProduct.units.map((u, idx) => 
-                `<button class="unit-btn ${idx === 0 ? 'active' : ''}" onclick="selectUnit(${idx})">${u.name}</button>`
-            ).join('');
-            
-            const firstUnit = selectedProduct.units[0];
-            document.getElementById('selectedPrice').value = firstUnit.price;
-            document.getElementById('stockInfo').textContent = `المخزون المتاح: ${firstUnit.stock} ${firstUnit.name}`;
-            document.getElementById('selectedQuantity').max = firstUnit.stock;
+            container.innerHTML = selectedProduct.units.map((u, idx) => `<button class="unit-btn ${idx === 0 ? 'active' : ''}" onclick="selectUnit(${idx})">${u.name}</button>`).join('');
+            selectedUnit = selectedProduct.units[0];
+            document.getElementById('selectedPrice').value = selectedUnit.price;
+            document.getElementById('stockInfo').textContent = `المخزون المتاح: ${selectedUnit.stock} ${selectedUnit.name}`;
+            document.getElementById('selectedQuantity').max = selectedUnit.stock;
             document.getElementById('selectedQuantity').value = 1;
-            
             document.getElementById('unitQuantityModal').style.display = 'flex';
         }
 
         window.selectUnit = function(idx) {
-            const unit = selectedProduct.units[idx];
+            selectedUnit = selectedProduct.units[idx];
             document.querySelectorAll('.unit-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
-            document.getElementById('selectedPrice').value = unit.price;
-            document.getElementById('stockInfo').textContent = `المخزون المتاح: ${unit.stock} ${unit.name}`;
-            document.getElementById('selectedQuantity').max = unit.stock;
+            document.getElementById('selectedPrice').value = selectedUnit.price;
+            document.getElementById('stockInfo').textContent = `المخزون المتاح: ${selectedUnit.stock} ${selectedUnit.name}`;
+            document.getElementById('selectedQuantity').max = selectedUnit.stock;
         };
 
         function closeUnitModal() { document.getElementById('unitQuantityModal').style.display = 'none'; }
 
         function addToCartFromModal() {
-            const activeBtn = document.querySelector('.unit-btn.active');
-            const unitIdx = Array.from(document.querySelectorAll('.unit-btn')).indexOf(activeBtn);
-            const unit = selectedProduct.units[unitIdx];
             const qty = parseFloat(document.getElementById('selectedQuantity').value);
-            const price = parseFloat(document.getElementById('selectedPrice').value);
-            
-            if (qty <= 0 || qty > unit.stock) { alert('كمية غير صالحة'); return; }
-            
-            const existing = cart.find(i => i.productId === selectedProduct.id && i.unitIndex === unitIdx);
+            let price = parseFloat(document.getElementById('selectedPrice').value);
+            if (qty <= 0 || qty > selectedUnit.stock) { alert('كمية غير صالحة'); return; }
+            if (price < (selectedUnit.minPrice || 0) || price > (selectedUnit.maxPrice || Infinity)) { alert('السعر خارج الحدود المسموحة'); return; }
+            const existing = cart.find(i => i.productId === selectedProduct.id && i.unitName === selectedUnit.name);
             if (existing) existing.quantity += qty;
             else cart.push({
                 productId: selectedProduct.id, productName: selectedProduct.name,
-                unitIndex: unitIdx, unitName: unit.name,
-                quantity: qty, price
+                unitName: selectedUnit.name, quantity: qty, price,
+                factor: selectedUnit.factor || 1
             });
             renderCart();
             closeUnitModal();
@@ -441,8 +415,7 @@
                     <div class="cart-item-price"><input type="number" value="${item.price}" step="0.01" onchange="updatePrice(${idx}, this.value)"></div>
                     <div>${Utils.formatMoney(item.price * item.quantity)}</div>
                     <div><i class="fas fa-trash" style="color:var(--danger); cursor:pointer;" onclick="removeItem(${idx})"></i></div>
-                </div>
-            `).join('');
+                </div>`).join('');
             updateSummary();
         }
 
@@ -457,7 +430,7 @@
             const tax = after * 0.14;
             const net = after + tax;
             document.getElementById('itemTypesCount').textContent = cart.length;
-            document.getElementById('totalPieces').textContent = cart.reduce((s,i) => s + i.quantity, 0).toFixed(3);
+            document.getElementById('totalPieces').textContent = cart.reduce((s,i) => s + i.quantity * (i.factor || 1), 0).toFixed(2);
             document.getElementById('subtotal').textContent = Utils.formatMoney(subtotal);
             document.getElementById('taxAmount').textContent = Utils.formatMoney(tax);
             document.getElementById('netTotal').textContent = Utils.formatMoney(net);
@@ -488,103 +461,72 @@
             const diff = paid - net;
             const currentBal = selectedCustomer.balance || 0;
             let newBal = currentBal;
-            let remaining = 0;
-            if (diff >= 0) {
-                newBal = currentBal + diff;
-                remaining = 0;
-            } else {
-                newBal = currentBal + diff;
-                remaining = -diff;
-            }
+            if (diff >= 0) newBal = currentBal + diff;
+            else newBal = currentBal + diff;
             document.getElementById('remainingDisplay').textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
             document.getElementById('balanceAfter').textContent = Utils.formatMoney(newBal);
         }
 
         async function completePayment() {
-            try {
-                const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
-                const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
-                const notes = document.getElementById('paymentNotes').value;
-                const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
+            const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+            const notes = document.getElementById('paymentNotes').value;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const diff = paid - net;
 
-                // تحديث رصيد العميل
-                const diff = paid - net;
-                selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
-                selectedCustomer.last_transaction = Utils.getToday();
-                await DB.saveParty(selectedCustomer);
+            selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
+            await DB.saveParty(selectedCustomer);
 
-                const invoice = {
-                    type: 'sale',
-                    date: Utils.getToday(),
-                    customer_id: selectedCustomer.id,
-                    customer_name: selectedCustomer.name,
-                    items: cart,
-                    total: net,
-                    paid: paid,
-                    remaining: diff >= 0 ? 0 : -diff,
-                    discount: discount,
-                    status: diff >= 0 ? 'paid' : 'partial',
-                    notes: notes
-                };
-                const savedInv = await DB.saveInvoice(invoice);
+            const invoice = {
+                id: crypto.randomUUID(),
+                type: 'sale',
+                date: Utils.getToday(),
+                customer_id: selectedCustomer.id,
+                customer_name: selectedCustomer.name,
+                items: cart,
+                total: net,
+                paid: paid,
+                remaining: diff >= 0 ? 0 : -diff,
+                discount: discount,
+                status: diff >= 0 ? 'paid' : 'partial',
+                notes: notes
+            };
+            await DB.saveInvoice(invoice);
 
-                // تحديث المخزون
-                for (const item of cart) {
-                    const prod = products.find(p => p.id === item.productId);
-                    if (prod) {
-                        prod.units[item.unitIndex].stock -= item.quantity;
-                        await DB.saveProduct(prod);
-                    }
+            for (const item of cart) {
+                const prod = products.find(p => p.id === item.productId);
+                if (prod) {
+                    const unit = prod.units.find(u => u.name === item.unitName);
+                    if (unit) unit.stock -= item.quantity;
+                    await DB.saveProduct(prod);
                 }
-
-                // حركة صندوق
-                await DB.saveTransaction({
-                    date: Utils.getToday(),
-                    type: 'income',
-                    amount: paid,
-                    description: `فاتورة بيع ${savedInv.id}`,
-                    payment_method: 'cash'
-                });
-
-                // طباعة الإيصال
-                printReceipt(savedInv, selectedCustomer, cart, net, discount, paid, diff);
-
-                alert(`تم البيع. الفاتورة ${savedInv.id}`);
-                cart = []; renderCart(); document.getElementById('discount').value = 0;
-                selectedCustomer = null;
-                document.getElementById('customerSearchInput').value = '';
-                document.getElementById('customerBalanceDisplay').innerHTML = '';
-                closePaymentModal();
-                await loadData();
-            } catch (err) {
-                console.error(err);
-                alert('فشل إتمام الدفع: ' + err.message);
             }
+
+            await DB.saveTransaction({
+                id: crypto.randomUUID(),
+                date: Utils.getToday(),
+                type: 'income',
+                amount: paid,
+                description: `فاتورة بيع ${invoice.id}`,
+                payment_method: 'cash'
+            });
+
+            printReceipt(invoice, selectedCustomer, cart, net, discount, paid, diff);
+            alert(`تم البيع. الفاتورة ${invoice.id}`);
+            cart = []; renderCart(); document.getElementById('discount').value = 0; selectedCustomer = null;
+            document.getElementById('customerSearchInput').value = ''; document.getElementById('customerBalanceDisplay').innerHTML = '';
+            closePaymentModal();
+            await loadData();
         }
 
         function printReceipt(invoice, customer, items, total, discount, paid, diff) {
-            const settings = { companyName: 'شركة التوزيع الغذائي', phone: '010000000', address: 'القاهرة' };
             const width = 320, height = 600;
             const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
             const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
             const itemsHtml = items.map(i => `<tr><td>${i.productName} (${i.unitName})</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.price*i.quantity)}</td></tr>`).join('');
             const tax = (total - discount) * 0.14 / 1.14;
             const subtotal = total - tax;
-            win.document.write(`
-                <html dir="rtl"><head><title>إيصال</title>
-                <style>body{font-family:'Courier New',monospace;margin:8px;font-size:12px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:8px 0;}.total{font-weight:bold;font-size:14px;}</style>
-                </head><body>
-                <div class="center"><h3>${settings.companyName}</h3><p>${settings.phone}</p></div>
-                <p>فاتورة: ${invoice.id}</p><p>تاريخ: ${invoice.date}</p><p>عميل: ${customer.name}</p>
-                <table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table>
-                <div class="line"></div>
-                <p>إجمالي: ${Utils.formatMoney(subtotal)}</p><p>خصم: ${Utils.formatMoney(discount)}</p><p>ضريبة: ${Utils.formatMoney(tax)}</p>
-                <p class="total">صافي: ${Utils.formatMoney(total)}</p><p>مدفوع: ${Utils.formatMoney(paid)}</p>
-                <p>${diff >= 0 ? `فائض يضاف للرصيد: ${Utils.formatMoney(diff)}` : `متبقي: ${Utils.formatMoney(-diff)}`}</p>
-                <div class="center">شكراً لتعاملكم معنا</div>
-                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
-                </body></html>
-            `);
+            win.document.write(`<html dir="rtl"><head><title>إيصال</title><style>body{font-family:'Courier New',monospace;margin:8px;font-size:12px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:8px 0;}.total{font-weight:bold;font-size:14px;}</style></head><body><div class="center"><h3>شركة التوزيع الغذائي</h3></div><p>فاتورة: ${invoice.id}</p><p>تاريخ: ${invoice.date}</p><p>عميل: ${customer.name}</p><table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table><div class="line"></div><p>إجمالي: ${Utils.formatMoney(subtotal)}</p><p>خصم: ${Utils.formatMoney(discount)}</p><p>ضريبة: ${Utils.formatMoney(tax)}</p><p class="total">صافي: ${Utils.formatMoney(total)}</p><p>مدفوع: ${Utils.formatMoney(paid)}</p><p>${diff >= 0 ? `فائض يضاف للرصيد: ${Utils.formatMoney(diff)}` : `متبقي: ${Utils.formatMoney(-diff)}`}</p><div class="center">شكراً لتعاملكم معنا</div><script>window.print();setTimeout(()=>window.close(),500);<\/script></body></html>`);
             win.document.close();
         }
 
