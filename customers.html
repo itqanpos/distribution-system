@@ -158,7 +158,7 @@
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
         }
         .modal-content {
-            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 500px;
+            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 800px;
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
@@ -309,7 +309,7 @@
             <form id="transactionForm">
                 <input type="hidden" id="transPartyId">
                 <input type="hidden" id="transPartyType">
-                <input type="hidden" id="transAction" value="collect"> <!-- collect أو add_balance -->
+                <input type="hidden" id="transAction" value="collect">
                 <div class="form-group"><label>المبلغ</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
                 <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
                 <div class="form-group"><label>ملاحظات</label><input type="text" id="transNotes"></div>
@@ -331,13 +331,18 @@
             let customers = [], suppliers = [], invoices = [], purchases = [], transactions = [], currentParty = null;
 
             async function loadData() {
-                customers = await DB.getParties('customer');
-                suppliers = await DB.getParties('supplier');
-                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-                purchases = await DB.getPurchases();
-                transactions = await DB.getTransactions();
-                renderTables();
-                updateStats();
+                try {
+                    customers = await DB.getParties('customer');
+                    suppliers = await DB.getParties('supplier');
+                    invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                    purchases = await DB.getPurchases();
+                    transactions = await DB.getTransactions();
+                    renderTables();
+                    updateStats();
+                } catch (e) {
+                    console.error(e);
+                    alert('فشل تحميل البيانات: ' + (e.message || 'خطأ غير معروف'));
+                }
             }
 
             function updateStats() {
@@ -381,7 +386,6 @@
                 }).join('');
             }
 
-            // كشف حساب
             window.showStatement = function(id, type) {
                 currentParty = (type === 'customer' ? customers : suppliers).find(p => p.id === id);
                 if (!currentParty) return;
@@ -389,10 +393,6 @@
                 
                 const partyInvoices = type === 'customer' ? invoices.filter(i => i.customer_id === id) : purchases.filter(p => p.supplier_id === id);
                 const partyTrans = transactions.filter(t => t.description && t.description.includes(currentParty.name));
-                
-                const totalInvoices = partyInvoices.reduce((s, i) => s + i.total, 0);
-                const totalPaid = partyInvoices.reduce((s, i) => s + i.paid, 0);
-                const totalRemaining = partyInvoices.reduce((s, i) => s + i.remaining, 0);
                 
                 let html = `
                     <p><strong>الرصيد الحالي:</strong> ${Utils.formatMoney(currentParty.balance || 0)}</p>
@@ -412,7 +412,6 @@
                 document.getElementById('statementModal').style.display = 'flex';
             };
 
-            // إضافة رصيد / تحصيل
             function openTransactionModal(action) {
                 if (!currentParty) return;
                 document.getElementById('transModalTitle').textContent = action === 'collect' ? 'تحصيل دفعة' : 'إضافة رصيد';
@@ -449,7 +448,6 @@
                 showStatement(currentParty.id, type);
             }
 
-            // طباعة كشف حساب
             function printStatement() {
                 if (!currentParty) return;
                 const win = window.open('', '_blank');
@@ -458,7 +456,6 @@
                 win.print();
             }
 
-            // إضافة/تعديل طرف
             function openPartyModal() {
                 document.getElementById('modalTitle').textContent = 'إضافة جديد';
                 document.getElementById('partyForm').reset();
@@ -507,9 +504,12 @@
             document.addEventListener('DOMContentLoaded', async () => {
                 if (!App.requireAuth()) return;
                 App.initUserInterface();
+                document.getElementById('transDate').value = Utils.getToday();
                 await loadData();
+                
                 document.getElementById('customerSearch').addEventListener('input', () => renderTable('customers', customers));
                 document.getElementById('supplierSearch').addEventListener('input', () => renderTable('suppliers', suppliers));
+                
                 document.getElementById('customersTabBtn').addEventListener('click', () => {
                     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     document.getElementById('customersTabBtn').classList.add('active');
@@ -522,16 +522,18 @@
                     document.getElementById('suppliersTab').classList.add('active');
                     document.getElementById('customersTab').classList.remove('active');
                 });
+                
                 document.getElementById('addPartyBtn').addEventListener('click', openPartyModal);
                 document.getElementById('closePartyModalBtn').addEventListener('click', () => document.getElementById('partyModal').style.display = 'none');
                 document.getElementById('partyForm').addEventListener('submit', saveParty);
+                
                 document.getElementById('closeStatementBtn').addEventListener('click', () => document.getElementById('statementModal').style.display = 'none');
                 document.getElementById('collectPaymentBtn').addEventListener('click', () => openTransactionModal('collect'));
                 document.getElementById('addBalanceBtn').addEventListener('click', () => openTransactionModal('add_balance'));
                 document.getElementById('printStatementBtn').addEventListener('click', printStatement);
+                
                 document.getElementById('closeTransModalBtn').addEventListener('click', () => document.getElementById('transactionModal').style.display = 'none');
                 document.getElementById('transactionForm').addEventListener('submit', saveTransaction);
-                document.getElementById('transDate').value = Utils.getToday();
             });
         })();
     </script>
