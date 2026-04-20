@@ -179,6 +179,9 @@
         .unit-btn.active {
             background: var(--secondary); color: white; border-color: var(--secondary);
         }
+        .payment-methods {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;
+        }
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
@@ -300,18 +303,20 @@
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الرصيد الحالي للعميل:</span> <span id="currentBalance">0.00 ج.م</span></div>
             </div>
-            <div class="form-group"><label>طريقة الدفع</label><select id="paymentMethod" onchange="togglePaymentFields()">
-                <option value="cash">نقدي</option>
-                <option value="bank">تحويل بنكي</option>
-                <option value="mixed">مختلط</option>
-                <option value="credit">آجل</option>
-            </select></div>
-            <div id="cashAmountField" class="form-group"><label>المبلغ المدفوع نقداً</label><input type="number" id="paidAmount" min="0" step="0.01" value="0" oninput="updatePaymentPreview()"></div>
-            <div id="bankAmountField" class="form-group" style="display:none;"><label>المبلغ المدفوع تحويل</label><input type="number" id="bankAmount" min="0" step="0.01" value="0" oninput="updatePaymentPreview()"></div>
+            <div class="form-group"><label>طريقة الدفع</label>
+                <select id="paymentMethod" onchange="togglePaymentFields()">
+                    <option value="cash">نقدي</option>
+                    <option value="transfer">تحويل</option>
+                    <option value="mixed">مختلط</option>
+                    <option value="credit">آجل</option>
+                </select>
+            </div>
+            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
             <div class="summary-row"><span>الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
-            <button class="btn btn-success" onclick="completePayment()">تأكيد الدفع</button>
+            <button class="btn btn-success" onclick="completePayment()">تأكيد وطباعة</button>
         </div>
     </div>
 
@@ -326,7 +331,8 @@
 
         let products = [], customers = [], cart = [];
         let selectedProduct = null, selectedUnit = null, selectedCustomer = null;
-        let taxRate = 0.14; // القيمة الافتراضية
+        let taxRate = 0.14;
+        let settings = {};
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!App.requireAuth()) return;
@@ -338,13 +344,9 @@
         });
 
         async function loadSettings() {
-            try {
-                const settings = await DB.getSettings();
-                if (settings.system && settings.system.taxRate !== undefined) {
-                    taxRate = settings.system.taxRate / 100;
-                    document.getElementById('taxRateDisplay').textContent = settings.system.taxRate;
-                }
-            } catch (e) { console.warn('تعذر تحميل الإعدادات، استخدام الضريبة الافتراضية 14%'); }
+            settings = await DB.getSettings();
+            taxRate = (settings.system?.taxRate || 14) / 100;
+            document.getElementById('taxRateDisplay').textContent = (taxRate * 100).toFixed(0);
         }
 
         async function loadData() {
@@ -456,17 +458,6 @@
 
         function calculateTotals() { updateSummary(); }
 
-        function togglePaymentFields() {
-            const method = document.getElementById('paymentMethod').value;
-            document.getElementById('cashAmountField').style.display = (method === 'cash' || method === 'mixed') ? 'block' : 'none';
-            document.getElementById('bankAmountField').style.display = (method === 'bank' || method === 'mixed') ? 'block' : 'none';
-            if (method === 'credit') {
-                document.getElementById('paidAmount').value = 0;
-                document.getElementById('bankAmount').value = 0;
-            }
-            updatePaymentPreview();
-        }
-
         function openPaymentModal() {
             if (!cart.length) { alert('السلة فارغة'); return; }
             if (!selectedCustomer) { alert('اختر عميلاً'); return; }
@@ -476,25 +467,32 @@
             document.getElementById('payNet').textContent = Utils.formatMoney(net);
             const balance = selectedCustomer.balance || 0;
             document.getElementById('currentBalance').textContent = Utils.formatMoney(balance);
-            document.getElementById('paidAmount').value = '';
-            document.getElementById('bankAmount').value = '';
+            document.getElementById('cashAmount').value = '';
+            document.getElementById('transferAmount').value = '';
             document.getElementById('remainingDisplay').textContent = Utils.formatMoney(0);
             document.getElementById('balanceAfter').textContent = Utils.formatMoney(balance);
+            document.getElementById('paymentMethod').value = 'cash';
             togglePaymentFields();
             document.getElementById('paymentModal').style.display = 'flex';
         }
 
         function closePaymentModal() { document.getElementById('paymentModal').style.display = 'none'; }
 
+        function togglePaymentFields() {
+            const method = document.getElementById('paymentMethod').value;
+            document.getElementById('cashField').style.display = (method === 'cash' || method === 'mixed') ? 'block' : 'none';
+            document.getElementById('transferField').style.display = (method === 'transfer' || method === 'mixed') ? 'block' : 'none';
+            updatePaymentPreview();
+        }
+
         function updatePaymentPreview() {
             const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
             const method = document.getElementById('paymentMethod').value;
             let paid = 0;
-            if (method === 'cash') paid = parseFloat(document.getElementById('paidAmount').value) || 0;
-            else if (method === 'bank') paid = parseFloat(document.getElementById('bankAmount').value) || 0;
-            else if (method === 'mixed') paid = (parseFloat(document.getElementById('paidAmount').value) || 0) + (parseFloat(document.getElementById('bankAmount').value) || 0);
+            if (method === 'cash') paid = parseFloat(document.getElementById('cashAmount').value) || 0;
+            else if (method === 'transfer') paid = parseFloat(document.getElementById('transferAmount').value) || 0;
+            else if (method === 'mixed') paid = (parseFloat(document.getElementById('cashAmount').value) || 0) + (parseFloat(document.getElementById('transferAmount').value) || 0);
             else if (method === 'credit') paid = 0;
-
             const diff = paid - net;
             const currentBal = selectedCustomer.balance || 0;
             let newBal = currentBal;
@@ -507,17 +505,29 @@
         async function completePayment() {
             const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
             const method = document.getElementById('paymentMethod').value;
-            let paid = 0, cashPaid = 0, bankPaid = 0;
-            if (method === 'cash') cashPaid = parseFloat(document.getElementById('paidAmount').value) || 0;
-            else if (method === 'bank') bankPaid = parseFloat(document.getElementById('bankAmount').value) || 0;
+            let cashPaid = 0, transferPaid = 0;
+            if (method === 'cash') cashPaid = parseFloat(document.getElementById('cashAmount').value) || 0;
+            else if (method === 'transfer') transferPaid = parseFloat(document.getElementById('transferAmount').value) || 0;
             else if (method === 'mixed') {
-                cashPaid = parseFloat(document.getElementById('paidAmount').value) || 0;
-                bankPaid = parseFloat(document.getElementById('bankAmount').value) || 0;
+                cashPaid = parseFloat(document.getElementById('cashAmount').value) || 0;
+                transferPaid = parseFloat(document.getElementById('transferAmount').value) || 0;
             }
-            paid = cashPaid + bankPaid;
+            const totalPaid = cashPaid + transferPaid;
+            if (method !== 'credit' && totalPaid < 0) { alert('المبلغ المدفوع غير صحيح'); return; }
             const notes = document.getElementById('paymentNotes').value;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
-            const diff = paid - net;
+            const diff = totalPaid - net;
+
+            // التحقق من الرصيد النقدي إذا كان هناك نقدي
+            if (cashPaid > 0) {
+                const transactions = await DB.getTransactions();
+                let cashBalance = 0;
+                transactions.forEach(t => {
+                    if (t.type === 'income' && t.payment_method === 'cash') cashBalance += t.amount;
+                    else if (t.type === 'expense' && t.payment_method === 'cash') cashBalance -= t.amount;
+                });
+                if (cashPaid > cashBalance) { alert(`الرصيد النقدي غير كافٍ. المتاح: ${Utils.formatMoney(cashBalance)}`); return; }
+            }
 
             selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
             await DB.saveParty(selectedCustomer);
@@ -530,7 +540,7 @@
                 customer_name: selectedCustomer.name,
                 items: cart,
                 total: net,
-                paid: paid,
+                paid: totalPaid,
                 remaining: diff >= 0 ? 0 : -diff,
                 discount: discount,
                 status: diff >= 0 ? 'paid' : 'partial',
@@ -547,29 +557,12 @@
                 }
             }
 
-            // تسجيل حركات الصندوق
-            if (cashPaid > 0) {
-                await DB.saveTransaction({
-                    id: crypto.randomUUID(),
-                    date: Utils.getToday(),
-                    type: 'income',
-                    amount: cashPaid,
-                    description: `فاتورة بيع ${invoice.id} (نقدي)`,
-                    payment_method: 'cash'
-                });
-            }
-            if (bankPaid > 0) {
-                await DB.saveTransaction({
-                    id: crypto.randomUUID(),
-                    date: Utils.getToday(),
-                    type: 'income',
-                    amount: bankPaid,
-                    description: `فاتورة بيع ${invoice.id} (تحويل)`,
-                    payment_method: 'bank'
-                });
+            if (totalPaid > 0) {
+                if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة بيع ${invoice.id} (نقدي)`, payment_method: 'cash' });
+                if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة بيع ${invoice.id} (تحويل)`, payment_method: 'bank' });
             }
 
-            printReceipt(invoice, selectedCustomer, cart, net, discount, paid, diff);
+            printReceipt(invoice, selectedCustomer, cart, net, discount, totalPaid, diff);
             alert(`تم البيع. الفاتورة ${invoice.id}`);
             cart = []; renderCart(); document.getElementById('discount').value = 0; selectedCustomer = null;
             document.getElementById('customerSearchInput').value = ''; document.getElementById('customerBalanceDisplay').innerHTML = '';
@@ -578,13 +571,31 @@
         }
 
         function printReceipt(invoice, customer, items, total, discount, paid, diff) {
-            const width = 320, height = 600;
+            const width = 360, height = 700;
             const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
             const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
             const itemsHtml = items.map(i => `<tr><td>${i.productName} (${i.unitName})</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.price*i.quantity)}</td></tr>`).join('');
             const tax = (total - discount) * taxRate / (1 + taxRate);
             const subtotal = total - tax;
-            win.document.write(`<html dir="rtl"><head><title>إيصال</title><style>body{font-family:'Courier New',monospace;margin:8px;font-size:12px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:8px 0;}.total{font-weight:bold;font-size:14px;}</style></head><body><div class="center"><h3>شركة التوزيع الغذائي</h3></div><p>فاتورة: ${invoice.id}</p><p>تاريخ: ${invoice.date}</p><p>عميل: ${customer.name}</p><table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table><div class="line"></div><p>إجمالي: ${Utils.formatMoney(subtotal)}</p><p>خصم: ${Utils.formatMoney(discount)}</p><p>ضريبة: ${Utils.formatMoney(tax)}</p><p class="total">صافي: ${Utils.formatMoney(total)}</p><p>مدفوع: ${Utils.formatMoney(paid)}</p><p>${diff >= 0 ? `فائض يضاف للرصيد: ${Utils.formatMoney(diff)}` : `متبقي: ${Utils.formatMoney(-diff)}`}</p><div class="center">شكراً لتعاملكم معنا</div><script>window.print();setTimeout(()=>window.close(),500);<\/script></body></html>`);
+            const company = settings.company || { name: 'شركة التوزيع الغذائي', phone: '', address: '' };
+            win.document.write(`
+                <html dir="rtl">
+                <head><title>إيصال فاتورة</title>
+                <style>body{font-family:'Courier New',monospace;margin:12px;font-size:13px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:10px 0;}.total{font-weight:bold;font-size:16px;}</style>
+                </head><body>
+                <div class="center"><h2>${company.name}</h2><p>${company.phone} - ${company.address}</p></div>
+                <div class="line"></div>
+                <p>فاتورة: ${invoice.id}</p><p>تاريخ: ${invoice.date}</p><p>عميل: ${customer.name}</p>
+                <table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table>
+                <div class="line"></div>
+                <p>إجمالي: ${Utils.formatMoney(subtotal)}</p><p>خصم: ${Utils.formatMoney(discount)}</p><p>ضريبة (${(taxRate*100).toFixed(0)}%): ${Utils.formatMoney(tax)}</p>
+                <p class="total">صافي: ${Utils.formatMoney(total)}</p><p>مدفوع: ${Utils.formatMoney(paid)}</p>
+                <p>${diff >= 0 ? `فائض يضاف للرصيد: ${Utils.formatMoney(diff)}` : `متبقي: ${Utils.formatMoney(-diff)}`}</p>
+                <p>الرصيد الحالي: ${Utils.formatMoney(customer.balance)}</p>
+                <div class="center">شكراً لتعاملكم معنا</div>
+                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
+                </body></html>
+            `);
             win.document.close();
         }
 
@@ -595,11 +606,11 @@
         window.addToCartFromModal = addToCartFromModal;
         window.openPaymentModal = openPaymentModal;
         window.closePaymentModal = closePaymentModal;
+        window.togglePaymentFields = togglePaymentFields;
         window.updatePaymentPreview = updatePaymentPreview;
         window.completePayment = completePayment;
         window.holdInvoice = holdInvoice;
         window.calculateTotals = calculateTotals;
-        window.togglePaymentFields = togglePaymentFields;
     </script>
 </body>
 </html>
