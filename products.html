@@ -188,6 +188,10 @@
             padding: 14px; border-radius: 18px; text-align: center; cursor: pointer;
             font-size: 16px; font-weight: 600; margin-top: 15px;
         }
+        .suggest-price-btn {
+            background: none; border: none; color: var(--secondary);
+            cursor: pointer; font-size: 13px; margin-top: 5px;
+        }
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
@@ -232,7 +236,7 @@
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></11>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
@@ -424,21 +428,43 @@
 
             function closeProductModal() { document.getElementById('productModal').style.display = 'none'; }
 
+            // دالة مساعدة لاقتراح السعر من الوحدة الأساسية
+            function getSuggestedPrice() {
+                const rows = document.querySelectorAll('.unit-row');
+                if (rows.length > 0) {
+                    const firstPrice = parseFloat(rows[0].querySelector('.unit-price')?.value) || 0;
+                    const firstFactor = parseFloat(rows[0].querySelector('.unit-factor')?.value) || 1;
+                    const currentFactor = parseFloat(document.querySelector('.unit-row:last-child .unit-factor')?.value) || 1;
+                    if (firstPrice && firstFactor) {
+                        return (firstPrice / firstFactor) * currentFactor;
+                    }
+                }
+                return 0;
+            }
+
             function addUnitRow(unit = { name: 'قطعة', price: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }) {
                 const container = document.getElementById('unitsContainer');
                 const row = document.createElement('div');
                 row.className = 'unit-row';
+                const suggestedPrice = unit.price || getSuggestedPrice();
                 row.innerHTML = `
                     <input type="text" class="unit-name" placeholder="مثال: كرتونة" value="${unit.name}">
-                    <input type="number" class="unit-price" placeholder="سعر البيع" value="${unit.price}" step="0.01">
+                    <input type="number" class="unit-price" placeholder="سعر البيع" value="${suggestedPrice.toFixed(2)}" step="0.01">
                     <input type="number" class="unit-min" placeholder="الحد الأدنى" value="${unit.minPrice || 0}" step="0.01">
                     <input type="number" class="unit-max" placeholder="الحد الأقصى" value="${unit.maxPrice || 0}" step="0.01">
                     <input type="number" class="unit-stock" placeholder="المخزون" value="${unit.stock}" step="0.001">
-                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" title="مثلاً: الكرتونة = 12 قطعة">
+                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" title="مثلاً: الكرتونة = 12 قطعة" onchange="updateUnitPriceSuggestion(this)">
                     <button type="button" class="btn" onclick="this.closest('.unit-row').remove()"><i class="fas fa-trash"></i></button>
                 `;
                 container.appendChild(row);
             }
+
+            window.updateUnitPriceSuggestion = function(input) {
+                const row = input.closest('.unit-row');
+                const priceInput = row.querySelector('.unit-price');
+                const newPrice = getSuggestedPrice();
+                priceInput.value = newPrice.toFixed(2);
+            };
 
             window.editProduct = function(id) {
                 const p = products.find(x => x.id === id);
@@ -483,21 +509,25 @@
                 const unitRows = document.querySelectorAll('.unit-row');
                 const units = [];
                 unitRows.forEach(row => {
-                    const name = row.querySelector('.unit-name')?.value.trim();
+                    const unitName = row.querySelector('.unit-name')?.value.trim();
                     const price = parseFloat(row.querySelector('.unit-price')?.value) || 0;
                     const minPrice = parseFloat(row.querySelector('.unit-min')?.value) || 0;
                     const maxPrice = parseFloat(row.querySelector('.unit-max')?.value) || 0;
                     const stock = parseFloat(row.querySelector('.unit-stock')?.value) || 0;
                     const factor = parseFloat(row.querySelector('.unit-factor')?.value) || 1;
-                    if (name) units.push({ name, price, minPrice, maxPrice, stock, factor });
+                    if (unitName) units.push({ name: unitName, price, minPrice, maxPrice, stock, factor });
                 });
                 if (!name) { alert('اسم المنتج مطلوب'); return; }
                 if (!units.length) { alert('أضف وحدة واحدة على الأقل'); return; }
                 const product = { barcode: barcode || null, name, category: category || null, units, notes: notes || null };
                 if (id) product.id = id;
-                await DB.saveProduct(product);
-                closeProductModal();
-                await loadProducts();
+                try {
+                    await DB.saveProduct(product);
+                    closeProductModal();
+                    await loadProducts();
+                } catch (err) {
+                    alert('فشل حفظ المنتج: ' + err.message);
+                }
             }
 
             async function deleteProduct(id) {
