@@ -332,7 +332,6 @@
 
             let transactions = [], currentFilter = 'all', selectedTransactionId = null;
 
-            // دوال مساعدة
             function getMethodName(m) {
                 const methods = { cash: 'نقدي', bank: 'تحويل بنكي', check: 'شيك' };
                 return methods[m] || m;
@@ -479,7 +478,7 @@
                 if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
                 if (!description) { alert('البيان مطلوب'); return; }
 
-                // التحقق من الرصيد
+                // التحقق من الرصيد عند السحب
                 if (type === 'expense') {
                     let cashBalance = 0, transferBalance = 0;
                     transactions.forEach(t => {
