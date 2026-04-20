@@ -2,12 +2,16 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نقطة البيع · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>نقطة البيع · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
+        /* نفس تنسيقات pos.html السابقة مع تعديل اسم المتجر */
         :root {
             --primary: #1e293b;
             --secondary: #3b82f6;
@@ -211,8 +215,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نقطة البيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -224,7 +228,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -338,22 +342,24 @@
     </div>
 
     <script>
+        // تأكد من وجود service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js');
+        }
+
         (function() {
-            // عناصر واجهة المستخدم
             const userBtn = document.getElementById('userProfileBtn');
             const userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
-
             const sidebar = document.getElementById('sidebar');
             document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-            // البيانات
             let products = [], customers = [], cart = [];
             let selectedProduct = null, selectedUnit = null, selectedCustomer = null;
             let settings = {};
 
-            // عناصر المودال
             const unitModal = document.getElementById('unitQuantityModal');
             const paymentModal = document.getElementById('paymentModal');
             const closeUnitModalBtn = document.getElementById('closeUnitModalBtn');
@@ -366,7 +372,6 @@
             const cashAmountInput = document.getElementById('cashAmount');
             const transferAmountInput = document.getElementById('transferAmount');
 
-            // === دوال مساعدة ===
             function formatMoney(amount) { return Utils.formatMoney(amount); }
             function getToday() { return Utils.getToday(); }
 
@@ -428,7 +433,6 @@
             window.removeItem = (idx) => { cart.splice(idx, 1); renderCart(); };
             window.calculateTotals = calculateTotals;
 
-            // === دوال العمليات الرئيسية ===
             async function loadSettings() { settings = await DB.getSettings(); }
             async function loadData() {
                 products = await DB.getProducts();
@@ -535,9 +539,8 @@
                 const totalPaid = cashPaid + transferPaid;
                 if (method !== 'credit' && totalPaid < 0) { alert('المبلغ المدفوع غير صحيح'); return; }
                 const notes = document.getElementById('paymentNotes').value;
-                const diff = totalPaid - totals.net; // موجب: فائض (يقلل المديونية أو يزيد الدائن)، سالب: متبقي (يزيد المديونية)
+                const diff = totalPaid - totals.net;
 
-                // التحقق من الرصيد النقدي
                 if (cashPaid > 0) {
                     const transactions = await DB.getTransactions();
                     let cashBalance = 0;
@@ -548,7 +551,6 @@
                     if (cashPaid > cashBalance) { alert(`الرصيد النقدي غير كافٍ. المتاح: ${formatMoney(cashBalance)}`); return; }
                 }
 
-                // تحديث رصيد العميل (diff: موجب يضاف للرصيد، سالب يخصم)
                 selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
                 await DB.saveParty(selectedCustomer);
 
@@ -582,38 +584,12 @@
                     if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: getToday(), type: 'income', amount: transferPaid, description: `فاتورة بيع ${invoice.id} (تحويل)`, payment_method: 'bank' });
                 }
 
-                // طباعة الإيصال
-                printReceipt(invoice, selectedCustomer, totals);
+                printSaleReceipt(invoice, selectedCustomer, cart, totals);
                 alert(`تم البيع. الفاتورة ${invoice.id}`);
                 cart = []; renderCart(); document.getElementById('discountValue').value = 0; selectedCustomer = null;
                 document.getElementById('customerSearchInput').value = ''; document.getElementById('customerBalanceDisplay').innerHTML = '';
                 paymentModal.style.display = 'none';
                 await loadData();
-            }
-
-            function printReceipt(invoice, customer, totals) {
-                const width = 360, height = 700;
-                const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
-                const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
-                const itemsHtml = cart.map(i => `<tr><td>${i.productName} (${i.unitName})</td><td>${i.quantity}</td><td>${formatMoney(i.price)}</td><td>${formatMoney(i.price*i.quantity)}</td></tr>`).join('');
-                const company = settings.company || { name: 'شركة التوزيع الغذائي', phone: '', address: '' };
-                const balanceText = customer.balance >= 0 ? `رصيد للعميل: ${formatMoney(customer.balance)}` : `رصيد على العميل: ${formatMoney(-customer.balance)}`;
-                win.document.write(`
-                    <html dir="rtl"><head><title>إيصال فاتورة</title>
-                    <style>body{font-family:'Courier New',monospace;margin:12px;font-size:13px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:10px 0;}.total{font-weight:bold;font-size:16px;}</style>
-                    </head><body>
-                    <div class="center"><h2>${company.name}</h2><p>${company.phone} - ${company.address}</p></div><div class="line"></div>
-                    <p>فاتورة: ${invoice.id}</p><p>تاريخ: ${invoice.date}</p><p>عميل: ${customer.name}</p>
-                    <table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table><div class="line"></div>
-                    <p>الإجمالي: ${formatMoney(totals.subtotal)}</p><p>الخصم: ${formatMoney(totals.discount)}</p>
-                    <p class="total">الصافي: ${formatMoney(totals.net)}</p><p>المدفوع: ${formatMoney(invoice.paid)}</p>
-                    <p>${invoice.remaining === 0 ? 'تم الدفع بالكامل' : 'متبقي: ' + formatMoney(invoice.remaining)}</p>
-                    <p>${balanceText}</p>
-                    <div class="center">شكراً لتعاملكم معنا</div>
-                    <script>window.print();setTimeout(()=>window.close(),500);<\/script>
-                    </body></html>
-                `);
-                win.document.close();
             }
 
             async function holdInvoice() {
@@ -642,10 +618,8 @@
                 await loadData();
             }
 
-            // تعليق تلقائي عند الخروج
             async function autoHoldIfNeeded() {
                 if (cart.length > 0) {
-                    // تعليق الفاتورة الحالية فقط، بدون إزعاج المستخدم
                     const totals = calculateTotals();
                     const invoice = {
                         id: crypto.randomUUID(),
@@ -662,18 +636,11 @@
                         notes: 'تعليق تلقائي عند الخروج'
                     };
                     await DB.saveInvoice(invoice);
-                    console.log('تم تعليق الفاتورة تلقائياً:', invoice.id);
                 }
             }
 
-            window.addEventListener('beforeunload', (e) => {
-                if (cart.length > 0) {
-                    autoHoldIfNeeded();
-                    // لا نمنع الخروج، فقط نعلق الفاتورة
-                }
-            });
+            window.addEventListener('beforeunload', () => { if (cart.length > 0) autoHoldIfNeeded(); });
 
-            // ربط الأحداث عند تحميل الصفحة
             document.addEventListener('DOMContentLoaded', async () => {
                 if (!App.requireAuth()) return;
                 App.initUserInterface();
