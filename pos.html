@@ -290,7 +290,6 @@
                         <option value="percent">%</option>
                     </select>
                 </div>
-                <div class="summary-row"><span>الضريبة (<span id="taxRateDisplay">0</span>%):</span> <span id="taxAmount">0.00 ج.م</span></div>
                 <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
             </div>
             <div class="action-buttons">
@@ -320,7 +319,7 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
-                <div class="summary-row"><span>الرصيد الحالي:</span> <span id="currentBalance">0.00 ج.م</span></div>
+                <div class="summary-row"><span id="currentBalanceLabel">الرصيد الحالي:</span> <span id="currentBalance">0.00 ج.م</span></div>
             </div>
             <div class="form-group"><label>طريقة الدفع</label>
                 <select id="paymentMethod" onchange="togglePaymentFields(); updatePaymentPreview();">
@@ -333,7 +332,7 @@
             <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0" oninput="updatePaymentPreview()"></div>
             <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0" oninput="updatePaymentPreview()"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
-            <div class="summary-row"><span>الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
+            <div class="summary-row"><span id="balanceAfterLabel">الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
             <button class="btn btn-success" onclick="completePayment()">تأكيد وطباعة</button>
         </div>
@@ -351,7 +350,6 @@
 
             let products = [], customers = [], cart = [];
             let selectedProduct = null, selectedUnit = null, selectedCustomer = null;
-            let taxRate = 0;
             let settings = {};
 
             document.addEventListener('DOMContentLoaded', async () => {
@@ -365,8 +363,7 @@
 
             async function loadSettings() {
                 settings = await DB.getSettings();
-                taxRate = (settings.system?.taxRate || 0) / 100;
-                document.getElementById('taxRateDisplay').textContent = (taxRate * 100).toFixed(0);
+                // الضريبة محذوفة، لا نحتاج taxRate
             }
 
             async function loadData() {
@@ -401,7 +398,7 @@
                 if (option) {
                     selectedCustomer = customers.find(c => c.id === option.dataset.id);
                     const balance = selectedCustomer.balance || 0;
-                    const balanceText = balance >= 0 ? `رصيد لكم: ${Utils.formatMoney(balance)}` : `عليكم: ${Utils.formatMoney(-balance)}`;
+                    const balanceText = balance >= 0 ? `رصيد للعميل: ${Utils.formatMoney(balance)}` : `رصيد على العميل: ${Utils.formatMoney(-balance)}`;
                     document.getElementById('customerBalanceDisplay').innerHTML = balanceText;
                 } else { selectedCustomer = null; document.getElementById('customerBalanceDisplay').innerHTML = ''; }
             }
@@ -471,15 +468,12 @@
                 let discount = 0;
                 if (discountType === 'amount') discount = discountVal;
                 else discount = subtotal * discountVal / 100;
-                const afterDiscount = subtotal - discount;
-                const tax = afterDiscount * taxRate;
-                const net = afterDiscount + tax;
+                const net = subtotal - discount;
                 document.getElementById('itemTypesCount').textContent = cart.length;
                 document.getElementById('totalPieces').textContent = cart.reduce((s,i) => s + i.quantity * (i.factor || 1), 0).toFixed(2);
                 document.getElementById('subtotal').textContent = Utils.formatMoney(subtotal);
-                document.getElementById('taxAmount').textContent = Utils.formatMoney(tax);
                 document.getElementById('netTotal').textContent = Utils.formatMoney(net);
-                return { subtotal, discount, afterDiscount, tax, net };
+                return { subtotal, discount, net };
             }
 
             window.calculateTotals = calculateTotals;
@@ -492,11 +486,14 @@
                 document.getElementById('payDiscount').textContent = Utils.formatMoney(totals.discount);
                 document.getElementById('payNet').textContent = Utils.formatMoney(totals.net);
                 const balance = selectedCustomer.balance || 0;
-                document.getElementById('currentBalance').textContent = (balance >= 0 ? 'لهم ' : 'عليهم ') + Utils.formatMoney(Math.abs(balance));
+                const balanceText = balance >= 0 ? `رصيد للعميل: ${Utils.formatMoney(balance)}` : `رصيد على العميل: ${Utils.formatMoney(-balance)}`;
+                document.getElementById('currentBalanceLabel').textContent = balance >= 0 ? 'رصيد للعميل:' : 'رصيد على العميل:';
+                document.getElementById('currentBalance').textContent = Utils.formatMoney(Math.abs(balance));
                 document.getElementById('cashAmount').value = '';
                 document.getElementById('transferAmount').value = '';
                 document.getElementById('remainingDisplay').textContent = Utils.formatMoney(0);
-                document.getElementById('balanceAfter').textContent = (balance >= 0 ? 'لهم ' : 'عليهم ') + Utils.formatMoney(Math.abs(balance));
+                document.getElementById('balanceAfterLabel').textContent = balance >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
+                document.getElementById('balanceAfter').textContent = Utils.formatMoney(Math.abs(balance));
                 document.getElementById('paymentMethod').value = 'cash';
                 togglePaymentFields();
                 document.getElementById('paymentModal').style.display = 'flex';
@@ -519,9 +516,10 @@
                 const diff = paid - net;
                 const currentBal = selectedCustomer.balance || 0;
                 const newBal = currentBal + diff;
-                const balanceText = newBal >= 0 ? `لهم ${Utils.formatMoney(newBal)}` : `عليهم ${Utils.formatMoney(-newBal)}`;
+                const balanceText = newBal >= 0 ? `رصيد للعميل: ${Utils.formatMoney(newBal)}` : `رصيد على العميل: ${Utils.formatMoney(-newBal)}`;
                 document.getElementById('remainingDisplay').textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
-                document.getElementById('balanceAfter').textContent = balanceText;
+                document.getElementById('balanceAfterLabel').textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
+                document.getElementById('balanceAfter').textContent = Utils.formatMoney(Math.abs(newBal));
             };
 
             window.completePayment = async function() {
@@ -596,6 +594,7 @@
                 const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
                 const itemsHtml = cart.map(i => `<tr><td>${i.productName} (${i.unitName})</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.price*i.quantity)}</td></tr>`).join('');
                 const company = settings.company || { name: 'شركة التوزيع الغذائي', phone: '', address: '' };
+                const balanceText = customer.balance >= 0 ? `رصيد للعميل: ${Utils.formatMoney(customer.balance)}` : `رصيد على العميل: ${Utils.formatMoney(-customer.balance)}`;
                 win.document.write(`
                     <html dir="rtl"><head><title>إيصال فاتورة</title>
                     <style>body{font-family:'Courier New',monospace;margin:12px;font-size:13px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:10px 0;}.total{font-weight:bold;font-size:16px;}</style>
@@ -603,10 +602,10 @@
                     <div class="center"><h2>${company.name}</h2><p>${company.phone} - ${company.address}</p></div><div class="line"></div>
                     <p>فاتورة: ${invoice.id}</p><p>تاريخ: ${invoice.date}</p><p>عميل: ${customer.name}</p>
                     <table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table><div class="line"></div>
-                    <p>إجمالي: ${Utils.formatMoney(totals.subtotal)}</p><p>خصم: ${Utils.formatMoney(totals.discount)}</p><p>ضريبة (${(taxRate*100).toFixed(0)}%): ${Utils.formatMoney(totals.tax)}</p>
-                    <p class="total">صافي: ${Utils.formatMoney(totals.net)}</p><p>مدفوع: ${Utils.formatMoney(invoice.paid)}</p>
+                    <p>الإجمالي: ${Utils.formatMoney(totals.subtotal)}</p><p>الخصم: ${Utils.formatMoney(totals.discount)}</p>
+                    <p class="total">الصافي: ${Utils.formatMoney(totals.net)}</p><p>المدفوع: ${Utils.formatMoney(invoice.paid)}</p>
                     <p>${invoice.remaining === 0 ? 'تم الدفع بالكامل' : 'متبقي: ' + Utils.formatMoney(invoice.remaining)}</p>
-                    <p>الرصيد الحالي: ${customer.balance >= 0 ? 'لهم ' : 'عليهم '} ${Utils.formatMoney(Math.abs(customer.balance))}</p>
+                    <p>${balanceText}</p>
                     <div class="center">شكراً لتعاملكم معنا</div>
                     <script>window.print();setTimeout(()=>window.close(),500);<\/script>
                     </body></html>
