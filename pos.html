@@ -253,7 +253,6 @@
     </aside>
 
     <div class="pos-container">
-        <!-- اللوحة اليسرى: عميل + بحث منتجات + قائمة المنتجات -->
         <div class="left-panel">
             <div class="customer-box">
                 <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
@@ -270,7 +269,6 @@
             </div>
         </div>
 
-        <!-- اللوحة اليمنى: السلة والملخص -->
         <div class="cart-section">
             <div class="cart-items">
                 <div class="cart-header-row">
@@ -325,15 +323,15 @@
                 <div class="summary-row"><span>الرصيد الحالي:</span> <span id="currentBalance">0.00 ج.م</span></div>
             </div>
             <div class="form-group"><label>طريقة الدفع</label>
-                <select id="paymentMethod" onchange="togglePaymentFields()">
+                <select id="paymentMethod" onchange="togglePaymentFields(); updatePaymentPreview();">
                     <option value="cash">نقدي</option>
                     <option value="transfer">تحويل</option>
                     <option value="mixed">مختلط</option>
                     <option value="credit">آجل</option>
                 </select>
             </div>
-            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
-            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
+            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0" oninput="updatePaymentPreview()"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0" oninput="updatePaymentPreview()"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
             <div class="summary-row"><span>الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
@@ -450,7 +448,7 @@
 
             function renderCart() {
                 const container = document.getElementById('cartItemsContainer');
-                if (!cart.length) { container.innerHTML = '<div style="padding:20px; text-align:center;">السلة فارغة</div>'; updateSummary(); return; }
+                if (!cart.length) { container.innerHTML = '<div style="padding:20px; text-align:center;">السلة فارغة</div>'; calculateTotals(); return; }
                 container.innerHTML = cart.map((item, idx) => `
                     <div class="cart-item-row">
                         <div><span class="cart-item-name">${item.productName}</span><br><span class="cart-item-unit">${item.unitName}</span></div>
@@ -459,7 +457,7 @@
                         <div>${Utils.formatMoney(item.price * item.quantity)}</div>
                         <div><i class="fas fa-trash" style="color:var(--danger); cursor:pointer;" onclick="removeItem(${idx})"></i></div>
                     </div>`).join('');
-                updateSummary();
+                calculateTotals();
             }
 
             window.updateQty = (idx, val) => { const q = parseFloat(val); if (q <= 0) cart.splice(idx, 1); else cart[idx].quantity = q; renderCart(); };
@@ -509,7 +507,6 @@
                 const method = document.getElementById('paymentMethod').value;
                 document.getElementById('cashField').style.display = (method === 'cash' || method === 'mixed') ? 'block' : 'none';
                 document.getElementById('transferField').style.display = (method === 'transfer' || method === 'mixed') ? 'block' : 'none';
-                updatePaymentPreview();
             };
             window.updatePaymentPreview = function() {
                 const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
