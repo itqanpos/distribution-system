@@ -2,13 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>المشتريات · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>المشتريات · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
-        /* (نفس التنسيقات السابقة - لم يتم تغييرها) */
         :root {
             --primary: #1e293b;
             --secondary: #3b82f6;
@@ -105,7 +107,7 @@
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 20px; margin-bottom: 30px;
         }
         .stat-card {
@@ -191,8 +193,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -204,7 +206,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -257,9 +259,7 @@
 
         <div class="table-container">
             <table>
-                <thead>
-                    <tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr>
-                </thead>
+                <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
                 <tbody id="purchasesBody"></tbody>
             </table>
         </div>
@@ -271,11 +271,8 @@
             <div class="modal-header"><h2 id="modalTitle">فاتورة شراء جديدة</h2><button onclick="closePurchaseModal()">&times;</button></div>
             <form onsubmit="savePurchase(event)">
                 <input type="hidden" id="purchaseId">
-                <div class="form-group">
-                    <label>المورد</label>
-                    <input type="text" id="supplierSearch" placeholder="ابحث أو اكتب اسم المورد..." list="suppliersList" autocomplete="off" required>
-                    <datalist id="suppliersList"></datalist>
-                </div>
+                <div class="form-group"><label>المورد</label><input type="text" id="supplierSearch" placeholder="ابحث أو اكتب اسم المورد..." list="suppliersList" autocomplete="off" required></div>
+                <datalist id="suppliersList"></datalist>
                 <div class="form-group"><label>التاريخ</label><input type="date" id="purchaseDate" required></div>
                 <div class="form-group"><label>رقم الفاتورة (اختياري)</label><input type="text" id="invoiceNumber" placeholder="رقم فاتورة المورد"></div>
                 
@@ -296,303 +293,181 @@
     </div>
 
     <script>
-        // تهيئة القائمة الجانبية والمستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
-        let purchases = [], suppliers = [], products = [], editingPurchase = null;
+        (function() {
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-        // ربط الزر مباشرة عند التحميل
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            document.getElementById('purchaseDate').value = Utils.getToday();
-            
-            // ربط زر الفاتورة الجديدة
-            document.getElementById('newPurchaseBtn').addEventListener('click', openPurchaseModal);
-            
-            await loadData();
-            document.getElementById('searchInput').addEventListener('input', filterPurchases);
-        });
+            let purchases = [], suppliers = [], products = [], editingPurchase = null;
 
-        async function loadData() {
-            try {
-                purchases = await DB.getPurchases();
-                suppliers = await DB.getParties('supplier');
-                products = await DB.getProducts();
-                updateStats();
-                renderPurchases(purchases);
-                populateSuppliersList();
-            } catch (e) {
-                console.error(e);
-                alert('فشل تحميل البيانات');
+            async function loadPurchases() {
+                try {
+                    purchases = await DB.getPurchases();
+                    suppliers = await DB.getParties('supplier');
+                    products = await DB.getProducts();
+                    updateStats();
+                    renderPurchases(purchases);
+                    populateSuppliersList();
+                } catch (e) { alert('فشل تحميل البيانات'); }
             }
-        }
 
-        function populateSuppliersList() {
-            const list = document.getElementById('suppliersList');
-            if (list) {
+            function populateSuppliersList() {
+                const list = document.getElementById('suppliersList');
                 list.innerHTML = suppliers.map(s => `<option value="${s.name}" data-id="${s.id}">${s.name}</option>`).join('');
             }
-        }
 
-        function updateStats() {
-            const total = purchases.reduce((s, p) => s + p.total, 0);
-            const paid = purchases.reduce((s, p) => s + p.paid, 0);
-            document.getElementById('totalPurchases').textContent = Utils.formatMoney(total);
-            document.getElementById('paidPurchases').textContent = Utils.formatMoney(paid);
-            document.getElementById('unpaidPurchases').textContent = Utils.formatMoney(total - paid);
-            document.getElementById('purchaseCount').textContent = purchases.length;
-        }
-
-        function renderPurchases(data) {
-            const tbody = document.getElementById('purchasesBody');
-            if (!data.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا توجد فواتير شراء</td></tr>';
-                return;
+            function updateStats() {
+                const total = purchases.reduce((s, p) => s + p.total, 0);
+                const paid = purchases.reduce((s, p) => s + p.paid, 0);
+                document.getElementById('totalPurchases').textContent = Utils.formatMoney(total);
+                document.getElementById('paidPurchases').textContent = Utils.formatMoney(paid);
+                document.getElementById('unpaidPurchases').textContent = Utils.formatMoney(total - paid);
+                document.getElementById('purchaseCount').textContent = purchases.length;
             }
-            tbody.innerHTML = data.sort((a,b) => (b.date||'').localeCompare(a.date||'')).map(p => {
-                const status = p.status === 'paid' || p.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
-                return `<tr>
-                    <td>${p.invoice_number || p.id}</td>
-                    <td>${p.date}</td>
-                    <td>${p.supplier_name}</td>
-                    <td>${Utils.formatMoney(p.total)}</td>
-                    <td>${Utils.formatMoney(p.paid)}</td>
-                    <td>${Utils.formatMoney(p.remaining)}</td>
-                    <td>${status}</td>
-                    <td class="action-icons">
-                        <i class="fas fa-edit" onclick="editPurchase('${p.id}')"></i>
-                        <i class="fas fa-print" onclick="printPurchase('${p.id}')"></i>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
 
-        function filterPurchases() {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = purchases.filter(p => 
-                (p.id||'').toLowerCase().includes(term) || 
-                (p.supplier_name||'').toLowerCase().includes(term) || 
-                (p.invoice_number||'').toLowerCase().includes(term)
-            );
-            renderPurchases(filtered);
-        }
+            function renderPurchases(data) {
+                const tbody = document.getElementById('purchasesBody');
+                if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا توجد فواتير شراء</td></tr>'; return; }
+                tbody.innerHTML = data.sort((a,b) => (b.date||'').localeCompare(a.date||'')).map(p => {
+                    const status = p.status === 'paid' || p.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
+                    return `<tr><td>${p.invoice_number || p.id}</td><td>${p.date}</td><td>${p.supplier_name}</td><td>${Utils.formatMoney(p.total)}</td><td>${Utils.formatMoney(p.paid)}</td><td>${Utils.formatMoney(p.remaining)}</td><td>${status}</td><td class="action-icons"><i class="fas fa-edit" onclick="editPurchase('${p.id}')"></i><i class="fas fa-print" onclick="printPurchase('${p.id}')"></i></td></tr>`;
+                }).join('');
+            }
 
-        function openPurchaseModal() {
-            editingPurchase = null;
-            document.getElementById('modalTitle').textContent = 'فاتورة شراء جديدة';
-            document.getElementById('purchaseId').value = '';
-            document.getElementById('supplierSearch').value = '';
-            document.getElementById('purchaseDate').value = Utils.getToday();
-            document.getElementById('invoiceNumber').value = '';
-            document.getElementById('paidAmount').value = '0';
-            document.getElementById('purchaseNotes').value = '';
-            document.getElementById('itemsContainer').innerHTML = '';
-            addItemRow();
-            document.getElementById('purchaseModal').style.display = 'flex';
-        }
+            function filterPurchases() {
+                const term = document.getElementById('searchInput').value.toLowerCase();
+                const filtered = purchases.filter(p => (p.id||'').toLowerCase().includes(term) || (p.supplier_name||'').toLowerCase().includes(term) || (p.invoice_number||'').toLowerCase().includes(term));
+                renderPurchases(filtered);
+            }
 
-        function closePurchaseModal() {
-            document.getElementById('purchaseModal').style.display = 'none';
-        }
-
-        function addItemRow(item = { productName: '', quantity: 1, price: 0 }) {
-            const container = document.getElementById('itemsContainer');
-            const row = document.createElement('div');
-            row.className = 'item-row';
-            row.innerHTML = `
-                <input type="text" class="item-name" placeholder="اسم الصنف" list="productsList" value="${item.productName}" autocomplete="off">
-                <datalist id="productsList">${products.map(p => `<option value="${p.name}" data-price="${p.units?.[0]?.price || 0}">${p.name}</option>`).join('')}</datalist>
-                <input type="number" class="item-qty" placeholder="الكمية" value="${item.quantity}" min="0.001" step="0.001">
-                <input type="number" class="item-price" placeholder="سعر الشراء" value="${item.price}" step="0.01">
-                <span class="item-total">${Utils.formatMoney(item.quantity * item.price)}</span>
-                <button type="button" class="btn" onclick="this.closest('.item-row').remove()"><i class="fas fa-trash"></i></button>
-            `;
-            container.appendChild(row);
-        }
-
-        function editPurchase(id) {
-            editingPurchase = purchases.find(p => p.id === id);
-            if (!editingPurchase) return;
-            document.getElementById('modalTitle').textContent = 'تعديل فاتورة شراء';
-            document.getElementById('purchaseId').value = editingPurchase.id;
-            document.getElementById('supplierSearch').value = editingPurchase.supplier_name || '';
-            document.getElementById('purchaseDate').value = editingPurchase.date;
-            document.getElementById('invoiceNumber').value = editingPurchase.invoice_number || '';
-            document.getElementById('paidAmount').value = editingPurchase.paid || 0;
-            document.getElementById('purchaseNotes').value = editingPurchase.notes || '';
-            const container = document.getElementById('itemsContainer');
-            container.innerHTML = '';
-            if (editingPurchase.items) {
-                editingPurchase.items.forEach(item => addItemRow(item));
-            } else {
+            function openPurchaseModal() {
+                editingPurchase = null;
+                document.getElementById('modalTitle').textContent = 'فاتورة شراء جديدة';
+                document.getElementById('purchaseId').value = '';
+                document.getElementById('supplierSearch').value = '';
+                document.getElementById('purchaseDate').value = Utils.getToday();
+                document.getElementById('invoiceNumber').value = '';
+                document.getElementById('paidAmount').value = '0';
+                document.getElementById('purchaseNotes').value = '';
+                document.getElementById('itemsContainer').innerHTML = '';
                 addItemRow();
+                document.getElementById('purchaseModal').style.display = 'flex';
             }
-            document.getElementById('purchaseModal').style.display = 'flex';
-        }
 
-        async function savePurchase(e) {
-            e.preventDefault();
-            const id = document.getElementById('purchaseId').value;
-            const supplierInput = document.getElementById('supplierSearch').value;
-            const supplierOption = Array.from(document.querySelectorAll('#suppliersList option')).find(o => o.value === supplierInput);
-            let supplierId = supplierOption?.dataset.id;
-            let supplierName = supplierInput;
-            
-            if (!supplierId) {
-                // إنشاء مورد جديد إذا لم يكن موجوداً
-                try {
+            function closePurchaseModal() { document.getElementById('purchaseModal').style.display = 'none'; }
+
+            function addItemRow(item = { productName: '', quantity: 1, price: 0 }) {
+                const container = document.getElementById('itemsContainer');
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                row.innerHTML = `
+                    <input type="text" class="item-name" placeholder="اسم الصنف" list="productsList" value="${item.productName}" autocomplete="off">
+                    <datalist id="productsList">${products.map(p => `<option value="${p.name}" data-price="${p.units[0].price}">${p.name}</option>`).join('')}</datalist>
+                    <input type="number" class="item-qty" placeholder="الكمية" value="${item.quantity}" min="0.001" step="0.001">
+                    <input type="number" class="item-price" placeholder="سعر الشراء" value="${item.price}" step="0.01">
+                    <span class="item-total">${Utils.formatMoney(item.quantity * item.price)}</span>
+                    <button type="button" class="btn" onclick="this.closest('.item-row').remove()"><i class="fas fa-trash"></i></button>
+                `;
+                container.appendChild(row);
+            }
+
+            function editPurchase(id) {
+                editingPurchase = purchases.find(p => p.id === id);
+                if (!editingPurchase) return;
+                document.getElementById('modalTitle').textContent = 'تعديل فاتورة شراء';
+                document.getElementById('purchaseId').value = editingPurchase.id;
+                document.getElementById('supplierSearch').value = editingPurchase.supplier_name || '';
+                document.getElementById('purchaseDate').value = editingPurchase.date;
+                document.getElementById('invoiceNumber').value = editingPurchase.invoice_number || '';
+                document.getElementById('paidAmount').value = editingPurchase.paid || 0;
+                document.getElementById('purchaseNotes').value = editingPurchase.notes || '';
+                const container = document.getElementById('itemsContainer');
+                container.innerHTML = '';
+                if (editingPurchase.items) editingPurchase.items.forEach(item => addItemRow(item));
+                else addItemRow();
+                document.getElementById('purchaseModal').style.display = 'flex';
+            }
+
+            async function savePurchase(e) {
+                e.preventDefault();
+                const id = document.getElementById('purchaseId').value;
+                const supplierInput = document.getElementById('supplierSearch').value;
+                const supplierOption = Array.from(document.querySelectorAll('#suppliersList option')).find(o => o.value === supplierInput);
+                let supplierId = supplierOption?.dataset.id, supplierName = supplierInput;
+                if (!supplierId) {
                     const newSupplier = await DB.saveParty({ name: supplierInput, type: 'supplier', balance: 0 });
-                    supplierId = newSupplier.id;
-                    supplierName = newSupplier.name;
-                    suppliers.push(newSupplier);
-                    populateSuppliersList();
-                } catch (err) {
-                    alert('فشل إنشاء المورد: ' + err.message);
-                    return;
+                    supplierId = newSupplier.id; supplierName = newSupplier.name;
+                    suppliers.push(newSupplier); populateSuppliersList();
                 }
-            }
-            
-            const date = document.getElementById('purchaseDate').value;
-            const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
-            const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
-            const notes = document.getElementById('purchaseNotes').value.trim();
+                const date = document.getElementById('purchaseDate').value;
+                const invoiceNumber = document.getElementById('invoiceNumber').value.trim();
+                const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+                const notes = document.getElementById('purchaseNotes').value.trim();
 
-            const rows = document.querySelectorAll('#itemsContainer .item-row');
-            const items = [];
-            let total = 0;
-            for (const row of rows) {
-                const name = row.querySelector('.item-name').value;
-                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-                const price = parseFloat(row.querySelector('.item-price').value) || 0;
-                if (name && qty > 0) {
-                    items.push({ productName: name, quantity: qty, price });
-                    total += qty * price;
-                }
-            }
-            if (!items.length) {
-                alert('أضف صنفاً واحداً على الأقل');
-                return;
-            }
+                const rows = document.querySelectorAll('#itemsContainer .item-row');
+                const items = []; let total = 0;
+                rows.forEach(row => {
+                    const name = row.querySelector('.item-name').value;
+                    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                    if (name && qty > 0) { items.push({ productName: name, quantity: qty, price }); total += qty * price; }
+                });
+                if (!items.length) { alert('أضف صنفاً واحداً على الأقل'); return; }
 
-            const purchaseData = {
-                supplier_id: supplierId,
-                supplier_name: supplierName,
-                date,
-                invoice_number: invoiceNumber || null,
-                items,
-                total,
-                paid: Math.min(paid, total),
-                remaining: Math.max(0, total - paid),
-                status: paid >= total ? 'paid' : 'unpaid',
-                notes: notes || null
-            };
-            if (id) purchaseData.id = id;
+                const purchaseData = { supplier_id: supplierId, supplier_name: supplierName, date, invoice_number: invoiceNumber || null, items, total, paid: Math.min(paid, total), remaining: Math.max(0, total - paid), status: paid >= total ? 'paid' : 'unpaid', notes: notes || null };
+                if (id) purchaseData.id = id;
 
-            try {
-                // حفظ فاتورة الشراء
-                const saved = await DB.savePurchase(purchaseData);
-
-                // تحديث المخزون وتكلفة المنتجات
-                if (id) {
-                    const oldPurchase = purchases.find(p => p.id === id);
-                    if (oldPurchase) {
-                        for (const oldItem of oldPurchase.items) {
+                try {
+                    const saved = await DB.savePurchase(purchaseData);
+                    if (id) {
+                        const old = purchases.find(p => p.id === id);
+                        if (old) for (const oldItem of old.items) {
                             const prod = products.find(p => p.name === oldItem.productName);
-                            if (prod && prod.units?.[0]) {
-                                prod.units[0].stock -= oldItem.quantity;
-                                await DB.saveProduct(prod);
-                            }
+                            if (prod) { prod.units[0].stock -= oldItem.quantity; await DB.saveProduct(prod); }
                         }
                     }
-                }
-                
-                for (const item of items) {
-                    let prod = products.find(p => p.name === item.productName);
-                    if (!prod) {
-                        // إنشاء منتج جديد إذا لم يكن موجوداً
-                        prod = {
-                            name: item.productName,
-                            units: [{ name: 'قطعة', price: item.price * 1.2, stock: 0, factor: 1, cost: item.price }]
-                        };
-                        prod = await DB.saveProduct(prod);
-                        products.push(prod);
-                    } else {
-                        if (!prod.units) prod.units = [{ name: 'قطعة', price: item.price * 1.2, stock: 0, factor: 1 }];
-                        prod.units[0].stock += item.quantity;
-                        prod.units[0].cost = item.price;
-                        await DB.saveProduct(prod);
+                    for (const item of items) {
+                        let prod = products.find(p => p.name === item.productName);
+                        if (!prod) {
+                            prod = { name: item.productName, units: [{ name: 'قطعة', price: item.price * 1.2, stock: 0, factor: 1, cost: item.price }] };
+                            prod = await DB.saveProduct(prod); products.push(prod);
+                        } else { prod.units[0].stock += item.quantity; prod.units[0].cost = item.price; await DB.saveProduct(prod); }
                     }
-                }
-
-                // تحديث رصيد المورد
-                const supplier = suppliers.find(s => s.id === supplierId);
-                if (supplier) {
-                    supplier.balance = (supplier.balance || 0) + purchaseData.remaining;
-                    await DB.saveParty(supplier);
-                }
-
-                // حركة صندوق
-                if (paid > 0) {
-                    await DB.saveTransaction({
-                        date,
-                        type: 'expense',
-                        amount: paid,
-                        description: `دفع فاتورة شراء ${saved.id}`,
-                        payment_method: 'cash'
-                    });
-                }
-
-                alert('تم حفظ فاتورة الشراء');
-                closePurchaseModal();
-                await loadData();
-            } catch (err) {
-                alert('فشل الحفظ: ' + err.message);
+                    const supplier = suppliers.find(s => s.id === supplierId);
+                    if (supplier) { supplier.balance = (supplier.balance || 0) + purchaseData.remaining; await DB.saveParty(supplier); }
+                    if (paid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date, type: 'expense', amount: paid, description: `دفع فاتورة شراء ${saved.id}`, payment_method: 'cash' });
+                    alert('تم حفظ فاتورة الشراء');
+                    closePurchaseModal();
+                    await loadPurchases();
+                } catch (err) { alert('فشل الحفظ: ' + err.message); }
             }
-        }
 
-        function printPurchase(id) {
-            const p = purchases.find(p => p.id === id);
-            if (!p) return;
-            const width = 350, height = 600;
-            const left = (screen.width - width) / 2, top = (screen.height - height) / 2;
-            const win = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top}`);
-            const itemsHtml = (p.items || []).map(i => `<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.quantity*i.price)}</td></tr>`).join('');
-            win.document.write(`
-                <html dir="rtl">
-                <head><title>فاتورة شراء</title>
-                <style>body{font-family:'Courier New',monospace;margin:10px;font-size:13px;}.center{text-align:center;}.line{border-top:1px dashed #000;margin:10px 0;}.total{font-weight:bold;font-size:16px;}</style>
-                </head>
-                <body>
-                <div class="center"><h2>فاتورة شراء</h2><p>${p.supplier_name}</p></div>
-                <p>رقم: ${p.invoice_number || p.id}</p>
-                <p>تاريخ: ${p.date}</p>
-                <table width="100%"><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>${itemsHtml}</table>
-                <div class="line"></div>
-                <p>الإجمالي: ${Utils.formatMoney(p.total)}</p>
-                <p>مدفوع: ${Utils.formatMoney(p.paid)}</p>
-                <p>متبقي: ${Utils.formatMoney(p.remaining)}</p>
-                <div class="center">---</div>
-                <script>window.print();setTimeout(()=>window.close(),500);<\/script>
-                </body>
-                </html>
-            `);
-            win.document.close();
-        }
+            function printPurchase(id) {
+                const p = purchases.find(p => p.id === id);
+                if (p) printPurchaseOrder(p);
+            }
 
-        // تعريض الدوال عالمياً
-        window.openPurchaseModal = openPurchaseModal;
-        window.closePurchaseModal = closePurchaseModal;
-        window.addItemRow = addItemRow;
-        window.editPurchase = editPurchase;
-        window.printPurchase = printPurchase;
-        window.loadPurchases = loadData;
-        window.filterPurchases = filterPurchases;
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+                App.initUserInterface();
+                await loadPurchases();
+                document.getElementById('newPurchaseBtn').addEventListener('click', openPurchaseModal);
+                document.getElementById('searchInput').addEventListener('input', filterPurchases);
+            });
+
+            window.openPurchaseModal = openPurchaseModal;
+            window.closePurchaseModal = closePurchaseModal;
+            window.addItemRow = addItemRow;
+            window.editPurchase = editPurchase;
+            window.printPurchase = printPurchase;
+            window.loadPurchases = loadPurchases;
+        })();
     </script>
 </body>
 </html>
