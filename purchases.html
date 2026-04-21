@@ -106,6 +106,7 @@
             font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
+        .btn-danger { background: var(--danger); color: white; }
         .stats-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 20px; margin-bottom: 30px;
@@ -113,7 +114,7 @@
         .stat-card {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center;
+            text-align: center; cursor: pointer;
         }
         .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
         .stat-card .value { font-size: 24px; font-weight: 700; }
@@ -177,6 +178,7 @@
             padding: 16px; border-radius: 18px; text-align: center; cursor: pointer;
             font-size: 16px; font-weight: 600; margin-top: 15px;
         }
+        .summary-row { display: flex; justify-content: space-between; margin-top: 10px; font-size: 16px; }
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
@@ -243,16 +245,21 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card"><div class="icon"><i class="fas fa-shopping-cart"></i></div><div class="value" id="totalPurchases">0 ج.م</div><div class="label">إجمالي المشتريات</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-check-circle"></i></div><div class="value" id="paidPurchases">0 ج.م</div><div class="label">المدفوع</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-clock"></i></div><div class="value" id="unpaidPurchases">0 ج.م</div><div class="label">المتبقي</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value" id="purchaseCount">0</div><div class="label">عدد الفواتير</div></div>
+            <div class="stat-card" onclick="filterByStatus('all')"><div class="icon"><i class="fas fa-shopping-cart"></i></div><div class="value" id="totalPurchases">0 ج.م</div><div class="label">إجمالي المشتريات</div></div>
+            <div class="stat-card" onclick="filterByStatus('paid')"><div class="icon"><i class="fas fa-check-circle"></i></div><div class="value" id="paidPurchases">0 ج.م</div><div class="label">المدفوع</div></div>
+            <div class="stat-card" onclick="filterByStatus('unpaid')"><div class="icon"><i class="fas fa-clock"></i></div><div class="value" id="unpaidPurchases">0 ج.م</div><div class="label">المتبقي</div></div>
+            <div class="stat-card" onclick="filterByStatus('count')"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value" id="purchaseCount">0</div><div class="label">عدد الفواتير</div></div>
         </div>
 
         <div class="filter-bar">
             <div class="search-wrapper">
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو المورد...">
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="setFilter('all')">الكل</button>
+                <button class="filter-btn" onclick="setFilter('paid')">مدفوعة</button>
+                <button class="filter-btn" onclick="setFilter('unpaid')">غير مدفوعة</button>
             </div>
             <button class="btn" onclick="loadPurchases()"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
@@ -282,7 +289,9 @@
                     <div class="add-item-btn" onclick="addItemRow()"><i class="fas fa-plus-circle"></i> إضافة صنف</div>
                 </div>
 
-                <div class="form-group"><label>المدفوع</label><input type="number" id="paidAmount" min="0" step="0.01" value="0"></div>
+                <div class="summary-row"><span>الإجمالي:</span> <span id="totalAmount">0.00 ج.م</span></div>
+                <div class="form-group"><label>المدفوع</label><input type="number" id="paidAmount" min="0" step="0.01" value="0" oninput="updateRemaining()"></div>
+                <div class="summary-row"><span>المتبقي:</span> <span id="remainingAmount">0.00 ج.م</span></div>
                 <div class="form-group"><label>ملاحظات</label><textarea id="purchaseNotes" rows="2"></textarea></div>
                 <div style="display:flex; gap:15px; margin-top:25px;">
                     <button type="submit" class="btn btn-primary" style="flex:1;">حفظ الفاتورة</button>
@@ -292,19 +301,25 @@
         </div>
     </div>
 
+    <!-- مودال تفاصيل الفاتورة -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>تفاصيل فاتورة الشراء</h2><button onclick="closeDetailsModal()">&times;</button></div>
+            <div id="detailsBody"></div>
+        </div>
+    </div>
+
     <script>
         if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
         (function() {
-            const userBtn = document.getElementById('userProfileBtn');
-            const userDropdown = document.getElementById('userDropdown');
+            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
             document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-            let purchases = [], suppliers = [], products = [], editingPurchase = null;
+            let purchases = [], suppliers = [], products = [], editingPurchase = null, currentFilter = 'all';
 
             async function loadPurchases() {
                 try {
@@ -312,7 +327,7 @@
                     suppliers = await DB.getParties('supplier');
                     products = await DB.getProducts();
                     updateStats();
-                    renderPurchases(purchases);
+                    applyFilters();
                     populateSuppliersList();
                 } catch (e) { alert('فشل تحميل البيانات'); }
             }
@@ -323,27 +338,43 @@
             }
 
             function updateStats() {
-                const total = purchases.reduce((s, p) => s + p.total, 0);
-                const paid = purchases.reduce((s, p) => s + p.paid, 0);
+                const total = purchases.reduce((s, p) => s + (p.total || 0), 0);
+                const paid = purchases.reduce((s, p) => s + (p.paid || 0), 0);
                 document.getElementById('totalPurchases').textContent = Utils.formatMoney(total);
                 document.getElementById('paidPurchases').textContent = Utils.formatMoney(paid);
                 document.getElementById('unpaidPurchases').textContent = Utils.formatMoney(total - paid);
                 document.getElementById('purchaseCount').textContent = purchases.length;
             }
 
+            function setFilter(filter) {
+                currentFilter = filter;
+                document.querySelectorAll('.filter-btn').forEach((btn, i) => btn.classList.toggle('active', ['all','paid','unpaid'][i] === filter));
+                applyFilters();
+            }
+
+            function filterByStatus(status) {
+                if (status === 'all') setFilter('all');
+                else if (status === 'paid') setFilter('paid');
+                else if (status === 'unpaid') setFilter('unpaid');
+                else if (status === 'count') setFilter('all');
+            }
+
+            function applyFilters() {
+                const term = document.getElementById('searchInput').value.toLowerCase();
+                let filtered = purchases.filter(p => (p.id||'').toLowerCase().includes(term) || (p.supplier_name||'').toLowerCase().includes(term) || (p.invoice_number||'').toLowerCase().includes(term));
+                if (currentFilter === 'paid') filtered = filtered.filter(p => p.status === 'paid' || p.remaining === 0);
+                else if (currentFilter === 'unpaid') filtered = filtered.filter(p => p.status !== 'paid' && p.remaining > 0);
+                filtered.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+                renderPurchases(filtered);
+            }
+
             function renderPurchases(data) {
                 const tbody = document.getElementById('purchasesBody');
                 if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا توجد فواتير شراء</td></tr>'; return; }
-                tbody.innerHTML = data.sort((a,b) => (b.date||'').localeCompare(a.date||'')).map(p => {
+                tbody.innerHTML = data.map(p => {
                     const status = p.status === 'paid' || p.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
-                    return `<tr><td>${p.invoice_number || p.id}</td><td>${p.date}</td><td>${p.supplier_name}</td><td>${Utils.formatMoney(p.total)}</td><td>${Utils.formatMoney(p.paid)}</td><td>${Utils.formatMoney(p.remaining)}</td><td>${status}</td><td class="action-icons"><i class="fas fa-edit" onclick="editPurchase('${p.id}')"></i><i class="fas fa-print" onclick="printPurchase('${p.id}')"></i></td></tr>`;
+                    return `<tr><td>${p.invoice_number || p.id}</td><td>${p.date}</td><td>${p.supplier_name}</td><td>${Utils.formatMoney(p.total)}</td><td>${Utils.formatMoney(p.paid)}</td><td>${Utils.formatMoney(p.remaining)}</td><td>${status}</td><td class="action-icons"><i class="fas fa-edit" onclick="editPurchase('${p.id}')"></i><i class="fas fa-print" onclick="printPurchase('${p.id}')"></i><i class="fas fa-eye" onclick="viewDetails('${p.id}')"></i></td></tr>`;
                 }).join('');
-            }
-
-            function filterPurchases() {
-                const term = document.getElementById('searchInput').value.toLowerCase();
-                const filtered = purchases.filter(p => (p.id||'').toLowerCase().includes(term) || (p.supplier_name||'').toLowerCase().includes(term) || (p.invoice_number||'').toLowerCase().includes(term));
-                renderPurchases(filtered);
             }
 
             function openPurchaseModal() {
@@ -357,6 +388,7 @@
                 document.getElementById('purchaseNotes').value = '';
                 document.getElementById('itemsContainer').innerHTML = '';
                 addItemRow();
+                updateTotalAndRemaining();
                 document.getElementById('purchaseModal').style.display = 'flex';
             }
 
@@ -367,14 +399,41 @@
                 const row = document.createElement('div');
                 row.className = 'item-row';
                 row.innerHTML = `
-                    <input type="text" class="item-name" placeholder="اسم الصنف" list="productsList" value="${item.productName}" autocomplete="off">
+                    <input type="text" class="item-name" placeholder="اسم الصنف" list="productsList" value="${item.productName}" autocomplete="off" onchange="updateItemPrice(this)">
                     <datalist id="productsList">${products.map(p => `<option value="${p.name}" data-price="${p.units[0].price}">${p.name}</option>`).join('')}</datalist>
-                    <input type="number" class="item-qty" placeholder="الكمية" value="${item.quantity}" min="0.001" step="0.001">
-                    <input type="number" class="item-price" placeholder="سعر الشراء" value="${item.price}" step="0.01">
+                    <input type="number" class="item-qty" placeholder="الكمية" value="${item.quantity}" min="0.001" step="0.001" oninput="updateTotalAndRemaining()">
+                    <input type="number" class="item-price" placeholder="سعر الشراء" value="${item.price}" step="0.01" oninput="updateTotalAndRemaining()">
                     <span class="item-total">${Utils.formatMoney(item.quantity * item.price)}</span>
-                    <button type="button" class="btn" onclick="this.closest('.item-row').remove()"><i class="fas fa-trash"></i></button>
+                    <button type="button" class="btn" onclick="this.closest('.item-row').remove(); updateTotalAndRemaining();"><i class="fas fa-trash"></i></button>
                 `;
                 container.appendChild(row);
+            }
+
+            window.updateItemPrice = function(input) {
+                const option = Array.from(document.querySelectorAll('#productsList option')).find(o => o.value === input.value);
+                if (option) {
+                    const row = input.closest('.item-row');
+                    row.querySelector('.item-price').value = option.dataset.price || 0;
+                    updateTotalAndRemaining();
+                }
+            };
+
+            function updateTotalAndRemaining() {
+                let total = 0;
+                document.querySelectorAll('.item-row').forEach(row => {
+                    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                    total += qty * price;
+                    row.querySelector('.item-total').textContent = Utils.formatMoney(qty * price);
+                });
+                document.getElementById('totalAmount').textContent = Utils.formatMoney(total);
+                updateRemaining();
+            }
+
+            function updateRemaining() {
+                const total = parseFloat(document.getElementById('totalAmount').textContent.replace(/[^0-9.-]+/g, '')) || 0;
+                const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+                document.getElementById('remainingAmount').textContent = Utils.formatMoney(Math.max(0, total - paid));
             }
 
             function editPurchase(id) {
@@ -391,6 +450,7 @@
                 container.innerHTML = '';
                 if (editingPurchase.items) editingPurchase.items.forEach(item => addItemRow(item));
                 else addItemRow();
+                updateTotalAndRemaining();
                 document.getElementById('purchaseModal').style.display = 'flex';
             }
 
@@ -448,6 +508,21 @@
                 } catch (err) { alert('فشل الحفظ: ' + err.message); }
             }
 
+            function viewDetails(id) {
+                const p = purchases.find(p => p.id === id);
+                if (!p) return;
+                const itemsHtml = (p.items || []).map(i => `<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.quantity*i.price)}</td></tr>`).join('');
+                document.getElementById('detailsBody').innerHTML = `
+                    <p><strong>رقم الفاتورة:</strong> ${p.invoice_number || p.id}</p><p><strong>التاريخ:</strong> ${p.date}</p><p><strong>المورد:</strong> ${p.supplier_name}</p>
+                    <p><strong>الإجمالي:</strong> ${Utils.formatMoney(p.total)}</p><p><strong>المدفوع:</strong> ${Utils.formatMoney(p.paid)}</p><p><strong>المتبقي:</strong> ${Utils.formatMoney(p.remaining)}</p>
+                    <h4>الأصناف</h4><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>${itemsHtml}</table>
+                    <p><strong>ملاحظات:</strong> ${p.notes || '-'}</p>
+                `;
+                document.getElementById('detailsModal').style.display = 'flex';
+            }
+
+            function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
+
             function printPurchase(id) {
                 const p = purchases.find(p => p.id === id);
                 if (p) printPurchaseOrder(p);
@@ -458,14 +533,20 @@
                 App.initUserInterface();
                 await loadPurchases();
                 document.getElementById('newPurchaseBtn').addEventListener('click', openPurchaseModal);
-                document.getElementById('searchInput').addEventListener('input', filterPurchases);
+                document.getElementById('searchInput').addEventListener('input', applyFilters);
             });
 
             window.openPurchaseModal = openPurchaseModal;
             window.closePurchaseModal = closePurchaseModal;
             window.addItemRow = addItemRow;
+            window.updateTotalAndRemaining = updateTotalAndRemaining;
+            window.updateRemaining = updateRemaining;
             window.editPurchase = editPurchase;
+            window.viewDetails = viewDetails;
+            window.closeDetailsModal = closeDetailsModal;
             window.printPurchase = printPurchase;
+            window.setFilter = setFilter;
+            window.filterByStatus = filterByStatus;
             window.loadPurchases = loadPurchases;
         })();
     </script>
