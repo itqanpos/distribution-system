@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تفاصيل الحساب · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>تفاصيل الحساب · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -154,7 +157,14 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
         .form-group input { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px; }
-        @media (max-width: 768px) { .main-content { padding: 20px; } }
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-right: 0 !important; padding: 20px; }
+            .menu-toggle { display: flex; }
+            .user-info { display: none; }
+        }
+        @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
 </head>
 <body>
@@ -162,8 +172,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -175,7 +185,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -191,8 +201,12 @@
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
         </ul>
@@ -204,8 +218,8 @@
         <div class="party-card" id="partyInfo"></div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('invoices')">الفواتير</button>
-            <button class="tab-btn" onclick="switchTab('payments')">المدفوعات</button>
+            <button class="tab-btn active" id="tabInvoices">الفواتير</button>
+            <button class="tab-btn" id="tabPayments">المدفوعات</button>
         </div>
 
         <div id="invoicesTab" class="tab-content active">
@@ -216,168 +230,105 @@
         </div>
     </main>
 
-    <!-- مودال تسجيل دفعة -->
-    <div class="modal" id="paymentModal">
+    <!-- مودال تسجيل دفعة / إضافة رصيد -->
+    <div class="modal" id="transactionModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>تسجيل دفعة</h2><button onclick="closePaymentModal()">&times;</button></div>
-            <form onsubmit="submitPayment(event)">
-                <div class="form-group"><label>المبلغ</label><input type="number" id="paymentAmount" min="0.01" step="0.01" required></div>
-                <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
-                <button type="submit" class="btn btn-success">تسجيل الدفعة</button>
+            <div class="modal-header"><h2 id="transModalTitle">تسجيل دفعة</h2><button id="closeTransModalBtn">&times;</button></div>
+            <form id="transactionForm">
+                <input type="hidden" id="transPartyId">
+                <input type="hidden" id="transPartyType">
+                <input type="hidden" id="transAction" value="collect">
+                <div class="form-group"><label>المبلغ</label><input type="number" id="transAmount" min="0.01" step="0.01" required></div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
+                <div class="form-group"><label>ملاحظات</label><input type="text" id="transNotes"></div>
+                <button type="submit" class="btn btn-primary">حفظ</button>
             </form>
         </div>
     </div>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const partyId = urlParams.get('id');
-        const partyType = urlParams.get('type');
+        (function() {
+            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-        let party = null, invoices = [], payments = [];
+            const urlParams = new URLSearchParams(window.location.search);
+            const partyId = urlParams.get('id');
+            const partyType = urlParams.get('type');
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth()) return;
-            App.initUserInterface();
-            if (!partyId) { alert('لم يتم تحديد الطرف'); history.back(); return; }
-            await loadPartyData();
-        });
+            let party = null, invoices = [], payments = [];
 
-        async function loadPartyData() {
-            try {
-                const parties = await DB.getParties(partyType === 'customer' ? 'customer' : 'supplier');
-                party = parties.find(p => p.id === partyId);
-                if (!party) { alert('الطرف غير موجود'); history.back(); return; }
+            async function loadPartyData() {
+                try {
+                    const parties = await DB.getParties(partyType === 'customer' ? 'customer' : 'supplier');
+                    party = parties.find(p => p.id === partyId);
+                    if (!party) { alert('الطرف غير موجود'); history.back(); return; }
 
-                const allInvoices = await DB.getInvoices();
-                const allPurchases = await DB.getPurchases();
-                const allTransactions = await DB.getTransactions();
+                    const allInvoices = await DB.getInvoices();
+                    const allPurchases = await DB.getPurchases();
+                    const allTransactions = await DB.getTransactions();
 
-                if (partyType === 'customer') {
-                    invoices = allInvoices.filter(i => i.type === 'sale' && i.customer_id === partyId);
-                    payments = allTransactions.filter(t => t.type === 'income' && t.description && t.description.includes(party.name));
-                } else {
-                    invoices = allPurchases.filter(p => p.supplier_id === partyId);
-                    payments = allTransactions.filter(t => t.type === 'expense' && t.description && t.description.includes(party.name));
-                }
+                    if (partyType === 'customer') {
+                        invoices = allInvoices.filter(i => i.type === 'sale' && i.customer_id === partyId);
+                        payments = allTransactions.filter(t => t.type === 'income' && t.description && t.description.includes(party.name));
+                    } else {
+                        invoices = allPurchases.filter(p => p.supplier_id === partyId);
+                        payments = allTransactions.filter(t => t.type === 'expense' && t.description && t.description.includes(party.name));
+                    }
 
-                renderPartyInfo();
-                renderInvoices();
-                renderPayments();
-            } catch (e) { console.error(e); }
-        }
-
-        function renderPartyInfo() {
-            const balance = party.balance || 0;
-            const balanceClass = balance >= 0 ? 'balance-positive' : 'balance-negative';
-            const balanceText = partyType === 'customer' 
-                ? (balance < 0 ? `مدين: ${Utils.formatMoney(-balance)}` : `دائن: ${Utils.formatMoney(balance)}`)
-                : (balance > 0 ? `لنا: ${Utils.formatMoney(balance)}` : `علينا: ${Utils.formatMoney(-balance)}`);
-            
-            document.getElementById('partyInfo').innerHTML = `
-                <div class="party-header">
-                    <div class="party-info">
-                        <h2>${party.name}</h2>
-                        <p><i class="fas fa-phone"></i> ${party.phone || 'غير محدد'}</p>
-                        <p><i class="fas fa-map-marker-alt"></i> ${party.address || 'غير محدد'}</p>
-                    </div>
-                    <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-money-bill"></i> تسجيل دفعة</button>
-                </div>
-                <div class="balance-large ${balanceClass}">${balanceText}</div>
-                <p>آخر تعامل: ${party.last_transaction || 'لا يوجد'}</p>
-            `;
-        }
-
-        function renderInvoices() {
-            const container = document.getElementById('invoicesContainer');
-            if (!invoices.length) {
-                container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير</p>';
-                return;
+                    renderPartyInfo();
+                    renderInvoices();
+                    renderPayments();
+                } catch (e) { alert('فشل تحميل البيانات'); }
             }
-            const html = `
-                <table>
-                    <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
-                    <tbody>
-                        ${invoices.map(inv => {
+
+            function renderPartyInfo() {
+                const balance = party.balance || 0;
+                const balanceClass = balance >= 0 ? 'balance-positive' : 'balance-negative';
+                const balanceText = partyType === 'customer' 
+                    ? (balance < 0 ? `مدين: ${Utils.formatMoney(-balance)}` : `دائن: ${Utils.formatMoney(balance)}`)
+                    : (balance > 0 ? `لنا: ${Utils.formatMoney(balance)}` : `علينا: ${Utils.formatMoney(-balance)}`);
+                
+                document.getElementById('partyInfo').innerHTML = `
+                    <div class="party-header">
+                        <div class="party-info">
+                            <h2>${party.name}</h2>
+                            <p><i class="fas fa-phone"></i> ${party.phone || 'غير محدد'}</p>
+                            <p><i class="fas fa-map-marker-alt"></i> ${party.address || 'غير محدد'}</p>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-success" id="collectPaymentBtn"><i class="fas fa-money-bill"></i> تحصيل</button>
+                            <button class="btn btn-primary" id="addBalanceBtn"><i class="fas fa-plus-circle"></i> إضافة رصيد</button>
+                            <button class="btn" id="printStatementBtn"><i class="fas fa-print"></i> طباعة</button>
+                        </div>
+                    </div>
+                    <div class="balance-large ${balanceClass}">${balanceText}</div>
+                    <p>آخر تعامل: ${party.last_transaction || 'لا يوجد'}</p>
+                `;
+
+                document.getElementById('collectPaymentBtn').addEventListener('click', () => openTransactionModal('collect'));
+                document.getElementById('addBalanceBtn').addEventListener('click', () => openTransactionModal('add_balance'));
+                document.getElementById('printStatementBtn').addEventListener('click', printStatement);
+            }
+
+            function renderInvoices() {
+                const container = document.getElementById('invoicesContainer');
+                if (!invoices.length) { container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير</p>'; return; }
+                container.innerHTML = `
+                    <table>
+                        <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
+                        <tbody>${invoices.map(inv => {
                             const status = inv.status === 'paid' || inv.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
                             return `<tr><td>${inv.id}</td><td>${inv.date}</td><td>${Utils.formatMoney(inv.total)}</td><td>${Utils.formatMoney(inv.paid)}</td><td>${Utils.formatMoney(inv.remaining)}</td><td>${status}</td></tr>`;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
-            container.innerHTML = html;
-        }
-
-        function renderPayments() {
-            const container = document.getElementById('paymentsContainer');
-            if (!payments.length) {
-                container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد مدفوعات</p>';
-                return;
+                        }).join('')}</tbody>
+                    </table>`;
             }
-            const html = `
-                <table>
-                    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>البيان</th><th>طريقة الدفع</th></tr></thead>
-                    <tbody>
-                        ${payments.map(p => `<tr><td>${p.date}</td><td>${Utils.formatMoney(p.amount)}</td><td>${p.description}</td><td>${p.payment_method || 'نقدي'}</td></tr>`).join('')}
-                    </tbody>
-                </table>
-            `;
-            container.innerHTML = html;
-        }
 
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Tab').classList.add('active');
-        }
-
-        function openPaymentModal() {
-            document.getElementById('paymentAmount').value = '';
-            document.getElementById('paymentNotes').value = '';
-            document.getElementById('paymentModal').style.display = 'flex';
-        }
-
-        function closePaymentModal() { document.getElementById('paymentModal').style.display = 'none'; }
-
-        async function submitPayment(e) {
-            e.preventDefault();
-            const amount = parseFloat(document.getElementById('paymentAmount').value);
-            const notes = document.getElementById('paymentNotes').value.trim();
-            if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
-
-            try {
-                // تحديث رصيد الطرف
-                const newBalance = partyType === 'customer' ? party.balance + amount : party.balance - amount;
-                await supabase.from('parties').update({ balance: newBalance, last_transaction: Utils.getToday() }).eq('id', partyId);
-
-                // إضافة حركة صندوق
-                const transaction = {
-                    date: Utils.getToday(),
-                    type: partyType === 'customer' ? 'income' : 'expense',
-                    amount: amount,
-                    description: `${partyType === 'customer' ? 'تحصيل من' : 'دفع إلى'} ${party.name}${notes ? ' - ' + notes : ''}`,
-                    payment_method: 'cash'
-                };
-                await DB.saveTransaction(transaction);
-
-                alert('تم تسجيل الدفعة بنجاح');
-                closePaymentModal();
-                await loadPartyData();
-            } catch (err) { alert('فشل تسجيل الدفعة'); }
-        }
-
-        window.switchTab = switchTab;
-        window.openPaymentModal = openPaymentModal;
-        window.closePaymentModal = closePaymentModal;
-        window.submitPayment = submitPayment;
-    </script>
-</body>
-</html>
+            function renderPayments() {
+                const container = document.getElementById('paymentsContainer');
+                if (!payments.length) { container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد مدفوعات</p>'; return; }
+                container.innerHTML = `
