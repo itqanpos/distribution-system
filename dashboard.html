@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>الصندوق · حسابي</title>
+    <title>لوحة التحكم · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -100,87 +99,70 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
+            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
-            font-size: 16px;
         }
-        .btn-primary { background: var(--secondary); color: white; border: none; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
         .stats-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 20px; margin-bottom: 30px;
         }
         .stat-card {
-            background: white; border-radius: 20px; padding: 20px;
+            background: white; border-radius: 20px; padding: 22px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            display: flex; align-items: center; gap: 15px;
+            display: flex; align-items: center; gap: 18px; cursor: pointer;
         }
         .stat-icon {
-            width: 55px; height: 55px; border-radius: 16px; display: flex;
-            align-items: center; justify-content: center; font-size: 26px; color: white;
+            width: 60px; height: 60px; border-radius: 18px; display: flex;
+            align-items: center; justify-content: center; font-size: 28px; color: white;
         }
-        .stat-card.cash .stat-icon { background: linear-gradient(135deg, #10b981, #059669); }
-        .stat-card.transfer .stat-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-        .stat-card.total .stat-icon { background: linear-gradient(135deg, #1e293b, #0f172a); }
-        .stat-info h3 { font-size: 24px; font-weight: 700; }
-        .stat-info p { color: #64748b; font-size: 13px; }
-        .filter-bar {
-            display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
-            margin-bottom: 20px;
-        }
-        .search-wrapper {
-            display: flex; align-items: center; background: white;
-            border-radius: 40px; padding: 8px 20px; border: 1px solid #cbd5e1;
-        }
-        .search-wrapper i { color: #94a3b8; margin-left: 10px; font-size: 18px; }
-        .search-wrapper input {
-            border: none; padding: 12px 0; width: 250px; outline: none; font-size: 16px;
-        }
-        .filter-buttons { display: flex; gap: 8px; }
-        .filter-btn {
-            padding: 8px 16px; border-radius: 30px; border: 1px solid #cbd5e1;
-            background: white; cursor: pointer;
-        }
-        .filter-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
-        .table-container {
+        .stat-card.sales .stat-icon { background: linear-gradient(135deg, #10b981, #059669); }
+        .stat-card.purchases .stat-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .stat-card.customers .stat-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .stat-card.cash .stat-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .stat-info h3 { font-size: 26px; font-weight: 700; }
+        .stat-info p { color: #64748b; font-size: 14px; }
+
+        .financial-summary {
             background: white; border-radius: 20px; padding: 24px;
+            margin-bottom: 30px; box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+            border: 1px solid #f1f5f9;
+        }
+        .financial-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+        .financial-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .financial-item {
+            text-align: center; padding: 20px; border-radius: 16px; background: var(--light);
+        }
+        .financial-item i { font-size: 32px; margin-bottom: 10px; }
+        .financial-item .amount { font-size: 24px; font-weight: 700; }
+        .financial-item .label { color: #64748b; font-size: 14px; margin-top: 5px; }
+        .revenue i { color: var(--success); }
+        .expense i { color: var(--danger); }
+        .profit i { color: var(--secondary); }
+
+        .tables-row { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .table-card {
+            background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            overflow-x: auto;
         }
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
+        th { text-align: right; padding: 12px 8px; color: #64748b; font-size: 13px; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 12px 8px; border-bottom: 1px solid #f1f5f9; }
         .badge {
             padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600;
             display: inline-block;
         }
-        .badge-income { background: #d1fae5; color: #065f46; }
-        .badge-expense { background: #fee2e2; color: #991b1b; }
-        .amount-income { color: var(--success); font-weight: bold; }
-        .amount-expense { color: var(--danger); font-weight: bold; }
-        .action-icons i { margin: 0 8px; color: var(--secondary); cursor: pointer; font-size: 18px; }
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
-        }
-        .modal-content {
-            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 500px;
-            max-height: 85vh; overflow-y: auto;
-        }
-        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px;
-        }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
             .main-content { margin-right: 0 !important; padding: 20px; }
             .menu-toggle { display: flex; }
             .user-info { display: none; }
+            .tables-row { grid-template-columns: 1fr; }
+            .financial-cards { grid-template-columns: 1fr; }
         }
         @media (min-width: 993px) { .menu-toggle { display: none; } }
     </style>
@@ -212,12 +194,12 @@
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
+            <li><a class="menu-item active" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
             <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
             <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item active" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
@@ -232,97 +214,54 @@
 
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-cash-register" style="color:var(--secondary); margin-left:12px;"></i>الصندوق</h1></div>
-            <div>
-                <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-success" id="depositBtn"><i class="fas fa-plus-circle"></i> إيداع</button>
-                <button class="btn btn-danger" id="withdrawBtn"><i class="fas fa-minus-circle"></i> سحب</button>
-            </div>
+            <div class="page-title"><h1>لوحة التحكم</h1></div>
+            <div><button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button></div>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card cash">
-                <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
-                <div class="stat-info"><h3 id="cashBalance">0 ج.م</h3><p>الرصيد النقدي</p></div>
+            <div class="stat-card sales" onclick="window.location.href='./sales.html'">
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-info"><h3 id="todaySales">0 ج.م</h3><p>مبيعات اليوم</p></div>
             </div>
-            <div class="stat-card transfer">
-                <div class="stat-icon"><i class="fas fa-university"></i></div>
-                <div class="stat-info"><h3 id="transferBalance">0 ج.م</h3><p>رصيد التحويلات</p></div>
+            <div class="stat-card purchases" onclick="window.location.href='./purchases.html'">
+                <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+                <div class="stat-info"><h3 id="todayPurchases">0 ج.م</h3><p>مشتريات اليوم</p></div>
             </div>
-            <div class="stat-card total">
-                <div class="stat-icon"><i class="fas fa-coins"></i></div>
-                <div class="stat-info"><h3 id="totalBalance">0 ج.م</h3><p>إجمالي الرصيد</p></div>
+            <div class="stat-card customers" onclick="window.location.href='./customers.html'">
+                <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
+                <div class="stat-info"><h3 id="customersCount">0</h3><p>عملاء نشطون</p></div>
+            </div>
+            <div class="stat-card cash" onclick="window.location.href='./cashbox.html'">
+                <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+                <div class="stat-info"><h3 id="cashBalance">0 ج.م</h3><p>رصيد الصندوق</p></div>
             </div>
         </div>
 
-        <div class="filter-bar">
-            <div class="search-wrapper">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="بحث في البيان أو المرجع...">
+        <div class="financial-summary">
+            <div class="financial-title"><i class="fas fa-chart-pie"></i> ملخص مالي سريع</div>
+            <div class="financial-cards">
+                <div class="financial-item revenue"><i class="fas fa-arrow-up"></i><div class="amount" id="totalRevenue">0 ج.م</div><div class="label">إجمالي الإيرادات</div></div>
+                <div class="financial-item expense"><i class="fas fa-arrow-down"></i><div class="amount" id="totalExpense">0 ج.م</div><div class="label">إجمالي المصروفات</div></div>
+                <div class="financial-item profit"><i class="fas fa-dollar-sign"></i><div class="amount" id="netProfit">0 ج.م</div><div class="label">صافي الربح</div></div>
             </div>
-            <div class="filter-buttons">
-                <button class="filter-btn active" id="filterAll">الكل</button>
-                <button class="filter-btn" id="filterIncome">إيداع</button>
-                <button class="filter-btn" id="filterExpense">سحب</button>
-            </div>
-            <select id="methodFilter" class="filter-btn">
-                <option value="all">كل الطرق</option>
-                <option value="cash">نقدي</option>
-                <option value="bank">تحويل بنكي</option>
-                <option value="check">شيك</option>
-            </select>
-            <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
-        <div class="table-container">
-            <table>
-                <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>البيان</th><th>الطريقة</th><th>المرجع</th><th>إجراءات</th></tr></thead>
-                <tbody id="transactionsBody"></tbody>
-            </table>
+        <div class="tables-row">
+            <div class="table-card">
+                <h3>آخر الفواتير</h3>
+                <table><thead><tr><th>الفاتورة</th><th>العميل</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody id="recentInvoices"></tbody></table>
+            </div>
+            <div class="table-card">
+                <h3>أعلى المنتجات مبيعاً</h3>
+                <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإيرادات</th></tr></thead><tbody id="topProducts"></tbody></table>
+            </div>
         </div>
     </main>
 
-    <!-- مودال إضافة حركة -->
-    <div class="modal" id="transactionModal">
-        <div class="modal-content">
-            <div class="modal-header"><h2 id="modalTitle">إضافة حركة</h2><button id="closeModalBtn">&times;</button></div>
-            <form id="transactionForm">
-                <input type="hidden" id="transType" value="income">
-                <div class="form-group"><label>النوع</label><select id="typeSelect" required>
-                    <option value="income">إيداع</option><option value="expense">سحب</option>
-                </select></div>
-                <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" id="amount" min="0.01" step="0.01" required></div>
-                <div class="form-group"><label>البيان</label><input type="text" id="description" placeholder="سبب الحركة" required></div>
-                <div class="form-group"><label>طريقة الدفع</label><select id="paymentMethod" required>
-                    <option value="cash">نقدي</option>
-                    <option value="bank">تحويل بنكي</option>
-                    <option value="check">شيك</option>
-                </select></div>
-                <div class="form-group"><label>المرجع (اختياري)</label><input type="text" id="reference" placeholder="رقم فاتورة / شيك"></div>
-                <div class="form-group"><label>التاريخ</label><input type="date" id="transDate" required></div>
-                <div class="form-group"><label>ملاحظات</label><textarea id="notes" rows="2"></textarea></div>
-                <div style="display:flex; gap:10px;">
-                    <button type="submit" class="btn btn-primary" style="flex:1;">حفظ</button>
-                    <button type="button" class="btn" id="cancelModalBtn" style="flex:1;">إلغاء</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- مودال تفاصيل -->
-    <div class="modal" id="detailsModal">
-        <div class="modal-content">
-            <div class="modal-header"><h2>تفاصيل الحركة</h2><button id="closeDetailsBtn">&times;</button></div>
-            <div id="detailsBody"></div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn" id="closeDetailsModalBtn">إغلاق</button>
-                <button class="btn btn-danger" id="deleteTransactionBtn">حذف</button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js');
+        }
 
         (function() {
             const userBtn = document.getElementById('userProfileBtn');
@@ -333,160 +272,60 @@
             document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
             document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-            let transactions = [], currentFilter = 'all', selectedTransactionId = null;
-
-            function getMethodName(m) {
-                const methods = { cash: 'نقدي', bank: 'تحويل بنكي', check: 'شيك' };
-                return methods[m] || m;
-            }
-
-            async function loadTransactions() {
+            async function loadDashboardData() {
                 try {
-                    transactions = await DB.getTransactions();
-                    applyFilters();
-                    updateBalances();
-                } catch (e) { alert('فشل تحميل الحركات'); }
-            }
+                    const today = Utils.getToday();
+                    const invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                    const purchases = await DB.getPurchases();
+                    const customers = await DB.getParties('customer');
+                    const transactions = await DB.getTransactions();
 
-            function updateBalances() {
-                let cash = 0, transfer = 0;
-                transactions.forEach(t => {
-                    const amount = t.amount || 0;
-                    if (t.type === 'income') {
-                        if (t.payment_method === 'cash') cash += amount;
-                        else transfer += amount;
-                    } else {
-                        if (t.payment_method === 'cash') cash -= amount;
-                        else transfer -= amount;
-                    }
-                });
-                document.getElementById('cashBalance').textContent = Utils.formatMoney(cash);
-                document.getElementById('transferBalance').textContent = Utils.formatMoney(transfer);
-                document.getElementById('totalBalance').textContent = Utils.formatMoney(cash + transfer);
-            }
+                    const todaySales = invoices.filter(i => i.date === today).reduce((s, i) => s + i.total, 0);
+                    const todayPurchases = purchases.filter(p => p.date === today).reduce((s, p) => s + p.total, 0);
+                    const balance = transactions.reduce((s, t) => t.type === 'income' ? s + t.amount : s - t.amount, 0);
 
-            function applyFilters() {
-                const term = document.getElementById('searchInput').value.toLowerCase();
-                const method = document.getElementById('methodFilter').value;
-                let filtered = transactions.filter(t => 
-                    (t.description || '').toLowerCase().includes(term) || 
-                    (t.reference || '').toLowerCase().includes(term)
-                );
-                if (currentFilter !== 'all') filtered = filtered.filter(t => t.type === currentFilter);
-                if (method !== 'all') filtered = filtered.filter(t => t.payment_method === method);
-                filtered.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-                renderTable(filtered);
-            }
+                    document.getElementById('todaySales').textContent = Utils.formatMoney(todaySales);
+                    document.getElementById('todayPurchases').textContent = Utils.formatMoney(todayPurchases);
+                    document.getElementById('customersCount').textContent = customers.length;
+                    document.getElementById('cashBalance').textContent = Utils.formatMoney(balance);
 
-            function renderTable(data) {
-                const tbody = document.getElementById('transactionsBody');
-                if (!data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;">لا توجد حركات</td></tr>'; return; }
-                tbody.innerHTML = data.map(t => {
-                    const typeBadge = t.type === 'income' ? 'badge-income' : 'badge-expense';
-                    const typeText = t.type === 'income' ? 'إيداع' : 'سحب';
-                    const amountClass = t.type === 'income' ? 'amount-income' : 'amount-expense';
-                    const sign = t.type === 'income' ? '+' : '-';
-                    return `<tr><td>${t.date}</td><td><span class="badge ${typeBadge}">${typeText}</span></td><td class="${amountClass}">${sign} ${Utils.formatMoney(t.amount)}</td><td>${t.description}</td><td>${getMethodName(t.payment_method)}</td><td>${t.reference || '-'}</td><td class="action-icons"><i class="fas fa-eye" onclick="viewDetails('${t.id}')" title="عرض"></i></td></tr>`;
-                }).join('');
-            }
+                    const totalRevenue = invoices.reduce((s, i) => s + i.total, 0);
+                    const totalPurchasesAmount = purchases.reduce((s, p) => s + p.total, 0);
+                    const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                    const netProfit = totalRevenue - (totalPurchasesAmount + totalExpenses);
+                    document.getElementById('totalRevenue').textContent = Utils.formatMoney(totalRevenue);
+                    document.getElementById('totalExpense').textContent = Utils.formatMoney(totalPurchasesAmount + totalExpenses);
+                    document.getElementById('netProfit').textContent = Utils.formatMoney(netProfit);
 
-            function openTransactionModal(type) {
-                document.getElementById('transType').value = type;
-                document.getElementById('typeSelect').value = type;
-                document.getElementById('modalTitle').innerHTML = type === 'income' ? '<i class="fas fa-plus-circle"></i> إضافة إيداع' : '<i class="fas fa-minus-circle"></i> إضافة سحب';
-                document.getElementById('transactionForm').reset();
-                document.getElementById('transDate').value = Utils.getToday();
-                document.getElementById('transactionModal').style.display = 'flex';
-            }
+                    const recentInv = invoices.sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
+                    document.getElementById('recentInvoices').innerHTML = recentInv.map(i => {
+                        const status = i.status === 'paid' || i.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
+                        return `<tr><td>${i.id}</td><td>${i.customer_name || 'نقدي'}</td><td>${Utils.formatMoney(i.total)}</td><td>${status}</td></tr>`;
+                    }).join('') || '<tr><td colspan="4">لا توجد فواتير</td></tr>';
 
-            function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
-
-            async function saveTransaction(e) {
-                e.preventDefault();
-                const type = document.getElementById('typeSelect').value;
-                const amount = parseFloat(document.getElementById('amount').value);
-                const description = document.getElementById('description').value.trim();
-                const paymentMethod = document.getElementById('paymentMethod').value;
-                const reference = document.getElementById('reference').value.trim();
-                const date = document.getElementById('transDate').value;
-                const notes = document.getElementById('notes').value.trim();
-
-                if (!amount || amount <= 0) { alert('المبلغ غير صحيح'); return; }
-                if (!description) { alert('البيان مطلوب'); return; }
-
-                if (type === 'expense') {
-                    let cashBalance = 0, transferBalance = 0;
-                    transactions.forEach(t => {
-                        if (t.type === 'income') {
-                            if (t.payment_method === 'cash') cashBalance += t.amount;
-                            else transferBalance += t.amount;
-                        } else {
-                            if (t.payment_method === 'cash') cashBalance -= t.amount;
-                            else transferBalance -= t.amount;
+                    const productMap = {};
+                    invoices.forEach(inv => {
+                        if (inv.items) {
+                            inv.items.forEach(item => {
+                                const name = item.productName;
+                                if (!productMap[name]) productMap[name] = { qty: 0, revenue: 0 };
+                                productMap[name].qty += item.quantity || 0;
+                                productMap[name].revenue += (item.price * item.quantity) || 0;
+                            });
                         }
                     });
-                    if (paymentMethod === 'cash' && amount > cashBalance) { alert(`الرصيد النقدي غير كافٍ. المتاح: ${Utils.formatMoney(cashBalance)}`); return; }
-                    if (paymentMethod !== 'cash' && amount > transferBalance) { alert(`رصيد التحويلات غير كافٍ. المتاح: ${Utils.formatMoney(transferBalance)}`); return; }
+                    const top = Object.entries(productMap).sort((a,b) => b[1].revenue - a[1].revenue).slice(0,5);
+                    document.getElementById('topProducts').innerHTML = top.map(([name, d]) => `<tr><td>${name}</td><td>${d.qty}</td><td>${Utils.formatMoney(d.revenue)}</td></tr>`).join('') || '<tr><td colspan="3">لا توجد بيانات</td></tr>';
+                } catch (err) {
+                    alert('فشل تحميل البيانات');
                 }
-
-                const transaction = { date, type, amount, description, payment_method: paymentMethod, reference: reference || null, notes: notes || null, timestamp: new Date().toISOString(), id: crypto.randomUUID() };
-                try {
-                    await DB.saveTransaction(transaction);
-                    alert('تم حفظ الحركة');
-                    closeTransactionModal();
-                    await loadTransactions();
-                } catch (e) { alert('فشل الحفظ'); }
             }
 
-            window.viewDetails = function(id) {
-                const t = transactions.find(x => x.id === id);
-                if (!t) return;
-                selectedTransactionId = id;
-                document.getElementById('detailsBody').innerHTML = `
-                    <p><strong>النوع:</strong> ${t.type === 'income' ? 'إيداع' : 'سحب'}</p>
-                    <p><strong>المبلغ:</strong> ${Utils.formatMoney(t.amount)}</p>
-                    <p><strong>البيان:</strong> ${t.description}</p>
-                    <p><strong>طريقة الدفع:</strong> ${getMethodName(t.payment_method)}</p>
-                    <p><strong>المرجع:</strong> ${t.reference || '-'}</p>
-                    <p><strong>التاريخ:</strong> ${t.date}</p>
-                    <p><strong>ملاحظات:</strong> ${t.notes || '-'}</p>
-                `;
-                document.getElementById('detailsModal').style.display = 'flex';
-            };
-
-            function closeDetailsModal() { document.getElementById('detailsModal').style.display = 'none'; }
-
-            async function deleteCurrentTransaction() {
-                if (!selectedTransactionId) return;
-                if (!confirm('حذف الحركة؟')) return;
-                try {
-                    await supabase.from('transactions').delete().eq('id', selectedTransactionId);
-                    alert('تم الحذف');
-                    closeDetailsModal();
-                    await loadTransactions();
-                } catch (e) { alert('فشل الحذف'); }
-            }
-
-            document.addEventListener('DOMContentLoaded', async () => {
+            document.addEventListener('DOMContentLoaded', () => {
                 if (!App.requireAuth() || !App.requireRole(['admin'])) return;
                 App.initUserInterface();
-                document.getElementById('transDate').value = Utils.getToday();
-                await loadTransactions();
-
-                document.getElementById('searchInput').addEventListener('input', applyFilters);
-                document.getElementById('methodFilter').addEventListener('change', applyFilters);
-                document.getElementById('refreshBtn').addEventListener('click', loadTransactions);
-                document.getElementById('depositBtn').addEventListener('click', () => openTransactionModal('income'));
-                document.getElementById('withdrawBtn').addEventListener('click', () => openTransactionModal('expense'));
-                document.getElementById('filterAll').addEventListener('click', () => { currentFilter = 'all'; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); document.getElementById('filterAll').classList.add('active'); applyFilters(); });
-                document.getElementById('filterIncome').addEventListener('click', () => { currentFilter = 'income'; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); document.getElementById('filterIncome').classList.add('active'); applyFilters(); });
-                document.getElementById('filterExpense').addEventListener('click', () => { currentFilter = 'expense'; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); document.getElementById('filterExpense').classList.add('active'); applyFilters(); });
-                document.getElementById('closeModalBtn').addEventListener('click', closeTransactionModal);
-                document.getElementById('cancelModalBtn').addEventListener('click', closeTransactionModal);
-                document.getElementById('transactionForm').addEventListener('submit', saveTransaction);
-                document.getElementById('closeDetailsBtn').addEventListener('click', closeDetailsModal);
-                document.getElementById('closeDetailsModalBtn').addEventListener('click', closeDetailsModal);
-                document.getElementById('deleteTransactionBtn').addEventListener('click', deleteCurrentTransaction);
+                loadDashboardData();
+                document.getElementById('refreshBtn').addEventListener('click', loadDashboardData);
             });
         })();
     </script>
