@@ -1,5 +1,4 @@
-// js/supabase.js
-// الإصدار النهائي مع الصلاحيات المتقدمة
+// js/supabase.js - الإصدار النهائي للإنتاج
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
@@ -61,9 +60,8 @@
                     }, { onConflict: 'id' });
                 }
 
-                return { success: true, message: 'تم إنشاء الحساب. يرجى تأكيد البريد الإلكتروني إن طُلب.' };
+                return { success: true, message: 'تم إنشاء الحساب.' };
             } catch (err) {
-                console.error('Signup error:', err);
                 return { success: false, message: err.message };
             }
         },
@@ -134,97 +132,97 @@
 
     // ==================== دوال قاعدة البيانات ====================
     window.DB = {
-        async getProducts() { const { data, e } = await supabaseClient.from('products').select('*').order('name'); if (e) throw e; return data; },
+        async getProducts() { const { data, error } = await supabaseClient.from('products').select('*').order('name'); if (error) throw error; return data; },
         async saveProduct(p) {
             if (p.units && typeof p.units === 'string') { try { p.units = JSON.parse(p.units); } catch { p.units = []; } }
             if (!p.id) p.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('products').upsert(p, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('products').upsert(p, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
-        async deleteProduct(id) { const { e } = await supabaseClient.from('products').delete().eq('id', id); if (e) throw e; },
+        async deleteProduct(id) { const { error } = await supabaseClient.from('products').delete().eq('id', id); if (error) throw error; },
 
         async getParties(type = null) {
             let q = supabaseClient.from('parties').select('*').order('name');
             if (type) q = q.eq('type', type);
-            const { data, e } = await q; if (e) throw e; return data;
+            const { data, error } = await q; if (error) throw error; return data;
         },
         async saveParty(p) {
             if (!p.id) p.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('parties').upsert(p, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('parties').upsert(p, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
-        async deleteParty(id) { const { e } = await supabaseClient.from('parties').delete().eq('id', id); if (e) throw e; },
+        async deleteParty(id) { const { error } = await supabaseClient.from('parties').delete().eq('id', id); if (error) throw error; },
 
-        async getReps() { const { data, e } = await supabaseClient.from('reps').select('*').order('name'); if (e) throw e; return data; },
+        async getReps() { const { data, error } = await supabaseClient.from('reps').select('*').order('name'); if (error) throw error; return data; },
         async saveRep(r) {
             if (!r.id) r.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('reps').upsert(r, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('reps').upsert(r, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
-        async deleteRep(id) { const { e } = await supabaseClient.from('reps').delete().eq('id', id); if (e) throw e; },
+        async deleteRep(id) { const { error } = await supabaseClient.from('reps').delete().eq('id', id); if (error) throw error; },
 
-        async getInvoices() { const { data, e } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false }); if (e) throw e; return data; },
+        async getInvoices() { const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false }); if (error) throw error; return data; },
         async saveInvoice(inv) {
             if (!inv.id) inv.id = crypto.randomUUID();
             inv.type = 'sale';
-            const { data, e } = await supabaseClient.from('invoices').upsert(inv, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('invoices').upsert(inv, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
-        async getPurchases() { const { data, e } = await supabaseClient.from('purchases').select('*').order('date', { ascending: false }); if (e) throw e; return data; },
+        async getPurchases() { const { data, error } = await supabaseClient.from('purchases').select('*').order('date', { ascending: false }); if (error) throw error; return data; },
         async savePurchase(p) {
             if (!p.id) p.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('purchases').upsert(p, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('purchases').upsert(p, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
-        async getTransactions() { const { data, e } = await supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false }); if (e) throw e; return data; },
+        async getTransactions() { const { data, error } = await supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false }); if (error) throw error; return data; },
         async saveTransaction(t) {
             if (!t.id) t.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('transactions').upsert(t, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('transactions').upsert(t, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
         async getReturns(type = null) {
             let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
             if (type) q = q.eq('type', type);
-            const { data, e } = await q; if (e) throw e; return data;
+            const { data, error } = await q; if (error) throw error; return data;
         },
         async saveReturn(r) {
             if (!r.id) r.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('returns').upsert(r, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('returns').upsert(r, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
-        async getEmployees() { const { data, e } = await supabaseClient.from('employees').select('*').order('name'); if (e) throw e; return data; },
+        async getEmployees() { const { data, error } = await supabaseClient.from('employees').select('*').order('name'); if (error) throw error; return data; },
         async saveEmployee(emp) {
             if (!emp.id) emp.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('employees').upsert(emp, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('employees').upsert(emp, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
-        async getLoans() { const { data, e } = await supabaseClient.from('loans').select('*').order('date', { ascending: false }); if (e) throw e; return data; },
+        async getLoans() { const { data, error } = await supabaseClient.from('loans').select('*').order('date', { ascending: false }); if (error) throw error; return data; },
         async saveLoan(l) {
             if (!l.id) l.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('loans').upsert(l, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('loans').upsert(l, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
-        async getExpenses() { const { data, e } = await supabaseClient.from('expenses').select('*').order('date', { ascending: false }); if (e) throw e; return data; },
+        async getExpenses() { const { data, error } = await supabaseClient.from('expenses').select('*').order('date', { ascending: false }); if (error) throw error; return data; },
         async saveExpense(exp) {
             if (!exp.id) exp.id = crypto.randomUUID();
-            const { data, e } = await supabaseClient.from('expenses').upsert(exp, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('expenses').upsert(exp, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         },
 
         async getSettings() {
-            const { data, e } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
-            if (e && e.code !== 'PGRST116') throw e;
+            const { data, error } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
+            if (error && error.code !== 'PGRST116') throw error;
             return data ? data.data : {};
         },
         async saveSettings(s) {
-            const { data, e } = await supabaseClient.from('settings').upsert({ id: 'main', data: s }, { onConflict: 'id' }).select().single();
-            if (e) throw e; return data;
+            const { data, error } = await supabaseClient.from('settings').upsert({ id: 'main', data: s }, { onConflict: 'id' }).select().single();
+            if (error) throw error; return data;
         }
     };
 
@@ -236,5 +234,5 @@
         getToday() { return new Date().toISOString().split('T')[0]; }
     };
 
-    console.log('✅ Secure Supabase module ready');
+    console.log('✅ Hesaby system ready');
 })();
