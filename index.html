@@ -59,132 +59,131 @@
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-store"></i></div>
-            <h2>حسابي</h2>
-            <p class="subtitle">منصة إدارة المبيعات والمخزون</p>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" id="tabLogin">تسجيل الدخول</button>
-            <button class="tab-btn" id="tabSignup">إنشاء حساب</button>
-        </div>
-
-        <!-- تسجيل الدخول -->
-        <div id="loginPanel" class="form-panel active">
-            <form id="loginForm">
-                <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="loginEmail" placeholder="البريد الإلكتروني" value="admin@example.com" required></div>
-                <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="loginPassword" placeholder="كلمة المرور" value="123456" required></div>
-                <div class="error-msg" id="loginError"></div>
-                <button type="submit" class="btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
-            </form>
-        </div>
-
-        <!-- إنشاء حساب -->
-        <div id="signupPanel" class="form-panel">
-            <form id="signupForm">
-                <div class="input-group"><i class="fas fa-user"></i><input type="text" id="signupFullName" placeholder="الاسم الكامل" required></div>
-                <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="signupEmail" placeholder="البريد الإلكتروني" required></div>
-                <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="signupPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" minlength="6" required></div>
-                <div class="input-group"><i class="fas fa-user-tag"></i>
-                    <select id="signupRole">
-                        <option value="admin">مدير</option>
-                        <option value="rep" selected>مندوب</option>
-                    </select>
-                </div>
-                <div class="error-msg" id="signupError"></div>
-                <div class="success-msg" id="signupSuccess"></div>
-                <button type="submit" class="btn"><i class="fas fa-user-plus"></i> إنشاء حساب</button>
-            </form>
-            <p class="note"><i class="fas fa-info-circle"></i> سيتم إرسال بريد تأكيدي (يمكن تعطيله من إعدادات Supabase)</p>
-        </div>
-
-        <div class="demo-section">
-            <p style="color:#64748b; margin-bottom:8px;">حسابات تجريبية</p>
-            <div style="display:flex; gap:10px;">
-                <button class="demo-btn" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
-                <button class="demo-btn" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
-            </div>
-        </div>
+<div class="card">
+    <div class="logo">
+        <div class="logo-icon"><i class="fas fa-store"></i></div>
+        <h2>حسابي</h2>
+        <p class="subtitle">منصة إدارة المبيعات والمخزون</p>
     </div>
 
-    <script>
-        const loginPanel = document.getElementById('loginPanel');
-        const signupPanel = document.getElementById('signupPanel');
-        const tabLogin = document.getElementById('tabLogin');
-        const tabSignup = document.getElementById('tabSignup');
+    <div class="tabs">
+        <button class="tab-btn active" id="tabLogin">تسجيل الدخول</button>
+        <button class="tab-btn" id="tabSignup">إنشاء حساب</button>
+    </div>
 
-        tabLogin.addEventListener('click', () => {
-            tabLogin.classList.add('active'); tabSignup.classList.remove('active');
-            loginPanel.classList.add('active'); signupPanel.classList.remove('active');
-        });
-        tabSignup.addEventListener('click', () => {
-            tabSignup.classList.add('active'); tabLogin.classList.remove('active');
-            signupPanel.classList.add('active'); loginPanel.classList.remove('active');
-        });
+    <!-- تسجيل الدخول -->
+    <div id="loginPanel" class="form-panel active">
+        <form id="loginForm">
+            <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="loginEmail" placeholder="البريد الإلكتروني" value="admin@example.com" required></div>
+            <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="loginPassword" placeholder="كلمة المرور" value="123456" required></div>
+            <div class="error-msg" id="loginError"></div>
+            <button type="submit" class="btn"><i class="fas fa-sign-in-alt"></i> دخول</button>
+        </form>
+    </div>
 
-        // التحقق من وجود جلسة
-        if (App.getCurrentUser()) {
-            const user = App.getCurrentUser();
-            window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+    <!-- إنشاء حساب -->
+    <div id="signupPanel" class="form-panel">
+        <form id="signupForm">
+            <div class="input-group"><i class="fas fa-user"></i><input type="text" id="signupFullName" placeholder="الاسم الكامل" required></div>
+            <div class="input-group"><i class="fas fa-envelope"></i><input type="email" id="signupEmail" placeholder="البريد الإلكتروني" required></div>
+            <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="signupPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" minlength="6" required></div>
+            <div class="input-group"><i class="fas fa-user-tag"></i>
+                <select id="signupRole">
+                    <option value="admin">مدير</option>
+                    <option value="rep" selected>مندوب</option>
+                </select>
+            </div>
+            <div class="error-msg" id="signupError"></div>
+            <div class="success-msg" id="signupSuccess"></div>
+            <button type="submit" class="btn"><i class="fas fa-user-plus"></i> إنشاء حساب</button>
+        </form>
+        <p class="note"><i class="fas fa-info-circle"></i> سيتم إرسال بريد تأكيدي (يمكن تعطيله من إعدادات Supabase)</p>
+    </div>
+
+    <div class="demo-section">
+        <p style="color:#64748b; margin-bottom:8px;">حسابات تجريبية</p>
+        <div style="display:flex; gap:10px;">
+            <button class="demo-btn" onclick="fillDemo('admin')"><i class="fas fa-user-tie"></i> مدير</button>
+            <button class="demo-btn" onclick="fillDemo('rep')"><i class="fas fa-user"></i> مندوب</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const loginPanel = document.getElementById('loginPanel');
+    const signupPanel = document.getElementById('signupPanel');
+    const tabLogin = document.getElementById('tabLogin');
+    const tabSignup = document.getElementById('tabSignup');
+
+    tabLogin.addEventListener('click', () => {
+        tabLogin.classList.add('active'); tabSignup.classList.remove('active');
+        loginPanel.classList.add('active'); signupPanel.classList.remove('active');
+    });
+    tabSignup.addEventListener('click', () => {
+        tabSignup.classList.add('active'); tabLogin.classList.remove('active');
+        signupPanel.classList.add('active'); loginPanel.classList.remove('active');
+    });
+
+    if (App.getCurrentUser()) {
+        const user = App.getCurrentUser();
+        window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const errorEl = document.getElementById('loginError');
+        errorEl.style.display = 'none';
+
+        const result = await App.login(email, password);
+        if (result.success) {
+            window.location.href = result.redirectUrl;
+        } else {
+            errorEl.textContent = result.message;
+            errorEl.style.display = 'block';
         }
+    });
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const errorEl = document.getElementById('loginError');
-            errorEl.style.display = 'none';
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fullName = document.getElementById('signupFullName').value.trim();
+        const email = document.getElementById('signupEmail').value.trim();
+        const password = document.getElementById('signupPassword').value;
+        const role = document.getElementById('signupRole').value;
+        const errorEl = document.getElementById('signupError');
+        const successEl = document.getElementById('signupSuccess');
+        errorEl.style.display = 'none';
+        successEl.style.display = 'none';
 
-            const result = await App.login(email, password);
-            if (result.success) {
-                window.location.href = result.redirectUrl;
-            } else {
-                errorEl.textContent = result.message;
-                errorEl.style.display = 'block';
-            }
-        });
+        if (password.length < 6) { errorEl.textContent = 'كلمة المرور 6 أحرف على الأقل'; errorEl.style.display = 'block'; return; }
 
-        document.getElementById('signupForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fullName = document.getElementById('signupFullName').value.trim();
-            const email = document.getElementById('signupEmail').value.trim();
-            const password = document.getElementById('signupPassword').value;
-            const role = document.getElementById('signupRole').value;
-            const errorEl = document.getElementById('signupError');
-            const successEl = document.getElementById('signupSuccess');
-            errorEl.style.display = 'none';
-            successEl.style.display = 'none';
-
-            if (password.length < 6) { errorEl.textContent = 'كلمة المرور 6 أحرف على الأقل'; errorEl.style.display = 'block'; return; }
-
-            const result = await App.signup(email, password, fullName, role);
-            if (result.success) {
-                successEl.textContent = result.message;
-                successEl.style.display = 'block';
-                document.getElementById('signupForm').reset();
-                setTimeout(() => {
-                    tabLogin.click();
-                    document.getElementById('loginEmail').value = email;
-                }, 2000);
-            } else {
-                errorEl.textContent = result.message;
-                errorEl.style.display = 'block';
-            }
-        });
-
-        function fillDemo(role) {
-            if (role === 'admin') {
-                document.getElementById('loginEmail').value = 'admin@example.com';
-                document.getElementById('loginPassword').value = '123456';
-            } else {
-                document.getElementById('loginEmail').value = 'rep@example.com';
-                document.getElementById('loginPassword').value = '123456';
-            }
-            tabLogin.click();
+        const result = await App.signup(email, password, fullName, role);
+        if (result.success) {
+            successEl.textContent = result.message;
+            successEl.style.display = 'block';
+            document.getElementById('signupForm').reset();
+            setTimeout(() => {
+                tabLogin.click();
+                document.getElementById('loginEmail').value = email;
+            }, 2000);
+        } else {
+            errorEl.textContent = result.message;
+            errorEl.style.display = 'block';
         }
-        window.fillDemo = fillDemo;
-    </script>
+    });
+
+    function fillDemo(role) {
+        if (role === 'admin') {
+            document.getElementById('loginEmail').value = 'admin@example.com';
+            document.getElementById('loginPassword').value = '123456';
+        } else {
+            document.getElementById('loginEmail').value = 'rep@example.com';
+            document.getElementById('loginPassword').value = '123456';
+        }
+        tabLogin.click();
+    }
+    window.fillDemo = fillDemo;
+</script>
 </body>
 </html>
