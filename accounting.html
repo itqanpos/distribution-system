@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>المحاسبة · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>المحاسبة · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -97,13 +100,11 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
+            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
-            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
-        .btn-success { background: var(--success); color: white; }
         .tabs-container {
             background: white; border-radius: 16px; padding: 8px; margin-bottom: 24px;
             display: flex; flex-wrap: wrap; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
@@ -183,8 +184,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -196,7 +197,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -226,19 +227,16 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-calculator" style="color:var(--secondary); margin-left:12px;"></i>المحاسبة</h1></div>
-            <div>
-                <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-primary" onclick="openJournalModal()"><i class="fas fa-plus"></i> قيد يومية</button>
-            </div>
+            <div><button class="btn btn-primary" id="openJournalBtn"><i class="fas fa-plus"></i> قيد يومية</button></div>
         </div>
 
         <div class="tabs-container">
-            <button class="tab-btn active" onclick="switchTab('chart')"><i class="fas fa-sitemap"></i> شجرة الحسابات</button>
-            <button class="tab-btn" onclick="switchTab('ledger')"><i class="fas fa-book"></i> دفتر الأستاذ</button>
-            <button class="tab-btn" onclick="switchTab('payroll')"><i class="fas fa-users"></i> الرواتب</button>
-            <button class="tab-btn" onclick="switchTab('expenses')"><i class="fas fa-receipt"></i> المصروفات</button>
-            <button class="tab-btn" onclick="switchTab('trialBalance')"><i class="fas fa-balance-scale"></i> ميزان المراجعة</button>
-            <button class="tab-btn" onclick="switchTab('income')"><i class="fas fa-chart-line"></i> قائمة الدخل</button>
+            <button class="tab-btn active" id="tabChart"><i class="fas fa-sitemap"></i> شجرة الحسابات</button>
+            <button class="tab-btn" id="tabLedger"><i class="fas fa-book"></i> دفتر الأستاذ</button>
+            <button class="tab-btn" id="tabPayroll"><i class="fas fa-users"></i> الرواتب</button>
+            <button class="tab-btn" id="tabExpenses"><i class="fas fa-receipt"></i> المصروفات</button>
+            <button class="tab-btn" id="tabTrial"><i class="fas fa-balance-scale"></i> ميزان المراجعة</button>
+            <button class="tab-btn" id="tabIncome"><i class="fas fa-chart-line"></i> قائمة الدخل</button>
         </div>
 
         <!-- شجرة الحسابات -->
@@ -254,53 +252,26 @@
         <!-- دفتر الأستاذ -->
         <div id="ledgerTab" class="tab-content">
             <div class="table-container">
-                <table>
-                    <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead>
-                    <tbody id="ledgerBody"></tbody>
-                </table>
+                <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead><tbody id="ledgerBody"></tbody></table>
             </div>
         </div>
 
         <!-- الرواتب -->
         <div id="payrollTab" class="tab-content">
-            <div class="table-header">
-                <h3>الموظفون</h3>
-                <button class="btn btn-primary" onclick="openEmployeeModal()"><i class="fas fa-plus"></i> إضافة موظف</button>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>الاسم</th><th>الراتب الأساسي</th><th>الإضافيات</th><th>السلف</th><th>الخصومات</th><th>الصافي</th><th>إجراءات</th></tr></thead>
-                    <tbody id="employeesBody"></tbody>
-                </table>
-            </div>
-            <div class="table-header" style="margin-top:20px;">
-                <h3>سلف الموظفين</h3>
-                <button class="btn btn-primary" onclick="openLoanModal()"><i class="fas fa-plus"></i> إضافة سلفة</button>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>الموظف</th><th>المبلغ</th><th>القسط</th><th>المتبقي</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
-                    <tbody id="loansBody"></tbody>
-                </table>
-            </div>
+            <div class="table-header"><h3>الموظفون</h3><button class="btn btn-primary" id="addEmployeeBtn"><i class="fas fa-plus"></i> إضافة موظف</button></div>
+            <div class="table-container"><table><thead><tr><th>الاسم</th><th>الراتب الأساسي</th><th>الإضافيات</th><th>السلف</th><th>الصافي</th><th>إجراءات</th></tr></thead><tbody id="employeesBody"></tbody></table></div>
+            <div class="table-header" style="margin-top:20px;"><h3>سلف الموظفين</h3><button class="btn btn-primary" id="addLoanBtn"><i class="fas fa-plus"></i> إضافة سلفة</button></div>
+            <div class="table-container"><table><thead><tr><th>الموظف</th><th>المبلغ</th><th>القسط</th><th>المتبقي</th><th>التاريخ</th><th>إجراءات</th></tr></thead><tbody id="loansBody"></tbody></table></div>
         </div>
 
         <!-- المصروفات -->
         <div id="expensesTab" class="tab-content">
-            <div class="table-header">
-                <h3>المصروفات العامة</h3>
-                <button class="btn btn-primary" onclick="openExpenseModal()"><i class="fas fa-plus"></i> إضافة مصروف</button>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>البيان</th><th>المبلغ</th><th>التاريخ</th><th>الفئة</th><th>إجراءات</th></tr></thead>
-                    <tbody id="expensesBody"></tbody>
-                </table>
-            </div>
+            <div class="table-header"><h3>المصروفات العامة</h3><button class="btn btn-primary" id="addExpenseBtn"><i class="fas fa-plus"></i> إضافة مصروف</button></div>
+            <div class="table-container"><table><thead><tr><th>البيان</th><th>المبلغ</th><th>التاريخ</th><th>الفئة</th><th>إجراءات</th></tr></thead><tbody id="expensesBody"></tbody></table></div>
         </div>
 
         <!-- ميزان المراجعة -->
-        <div id="trialBalanceTab" class="tab-content">
+        <div id="trialTab" class="tab-content">
             <div class="table-container" id="trialBalanceTable"></div>
         </div>
 
@@ -313,12 +284,12 @@
     <!-- مودال قيد يومية -->
     <div class="modal" id="journalModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>قيد يومية جديد</h2><button onclick="closeJournalModal()">&times;</button></div>
-            <form onsubmit="saveJournalEntry(event)">
+            <div class="modal-header"><h2>قيد يومية جديد</h2><button id="closeJournalBtn">&times;</button></div>
+            <form id="journalForm">
                 <div class="form-group"><label>التاريخ</label><input type="date" id="entryDate" required></div>
                 <div class="form-group"><label>البيان</label><input type="text" id="entryDescription" required></div>
                 <div id="entriesContainer"></div>
-                <div class="add-entry-btn" onclick="addEntryRow()"><i class="fas fa-plus"></i> إضافة بند</div>
+                <div class="add-entry-btn" id="addEntryRowBtn"><i class="fas fa-plus"></i> إضافة بند</div>
                 <button type="submit" class="btn btn-primary" style="margin-top:20px;">حفظ</button>
             </form>
         </div>
@@ -327,8 +298,9 @@
     <!-- مودال موظف -->
     <div class="modal" id="employeeModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إضافة موظف</h2><button onclick="closeEmployeeModal()">&times;</button></div>
-            <form onsubmit="saveEmployee(event)">
+            <div class="modal-header"><h2 id="employeeModalTitle">إضافة موظف</h2><button id="closeEmployeeBtn">&times;</button></div>
+            <form id="employeeForm">
+                <input type="hidden" id="employeeId">
                 <div class="form-group"><label>الاسم</label><input type="text" id="empName" required></div>
                 <div class="form-group"><label>الراتب الأساسي</label><input type="number" id="empSalary" min="0" required></div>
                 <button type="submit" class="btn btn-primary">حفظ</button>
@@ -339,8 +311,8 @@
     <!-- مودال سلفة -->
     <div class="modal" id="loanModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إضافة سلفة</h2><button onclick="closeLoanModal()">&times;</button></div>
-            <form onsubmit="saveLoan(event)">
+            <div class="modal-header"><h2>إضافة سلفة</h2><button id="closeLoanBtn">&times;</button></div>
+            <form id="loanForm">
                 <div class="form-group"><label>الموظف</label><select id="loanEmpId" required></select></div>
                 <div class="form-group"><label>المبلغ</label><input type="number" id="loanAmount" min="0.01" required></div>
                 <div class="form-group"><label>القسط الشهري</label><input type="number" id="loanInstallment" min="0.01" required></div>
@@ -353,8 +325,8 @@
     <!-- مودال مصروف -->
     <div class="modal" id="expenseModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إضافة مصروف</h2><button onclick="closeExpenseModal()">&times;</button></div>
-            <form onsubmit="saveExpense(event)">
+            <div class="modal-header"><h2>إضافة مصروف</h2><button id="closeExpenseBtn">&times;</button></div>
+            <form id="expenseForm">
                 <div class="form-group"><label>البيان</label><input type="text" id="expDesc" required></div>
                 <div class="form-group"><label>المبلغ</label><input type="number" id="expAmount" min="0.01" required></div>
                 <div class="form-group"><label>الفئة</label><select id="expCategory"><option value="إيجار">إيجار</option><option value="فواتير">فواتير</option><option value="صيانة">صيانة</option><option value="أخرى">أخرى</option></select></div>
@@ -365,283 +337,264 @@
     </div>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
-        let employees = [], loans = [], expenses = [], ledger = [];
-        const accounts = ['نقدية', 'بنك', 'عملاء', 'موردين', 'مبيعات', 'مشتريات', 'مصروفات', 'رواتب', 'سلف', 'إيرادات أخرى', 'رأس المال'];
+        (function() {
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            await loadAllData();
-            document.getElementById('entryDate').value = Utils.getToday();
-            document.getElementById('loanDate').value = Utils.getToday();
-            document.getElementById('expDate').value = Utils.getToday();
-        });
+            let employees = [], loans = [], expenses = [], ledger = [];
+            const accounts = ['نقدية', 'بنك', 'عملاء', 'موردين', 'مبيعات', 'مشتريات', 'مصروفات', 'رواتب', 'سلف', 'إيرادات أخرى', 'رأس المال'];
 
-        async function loadAllData() {
-            await buildLedger();
-            renderChartOfAccounts();
-            renderLedger();
-            await loadPayrollData();
-            await loadExpenses();
-            renderTrialBalance();
-            renderIncomeStatement();
-        }
+            async function loadAllData() {
+                await buildLedger();
+                renderChartOfAccounts();
+                renderLedger();
+                await loadPayrollData();
+                await loadExpenses();
+                renderTrialBalance();
+                renderIncomeStatement();
+            }
 
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Tab').classList.add('active');
-        }
+            async function buildLedger() {
+                ledger = [];
+                const invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                const purchases = await DB.getPurchases();
+                const transactions = await DB.getTransactions();
+                const expensesData = await DB.getExpenses ? await DB.getExpenses() : [];
+                invoices.forEach(inv => {
+                    ledger.push({ date: inv.date, description: `فاتورة بيع ${inv.id}`, debitAccount: 'عملاء', creditAccount: 'مبيعات', debit: inv.total, credit: inv.total });
+                    if (inv.paid > 0) ledger.push({ date: inv.date, description: `دفعة ${inv.id}`, debitAccount: 'نقدية', creditAccount: 'عملاء', debit: inv.paid, credit: inv.paid });
+                });
+                purchases.forEach(p => {
+                    ledger.push({ date: p.date, description: `فاتورة شراء ${p.id}`, debitAccount: 'مشتريات', creditAccount: 'موردين', debit: p.total, credit: p.total });
+                    if (p.paid > 0) ledger.push({ date: p.date, description: `دفع ${p.id}`, debitAccount: 'موردين', creditAccount: 'نقدية', debit: p.paid, credit: p.paid });
+                });
+                transactions.forEach(t => {
+                    ledger.push({ date: t.date, description: t.description, debitAccount: t.type === 'income' ? 'نقدية' : 'مصروفات', creditAccount: t.type === 'income' ? (t.description.includes('فاتورة') ? 'عملاء' : 'إيرادات أخرى') : 'نقدية', debit: t.amount, credit: t.amount });
+                });
+                expensesData.forEach(e => { ledger.push({ date: e.date, description: e.description, debitAccount: 'مصروفات', creditAccount: 'نقدية', debit: e.amount, credit: e.amount }); });
+                ledger.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+            }
 
-        // بناء دفتر الأستاذ من العمليات
-        async function buildLedger() {
-            ledger = [];
-            const invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-            const purchases = await DB.getPurchases();
-            const transactions = await DB.getTransactions();
-            const expensesData = await DB.getExpenses ? await DB.getExpenses() : [];
-            
-            invoices.forEach(inv => {
-                ledger.push({ date: inv.date, description: `فاتورة بيع ${inv.id}`, debitAccount: 'عملاء', creditAccount: 'مبيعات', debit: inv.total, credit: inv.total });
-                if (inv.paid > 0) ledger.push({ date: inv.date, description: `دفعة ${inv.id}`, debitAccount: 'نقدية', creditAccount: 'عملاء', debit: inv.paid, credit: inv.paid });
+            function getAccountBalance(account) {
+                let balance = 0;
+                ledger.forEach(e => { if (e.debitAccount === account) balance += e.debit; if (e.creditAccount === account) balance -= e.credit; });
+                return balance;
+            }
+
+            function renderChartOfAccounts() {
+                const assets = ['نقدية', 'بنك', 'عملاء', 'مخزون'];
+                const liabilities = ['موردين', 'سلف'];
+                const equity = ['رأس المال'];
+                const revenue = ['مبيعات', 'إيرادات أخرى'];
+                const expensesAcc = ['مشتريات', 'مصروفات', 'رواتب'];
+                const balances = {}; accounts.forEach(acc => balances[acc] = getAccountBalance(acc));
+                let html = '<div style="display:grid; gap:20px;">';
+                html += renderAccountGroup('الأصول', assets, balances);
+                html += renderAccountGroup('الخصوم', liabilities, balances);
+                html += renderAccountGroup('حقوق الملكية', equity, balances);
+                html += renderAccountGroup('الإيرادات', revenue, balances);
+                html += renderAccountGroup('المصروفات', expensesAcc, balances);
+                html += '</div>';
+                document.getElementById('chartOfAccounts').innerHTML = html;
+                const totalAssets = assets.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
+                const totalLiabilities = liabilities.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
+                const totalEquity = equity.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
+                document.getElementById('totalAssets').textContent = Utils.formatMoney(totalAssets);
+                document.getElementById('totalLiabilities').textContent = Utils.formatMoney(totalLiabilities);
+                document.getElementById('totalEquity').textContent = Utils.formatMoney(totalEquity);
+            }
+
+            function renderAccountGroup(title, accs, balances) {
+                return `<div><h3>${title}</h3><table><tr><th>الحساب</th><th>الرصيد</th></tr>${accs.map(a => `<tr><td>${a}</td><td>${Utils.formatMoney(balances[a] || 0)}</td></tr>`).join('')}</table></div>`;
+            }
+
+            function renderLedger() {
+                document.getElementById('ledgerBody').innerHTML = ledger.slice(0, 100).map(e => `<tr><td>${e.date}</td><td>${e.description}</td><td class="debit">${e.debitAccount} ${Utils.formatMoney(e.debit)}</td><td class="credit">${e.creditAccount} ${Utils.formatMoney(e.credit)}</td></tr>`).join('');
+            }
+
+            async function loadPayrollData() {
+                employees = await DB.getEmployees ? await DB.getEmployees() : [];
+                loans = await DB.getLoans ? await DB.getLoans() : [];
+                renderEmployees(); renderLoans(); populateLoanEmployeeSelect();
+            }
+
+            function renderEmployees() {
+                const tbody = document.getElementById('employeesBody');
+                tbody.innerHTML = employees.map(e => {
+                    const empLoans = loans.filter(l => l.employee_id === e.id && l.paid < l.amount);
+                    const loanDeduction = empLoans.reduce((s, l) => s + Math.min(l.installment, l.amount - l.paid), 0);
+                    const net = e.salary + (e.allowances || 0) - loanDeduction;
+                    return `<tr><td>${e.name}</td><td>${Utils.formatMoney(e.salary)}</td><td>${Utils.formatMoney(e.allowances || 0)}</td><td>${Utils.formatMoney(loanDeduction)}</td><td>${Utils.formatMoney(net)}</td><td><i class="fas fa-edit" onclick="editEmployee('${e.id}')"></i></td></tr>`;
+                }).join('');
+            }
+
+            function renderLoans() {
+                const tbody = document.getElementById('loansBody');
+                tbody.innerHTML = loans.map(l => {
+                    const emp = employees.find(e => e.id === l.employee_id);
+                    const remaining = l.amount - (l.paid || 0);
+                    return `<tr><td>${emp?.name || '-'}</td><td>${Utils.formatMoney(l.amount)}</td><td>${Utils.formatMoney(l.installment)}</td><td>${Utils.formatMoney(remaining)}</td><td>${l.date}</td><td><i class="fas fa-check-circle" onclick="payInstallment('${l.id}')"></i></td></tr>`;
+                }).join('');
+            }
+
+            function populateLoanEmployeeSelect() {
+                const sel = document.getElementById('loanEmpId');
+                sel.innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+            }
+
+            async function loadExpenses() {
+                expenses = await DB.getExpenses ? await DB.getExpenses() : [];
+                renderExpenses();
+            }
+
+            function renderExpenses() {
+                const tbody = document.getElementById('expensesBody');
+                tbody.innerHTML = expenses.map(e => `<tr><td>${e.description}</td><td>${Utils.formatMoney(e.amount)}</td><td>${e.date}</td><td>${e.category}</td><td><i class="fas fa-trash" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('');
+            }
+
+            function renderTrialBalance() {
+                const balances = {}; ledger.forEach(e => { balances[e.debitAccount] = (balances[e.debitAccount] || 0) + e.debit; balances[e.creditAccount] = (balances[e.creditAccount] || 0) + e.credit; });
+                const rows = Object.entries(balances).map(([acc, bal]) => `<tr><td>${acc}</td><td>${Utils.formatMoney(bal)}</td><td>${Utils.formatMoney(bal)}</td></tr>`).join('');
+                document.getElementById('trialBalanceTable').innerHTML = `<table><tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr>${rows}</table>`;
+            }
+
+            function renderIncomeStatement() {
+                const revenue = getAccountBalance('مبيعات') + getAccountBalance('إيرادات أخرى');
+                const cogs = getAccountBalance('مشتريات');
+                const grossProfit = revenue - cogs;
+                const operatingExpenses = getAccountBalance('مصروفات') + getAccountBalance('رواتب');
+                const netProfit = grossProfit - operatingExpenses;
+                document.getElementById('incomeStatement').innerHTML = `<table><tr><td>الإيرادات</td><td>${Utils.formatMoney(revenue)}</td></tr><tr><td>تكلفة البضاعة المباعة</td><td>${Utils.formatMoney(cogs)}</td></tr><tr><td>مجمل الربح</td><td>${Utils.formatMoney(grossProfit)}</td></tr><tr><td>المصروفات التشغيلية</td><td>${Utils.formatMoney(operatingExpenses)}</td></tr><tr><td>صافي الربح</td><td>${Utils.formatMoney(netProfit)}</td></tr></table>`;
+            }
+
+            // Journal Entry
+            function addEntryRow() {
+                const container = document.getElementById('entriesContainer');
+                const row = document.createElement('div'); row.className = 'entry-row';
+                row.innerHTML = `<select class="entry-account">${accounts.map(a => `<option>${a}</option>`)}</select><input type="number" class="entry-debit" placeholder="مدين" value="0"><input type="number" class="entry-credit" placeholder="دائن" value="0"><button onclick="this.closest('.entry-row').remove()">X</button>`;
+                container.appendChild(row);
+            }
+
+            function saveJournalEntry(e) {
+                e.preventDefault();
+                const date = document.getElementById('entryDate').value;
+                const desc = document.getElementById('entryDescription').value;
+                const rows = document.querySelectorAll('.entry-row');
+                let totalDebit = 0, totalCredit = 0;
+                rows.forEach(r => {
+                    const acc = r.querySelector('.entry-account').value;
+                    const debit = parseFloat(r.querySelector('.entry-debit').value) || 0;
+                    const credit = parseFloat(r.querySelector('.entry-credit').value) || 0;
+                    if (debit > 0) { ledger.push({ date, description: desc, debitAccount: acc, creditAccount: 'مقابل', debit, credit: debit }); totalDebit += debit; }
+                    if (credit > 0) { ledger.push({ date, description: desc, debitAccount: 'مقابل', creditAccount: acc, debit: credit, credit }); totalCredit += credit; }
+                });
+                if (Math.abs(totalDebit - totalCredit) > 0.01) { alert('يجب أن يتساوى المدين والدائن'); return; }
+                document.getElementById('journalModal').style.display = 'none';
+                renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
+            }
+
+            // Event Listeners
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+                App.initUserInterface();
+                await loadAllData();
+                document.getElementById('entryDate').value = Utils.getToday();
+                document.getElementById('loanDate').value = Utils.getToday();
+                document.getElementById('expDate').value = Utils.getToday();
+
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(btn.id.replace('tab', '').toLowerCase() + 'Tab').classList.add('active');
+                }));
+
+                document.getElementById('openJournalBtn').addEventListener('click', () => { document.getElementById('journalModal').style.display = 'flex'; addEntryRow(); });
+                document.getElementById('closeJournalBtn').addEventListener('click', () => document.getElementById('journalModal').style.display = 'none');
+                document.getElementById('addEntryRowBtn').addEventListener('click', addEntryRow);
+                document.getElementById('journalForm').addEventListener('submit', saveJournalEntry);
+
+                document.getElementById('addEmployeeBtn').addEventListener('click', () => { document.getElementById('employeeId').value = ''; document.getElementById('employeeForm').reset(); document.getElementById('employeeModal').style.display = 'flex'; });
+                document.getElementById('closeEmployeeBtn').addEventListener('click', () => document.getElementById('employeeModal').style.display = 'none');
+                document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const id = document.getElementById('employeeId').value;
+                    const name = document.getElementById('empName').value;
+                    const salary = parseFloat(document.getElementById('empSalary').value);
+                    if (!name || salary < 0) return;
+                    const emp = { name, salary };
+                    if (id) emp.id = id;
+                    await DB.saveEmployee(emp);
+                    document.getElementById('employeeModal').style.display = 'none';
+                    await loadPayrollData();
+                });
+
+                document.getElementById('addLoanBtn').addEventListener('click', () => { document.getElementById('loanForm').reset(); document.getElementById('loanModal').style.display = 'flex'; });
+                document.getElementById('closeLoanBtn').addEventListener('click', () => document.getElementById('loanModal').style.display = 'none');
+                document.getElementById('loanForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const employee_id = document.getElementById('loanEmpId').value;
+                    const amount = parseFloat(document.getElementById('loanAmount').value);
+                    const installment = parseFloat(document.getElementById('loanInstallment').value);
+                    const date = document.getElementById('loanDate').value;
+                    await DB.saveLoan({ id: crypto.randomUUID(), employee_id, amount, installment, date, paid: 0 });
+                    document.getElementById('loanModal').style.display = 'none';
+                    await loadPayrollData();
+                });
+
+                document.getElementById('addExpenseBtn').addEventListener('click', () => { document.getElementById('expenseForm').reset(); document.getElementById('expenseModal').style.display = 'flex'; });
+                document.getElementById('closeExpenseBtn').addEventListener('click', () => document.getElementById('expenseModal').style.display = 'none');
+                document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const description = document.getElementById('expDesc').value;
+                    const amount = parseFloat(document.getElementById('expAmount').value);
+                    const category = document.getElementById('expCategory').value;
+                    const date = document.getElementById('expDate').value;
+                    await DB.saveExpense({ id: crypto.randomUUID(), description, amount, category, date });
+                    document.getElementById('expenseModal').style.display = 'none';
+                    await loadExpenses();
+                    await buildLedger();
+                    renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
+                });
+
+                window.editEmployee = (id) => {
+                    const e = employees.find(x => x.id === id);
+                    if (!e) return;
+                    document.getElementById('employeeId').value = e.id;
+                    document.getElementById('empName').value = e.name;
+                    document.getElementById('empSalary').value = e.salary;
+                    document.getElementById('employeeModal').style.display = 'flex';
+                };
+
+                window.payInstallment = async (id) => {
+                    const loan = loans.find(l => l.id === id);
+                    if (!loan) return;
+                    const amount = Math.min(loan.installment, loan.amount - loan.paid);
+                    if (amount <= 0) { alert('تم سداد السلفة بالكامل'); return; }
+                    loan.paid += amount;
+                    await DB.saveLoan(loan);
+                    await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'expense', amount, description: `سداد قسط سلفة`, payment_method: 'cash' });
+                    await loadPayrollData();
+                    await buildLedger();
+                    renderLedger(); renderChartOfAccounts();
+                };
+
+                window.deleteExpense = async (id) => {
+                    if (!confirm('حذف المصروف؟')) return;
+                    await supabase.from('expenses').delete().eq('id', id);
+                    await loadExpenses();
+                    await buildLedger();
+                    renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
+                };
             });
-            purchases.forEach(p => {
-                ledger.push({ date: p.date, description: `فاتورة شراء ${p.id}`, debitAccount: 'مشتريات', creditAccount: 'موردين', debit: p.total, credit: p.total });
-                if (p.paid > 0) ledger.push({ date: p.date, description: `دفع ${p.id}`, debitAccount: 'موردين', creditAccount: 'نقدية', debit: p.paid, credit: p.paid });
-            });
-            transactions.forEach(t => {
-                ledger.push({ date: t.date, description: t.description, debitAccount: t.type === 'income' ? 'نقدية' : 'مصروفات', creditAccount: t.type === 'income' ? (t.description.includes('فاتورة') ? 'عملاء' : 'إيرادات أخرى') : 'نقدية', debit: t.amount, credit: t.amount });
-            });
-            expensesData.forEach(e => {
-                ledger.push({ date: e.date, description: e.description, debitAccount: 'مصروفات', creditAccount: 'نقدية', debit: e.amount, credit: e.amount });
-            });
-            ledger.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-        }
-
-        function getAccountBalance(account) {
-            let balance = 0;
-            ledger.forEach(e => {
-                if (e.debitAccount === account) balance += e.debit;
-                if (e.creditAccount === account) balance -= e.credit;
-            });
-            return balance;
-        }
-
-        function renderChartOfAccounts() {
-            const assets = ['نقدية', 'بنك', 'عملاء', 'مخزون'];
-            const liabilities = ['موردين', 'سلف'];
-            const equity = ['رأس المال'];
-            const revenue = ['مبيعات', 'إيرادات أخرى'];
-            const expenses = ['مشتريات', 'مصروفات', 'رواتب'];
-            
-            const balances = {};
-            accounts.forEach(acc => balances[acc] = getAccountBalance(acc));
-            
-            let html = '<div style="display:grid; gap:20px;">';
-            html += renderAccountGroup('الأصول', assets, balances);
-            html += renderAccountGroup('الخصوم', liabilities, balances);
-            html += renderAccountGroup('حقوق الملكية', equity, balances);
-            html += renderAccountGroup('الإيرادات', revenue, balances);
-            html += renderAccountGroup('المصروفات', expenses, balances);
-            html += '</div>';
-            document.getElementById('chartOfAccounts').innerHTML = html;
-            
-            const totalAssets = assets.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
-            const totalLiabilities = liabilities.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
-            const totalEquity = equity.reduce((s, a) => s + Math.abs(balances[a] || 0), 0);
-            document.getElementById('totalAssets').textContent = Utils.formatMoney(totalAssets);
-            document.getElementById('totalLiabilities').textContent = Utils.formatMoney(totalLiabilities);
-            document.getElementById('totalEquity').textContent = Utils.formatMoney(totalEquity);
-        }
-
-        function renderAccountGroup(title, accounts, balances) {
-            return `<div><h3>${title}</h3><table><tr><th>الحساب</th><th>الرصيد</th></tr>${accounts.map(a => `<tr><td>${a}</td><td>${Utils.formatMoney(balances[a] || 0)}</td></tr>`).join('')}</table></div>`;
-        }
-
-        function renderLedger() {
-            const tbody = document.getElementById('ledgerBody');
-            tbody.innerHTML = ledger.slice(0, 100).map(e => `<tr><td>${e.date}</td><td>${e.description}</td><td class="debit">${e.debitAccount} ${Utils.formatMoney(e.debit)}</td><td class="credit">${e.creditAccount} ${Utils.formatMoney(e.credit)}</td></tr>`).join('');
-        }
-
-        // الرواتب
-        async function loadPayrollData() {
-            employees = await DB.getEmployees ? await DB.getEmployees() : [];
-            loans = await DB.getLoans ? await DB.getLoans() : [];
-            renderEmployees();
-            renderLoans();
-            populateLoanEmployeeSelect();
-        }
-
-        function renderEmployees() {
-            const tbody = document.getElementById('employeesBody');
-            tbody.innerHTML = employees.map(e => {
-                const empLoans = loans.filter(l => l.employee_id === e.id && l.paid < l.amount);
-                const loanDeduction = empLoans.reduce((s, l) => s + Math.min(l.installment, l.amount - l.paid), 0);
-                const net = e.salary + (e.allowances || 0) - loanDeduction;
-                return `<tr><td>${e.name}</td><td>${Utils.formatMoney(e.salary)}</td><td>${Utils.formatMoney(e.allowances || 0)}</td><td>${Utils.formatMoney(loanDeduction)}</td><td>0</td><td>${Utils.formatMoney(net)}</td><td><i class="fas fa-edit"></i></td></tr>`;
-            }).join('');
-        }
-
-        function renderLoans() {
-            const tbody = document.getElementById('loansBody');
-            tbody.innerHTML = loans.map(l => {
-                const emp = employees.find(e => e.id === l.employee_id);
-                const remaining = l.amount - (l.paid || 0);
-                return `<tr><td>${emp?.name || '-'}</td><td>${Utils.formatMoney(l.amount)}</td><td>${Utils.formatMoney(l.installment)}</td><td>${Utils.formatMoney(remaining)}</td><td>${l.date}</td><td><i class="fas fa-check-circle" onclick="payInstallment('${l.id}')"></i></td></tr>`;
-            }).join('');
-        }
-
-        function populateLoanEmployeeSelect() {
-            const sel = document.getElementById('loanEmpId');
-            sel.innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        }
-
-        // المصروفات
-        async function loadExpenses() {
-            expenses = await DB.getExpenses ? await DB.getExpenses() : [];
-            renderExpenses();
-        }
-
-        function renderExpenses() {
-            const tbody = document.getElementById('expensesBody');
-            tbody.innerHTML = expenses.map(e => `<tr><td>${e.description}</td><td>${Utils.formatMoney(e.amount)}</td><td>${e.date}</td><td>${e.category}</td><td><i class="fas fa-trash" onclick="deleteExpense('${e.id}')"></i></td></tr>`).join('');
-        }
-
-        // ميزان المراجعة
-        function renderTrialBalance() {
-            const balances = {};
-            ledger.forEach(e => {
-                balances[e.debitAccount] = (balances[e.debitAccount] || 0) + e.debit;
-                balances[e.creditAccount] = (balances[e.creditAccount] || 0) + e.credit;
-            });
-            const rows = Object.entries(balances).map(([acc, bal]) => `<tr><td>${acc}</td><td>${Utils.formatMoney(bal)}</td><td>${Utils.formatMoney(bal)}</td></tr>`).join('');
-            document.getElementById('trialBalanceTable').innerHTML = `<table><tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr>${rows}</table>`;
-        }
-
-        // قائمة الدخل
-        function renderIncomeStatement() {
-            const revenue = getAccountBalance('مبيعات') + getAccountBalance('إيرادات أخرى');
-            const cogs = getAccountBalance('مشتريات');
-            const grossProfit = revenue - cogs;
-            const operatingExpenses = getAccountBalance('مصروفات') + getAccountBalance('رواتب');
-            const netProfit = grossProfit - operatingExpenses;
-            document.getElementById('incomeStatement').innerHTML = `
-                <table>
-                    <tr><td>الإيرادات</td><td>${Utils.formatMoney(revenue)}</td></tr>
-                    <tr><td>تكلفة البضاعة المباعة</td><td>${Utils.formatMoney(cogs)}</td></tr>
-                    <tr><td>مجمل الربح</td><td>${Utils.formatMoney(grossProfit)}</td></tr>
-                    <tr><td>المصروفات التشغيلية</td><td>${Utils.formatMoney(operatingExpenses)}</td></tr>
-                    <tr><td>صافي الربح</td><td>${Utils.formatMoney(netProfit)}</td></tr>
-                </table>
-            `;
-        }
-
-        // قيد يومية
-        function openJournalModal() { document.getElementById('journalModal').style.display = 'flex'; addEntryRow(); }
-        function closeJournalModal() { document.getElementById('journalModal').style.display = 'none'; }
-        function addEntryRow() {
-            const container = document.getElementById('entriesContainer');
-            const row = document.createElement('div'); row.className = 'entry-row';
-            row.innerHTML = `<select class="entry-account">${accounts.map(a => `<option>${a}</option>`)}</select><input type="number" class="entry-debit" placeholder="مدين" value="0"><input type="number" class="entry-credit" placeholder="دائن" value="0"><button onclick="this.closest('.entry-row').remove()">X</button>`;
-            container.appendChild(row);
-        }
-        function saveJournalEntry(e) {
-            e.preventDefault();
-            const date = document.getElementById('entryDate').value;
-            const desc = document.getElementById('entryDescription').value;
-            const rows = document.querySelectorAll('.entry-row');
-            let totalDebit = 0, totalCredit = 0;
-            rows.forEach(r => {
-                const acc = r.querySelector('.entry-account').value;
-                const debit = parseFloat(r.querySelector('.entry-debit').value) || 0;
-                const credit = parseFloat(r.querySelector('.entry-credit').value) || 0;
-                if (debit > 0) { ledger.push({ date, description: desc, debitAccount: acc, creditAccount: 'مقابل', debit, credit: debit }); totalDebit += debit; }
-                if (credit > 0) { ledger.push({ date, description: desc, debitAccount: 'مقابل', creditAccount: acc, debit: credit, credit }); totalCredit += credit; }
-            });
-            if (Math.abs(totalDebit - totalCredit) > 0.01) { alert('يجب أن يتساوى المدين والدائن'); return; }
-            closeJournalModal();
-            renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
-        }
-
-        // دوال المودالات الأخرى
-        function openEmployeeModal() { document.getElementById('employeeModal').style.display = 'flex'; }
-        function closeEmployeeModal() { document.getElementById('employeeModal').style.display = 'none'; }
-        async function saveEmployee(e) {
-            e.preventDefault();
-            const name = document.getElementById('empName').value;
-            const salary = parseFloat(document.getElementById('empSalary').value);
-            if (!name || salary < 0) return;
-            await DB.saveEmployee({ name, salary });
-            closeEmployeeModal();
-            await loadPayrollData();
-        }
-
-        function openLoanModal() { document.getElementById('loanModal').style.display = 'flex'; }
-        function closeLoanModal() { document.getElementById('loanModal').style.display = 'none'; }
-        async function saveLoan(e) {
-            e.preventDefault();
-            const employee_id = document.getElementById('loanEmpId').value;
-            const amount = parseFloat(document.getElementById('loanAmount').value);
-            const installment = parseFloat(document.getElementById('loanInstallment').value);
-            const date = document.getElementById('loanDate').value;
-            await DB.saveLoan({ employee_id, amount, installment, date, paid: 0 });
-            closeLoanModal();
-            await loadPayrollData();
-        }
-
-        function openExpenseModal() { document.getElementById('expenseModal').style.display = 'flex'; }
-        function closeExpenseModal() { document.getElementById('expenseModal').style.display = 'none'; }
-        async function saveExpense(e) {
-            e.preventDefault();
-            const description = document.getElementById('expDesc').value;
-            const amount = parseFloat(document.getElementById('expAmount').value);
-            const category = document.getElementById('expCategory').value;
-            const date = document.getElementById('expDate').value;
-            await DB.saveExpense({ description, amount, category, date });
-            closeExpenseModal();
-            await loadExpenses();
-            await buildLedger();
-            renderLedger(); renderChartOfAccounts(); renderTrialBalance(); renderIncomeStatement();
-        }
-
-        async function payInstallment(id) {
-            const loan = loans.find(l => l.id === id);
-            if (!loan) return;
-            const amount = Math.min(loan.installment, loan.amount - loan.paid);
-            if (amount <= 0) { alert('تم سداد السلفة بالكامل'); return; }
-            loan.paid += amount;
-            await DB.saveLoan(loan);
-            // إضافة حركة صندوق
-            await DB.saveTransaction({ date: Utils.getToday(), type: 'expense', amount, description: `سداد قسط سلفة للموظف`, payment_method: 'cash' });
-            await loadPayrollData();
-            await buildLedger();
-            renderLedger(); renderChartOfAccounts();
-        }
-
-        window.switchTab = switchTab;
-        window.openJournalModal = openJournalModal;
-        window.closeJournalModal = closeJournalModal;
-        window.addEntryRow = addEntryRow;
-        window.saveJournalEntry = saveJournalEntry;
-        window.openEmployeeModal = openEmployeeModal;
-        window.closeEmployeeModal = closeEmployeeModal;
-        window.saveEmployee = saveEmployee;
-        window.openLoanModal = openLoanModal;
-        window.closeLoanModal = closeLoanModal;
-        window.saveLoan = saveLoan;
-        window.openExpenseModal = openExpenseModal;
-        window.closeExpenseModal = closeExpenseModal;
-        window.saveExpense = saveExpense;
-        window.payInstallment = payInstallment;
+        })();
     </script>
 </body>
 </html>
