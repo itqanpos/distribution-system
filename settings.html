@@ -106,6 +106,7 @@
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
         .tabs-container {
             background: white; border-radius: 16px; padding: 8px; margin-bottom: 24px;
             display: flex; flex-wrap: wrap; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
@@ -136,10 +137,13 @@
         .form-group input, .form-group select, .form-group textarea {
             width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px;
         }
+        .form-group.checkbox { display: flex; align-items: center; gap: 10px; }
+        .form-group.checkbox input { width: auto; }
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: right; padding: 12px; background: var(--light); color: #475569; }
         td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        .action-icons i { margin: 0 5px; cursor: pointer; color: var(--secondary); }
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
@@ -241,7 +245,7 @@
                     <div class="form-group"><label>نوع الطابعة الافتراضي</label><select id="printerType"><option value="thermal">حرارية 80mm</option><option value="a4">A4</option></select></div>
                     <div class="form-group"><label>عدد النسخ</label><input type="number" id="printCopies" min="1" value="1"></div>
                     <div class="form-group"><label>تذييل الإيصال</label><input type="text" id="receiptFooter" value="شكراً لتعاملكم معنا"></div>
-                    <div class="form-group"><input type="checkbox" id="showLogo" checked> <label>عرض الشعار في الإيصال</label></div>
+                    <div class="form-group checkbox"><input type="checkbox" id="showLogo" checked> <label>عرض الشعار في الإيصال</label></div>
                 </div>
                 <h3 class="settings-section-title" style="margin-top:20px;"><i class="fas fa-bluetooth"></i> طابعات البلوتوث</h3>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
@@ -313,9 +317,9 @@
             <div class="modal-header"><h2 id="userModalTitle">مستخدم جديد</h2><button id="closeUserModalBtn">&times;</button></div>
             <form id="userForm">
                 <input type="hidden" id="userId">
-                <div class="form-group"><label>اسم المستخدم</label><input type="text" id="username" required></div>
+                <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="userEmail" required></div>
                 <div class="form-group"><label>الاسم الكامل</label><input type="text" id="fullName" required></div>
-                <div class="form-group"><label>كلمة المرور</label><input type="password" id="password"></div>
+                <div class="form-group"><label>كلمة المرور</label><input type="password" id="password" placeholder="اتركه فارغاً للإبقاء على القديمة"></div>
                 <div class="form-group"><label>الدور</label><select id="userRole"><option value="admin">مدير</option><option value="rep">مندوب</option></select></div>
                 <div class="form-group"><label>الحالة</label><select id="userStatus"><option value="active">نشط</option><option value="inactive">غير نشط</option></select></div>
                 <button type="submit" class="btn btn-primary">حفظ</button>
@@ -325,103 +329,161 @@
 
     <script>
         if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
+
         (function() {
-            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
+            // واجهة المستخدم
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
             document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
             document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-            let users = [], settings = {}, bluetoothDevice = null;
+            let settings = {}, users = [], bluetoothDevice = null;
 
+            // التبويبات
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(btn.id.replace('tab', '').toLowerCase() + 'Tab').classList.add('active');
+                });
+            });
+
+            // تحميل الإعدادات
             async function loadSettings() {
-                settings = await DB.getSettings();
-                if (settings.company) {
-                    document.getElementById('companyName').value = settings.company.name || '';
-                    document.getElementById('commercialReg').value = settings.company.commercialReg || '';
-                    document.getElementById('companyPhone').value = settings.company.phone || '';
-                    document.getElementById('companyEmail').value = settings.company.email || '';
-                    document.getElementById('companyAddress').value = settings.company.address || '';
-                }
-                if (settings.printing) {
-                    document.getElementById('printerType').value = settings.printing.printerType || 'thermal';
-                    document.getElementById('printCopies').value = settings.printing.copies || 1;
-                    document.getElementById('receiptFooter').value = settings.printing.footer || '';
-                    document.getElementById('showLogo').checked = settings.printing.showLogo !== false;
-                    displaySavedPrinter();
-                }
-                if (settings.system) {
-                    document.getElementById('systemLang').value = settings.system.lang || 'ar';
-                    document.getElementById('currency').value = settings.system.currency || 'ج.م';
-                    document.getElementById('lowStockAlert').value = settings.system.lowStockAlert || 10;
-                    document.getElementById('taxRate').value = settings.system.taxRate || 14;
-                }
-                if (settings.advanced) {
-                    document.getElementById('invoicePrefix').value = settings.advanced.invoicePrefix || 'INV-';
-                    document.getElementById('purchasePrefix').value = settings.advanced.purchasePrefix || 'PUR-';
-                    document.getElementById('sessionTimeout').value = settings.advanced.sessionTimeout || 120;
-                }
+                try {
+                    settings = await DB.getSettings();
+                    if (settings.company) {
+                        document.getElementById('companyName').value = settings.company.name || '';
+                        document.getElementById('commercialReg').value = settings.company.commercialReg || '';
+                        document.getElementById('companyPhone').value = settings.company.phone || '';
+                        document.getElementById('companyEmail').value = settings.company.email || '';
+                        document.getElementById('companyAddress').value = settings.company.address || '';
+                    }
+                    if (settings.printing) {
+                        document.getElementById('printerType').value = settings.printing.printerType || 'thermal';
+                        document.getElementById('printCopies').value = settings.printing.copies || 1;
+                        document.getElementById('receiptFooter').value = settings.printing.footer || '';
+                        document.getElementById('showLogo').checked = settings.printing.showLogo !== false;
+                        displaySavedPrinter();
+                    }
+                    if (settings.system) {
+                        document.getElementById('systemLang').value = settings.system.lang || 'ar';
+                        document.getElementById('currency').value = settings.system.currency || 'ج.م';
+                        document.getElementById('lowStockAlert').value = settings.system.lowStockAlert || 10;
+                        document.getElementById('taxRate').value = settings.system.taxRate || 14;
+                    }
+                    if (settings.advanced) {
+                        document.getElementById('invoicePrefix').value = settings.advanced.invoicePrefix || 'INV-';
+                        document.getElementById('purchasePrefix').value = settings.advanced.purchasePrefix || 'PUR-';
+                        document.getElementById('sessionTimeout').value = settings.advanced.sessionTimeout || 120;
+                    }
+                } catch (e) { console.warn('لم يتم تحميل الإعدادات'); }
             }
 
-            async function loadUsers() {
-                users = await DB.getUsers();
-                renderUsers();
-            }
-
-            function renderUsers() {
-                const tbody = document.getElementById('usersBody');
-                tbody.innerHTML = users.length ? users.map(u => `<tr><td>${u.username}</td><td>${u.full_name}</td><td>${u.role}</td><td>${u.status||'active'}</td><td><i class="fas fa-edit" onclick="editUser('${u.id}')"></i> <i class="fas fa-trash" onclick="deleteUser('${u.id}')"></i></td></tr>`).join('') : '<tr><td colspan="5">لا يوجد مستخدمين</td></tr>';
-            }
-
+            // حفظ الإعدادات
             async function saveAllSettings() {
                 const newSettings = {
-                    company: { name: document.getElementById('companyName').value, commercialReg: document.getElementById('commercialReg').value, phone: document.getElementById('companyPhone').value, email: document.getElementById('companyEmail').value, address: document.getElementById('companyAddress').value },
-                    printing: { printerType: document.getElementById('printerType').value, copies: parseInt(document.getElementById('printCopies').value)||1, footer: document.getElementById('receiptFooter').value, showLogo: document.getElementById('showLogo').checked, bluetoothPrinter: settings.printing?.bluetoothPrinter || null },
-                    system: { lang: document.getElementById('systemLang').value, currency: document.getElementById('currency').value, lowStockAlert: parseInt(document.getElementById('lowStockAlert').value)||10, taxRate: parseFloat(document.getElementById('taxRate').value)||14 },
-                    advanced: { invoicePrefix: document.getElementById('invoicePrefix').value, purchasePrefix: document.getElementById('purchasePrefix').value, sessionTimeout: parseInt(document.getElementById('sessionTimeout').value)||120 }
+                    company: {
+                        name: document.getElementById('companyName').value,
+                        commercialReg: document.getElementById('commercialReg').value,
+                        phone: document.getElementById('companyPhone').value,
+                        email: document.getElementById('companyEmail').value,
+                        address: document.getElementById('companyAddress').value
+                    },
+                    printing: {
+                        printerType: document.getElementById('printerType').value,
+                        copies: parseInt(document.getElementById('printCopies').value) || 1,
+                        footer: document.getElementById('receiptFooter').value,
+                        showLogo: document.getElementById('showLogo').checked,
+                        bluetoothPrinter: settings.printing?.bluetoothPrinter || null
+                    },
+                    system: {
+                        lang: document.getElementById('systemLang').value,
+                        currency: document.getElementById('currency').value,
+                        lowStockAlert: parseInt(document.getElementById('lowStockAlert').value) || 10,
+                        taxRate: parseFloat(document.getElementById('taxRate').value) || 14
+                    },
+                    advanced: {
+                        invoicePrefix: document.getElementById('invoicePrefix').value,
+                        purchasePrefix: document.getElementById('purchasePrefix').value,
+                        sessionTimeout: parseInt(document.getElementById('sessionTimeout').value) || 120
+                    }
                 };
                 await DB.saveSettings(newSettings);
                 settings = newSettings;
                 alert('تم حفظ الإعدادات');
             }
 
+            // بلوتوث
             async function searchBluetoothPrinter() {
                 try {
-                    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }] });
+                    const device = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
+                    });
                     bluetoothDevice = device;
                     document.getElementById('bluetoothStatus').innerHTML = `✅ تم العثور على: ${device.name || 'طابعة بلوتوث'}`;
                     if (!settings.printing) settings.printing = {};
                     settings.printing.bluetoothPrinter = { name: device.name, id: device.id };
                     await DB.saveSettings(settings);
                     displaySavedPrinter();
-                } catch (e) { document.getElementById('bluetoothStatus').innerHTML = '❌ لم يتم العثور على طابعة أو تم الإلغاء'; }
+                } catch (e) {
+                    document.getElementById('bluetoothStatus').innerHTML = '❌ لم يتم العثور على طابعة أو تم الإلغاء';
+                }
             }
 
             function displaySavedPrinter() {
                 const printer = settings.printing?.bluetoothPrinter;
-                document.getElementById('savedPrintersList').innerHTML = printer ? `<p>الطابعة المحفوظة: <strong>${printer.name}</strong></p>` : '<p>لا توجد طابعة محفوظة</p>';
+                const div = document.getElementById('savedPrintersList');
+                if (printer) {
+                    div.innerHTML = `<p>الطابعة المحفوظة: <strong>${printer.name}</strong></p>`;
+                } else {
+                    div.innerHTML = '<p>لا توجد طابعة محفوظة</p>';
+                }
             }
 
             async function testPrint() {
-                if (!bluetoothDevice && !settings.printing?.bluetoothPrinter) return alert('الرجاء البحث عن طابعة وحفظها أولاً');
+                if (!bluetoothDevice && !settings.printing?.bluetoothPrinter) {
+                    alert('الرجاء البحث عن طابعة وحفظها أولاً');
+                    return;
+                }
                 try {
                     if (!bluetoothDevice) {
                         const saved = settings.printing.bluetoothPrinter;
                         const devices = await navigator.bluetooth.getDevices();
                         bluetoothDevice = devices.find(d => d.id === saved.id);
-                        if (!bluetoothDevice) return alert('تعذر الاتصال بالطابعة المحفوظة، ابحث عنها مرة أخرى');
+                        if (!bluetoothDevice) {
+                            alert('تعذر الاتصال بالطابعة المحفوظة، ابحث عنها مرة أخرى');
+                            return;
+                        }
                     }
                     const server = await bluetoothDevice.gatt.connect();
                     const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
                     const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
                     await characteristic.writeValue(new TextEncoder().encode('اختبار طباعة من حسابي\n------------------------\nتم الاتصال بنجاح\n'));
                     alert('تم إرسال أمر الطباعة');
-                } catch (e) { alert('فشل الطباعة: ' + e.message); }
+                } catch (e) {
+                    alert('فشل الطباعة: ' + e.message);
+                }
+            }
+
+            // المستخدمين
+            async function loadUsers() {
+                users = await DB.getUsers ? await DB.getUsers() : [];
+                renderUsers();
+            }
+
+            function renderUsers() {
+                const tbody = document.getElementById('usersBody');
+                tbody.innerHTML = users.length ? users.map(u => `<tr><td>${u.email || u.username}</td><td>${u.full_name || ''}</td><td>${u.role}</td><td>${u.status||'active'}</td><td class="action-icons"><i class="fas fa-edit" onclick="editUser('${u.id}')"></i> <i class="fas fa-trash" onclick="deleteUser('${u.id}')"></i></td></tr>`).join('') : '<tr><td colspan="5">لا يوجد مستخدمين</td></tr>';
             }
 
             function openUserModal() {
                 document.getElementById('userModalTitle').textContent = 'مستخدم جديد';
-                document.getElementById('userForm').reset(); document.getElementById('userId').value = '';
+                document.getElementById('userForm').reset();
+                document.getElementById('userId').value = '';
                 document.getElementById('userModal').style.display = 'flex';
             }
 
@@ -429,41 +491,76 @@
                 const u = users.find(x => x.id === id);
                 if (!u) return;
                 document.getElementById('userModalTitle').textContent = 'تعديل مستخدم';
-                document.getElementById('userId').value = u.id; document.getElementById('username').value = u.username;
-                document.getElementById('fullName').value = u.full_name; document.getElementById('userRole').value = u.role;
-                document.getElementById('userStatus').value = u.status||'active';
+                document.getElementById('userId').value = u.id;
+                document.getElementById('userEmail').value = u.email || '';
+                document.getElementById('fullName').value = u.full_name || '';
+                document.getElementById('userRole').value = u.role;
+                document.getElementById('userStatus').value = u.status || 'active';
                 document.getElementById('userModal').style.display = 'flex';
             };
 
             async function saveUser(e) {
                 e.preventDefault();
-                const id = document.getElementById('userId').value, username = document.getElementById('username').value.trim();
-                const full_name = document.getElementById('fullName').value.trim(), password = document.getElementById('password').value;
-                const role = document.getElementById('userRole').value, status = document.getElementById('userStatus').value;
-                if (!username || !full_name) return;
-                const user = { username, full_name, role, status };
-                if (id) user.id = id;
-                if (password) user.password = password;
-                await DB.saveUser(user);
-                document.getElementById('userModal').style.display = 'none';
-                await loadUsers();
+                const id = document.getElementById('userId').value;
+                const email = document.getElementById('userEmail').value.trim();
+                const full_name = document.getElementById('fullName').value.trim();
+                const password = document.getElementById('password').value;
+                const role = document.getElementById('userRole').value;
+                const status = document.getElementById('userStatus').value;
+
+                if (!email || !full_name) return alert('البريد والاسم مطلوبان');
+
+                try {
+                    if (!id) {
+                        // إنشاء مستخدم جديد عبر Supabase Auth
+                        const { data, error } = await supabase.auth.signUp({ email, password: password || '123456' });
+                        if (error) throw error;
+                        if (data.user) {
+                            await supabase.from('profiles').upsert({ id: data.user.id, full_name, role, status });
+                        }
+                    } else {
+                        // تعديل مستخدم
+                        await supabase.from('profiles').update({ full_name, role, status }).eq('id', id);
+                        if (password) {
+                            // تحديث كلمة المرور يتطلب استدعاء خاص
+                            alert('تحديث كلمة المرور غير مدعوم حالياً. استخدم لوحة تحكم Supabase.');
+                        }
+                    }
+                    document.getElementById('userModal').style.display = 'none';
+                    await loadUsers();
+                    alert('تم الحفظ');
+                } catch (err) {
+                    alert('فشل الحفظ: ' + err.message);
+                }
             }
 
             async function deleteUser(id) {
                 if (!confirm('حذف المستخدم؟')) return;
-                await DB.deleteUser(id);
-                await loadUsers();
+                try {
+                    await supabase.from('profiles').delete().eq('id', id);
+                    // حذف من auth.users يتطلب صلاحيات admin
+                    await loadUsers();
+                } catch (e) { alert('فشل الحذف'); }
             }
 
+            // نسخ احتياطي
             async function createBackup() {
                 const data = {
-                    products: await DB.getProducts(), customers: await DB.getParties('customer'), suppliers: await DB.getParties('supplier'),
-                    invoices: await DB.getInvoices(), purchases: await DB.getPurchases(), transactions: await DB.getTransactions(),
-                    returns: await DB.getReturns(), reps: await DB.getReps(), settings: await DB.getSettings()
+                    products: await DB.getProducts(),
+                    customers: await DB.getParties('customer'),
+                    suppliers: await DB.getParties('supplier'),
+                    invoices: await DB.getInvoices(),
+                    purchases: await DB.getPurchases(),
+                    transactions: await DB.getTransactions(),
+                    returns: await DB.getReturns ? await DB.getReturns() : [],
+                    reps: await DB.getReps ? await DB.getReps() : [],
+                    settings: await DB.getSettings()
                 };
                 const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-                a.download = `backup_${Utils.getToday()}.json`; a.click();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `backup_${Utils.getToday()}.json`;
+                a.click();
                 document.getElementById('lastBackup').textContent = new Date().toLocaleString();
             }
 
@@ -482,23 +579,19 @@
                         if (data.returns) for (const r of data.returns) await DB.saveReturn(r);
                         if (data.reps) for (const r of data.reps) await DB.saveRep(r);
                         if (data.settings) await DB.saveSettings(data.settings);
-                        alert('تمت الاستعادة بنجاح'); location.reload();
+                        alert('تمت الاستعادة بنجاح');
+                        location.reload();
                     } catch (ex) { alert('ملف غير صالح'); }
                 };
                 reader.readAsText(file);
             }
 
+            // ربط الأحداث
             document.addEventListener('DOMContentLoaded', async () => {
                 if (!App.requireAuth() || !App.requireRole(['admin'])) return;
                 App.initUserInterface();
-                await loadSettings(); await loadUsers();
-
-                document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                    btn.classList.add('active');
-                    document.getElementById(btn.id.replace('tab', '').toLowerCase() + 'Tab').classList.add('active');
-                }));
+                await loadSettings();
+                await loadUsers();
 
                 document.getElementById('saveAllSettingsBtn').addEventListener('click', saveAllSettings);
                 document.getElementById('searchBluetoothBtn').addEventListener('click', searchBluetoothPrinter);
