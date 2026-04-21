@@ -112,8 +112,9 @@
         .stat-card {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center; cursor: pointer;
+            text-align: center; cursor: pointer; transition: transform 0.2s;
         }
+        .stat-card:hover { transform: translateY(-3px); }
         .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
         .stat-card .value { font-size: 24px; font-weight: 700; }
         .stat-card .label { color: #64748b; font-size: 13px; }
