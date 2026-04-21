@@ -1,5 +1,5 @@
 // js/supabase.js
-// النسخة النهائية الآمنة - Supabase Auth + RLS جاهز
+// الإصدار النهائي مع الصلاحيات المتقدمة
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
@@ -13,14 +13,13 @@
     window.supabase = supabaseClient;
     console.log('✅ Supabase client initialized');
 
-    // ==================== المصادقة (Supabase Auth) ====================
+    // ==================== المصادقة والصلاحيات ====================
     window.App = {
         async login(email, password) {
             try {
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
 
-                // جلب البروفايل من جدول profiles
                 const { data: profile } = await supabaseClient
                     .from('profiles')
                     .select('*')
@@ -86,9 +85,31 @@
 
         requireRole(allowedRoles) {
             const user = this.getCurrentUser();
-            if (!user || !allowedRoles.includes(user.role)) {
-                alert('غير مصرح لك بالوصول إلى هذه الصفحة');
-                window.location.href = './dashboard.html';
+            if (!user) {
+                window.location.href = './index.html';
+                return false;
+            }
+            const userRole = (user.role || '').toLowerCase();
+            const allowed = allowedRoles.map(r => r.toLowerCase());
+            if (!allowed.includes(userRole)) {
+                alert('غير مسموح لك بالوصول إلى هذه الصفحة');
+                window.location.href = userRole === 'admin' ? './dashboard.html' : './pos.html';
+                return false;
+            }
+            return true;
+        },
+
+        hasPermission(permission) {
+            const user = this.getCurrentUser();
+            if (!user) return false;
+            if (user.role === 'admin') return true;
+            const repPermissions = ['pos', 'view_products', 'view_customers', 'view_invoices', 'view_sales', 'view_reports', 'create_invoice', 'hold_invoice', 'return_sale'];
+            return repPermissions.includes(permission);
+        },
+
+        requirePermission(permission) {
+            if (!this.hasPermission(permission)) {
+                alert('ليس لديك صلاحية لتنفيذ هذا الإجراء.');
                 return false;
             }
             return true;
@@ -109,7 +130,7 @@
 
     // ==================== دوال قاعدة البيانات ====================
     window.DB = {
-        // المنتجات
+        // ---- المنتجات ----
         async getProducts() {
             const { data, error } = await supabaseClient.from('products').select('*').order('name');
             if (error) throw error;
@@ -133,7 +154,7 @@
             if (error) throw error;
         },
 
-        // الأطراف
+        // ---- الأطراف (عملاء وموردين) ----
         async getParties(type = null) {
             let query = supabaseClient.from('parties').select('*').order('name');
             if (type) query = query.eq('type', type);
@@ -156,7 +177,7 @@
             if (error) throw error;
         },
 
-        // المندوبين
+        // ---- المندوبين ----
         async getReps() {
             const { data, error } = await supabaseClient.from('reps').select('*').order('name');
             if (error) throw error;
@@ -173,7 +194,7 @@
             if (error) throw error;
         },
 
-        // الفواتير
+        // ---- الفواتير (مبيعات) ----
         async getInvoices() {
             const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
             if (error) throw error;
@@ -187,7 +208,7 @@
             return data;
         },
 
-        // المشتريات
+        // ---- المشتريات ----
         async getPurchases() {
             const { data, error } = await supabaseClient.from('purchases').select('*').order('date', { ascending: false });
             if (error) throw error;
@@ -200,7 +221,7 @@
             return data;
         },
 
-        // حركات الصندوق
+        // ---- حركات الصندوق ----
         async getTransactions() {
             const { data, error } = await supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false });
             if (error) throw error;
@@ -213,7 +234,7 @@
             return data;
         },
 
-        // المرتجعات
+        // ---- المرتجعات ----
         async getReturns(type = null) {
             let query = supabaseClient.from('returns').select('*').order('date', { ascending: false });
             if (type) query = query.eq('type', type);
@@ -228,7 +249,46 @@
             return data;
         },
 
-        // الإعدادات
+        // ---- الموظفين ----
+        async getEmployees() {
+            const { data, error } = await supabaseClient.from('employees').select('*').order('name');
+            if (error) throw error;
+            return data;
+        },
+        async saveEmployee(emp) {
+            if (!emp.id) emp.id = crypto.randomUUID();
+            const { data, error } = await supabaseClient.from('employees').upsert(emp, { onConflict: 'id' }).select().single();
+            if (error) throw error;
+            return data;
+        },
+
+        // ---- السلف ----
+        async getLoans() {
+            const { data, error } = await supabaseClient.from('loans').select('*').order('date', { ascending: false });
+            if (error) throw error;
+            return data;
+        },
+        async saveLoan(loan) {
+            if (!loan.id) loan.id = crypto.randomUUID();
+            const { data, error } = await supabaseClient.from('loans').upsert(loan, { onConflict: 'id' }).select().single();
+            if (error) throw error;
+            return data;
+        },
+
+        // ---- المصروفات ----
+        async getExpenses() {
+            const { data, error } = await supabaseClient.from('expenses').select('*').order('date', { ascending: false });
+            if (error) throw error;
+            return data;
+        },
+        async saveExpense(exp) {
+            if (!exp.id) exp.id = crypto.randomUUID();
+            const { data, error } = await supabaseClient.from('expenses').upsert(exp, { onConflict: 'id' }).select().single();
+            if (error) throw error;
+            return data;
+        },
+
+        // ---- الإعدادات ----
         async getSettings() {
             const { data, error } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
             if (error && error.code !== 'PGRST116') throw error;
@@ -259,5 +319,5 @@
         }
     };
 
-    console.log('✅ Secure Supabase module ready');
+    console.log('✅ Secure Supabase module with permissions ready');
 })();
