@@ -1,109 +1,55 @@
-# نظام التوزيع الغذائي
 
-نظام متكامل لإدارة المبيعات والمشتريات والمخزون والعملاء والموردين والمندوبين، مصمم خصيصًا لقطاع التوزيع الغذائي. يعمل كتطبيق ويب تقدمي (PWA) قابل للتثبيت على الهواتف والأجهزة اللوحية، ويدعم العمل دون اتصال بالإنترنت.
+### 📎 مرفق: كود SQL لإنشاء الجداول (مختصر)
 
----
+<details>
+<summary>اضغط لعرض كود SQL</summary>
 
-## 🚀 المميزات الرئيسية
+```sql
+-- جدول المنتجات
+CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  barcode TEXT, name TEXT NOT NULL, category TEXT,
+  units JSONB NOT NULL DEFAULT '[{"name":"قطعة","price":0,"minPrice":0,"maxPrice":0,"stock":0,"factor":1}]',
+  min_stock INT DEFAULT 5, notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-- **وجهتان منفصلتان**: وجهة للمدير (كاملة الصلاحيات) ووجهة للمندوب (مهام محددة).
-- **نقطة بيع متطورة**: بحث سريع، اقتراحات تلقائية، دعم الوحدات المتعددة والأسعار الدنيا والقصوى، خصومات، ضرائب، طرق دفع متعددة (نقدي، آجل، مختلط، تحويل)، معالجة الفائض.
-- **إدارة المنتجات**: وحدات قياس متعددة، أسعار مرنة، باركود، مخزون، تقسيم الوحدات الكبيرة إلى صغيرة.
-- **إدارة العملاء والموردين**: أرصدة، مديونيات، سجل المعاملات.
-- **إدارة المندوبين**: أهداف، عمولات، مبيعات، تحصيلات.
-- **المشتريات والمبيعات**: فواتير بيع وشراء مع إمكانية التقسيط.
-- **الصندوق**: حركات مالية (إيداعات/سحوبات) ورصيد حالي.
-- **المحاسبة**: دفتر الأستاذ العام، شجرة حسابات، قيود يدوية.
-- **التقارير**: تقارير متنوعة (مبيعات، مشتريات، تدفق نقدي، عملاء، موردين، مخزون، أرباح).
-- **الإعدادات**: تخصيص الشركة، الطباعة، قوالب الفواتير، المستخدمين، نسخ احتياطي، ثيم فاتح/داكن.
-- **دعم العمل دون إنترنت**: يعمل بكفاءة باستخدام Service Worker و IndexedDB / LocalStorage.
-- **تثبيت كتطبيق (PWA)**: يمكن تثبيته على الشاشة الرئيسية.
+-- جدول الأطراف (عملاء وموردين)
+CREATE TABLE parties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL, type TEXT CHECK (type IN ('customer','supplier')),
+  phone TEXT, address TEXT, email TEXT, balance NUMERIC DEFAULT 0,
+  last_transaction DATE, created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
----
+-- جدول الفواتير
+CREATE TABLE invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT DEFAULT 'sale', date DATE NOT NULL,
+  customer_id UUID REFERENCES parties(id), customer_name TEXT,
+  items JSONB NOT NULL, total NUMERIC, paid NUMERIC, remaining NUMERIC,
+  discount NUMERIC DEFAULT 0, status TEXT, notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-## 📁 هيكل المشروع
+-- جدول المشتريات
+CREATE TABLE purchases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL, supplier_id UUID REFERENCES parties(id), supplier_name TEXT,
+  items JSONB NOT NULL, total NUMERIC, paid NUMERIC, remaining NUMERIC,
+  status TEXT, invoice_number TEXT, notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
----
+-- جدول حركات الصندوق
+CREATE TABLE transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL, type TEXT CHECK (type IN ('income','expense')),
+  amount NUMERIC, description TEXT, payment_method TEXT DEFAULT 'cash',
+  reference TEXT, notes TEXT, timestamp TIMESTAMPTZ DEFAULT NOW()
+);
 
-## ⚙️ طريقة التشغيل
+-- جدول الإعدادات
+CREATE TABLE settings (
+  id TEXT PRIMARY KEY DEFAULT 'main',
+  data JSONB NOT NULL
+);
 
-1. **نسخ الملفات**: ضع جميع الملفات أعلاه في مجلد واحد على جهاز الكمبيوتر أو الخادم.
-2. **تشغيل خادم محلي** (اختياري): يمكنك استخدام أي خادم HTTP بسيط مثل Live Server في VS Code أو `http-server`.
-3. **فتح `index.html`** في المتصفح.
-4. **تسجيل الدخول** باستخدام أحد الحسابات الافتراضية:
-   - **مدير**: اسم المستخدم `admin` وكلمة المرور `123456`
-   - **مندوب**: اسم المستخدم `مندوب1` وكلمة المرور `123456`
-
----
-
-## 📱 التثبيت كتطبيق (PWA)
-
-1. افتح الرابط في متصفح Chrome على الهاتف.
-2. اضغط على قائمة المتصفح (⋮) ثم اختر **"تثبيت التطبيق"** أو **"Add to Home screen"**.
-3. سيظهر التطبيق على الشاشة الرئيسية ويعمل كتطبيق مستقل.
-
----
-
-## 🧪 الاختبار دون إنترنت
-
-1. افتح التطبيق في المتصفح مرة واحدة على الأقل ليتم تخزين الملفات.
-2. افصل الإنترنت أو فعّل وضع الطيران.
-3. أعد فتح التطبيق – يجب أن يعمل بشكل طبيعي (البيانات تُحفظ محليًا).
-
----
-
-## 🛠️ تخصيص الإعدادات
-
-- **الثيم**: يمكن التبديل بين الوضع الفاتح والداكن من `الإعدادات > النظام`.
-- **الطباعة**: يمكن تخصيص قالب الإيصال الحراري أو فاتورة A4 من `الإعدادات > الطباعة`.
-- **النسخ الاحتياطي**: استخدم `الإعدادات > النسخ الاحتياطي` لتصدير/استيراد جميع البيانات.
-
----
-
-## 📦 البيانات الافتراضية
-
-عند التشغيل لأول مرة، يتم تحميل بيانات افتراضية تشمل:
-- منتجات (خبز، زيت، أرز)
-- عملاء وموردين
-- مندوبين (أحمد محمود، خالد عمرو)
-- فواتير وحركات صندوق تجريبية
-
-يمكنك حذفها أو تعديلها بحرية.
-
----
-
-## 🔒 الأمان والصلاحيات
-
-- **المدير (`admin`)**: يملك صلاحية كاملة على جميع الصفحات والإجراءات.
-- **المندوب (`rep`)**: يمكنه الوصول إلى واجهة المندوب فقط (بيع، عملاء، طلبات، تحصيلات).
-
----
-
-## 🌐 المتطلبات
-
-- متصفح حديث يدعم JavaScript و LocalStorage / IndexedDB.
-- للاستخدام على الهاتف: Android 5+ أو iOS 11+ (Safari).
-
----
-
-## 📝 ملاحظات هامة
-
-- **ملفا الأيقونة**: يجب وضع `icon-192.png` و `icon-512.png` في المجلد الرئيسي. يمكنك توليدهما من أي صورة باستخدام أدوات مثل [PWA Image Generator](https://www.pwabuilder.com/imageGenerator).
-- **التخزين**: النظام يستخدم `localStorage` افتراضيًا. لتفعيل IndexedDB (لتخزين كميات أكبر)، قم بتضمين `database.js` وتعديل `storage.js` لاستخدامه.
-- **التطوير**: جميع الملفات مكتوبة بـ HTML، CSS، و JavaScript خالص بدون أطر عمل، لتسهيل التعديل والتخصيص.
-
----
-
-## 📧 الدعم والمساهمة
-
-للاستفسارات أو الإبلاغ عن مشاكل، يمكنك التواصل عبر البريد الإلكتروني: `support@fooddist.com`
-
----
-
-## 📄 الرخصة
-
-هذا المشروع مفتوح المصدر ويمكن استخدامه بحرية للأغراض التجارية وغير التجارية.
-
----
-
-**تم التطوير بواسطة فريق نظام التوزيع الغذائي © 2024**
+-- (توجد جداول أخرى للمرتجعات، الموظفين، السلف، المصروفات، المندوبين... يمكن إضافتها حسب الحاجة)
