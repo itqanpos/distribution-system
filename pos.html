@@ -379,7 +379,6 @@
             const toast = document.getElementById('toast');
 
             function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
-
             function formatMoney(amount) { return Utils.formatMoney(amount); }
             function getToday() { return Utils.getToday(); }
 
@@ -416,7 +415,6 @@
                 else discount = subtotal * discountVal / 100;
                 const net = subtotal - discount;
                 document.getElementById('itemTypesCount').textContent = cart.length;
-                // حساب القطع مع عامل التحويل
                 const pieces = cart.reduce((s, item) => s + (item.quantity * (item.factor || 1)), 0);
                 document.getElementById('totalPieces').textContent = pieces.toFixed(2);
                 document.getElementById('subtotal').textContent = formatMoney(subtotal);
@@ -530,6 +528,9 @@
                 else cart.push({ productId: selectedProduct.id, productName: selectedProduct.name, unitName: selectedUnit.name, quantity: qty, price, factor: selectedUnit.factor || 1 });
                 renderCart();
                 unitModal.style.display = 'none';
+                // مسح حقل البحث بعد الإضافة
+                document.getElementById('productSearchInput').value = '';
+                filterProducts(); // إعادة عرض المنتجات كلها
             }
 
             function openPaymentModal() {
@@ -596,7 +597,6 @@
                     if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: getToday(), type: 'income', amount: transferPaid, description: `فاتورة بيع ${invoice.id} (تحويل)`, payment_method: 'bank' });
                 }
 
-                // طباعة الإيصال
                 printSaleReceipt(invoice, selectedCustomer || { name: 'نقدي', balance: 0 }, cart, totals);
                 alert(`تم البيع. الفاتورة ${invoice.id}`);
                 cart = []; renderCart(); document.getElementById('discountValue').value = 0;
@@ -640,12 +640,17 @@
                 if (!inv) return;
                 cart = inv.items;
                 selectedCustomer = customers.find(c => c.id === inv.customer_id) || null;
-                if (selectedCustomer) document.getElementById('customerSearchInput').value = selectedCustomer.name;
-                else document.getElementById('customerSearchInput').value = 'نقدي (بدون عميل)';
+                if (selectedCustomer) {
+                    document.getElementById('customerSearchInput').value = selectedCustomer.name;
+                } else {
+                    document.getElementById('customerSearchInput').value = 'نقدي (بدون عميل)';
+                }
                 onCustomerSearch();
                 renderCart();
+                // حذف الفاتورة المعلقة من قاعدة البيانات
                 await supabase.from('invoices').delete().eq('id', id);
                 heldModal.style.display = 'none';
+                showToast('تم تحميل الفاتورة المعلقة');
             };
 
             async function autoHoldIfNeeded() {
