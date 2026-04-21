@@ -382,6 +382,63 @@
             function formatMoney(amount) { return Utils.formatMoney(amount); }
             function getToday() { return Utils.getToday(); }
 
+            // ================== دوال مساعدة جديدة ==================
+            async function getCurrentCashBalance() {
+                try {
+                    const settings = await DB.getSettings();
+                    const openingBalance = settings?.financial?.opening_cash_balance || 0;
+                    const transactions = await DB.getTransactions();
+                    let cashFlow = 0;
+                    transactions.forEach(t => {
+                        if (t.payment_method === 'cash') {
+                            if (t.type === 'income') cashFlow += t.amount;
+                            else if (t.type === 'expense') cashFlow -= t.amount;
+                        }
+                    });
+                    return openingBalance + cashFlow;
+                } catch (e) {
+                    console.error('فشل حساب الرصيد', e);
+                    return 0;
+                }
+            }
+
+            function saveCartToStorage() {
+                if (cart.length > 0) {
+                    const heldCart = {
+                        cart: cart,
+                        customer: selectedCustomer,
+                        discountType: document.getElementById('discountType').value,
+                        discountValue: document.getElementById('discountValue').value
+                    };
+                    localStorage.setItem('pos_held_cart', JSON.stringify(heldCart));
+                } else {
+                    localStorage.removeItem('pos_held_cart');
+                }
+            }
+
+            async function restoreCartFromStorage() {
+                const saved = localStorage.getItem('pos_held_cart');
+                if (!saved) return;
+                try {
+                    const held = JSON.parse(saved);
+                    cart = held.cart;
+                    selectedCustomer = held.customer;
+                    document.getElementById('discountType').value = held.discountType;
+                    document.getElementById('discountValue').value = held.discountValue;
+                    
+                    if (selectedCustomer) {
+                        document.getElementById('customerSearchInput').value = selectedCustomer.name;
+                    } else {
+                        document.getElementById('customerSearchInput').value = 'نقدي (بدون عميل)';
+                    }
+                    onCustomerSearch();
+                    renderCart();
+                    showToast('تم استعادة السلة المحفوظة');
+                } catch (e) {}
+                localStorage.removeItem('pos_held_cart');
+            }
+
+            // ================== دوال الواجهة والحسابات ==================
             function updatePaymentPreview() {
                 const net = parseFloat(document.getElementById('payNet').textContent.replace(/[^0-9.-]+/g, ''));
                 const method = document.getElementById('paymentMethod').value;
@@ -396,7 +453,8 @@
                 const balanceText = newBal >= 0 ? `رصيد للعميل: ${formatMoney(newBal)}` : `رصيد على العميل: ${formatMoney(-newBal)}`;
                 document.getElementById('remainingDisplay').textContent = diff >= 0 ? `فائض ${formatMoney(diff)}` : `متبقي ${formatMoney(-diff)}`;
                 document.getElementById('balanceAfterLabel').textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
-                document.getElementById('balanceAfter').textContent = formatMoney(Math.abs(newBal));
+                const sign = newBal >= 0 ? '' : '-';
+                document.getElementById('balanceAfter').textContent = sign + formatMoney(Math.abs(newBal));
             }
 
             function togglePaymentFields() {
@@ -440,17 +498,7 @@
             window.updatePrice = (idx, val) => {
                 const newPrice = parseFloat(val) || 0;
                 const item = cart[idx];
-                const product = products.find(p => p.id === item.productId);
-                if (product) {
-                    const unit = product.units.find(u => u.name === item.unitName);
-                    if (unit) {
-                        if (newPrice < (unit.minPrice || 0) || newPrice > (unit.maxPrice || Infinity)) {
-                            alert(`السعر يجب أن يكون بين ${formatMoney(unit.minPrice)} و ${formatMoney(unit.maxPrice)}`);
-                            renderCart();
-                            return;
-                        }
-                    }
-                }
+                // يمكن إضافة التحقق من الحدود السعرية هنا إذا توفرت
                 item.price = newPrice;
                 renderCart();
             };
@@ -522,7 +570,7 @@
                 const qty = parseFloat(document.getElementById('selectedQuantity').value);
                 let price = parseFloat(document.getElementById('selectedPrice').value);
                 if (qty <= 0 || qty > selectedUnit.stock) { alert('كمية غير صالحة'); return; }
-                if (price < (selectedUnit.minPrice || 0) || price > (selectedUnit.maxPrice || Infinity)) { alert('السعر خارج الحدود المسموحة'); return; }
+                // تم تعطيل التحقق من الحدود السعرية مؤقتاً
                 const existing = cart.find(i => i.productId === selectedProduct.id && i.unitName === selectedUnit.name);
                 if (existing) existing.quantity += qty;
                 else cart.push({ productId: selectedProduct.id, productName: selectedProduct.name, unitName: selectedUnit.name, quantity: qty, price, factor: selectedUnit.factor || 1 });
@@ -545,8 +593,8 @@
                 document.getElementById('cashAmount').value = '';
                 document.getElementById('transferAmount').value = '';
                 document.getElementById('remainingDisplay').textContent = formatMoney(0);
-                document.getElementById('balanceAfterLabel').textContent = balance >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
-                document.getElementById('balanceAfter').textContent = formatMoney(Math.abs(balance));
+                const sign = balance >= 0 ? '' : '-';
+                document.getElementById('balanceAfter').textContent = sign + formatMoney(Math.abs(balance));
                 document.getElementById('paymentMethod').value = 'cash';
                 togglePaymentFields();
                 paymentModal.style.display = 'flex';
@@ -558,61 +606,120 @@
                 let cashPaid = 0, transferPaid = 0;
                 if (method === 'cash') cashPaid = parseFloat(document.getElementById('cashAmount').value) || 0;
                 else if (method === 'transfer') transferPaid = parseFloat(document.getElementById('transferAmount').value) || 0;
-                else if (method === 'mixed') { cashPaid = parseFloat(document.getElementById('cashAmount').value) || 0; transferPaid = parseFloat(document.getElementById('transferAmount').value) || 0; }
+                else if (method === 'mixed') {
+                    cashPaid = parseFloat(document.getElementById('cashAmount').value) || 0;
+                    transferPaid = parseFloat(document.getElementById('transferAmount').value) || 0;
+                }
                 const totalPaid = cashPaid + transferPaid;
                 if (method !== 'credit' && totalPaid < 0) { alert('المبلغ المدفوع غير صحيح'); return; }
                 const notes = document.getElementById('paymentNotes').value;
                 const diff = totalPaid - totals.net;
 
+                // التحقق من الرصيد النقدي
                 if (cashPaid > 0) {
-                    const transactions = await DB.getTransactions();
-                    let cashBalance = 0;
-                    transactions.forEach(t => { if (t.type === 'income' && t.payment_method === 'cash') cashBalance += t.amount; else if (t.type === 'expense' && t.payment_method === 'cash') cashBalance -= t.amount; });
-                    if (cashPaid > cashBalance) { alert(`الرصيد النقدي غير كافٍ. المتاح: ${formatMoney(cashBalance)}`); return; }
+                    const cashBalance = await getCurrentCashBalance();
+                    if (cashPaid > cashBalance) {
+                        alert(`الرصيد النقدي غير كافٍ. المتاح: ${formatMoney(cashBalance)}`);
+                        return;
+                    }
                 }
 
+                // تحديث رصيد العميل
                 if (selectedCustomer) {
                     selectedCustomer.balance = (selectedCustomer.balance || 0) + diff;
                     await DB.saveParty(selectedCustomer);
                 }
 
+                // إنشاء الفاتورة
                 const invoice = {
-                    id: crypto.randomUUID(), type: 'sale', date: getToday(),
+                    id: crypto.randomUUID(),
+                    type: 'sale',
+                    date: getToday(),
                     customer_id: selectedCustomer?.id || null,
                     customer_name: selectedCustomer?.name || 'نقدي',
-                    items: cart, total: totals.net, paid: totalPaid,
-                    remaining: diff >= 0 ? 0 : -diff, discount: totals.discount,
-                    status: diff >= 0 ? 'paid' : 'partial', notes
+                    items: cart,
+                    subtotal: totals.subtotal,
+                    discount: totals.discount,
+                    total: totals.net,
+                    paid: totalPaid,
+                    remaining: diff >= 0 ? 0 : -diff,
+                    status: diff >= 0 ? 'paid' : 'partial',
+                    notes
                 };
                 await DB.saveInvoice(invoice);
 
+                // تحديث المخزون (باعتبار الوحدة الأساسية)
                 for (const item of cart) {
                     const prod = products.find(p => p.id === item.productId);
-                    if (prod) { const unit = prod.units.find(u => u.name === item.unitName); if (unit) unit.stock -= item.quantity; await DB.saveProduct(prod); }
+                    if (prod) {
+                        const unit = prod.units.find(u => u.name === item.unitName);
+                        if (unit) {
+                            const quantityInBase = item.quantity * (unit.factor || 1);
+                            prod.units[0].stock -= quantityInBase;
+                            await DB.saveProduct(prod);
+                        }
+                    }
                 }
 
-                if (totalPaid > 0) {
-                    if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: getToday(), type: 'income', amount: cashPaid, description: `فاتورة بيع ${invoice.id} (نقدي)`, payment_method: 'cash' });
-                    if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: getToday(), type: 'income', amount: transferPaid, description: `فاتورة بيع ${invoice.id} (تحويل)`, payment_method: 'bank' });
+                // تسجيل المعاملات المالية
+                if (cashPaid > 0) {
+                    await DB.saveTransaction({
+                        id: crypto.randomUUID(),
+                        date: getToday(),
+                        type: 'income',
+                        amount: cashPaid,
+                        description: `فاتورة بيع ${invoice.id} (نقدي)`,
+                        payment_method: 'cash'
+                    });
+                }
+                if (transferPaid > 0) {
+                    await DB.saveTransaction({
+                        id: crypto.randomUUID(),
+                        date: getToday(),
+                        type: 'income',
+                        amount: transferPaid,
+                        description: `فاتورة بيع ${invoice.id} (تحويل)`,
+                        payment_method: 'bank'
+                    });
                 }
 
-                printSaleReceipt(invoice, selectedCustomer || { name: 'نقدي', balance: 0 }, cart, totals);
+                // طباعة الإيصال
+                const printCustomer = selectedCustomer || { name: 'نقدي', balance: 0 };
+                printSaleReceipt(invoice, printCustomer, cart, totals);
+
                 alert(`تم البيع. الفاتورة ${invoice.id}`);
-                cart = []; renderCart(); document.getElementById('discountValue').value = 0;
-                selectedCustomer = null; document.getElementById('customerSearchInput').value = ''; document.getElementById('customerBalanceDisplay').innerHTML = '';
+
+                // إعادة تعيين الواجهة
+                cart = [];
+                renderCart();
+                document.getElementById('discountValue').value = 0;
+                selectedCustomer = null;
+                document.getElementById('customerSearchInput').value = '';
+                document.getElementById('customerBalanceDisplay').innerHTML = '';
                 paymentModal.style.display = 'none';
+
+                // إعادة تحميل البيانات وتحديث عرض المنتجات
                 await loadData();
+                filterProducts();
             }
 
             async function holdInvoice() {
                 if (!cart.length) { alert('السلة فارغة'); return; }
                 const totals = calculateTotals();
                 const invoice = {
-                    id: crypto.randomUUID(), type: 'sale', date: getToday(),
+                    id: crypto.randomUUID(),
+                    type: 'sale',
+                    date: getToday(),
                     customer_id: selectedCustomer?.id || null,
                     customer_name: selectedCustomer?.name || 'نقدي',
-                    items: cart, total: totals.net, paid: 0, remaining: totals.net,
-                    discount: totals.discount, status: 'held', notes: 'فاتورة معلقة'
+                    items: cart,
+                    subtotal: totals.subtotal,
+                    discount: totals.discount,
+                    total: totals.net,
+                    paid: 0,
+                    remaining: totals.net,
+                    status: 'held',
+                    notes: 'فاتورة معلقة'
                 };
                 await DB.saveInvoice(invoice);
                 alert(`تم تعليق الفاتورة ${invoice.id}`);
@@ -648,27 +755,17 @@
                 showToast('تم تحميل الفاتورة المعلقة');
             };
 
-            async function autoHoldIfNeeded() {
-                if (cart.length > 0) {
-                    const totals = calculateTotals();
-                    const invoice = {
-                        id: crypto.randomUUID(), type: 'sale', date: getToday(),
-                        customer_id: selectedCustomer?.id || null, customer_name: selectedCustomer?.name || 'نقدي',
-                        items: cart, total: totals.net, paid: 0, remaining: totals.net,
-                        discount: totals.discount, status: 'held', notes: 'تعليق تلقائي عند الخروج'
-                    };
-                    await DB.saveInvoice(invoice);
-                    showToast('تم تعليق الفاتورة تلقائياً');
-                }
-            }
-
-            window.addEventListener('beforeunload', () => { if (cart.length > 0) autoHoldIfNeeded(); });
+            // حفظ السلة عند الخروج
+            window.addEventListener('beforeunload', () => {
+                saveCartToStorage();
+            });
 
             document.addEventListener('DOMContentLoaded', async () => {
                 if (!App.requireAuth()) return;
                 App.initUserInterface();
                 await loadSettings();
                 await loadData();
+                await restoreCartFromStorage();
 
                 document.getElementById('productSearchInput').addEventListener('input', filterProducts);
                 document.getElementById('customerSearchInput').addEventListener('input', onCustomerSearch);
