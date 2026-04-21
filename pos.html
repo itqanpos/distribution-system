@@ -528,9 +528,8 @@
                 else cart.push({ productId: selectedProduct.id, productName: selectedProduct.name, unitName: selectedUnit.name, quantity: qty, price, factor: selectedUnit.factor || 1 });
                 renderCart();
                 unitModal.style.display = 'none';
-                // مسح حقل البحث بعد الإضافة
                 document.getElementById('productSearchInput').value = '';
-                filterProducts(); // إعادة عرض المنتجات كلها
+                filterProducts();
             }
 
             function openPaymentModal() {
@@ -640,14 +639,10 @@
                 if (!inv) return;
                 cart = inv.items;
                 selectedCustomer = customers.find(c => c.id === inv.customer_id) || null;
-                if (selectedCustomer) {
-                    document.getElementById('customerSearchInput').value = selectedCustomer.name;
-                } else {
-                    document.getElementById('customerSearchInput').value = 'نقدي (بدون عميل)';
-                }
+                if (selectedCustomer) document.getElementById('customerSearchInput').value = selectedCustomer.name;
+                else document.getElementById('customerSearchInput').value = 'نقدي (بدون عميل)';
                 onCustomerSearch();
                 renderCart();
-                // حذف الفاتورة المعلقة من قاعدة البيانات
                 await supabase.from('invoices').delete().eq('id', id);
                 heldModal.style.display = 'none';
                 showToast('تم تحميل الفاتورة المعلقة');
