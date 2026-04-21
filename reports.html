@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>التقارير · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>التقارير · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -97,10 +100,9 @@
         }
         .page-title h1 { font-size: 28px; font-weight: 700; }
         .btn {
-            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
+            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
-            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .tabs-container {
@@ -128,28 +130,11 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
             overflow-x: auto; margin-bottom: 30px;
         }
-        .table-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px;
-        }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
         td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
-        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; }
         .badge-success { background: #d1fae5; color: #065f46; }
-        .badge-danger { background: #fee2e2; color: #991b1b; }
-        .summary-cards {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 20px; margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white; border-radius: 20px; padding: 20px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center;
-        }
-        .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
-        .stat-card .value { font-size: 24px; font-weight: 700; }
-        .stat-card .label { color: #64748b; font-size: 13px; }
         @media (max-width: 992px) {
             .sidebar { transform: translateX(100%); }
             .sidebar.mobile-open { transform: translateX(0); }
@@ -165,8 +150,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -178,7 +163,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -215,298 +200,205 @@
         </div>
 
         <div class="tabs-container">
-            <button class="tab-btn active" onclick="switchTab('summary')"><i class="fas fa-chart-pie"></i> ملخص عام</button>
-            <button class="tab-btn" onclick="switchTab('sales')"><i class="fas fa-shopping-cart"></i> تقرير المبيعات</button>
-            <button class="tab-btn" onclick="switchTab('purchases')"><i class="fas fa-truck"></i> تقرير المشتريات</button>
-            <button class="tab-btn" onclick="switchTab('productsProfit')"><i class="fas fa-box"></i> أرباح الأصناف</button>
-            <button class="tab-btn" onclick="switchTab('invoicesProfit')"><i class="fas fa-file-invoice"></i> أرباح الفواتير</button>
-            <button class="tab-btn" onclick="switchTab('customers')"><i class="fas fa-users"></i> تقرير العملاء</button>
+            <button class="tab-btn active" id="tabSummary"><i class="fas fa-chart-pie"></i> ملخص عام</button>
+            <button class="tab-btn" id="tabSales"><i class="fas fa-shopping-cart"></i> المبيعات</button>
+            <button class="tab-btn" id="tabPurchases"><i class="fas fa-truck"></i> المشتريات</button>
+            <button class="tab-btn" id="tabProductProfit"><i class="fas fa-box"></i> أرباح الأصناف</button>
+            <button class="tab-btn" id="tabInvoiceProfit"><i class="fas fa-file-invoice"></i> أرباح الفواتير</button>
+            <button class="tab-btn" id="tabCustomers"><i class="fas fa-users"></i> العملاء</button>
         </div>
 
         <!-- ملخص عام -->
         <div id="summaryTab" class="tab-content active">
             <div class="filter-bar">
-                <select id="summaryPeriod" onchange="loadSummary()">
-                    <option value="today">اليوم</option>
-                    <option value="week">هذا الأسبوع</option>
-                    <option value="month" selected>هذا الشهر</option>
-                    <option value="year">هذه السنة</option>
-                </select>
+                <select id="summaryPeriod"><option value="today">اليوم</option><option value="week">هذا الأسبوع</option><option value="month" selected>هذا الشهر</option><option value="year">هذه السنة</option></select>
                 <button class="btn btn-primary" onclick="loadSummary()">تطبيق</button>
             </div>
-            <div class="summary-cards" id="summaryCards"></div>
+            <div class="stats-grid" id="summaryStats"></div>
             <div class="table-container" id="summaryDetails"></div>
         </div>
 
         <!-- تقرير المبيعات -->
         <div id="salesTab" class="tab-content">
-            <div class="filter-bar">
-                <input type="date" id="salesStartDate"> <input type="date" id="salesEndDate">
-                <button class="btn btn-primary" onclick="loadSalesReport()">تطبيق</button>
-            </div>
+            <div class="filter-bar"><input type="date" id="salesStartDate"> <input type="date" id="salesEndDate"> <button class="btn btn-primary" onclick="loadSalesReport()">تطبيق</button></div>
             <div class="table-container" id="salesReportTable"></div>
         </div>
 
         <!-- تقرير المشتريات -->
         <div id="purchasesTab" class="tab-content">
-            <div class="filter-bar">
-                <input type="date" id="purchasesStartDate"> <input type="date" id="purchasesEndDate">
-                <button class="btn btn-primary" onclick="loadPurchasesReport()">تطبيق</button>
-            </div>
+            <div class="filter-bar"><input type="date" id="purchasesStartDate"> <input type="date" id="purchasesEndDate"> <button class="btn btn-primary" onclick="loadPurchasesReport()">تطبيق</button></div>
             <div class="table-container" id="purchasesReportTable"></div>
         </div>
 
         <!-- أرباح الأصناف -->
-        <div id="productsProfitTab" class="tab-content">
-            <div class="filter-bar">
-                <input type="date" id="productStartDate"> <input type="date" id="productEndDate">
-                <button class="btn btn-primary" onclick="loadProductProfitReport()">تطبيق</button>
-            </div>
+        <div id="productProfitTab" class="tab-content">
+            <div class="filter-bar"><input type="date" id="productStartDate"> <input type="date" id="productEndDate"> <button class="btn btn-primary" onclick="loadProductProfitReport()">تطبيق</button></div>
             <div class="table-container" id="productProfitTable"></div>
         </div>
 
         <!-- أرباح الفواتير -->
-        <div id="invoicesProfitTab" class="tab-content">
-            <div class="filter-bar">
-                <input type="date" id="invoiceStartDate"> <input type="date" id="invoiceEndDate">
-                <button class="btn btn-primary" onclick="loadInvoiceProfitReport()">تطبيق</button>
-            </div>
+        <div id="invoiceProfitTab" class="tab-content">
+            <div class="filter-bar"><input type="date" id="invoiceStartDate"> <input type="date" id="invoiceEndDate"> <button class="btn btn-primary" onclick="loadInvoiceProfitReport()">تطبيق</button></div>
             <div class="table-container" id="invoiceProfitTable"></div>
         </div>
 
         <!-- تقرير العملاء -->
         <div id="customersTab" class="tab-content">
-            <div class="filter-bar">
-                <input type="date" id="customerStartDate"> <input type="date" id="customerEndDate">
-                <button class="btn btn-primary" onclick="loadCustomerReport()">تطبيق</button>
-            </div>
+            <div class="filter-bar"><input type="date" id="customerStartDate"> <input type="date" id="customerEndDate"> <button class="btn btn-primary" onclick="loadCustomerReport()">تطبيق</button></div>
             <div class="table-container" id="customerReportTable"></div>
         </div>
     </main>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
-        let invoices = [], purchases = [], products = [], customers = [];
-        let currentReportData = [];
+        (function() {
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-            App.initUserInterface();
-            await loadBaseData();
-            setDefaultDates();
-            loadSummary();
-        });
+            let invoices = [], purchases = [], products = [], customers = [];
+            let currentReportData = [];
 
-        async function loadBaseData() {
-            invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-            purchases = await DB.getPurchases();
-            products = await DB.getProducts();
-            customers = await DB.getParties('customer');
-        }
-
-        function setDefaultDates() {
-            const today = new Date().toISOString().split('T')[0];
-            const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
-            document.querySelectorAll('input[type=date]').forEach(i => { if (!i.value) i.value = today; });
-            document.getElementById('salesStartDate').value = weekAgo;
-            document.getElementById('purchasesStartDate').value = weekAgo;
-            document.getElementById('productStartDate').value = weekAgo;
-            document.getElementById('invoiceStartDate').value = weekAgo;
-            document.getElementById('customerStartDate').value = weekAgo;
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tab + 'Tab').classList.add('active');
-            // تحميل البيانات عند التبديل
-            if (tab === 'summary') loadSummary();
-            else if (tab === 'sales') loadSalesReport();
-            else if (tab === 'purchases') loadPurchasesReport();
-            else if (tab === 'productsProfit') loadProductProfitReport();
-            else if (tab === 'invoicesProfit') loadInvoiceProfitReport();
-            else if (tab === 'customers') loadCustomerReport();
-        }
-
-        function getDateRange(period) {
-            const today = new Date(); let start = new Date(today);
-            if (period === 'today') {}
-            else if (period === 'week') start.setDate(today.getDate() - 7);
-            else if (period === 'month') start.setMonth(today.getMonth() - 1);
-            else if (period === 'year') start.setFullYear(today.getFullYear() - 1);
-            return { start: start.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
-        }
-
-        function filterByDate(data, start, end) {
-            return data.filter(d => d.date >= start && d.date <= end);
-        }
-
-        // ملخص عام
-        function loadSummary() {
-            const period = document.getElementById('summaryPeriod').value;
-            const range = getDateRange(period);
-            const filteredInvoices = filterByDate(invoices, range.start, range.end);
-            const filteredPurchases = filterByDate(purchases, range.start, range.end);
-
-            const totalSales = filteredInvoices.reduce((s,i) => s + i.total, 0);
-            const totalPurchases = filteredPurchases.reduce((s,p) => s + p.total, 0);
-            const profit = totalSales - totalPurchases;
-
-            document.getElementById('summaryCards').innerHTML = `
-                <div class="stat-card"><div class="icon"><i class="fas fa-chart-line"></i></div><div class="value">${Utils.formatMoney(totalSales)}</div><div class="label">إجمالي المبيعات</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-shopping-cart"></i></div><div class="value">${Utils.formatMoney(totalPurchases)}</div><div class="label">إجمالي المشتريات</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-dollar-sign"></i></div><div class="value">${Utils.formatMoney(profit)}</div><div class="label">صافي الربح</div></div>
-                <div class="stat-card"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value">${filteredInvoices.length}</div><div class="label">عدد الفواتير</div></div>
-            `;
-
-            const topProducts = {};
-            filteredInvoices.forEach(inv => inv.items?.forEach(item => {
-                topProducts[item.productName] = (topProducts[item.productName] || 0) + (item.quantity || 0);
-            }));
-            const topSorted = Object.entries(topProducts).sort((a,b) => b[1] - a[1]).slice(0,5);
-            currentReportData = topSorted;
-            document.getElementById('summaryDetails').innerHTML = `
-                <h3>أعلى 5 منتجات مبيعاً</h3>
-                <table><tr><th>المنتج</th><th>الكمية المباعة</th></tr>
-                ${topSorted.map(p => `<tr><td>${p[0]}</td><td>${p[1]}</td></tr>`).join('')}</table>
-            `;
-        }
-
-        // تقرير المبيعات
-        function loadSalesReport() {
-            const start = document.getElementById('salesStartDate').value;
-            const end = document.getElementById('salesEndDate').value;
-            const filtered = filterByDate(invoices, start, end);
-            const total = filtered.reduce((s,i) => s + i.total, 0);
-            currentReportData = filtered;
-            document.getElementById('salesReportTable').innerHTML = `
-                <h3>فواتير المبيعات (${filtered.length}) - الإجمالي: ${Utils.formatMoney(total)}</h3>
-                <table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>الربح</th></tr>
-                ${filtered.map(inv => {
-                    const cost = inv.items?.reduce((s,i) => s + (products.find(p=>p.name===i.productName)?.units?.[0]?.cost || i.price*0.7) * i.quantity, 0) || 0;
-                    const profit = inv.total - cost;
-                    return `<tr><td>${inv.id}</td><td>${inv.date}</td><td>${inv.customer_name}</td><td>${Utils.formatMoney(inv.total)}</td><td>${Utils.formatMoney(profit)}</td></tr>`;
-                }).join('')}</table>
-            `;
-        }
-
-        // تقرير المشتريات
-        function loadPurchasesReport() {
-            const start = document.getElementById('purchasesStartDate').value;
-            const end = document.getElementById('purchasesEndDate').value;
-            const filtered = filterByDate(purchases, start, end);
-            const total = filtered.reduce((s,p) => s + p.total, 0);
-            currentReportData = filtered;
-            document.getElementById('purchasesReportTable').innerHTML = `
-                <h3>فواتير المشتريات (${filtered.length}) - الإجمالي: ${Utils.formatMoney(total)}</h3>
-                <table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th></tr>
-                ${filtered.map(p => `<tr><td>${p.invoice_number || p.id}</td><td>${p.date}</td><td>${p.supplier_name}</td><td>${Utils.formatMoney(p.total)}</td></tr>`).join('')}</table>
-            `;
-        }
-
-        // أرباح الأصناف
-        function loadProductProfitReport() {
-            const start = document.getElementById('productStartDate').value;
-            const end = document.getElementById('productEndDate').value;
-            const filtered = filterByDate(invoices, start, end);
-            const productStats = {};
-            filtered.forEach(inv => inv.items?.forEach(item => {
-                const prod = products.find(p => p.name === item.productName);
-                const cost = prod?.units?.[0]?.cost || item.price * 0.7;
-                if (!productStats[item.productName]) productStats[item.productName] = { qty:0, revenue:0, cost:0 };
-                productStats[item.productName].qty += item.quantity;
-                productStats[item.productName].revenue += item.price * item.quantity;
-                productStats[item.productName].cost += cost * item.quantity;
-            }));
-            const report = Object.entries(productStats).map(([name, s]) => ({ name, ...s, profit: s.revenue - s.cost }));
-            currentReportData = report;
-            document.getElementById('productProfitTable').innerHTML = `
-                <table><tr><th>المنتج</th><th>الكمية المباعة</th><th>الإيرادات</th><th>التكلفة</th><th>الربح</th><th>هامش الربح</th></tr>
-                ${report.map(p => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${Utils.formatMoney(p.revenue)}</td><td>${Utils.formatMoney(p.cost)}</td><td>${Utils.formatMoney(p.profit)}</td><td>${p.revenue ? ((p.profit/p.revenue)*100).toFixed(1) : 0}%</td></tr>`).join('')}</table>
-            `;
-        }
-
-        // أرباح الفواتير
-        function loadInvoiceProfitReport() {
-            const start = document.getElementById('invoiceStartDate').value;
-            const end = document.getElementById('invoiceEndDate').value;
-            const filtered = filterByDate(invoices, start, end);
-            const report = filtered.map(inv => {
-                const cost = inv.items?.reduce((s,i) => s + (products.find(p=>p.name===i.productName)?.units?.[0]?.cost || i.price*0.7) * i.quantity, 0) || 0;
-                return { ...inv, cost, profit: inv.total - cost };
-            });
-            currentReportData = report;
-            document.getElementById('invoiceProfitTable').innerHTML = `
-                <table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr>
-                ${report.map(inv => `<tr><td>${inv.id}</td><td>${inv.date}</td><td>${inv.customer_name}</td><td>${Utils.formatMoney(inv.total)}</td><td>${Utils.formatMoney(inv.cost)}</td><td>${Utils.formatMoney(inv.profit)}</td></tr>`).join('')}</table>
-            `;
-        }
-
-        // تقرير العملاء
-        function loadCustomerReport() {
-            const start = document.getElementById('customerStartDate').value;
-            const end = document.getElementById('customerEndDate').value;
-            const filtered = filterByDate(invoices, start, end);
-            const custStats = {};
-            filtered.forEach(inv => {
-                const name = inv.customer_name || 'نقدي';
-                if (!custStats[name]) custStats[name] = { count:0, total:0, paid:0, remaining:0 };
-                custStats[name].count++;
-                custStats[name].total += inv.total;
-                custStats[name].paid += inv.paid;
-                custStats[name].remaining += inv.remaining;
-            });
-            const report = Object.entries(custStats).map(([name, s]) => ({ name, ...s }));
-            currentReportData = report;
-            document.getElementById('customerReportTable').innerHTML = `
-                <table><tr><th>العميل</th><th>عدد الفواتير</th><th>إجمالي المبيعات</th><th>المدفوع</th><th>المتبقي</th></tr>
-                ${report.map(c => `<tr><td>${c.name}</td><td>${c.count}</td><td>${Utils.formatMoney(c.total)}</td><td>${Utils.formatMoney(c.paid)}</td><td>${Utils.formatMoney(c.remaining)}</td></tr>`).join('')}</table>
-            `;
-        }
-
-        function exportCurrentReport() {
-            if (!currentReportData.length) return alert('لا توجد بيانات للتصدير');
-            let csv = '';
-            const activeTab = document.querySelector('.tab-content.active').id;
-            if (activeTab === 'summaryTab') {
-                csv = 'المنتج,الكمية\n' + currentReportData.map(p => `"${p[0]}",${p[1]}`).join('\n');
-            } else if (activeTab === 'salesTab') {
-                csv = 'رقم الفاتورة,التاريخ,العميل,الإجمالي,الربح\n' + currentReportData.map(inv => {
-                    const cost = inv.items?.reduce((s,i) => s + (products.find(p=>p.name===i.productName)?.units?.[0]?.cost || i.price*0.7) * i.quantity, 0) || 0;
-                    return `"${inv.id}","${inv.date}","${inv.customer_name}",${inv.total},${inv.total - cost}`;
-                }).join('\n');
-            } else if (activeTab === 'purchasesTab') {
-                csv = 'رقم الفاتورة,التاريخ,المورد,الإجمالي\n' + currentReportData.map(p => `"${p.invoice_number || p.id}","${p.date}","${p.supplier_name}",${p.total}`).join('\n');
-            } else if (activeTab === 'productsProfitTab') {
-                csv = 'المنتج,الكمية,الإيرادات,التكلفة,الربح,هامش الربح\n' + currentReportData.map(p => `"${p.name}",${p.qty},${p.revenue},${p.cost},${p.profit},"${p.revenue?((p.profit/p.revenue)*100).toFixed(1):0}%"`).join('\n');
-            } else if (activeTab === 'invoicesProfitTab') {
-                csv = 'رقم الفاتورة,التاريخ,العميل,الإجمالي,التكلفة,الربح\n' + currentReportData.map(inv => `"${inv.id}","${inv.date}","${inv.customer_name}",${inv.total},${inv.cost},${inv.profit}`).join('\n');
-            } else if (activeTab === 'customersTab') {
-                csv = 'العميل,عدد الفواتير,إجمالي المبيعات,المدفوع,المتبقي\n' + currentReportData.map(c => `"${c.name}",${c.count},${c.total},${c.paid},${c.remaining}`).join('\n');
+            async function loadBaseData() {
+                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                purchases = await DB.getPurchases();
+                products = await DB.getProducts();
+                customers = await DB.getParties('customer');
             }
-            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `report_${activeTab}_${Utils.getToday()}.csv`;
-            a.click();
-        }
 
-        window.switchTab = switchTab;
-        window.loadSummary = loadSummary;
-        window.loadSalesReport = loadSalesReport;
-        window.loadPurchasesReport = loadPurchasesReport;
-        window.loadProductProfitReport = loadProductProfitReport;
-        window.loadInvoiceProfitReport = loadInvoiceProfitReport;
-        window.loadCustomerReport = loadCustomerReport;
-        window.exportCurrentReport = exportCurrentReport;
+            function setDefaultDates() {
+                const today = new Date().toISOString().split('T')[0];
+                const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
+                document.querySelectorAll('input[type=date]').forEach(i => { if (!i.value) i.value = today; });
+                document.getElementById('salesStartDate').value = weekAgo;
+                document.getElementById('purchasesStartDate').value = weekAgo;
+                document.getElementById('productStartDate').value = weekAgo;
+                document.getElementById('invoiceStartDate').value = weekAgo;
+                document.getElementById('customerStartDate').value = weekAgo;
+            }
+
+            function getDateRange(period) {
+                const today = new Date(); let start = new Date(today);
+                if (period === 'today') {}
+                else if (period === 'week') start.setDate(today.getDate() - 7);
+                else if (period === 'month') start.setMonth(today.getMonth() - 1);
+                else if (period === 'year') start.setFullYear(today.getFullYear() - 1);
+                return { start: start.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+            }
+
+            function filterByDate(data, start, end) { return data.filter(d => d.date >= start && d.date <= end); }
+
+            function loadSummary() {
+                const period = document.getElementById('summaryPeriod').value;
+                const range = getDateRange(period);
+                const filteredInvoices = filterByDate(invoices, range.start, range.end);
+                const filteredPurchases = filterByDate(purchases, range.start, range.end);
+                const totalSales = filteredInvoices.reduce((s,i) => s + i.total, 0);
+                const totalPurchases = filteredPurchases.reduce((s,p) => s + p.total, 0);
+                const profit = totalSales - totalPurchases;
+                document.getElementById('summaryStats').innerHTML = `
+                    <div class="stat-card"><div class="icon"><i class="fas fa-chart-line"></i></div><div class="value">${Utils.formatMoney(totalSales)}</div><div class="label">إجمالي المبيعات</div></div>
+                    <div class="stat-card"><div class="icon"><i class="fas fa-shopping-cart"></i></div><div class="value">${Utils.formatMoney(totalPurchases)}</div><div class="label">إجمالي المشتريات</div></div>
+                    <div class="stat-card"><div class="icon"><i class="fas fa-dollar-sign"></i></div><div class="value">${Utils.formatMoney(profit)}</div><div class="label">صافي الربح</div></div>
+                    <div class="stat-card"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value">${filteredInvoices.length}</div><div class="label">عدد الفواتير</div></div>
+                `;
+                const topProducts = {};
+                filteredInvoices.forEach(inv => inv.items?.forEach(item => { topProducts[item.productName] = (topProducts[item.productName] || 0) + (item.quantity || 0); }));
+                const topSorted = Object.entries(topProducts).sort((a,b) => b[1] - a[1]).slice(0,5);
+                currentReportData = topSorted;
+                document.getElementById('summaryDetails').innerHTML = `<h3>أعلى 5 منتجات مبيعاً</h3><table><tr><th>المنتج</th><th>الكمية المباعة</th></tr>${topSorted.map(p => `<tr><td>${p[0]}</td><td>${p[1]}</td></tr>`).join('')}</table>`;
+            }
+
+            function loadSalesReport() {
+                const start = document.getElementById('salesStartDate').value, end = document.getElementById('salesEndDate').value;
+                const filtered = filterByDate(invoices, start, end);
+                const total = filtered.reduce((s,i) => s + i.total, 0);
+                currentReportData = filtered;
+                document.getElementById('salesReportTable').innerHTML = `<h3>فواتير المبيعات (${filtered.length}) - الإجمالي: ${Utils.formatMoney(total)}</h3><table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>الربح</th></tr>${filtered.map(inv => { const cost = inv.items?.reduce((s,i) => s + (products.find(p=>p.name===i.productName)?.units?.[0]?.cost || i.price*0.7) * i.quantity, 0) || 0; return `<tr><td>${inv.id}</td><td>${inv.date}</td><td>${inv.customer_name}</td><td>${Utils.formatMoney(inv.total)}</td><td>${Utils.formatMoney(inv.total - cost)}</td></tr>`; }).join('')}</table>`;
+            }
+
+            function loadPurchasesReport() {
+                const start = document.getElementById('purchasesStartDate').value, end = document.getElementById('purchasesEndDate').value;
+                const filtered = filterByDate(purchases, start, end);
+                const total = filtered.reduce((s,p) => s + p.total, 0);
+                currentReportData = filtered;
+                document.getElementById('purchasesReportTable').innerHTML = `<h3>فواتير المشتريات (${filtered.length}) - الإجمالي: ${Utils.formatMoney(total)}</h3><table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th></tr>${filtered.map(p => `<tr><td>${p.invoice_number || p.id}</td><td>${p.date}</td><td>${p.supplier_name}</td><td>${Utils.formatMoney(p.total)}</td></tr>`).join('')}</table>`;
+            }
+
+            function loadProductProfitReport() {
+                const start = document.getElementById('productStartDate').value, end = document.getElementById('productEndDate').value;
+                const filtered = filterByDate(invoices, start, end);
+                const productStats = {};
+                filtered.forEach(inv => inv.items?.forEach(item => {
+                    const prod = products.find(p => p.name === item.productName);
+                    const cost = prod?.units?.[0]?.cost || item.price * 0.7;
+                    if (!productStats[item.productName]) productStats[item.productName] = { qty:0, revenue:0, cost:0 };
+                    productStats[item.productName].qty += item.quantity;
+                    productStats[item.productName].revenue += item.price * item.quantity;
+                    productStats[item.productName].cost += cost * item.quantity;
+                }));
+                const report = Object.entries(productStats).map(([name, s]) => ({ name, ...s, profit: s.revenue - s.cost }));
+                currentReportData = report;
+                document.getElementById('productProfitTable').innerHTML = `<table><tr><th>المنتج</th><th>الكمية</th><th>الإيرادات</th><th>التكلفة</th><th>الربح</th><th>هامش الربح</th></tr>${report.map(p => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${Utils.formatMoney(p.revenue)}</td><td>${Utils.formatMoney(p.cost)}</td><td>${Utils.formatMoney(p.profit)}</td><td>${p.revenue ? ((p.profit/p.revenue)*100).toFixed(1) : 0}%</td></tr>`).join('')}</table>`;
+            }
+
+            function loadInvoiceProfitReport() {
+                const start = document.getElementById('invoiceStartDate').value, end = document.getElementById('invoiceEndDate').value;
+                const filtered = filterByDate(invoices, start, end);
+                const report = filtered.map(inv => { const cost = inv.items?.reduce((s,i) => s + (products.find(p=>p.name===i.productName)?.units?.[0]?.cost || i.price*0.7) * i.quantity, 0) || 0; return { ...inv, cost, profit: inv.total - cost }; });
+                currentReportData = report;
+                document.getElementById('invoiceProfitTable').innerHTML = `<table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>التكلفة</th><th>الربح</th></tr>${report.map(inv => `<tr><td>${inv.id}</td><td>${inv.date}</td><td>${inv.customer_name}</td><td>${Utils.formatMoney(inv.total)}</td><td>${Utils.formatMoney(inv.cost)}</td><td>${Utils.formatMoney(inv.profit)}</td></tr>`).join('')}</table>`;
+            }
+
+            function loadCustomerReport() {
+                const start = document.getElementById('customerStartDate').value, end = document.getElementById('customerEndDate').value;
+                const filtered = filterByDate(invoices, start, end);
+                const custStats = {};
+                filtered.forEach(inv => { const name = inv.customer_name || 'نقدي'; if (!custStats[name]) custStats[name] = { count:0, total:0, paid:0, remaining:0 }; custStats[name].count++; custStats[name].total += inv.total; custStats[name].paid += inv.paid; custStats[name].remaining += inv.remaining; });
+                const report = Object.entries(custStats).map(([name, s]) => ({ name, ...s }));
+                currentReportData = report;
+                document.getElementById('customerReportTable').innerHTML = `<table><tr><th>العميل</th><th>عدد الفواتير</th><th>إجمالي المبيعات</th><th>المدفوع</th><th>المتبقي</th></tr>${report.map(c => `<tr><td>${c.name}</td><td>${c.count}</td><td>${Utils.formatMoney(c.total)}</td><td>${Utils.formatMoney(c.paid)}</td><td>${Utils.formatMoney(c.remaining)}</td></tr>`).join('')}</table>`;
+            }
+
+            function exportCurrentReport() {
+                if (!currentReportData.length) return alert('لا توجد بيانات');
+                let csv = ''; const active = document.querySelector('.tab-content.active').id;
+                if (active === 'summaryTab') csv = 'المنتج,الكمية\n' + currentReportData.map(p => `"${p[0]}",${p[1]}`).join('\n');
+                else if (active === 'salesTab') csv = 'رقم الفاتورة,التاريخ,العميل,الإجمالي,الربح\n' + currentReportData.map(inv => { const cost = inv.items?.reduce((s,i) => s + (products.find(p=>p.name===i.productName)?.units?.[0]?.cost || i.price*0.7) * i.quantity, 0) || 0; return `"${inv.id}","${inv.date}","${inv.customer_name}",${inv.total},${inv.total - cost}`; }).join('\n');
+                else if (active === 'purchasesTab') csv = 'رقم الفاتورة,التاريخ,المورد,الإجمالي\n' + currentReportData.map(p => `"${p.invoice_number || p.id}","${p.date}","${p.supplier_name}",${p.total}`).join('\n');
+                else if (active === 'productProfitTab') csv = 'المنتج,الكمية,الإيرادات,التكلفة,الربح,هامش الربح\n' + currentReportData.map(p => `"${p.name}",${p.qty},${p.revenue},${p.cost},${p.profit},"${p.revenue?((p.profit/p.revenue)*100).toFixed(1):0}%"`).join('\n');
+                else if (active === 'invoiceProfitTab') csv = 'رقم الفاتورة,التاريخ,العميل,الإجمالي,التكلفة,الربح\n' + currentReportData.map(inv => `"${inv.id}","${inv.date}","${inv.customer_name}",${inv.total},${inv.cost},${inv.profit}`).join('\n');
+                else if (active === 'customersTab') csv = 'العميل,عدد الفواتير,إجمالي المبيعات,المدفوع,المتبقي\n' + currentReportData.map(c => `"${c.name}",${c.count},${c.total},${c.paid},${c.remaining}`).join('\n');
+                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `report_${active}_${Utils.getToday()}.csv`; a.click();
+            }
+
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
+                App.initUserInterface();
+                await loadBaseData();
+                setDefaultDates();
+                loadSummary();
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(btn.id.replace('tab', '').toLowerCase() + 'Tab').classList.add('active');
+                    const tab = btn.id.replace('tab', '');
+                    if (tab === 'Summary') loadSummary(); else if (tab === 'Sales') loadSalesReport(); else if (tab === 'Purchases') loadPurchasesReport();
+                    else if (tab === 'ProductProfit') loadProductProfitReport(); else if (tab === 'InvoiceProfit') loadInvoiceProfitReport(); else if (tab === 'Customers') loadCustomerReport();
+                }));
+            });
+
+            window.loadSummary = loadSummary; window.loadSalesReport = loadSalesReport; window.loadPurchasesReport = loadPurchasesReport;
+            window.loadProductProfitReport = loadProductProfitReport; window.loadInvoiceProfitReport = loadInvoiceProfitReport;
+            window.loadCustomerReport = loadCustomerReport; window.exportCurrentReport = exportCurrentReport;
+        })();
     </script>
 </body>
 </html>
