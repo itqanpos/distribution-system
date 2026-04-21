@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>المبيعات · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>المبيعات · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -116,31 +119,15 @@
         .stat-card .value { font-size: 24px; font-weight: 700; }
         .stat-card .label { color: #64748b; font-size: 13px; }
 
-        /* ملخص المبيعات (بديل الرسم البياني) */
         .sales-summary {
-            background: white;
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+            background: white; border-radius: 20px; padding: 24px;
+            margin-bottom: 30px; box-shadow: 0 8px 20px rgba(0,0,0,0.02);
             border: 1px solid #f1f5f9;
         }
-        .summary-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: var(--primary);
-        }
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-        }
+        .summary-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+        .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         .summary-item {
-            text-align: center;
-            padding: 20px;
-            border-radius: 16px;
-            background: var(--light);
+            text-align: center; padding: 20px; border-radius: 16px; background: var(--light);
         }
         .summary-item i { font-size: 28px; margin-bottom: 10px; color: var(--secondary); }
         .summary-item .amount { font-size: 22px; font-weight: 700; }
@@ -166,7 +153,6 @@
         th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
         td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
 
-        /* أسلوب الطباعة */
         @media print {
             .navbar, .sidebar, .page-header .btn, .filter-bar, .menu-toggle, .user-dropdown { display: none; }
             .main-content { margin: 0; padding: 20px; }
@@ -190,8 +176,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -203,13 +189,12 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- القائمة الجانبية الكاملة -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -223,7 +208,6 @@
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
-            
             <div class="menu-section">الإدارة</div>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
@@ -248,30 +232,13 @@
             <div class="stat-card"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value" id="invoiceCount">0</div><div class="label">عدد الفواتير</div></div>
         </div>
 
-        <!-- ملخص المبيعات السريع (بديل الرسم البياني) -->
         <div class="sales-summary">
             <div class="summary-title"><i class="fas fa-chart-bar"></i> ملخص الأداء</div>
             <div class="summary-cards">
-                <div class="summary-item">
-                    <i class="fas fa-trophy"></i>
-                    <div class="amount" id="topProduct">-</div>
-                    <div class="label">المنتج الأكثر مبيعاً</div>
-                </div>
-                <div class="summary-item">
-                    <i class="fas fa-user-check"></i>
-                    <div class="amount" id="topCustomer">-</div>
-                    <div class="label">أفضل عميل</div>
-                </div>
-                <div class="summary-item">
-                    <i class="fas fa-percent"></i>
-                    <div class="amount" id="avgInvoice">0 ج.م</div>
-                    <div class="label">متوسط الفاتورة</div>
-                </div>
-                <div class="summary-item">
-                    <i class="fas fa-tag"></i>
-                    <div class="amount" id="totalDiscount">0 ج.م</div>
-                    <div class="label">إجمالي الخصومات</div>
-                </div>
+                <div class="summary-item"><i class="fas fa-trophy"></i><div class="amount" id="topProduct">-</div><div class="label">المنتج الأكثر مبيعاً</div></div>
+                <div class="summary-item"><i class="fas fa-user-check"></i><div class="amount" id="topCustomer">-</div><div class="label">أفضل عميل</div></div>
+                <div class="summary-item"><i class="fas fa-percent"></i><div class="amount" id="avgInvoice">0 ج.م</div><div class="label">متوسط الفاتورة</div></div>
+                <div class="summary-item"><i class="fas fa-tag"></i><div class="amount" id="totalDiscount">0 ج.م</div><div class="label">إجمالي الخصومات</div></div>
             </div>
         </div>
 
@@ -292,124 +259,123 @@
     </main>
 
     <script>
-        // واجهة المستخدم
-        const userBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-        userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => userDropdown.classList.remove('show'));
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
-
-        let invoices = [], products = [], customers = [], productSalesData = [];
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!App.requireAuth()) return;
-            if (!App.requireRole(['admin', 'rep'])) return;
-            App.initUserInterface();
-            await loadData();
-        });
-
-        async function loadData() {
-            try {
-                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-                products = await DB.getProducts();
-                customers = await DB.getParties('customer');
-
-                calculateStats();
-                calculateProductSales();
-                renderProductTable(productSalesData);
-                updateSummary();
-            } catch (e) { console.error(e); alert('فشل تحميل البيانات'); }
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js');
         }
 
-        function calculateStats() {
-            const today = Utils.getToday();
-            const todayTotal = invoices.filter(i => i.date === today).reduce((s, i) => s + i.total, 0);
-            document.getElementById('todaySales').textContent = Utils.formatMoney(todayTotal);
+        (function() {
+            const userBtn = document.getElementById('userProfileBtn');
+            const userDropdown = document.getElementById('userDropdown');
+            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
+            document.addEventListener('click', () => userDropdown.classList.remove('show'));
+            const sidebar = document.getElementById('sidebar');
+            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
-            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-            const weekTotal = invoices.filter(i => i.date >= weekAgo.toISOString().split('T')[0]).reduce((s, i) => s + i.total, 0);
-            document.getElementById('weekSales').textContent = Utils.formatMoney(weekTotal);
+            let invoices = [], customers = [], productSalesData = [];
 
-            const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
-            const monthTotal = invoices.filter(i => i.date >= monthAgo.toISOString().split('T')[0]).reduce((s, i) => s + i.total, 0);
-            document.getElementById('monthSales').textContent = Utils.formatMoney(monthTotal);
+            async function loadData() {
+                try {
+                    invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                    customers = await DB.getParties('customer');
+                    calculateStats();
+                    calculateProductSales();
+                    renderProductTable(productSalesData);
+                    updateSummary();
+                } catch (e) { alert('فشل تحميل البيانات'); }
+            }
 
-            document.getElementById('invoiceCount').textContent = invoices.length;
-        }
+            function calculateStats() {
+                const today = Utils.getToday();
+                const todayTotal = invoices.filter(i => i.date === today).reduce((s, i) => s + i.total, 0);
+                document.getElementById('todaySales').textContent = Utils.formatMoney(todayTotal);
 
-        function calculateProductSales() {
-            const salesMap = {};
-            invoices.forEach(inv => {
-                if (inv.items) {
-                    inv.items.forEach(item => {
-                        const name = item.productName;
-                        if (!salesMap[name]) salesMap[name] = { qty: 0, revenue: 0 };
-                        salesMap[name].qty += item.quantity || 0;
-                        salesMap[name].revenue += (item.price * item.quantity) || 0;
-                    });
-                }
+                const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+                const weekTotal = invoices.filter(i => i.date >= weekAgo.toISOString().split('T')[0]).reduce((s, i) => s + i.total, 0);
+                document.getElementById('weekSales').textContent = Utils.formatMoney(weekTotal);
+
+                const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
+                const monthTotal = invoices.filter(i => i.date >= monthAgo.toISOString().split('T')[0]).reduce((s, i) => s + i.total, 0);
+                document.getElementById('monthSales').textContent = Utils.formatMoney(monthTotal);
+
+                document.getElementById('invoiceCount').textContent = invoices.length;
+            }
+
+            function calculateProductSales() {
+                const salesMap = {};
+                invoices.forEach(inv => {
+                    if (inv.items) {
+                        inv.items.forEach(item => {
+                            const name = item.productName;
+                            if (!salesMap[name]) salesMap[name] = { qty: 0, revenue: 0 };
+                            salesMap[name].qty += item.quantity || 0;
+                            salesMap[name].revenue += (item.price * item.quantity) || 0;
+                        });
+                    }
+                });
+                productSalesData = Object.entries(salesMap).map(([name, data]) => ({ name, ...data }));
+                productSalesData.sort((a, b) => b.revenue - a.revenue);
+            }
+
+            function renderProductTable(data) {
+                const totalRevenue = data.reduce((s, p) => s + p.revenue, 0);
+                const tbody = document.getElementById('productSalesBody');
+                if (!data.length) { tbody.innerHTML = '<tr><td colspan="4">لا توجد بيانات</td></tr>'; return; }
+                tbody.innerHTML = data.map(p => {
+                    const percent = totalRevenue ? ((p.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
+                    return `<tr><td>${p.name}</td><td>${p.qty}</td><td>${Utils.formatMoney(p.revenue)}</td><td>${percent}%</td></tr>`;
+                }).join('');
+            }
+
+            function updateSummary() {
+                const topProd = productSalesData[0];
+                document.getElementById('topProduct').textContent = topProd ? topProd.name : '-';
+
+                const customerMap = {};
+                invoices.forEach(inv => {
+                    const cust = inv.customer_name || 'نقدي';
+                    customerMap[cust] = (customerMap[cust] || 0) + inv.total;
+                });
+                const topCust = Object.entries(customerMap).sort((a,b) => b[1] - a[1])[0];
+                document.getElementById('topCustomer').textContent = topCust ? topCust[0] : '-';
+
+                const avg = invoices.length ? invoices.reduce((s,i) => s + i.total, 0) / invoices.length : 0;
+                document.getElementById('avgInvoice').textContent = Utils.formatMoney(avg);
+
+                const totalDisc = invoices.reduce((s,i) => s + (i.discount || 0), 0);
+                document.getElementById('totalDiscount').textContent = Utils.formatMoney(totalDisc);
+            }
+
+            function filterProductTable() {
+                const term = document.getElementById('searchProduct').value.toLowerCase();
+                const filtered = productSalesData.filter(p => p.name.toLowerCase().includes(term));
+                renderProductTable(filtered);
+            }
+
+            function exportToCSV() {
+                if (!productSalesData.length) return;
+                let csv = "المنتج,الكمية المباعة,الإيرادات,النسبة المئوية\n";
+                const totalRevenue = productSalesData.reduce((s, p) => s + p.revenue, 0);
+                productSalesData.forEach(p => {
+                    const percent = totalRevenue ? ((p.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
+                    csv += `"${p.name}",${p.qty},${p.revenue.toFixed(2)},"${percent}%"\n`;
+                });
+                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `sales_report_${Utils.getToday()}.csv`;
+                a.click();
+            }
+
+            document.addEventListener('DOMContentLoaded', async () => {
+                if (!App.requireAuth() || !App.requireRole(['admin', 'rep'])) return;
+                App.initUserInterface();
+                await loadData();
             });
-            productSalesData = Object.entries(salesMap).map(([name, data]) => ({ name, ...data }));
-            productSalesData.sort((a, b) => b.revenue - a.revenue);
-        }
 
-        function renderProductTable(data) {
-            const totalRevenue = data.reduce((s, p) => s + p.revenue, 0);
-            const tbody = document.getElementById('productSalesBody');
-            if (!data.length) { tbody.innerHTML = '<tr><td colspan="4">لا توجد بيانات</td></tr>'; return; }
-            tbody.innerHTML = data.map(p => {
-                const percent = totalRevenue ? ((p.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
-                return `<tr><td>${p.name}</td><td>${p.qty}</td><td>${Utils.formatMoney(p.revenue)}</td><td>${percent}%</td></tr>`;
-            }).join('');
-        }
-
-        function updateSummary() {
-            // أعلى منتج
-            const topProd = productSalesData[0];
-            document.getElementById('topProduct').textContent = topProd ? topProd.name : '-';
-
-            // أفضل عميل
-            const customerMap = {};
-            invoices.forEach(inv => {
-                const cust = inv.customer_name || 'نقدي';
-                customerMap[cust] = (customerMap[cust] || 0) + inv.total;
-            });
-            const topCust = Object.entries(customerMap).sort((a,b) => b[1] - a[1])[0];
-            document.getElementById('topCustomer').textContent = topCust ? topCust[0] : '-';
-
-            // متوسط الفاتورة
-            const avg = invoices.length ? invoices.reduce((s,i) => s + i.total, 0) / invoices.length : 0;
-            document.getElementById('avgInvoice').textContent = Utils.formatMoney(avg);
-
-            // إجمالي الخصومات
-            const totalDisc = invoices.reduce((s,i) => s + (i.discount || 0), 0);
-            document.getElementById('totalDiscount').textContent = Utils.formatMoney(totalDisc);
-        }
-
-        function filterProductTable() {
-            const term = document.getElementById('searchProduct').value.toLowerCase();
-            const filtered = productSalesData.filter(p => p.name.toLowerCase().includes(term));
-            renderProductTable(filtered);
-        }
-
-        function exportToCSV() {
-            if (!productSalesData.length) return;
-            let csv = "المنتج,الكمية المباعة,الإيرادات,النسبة المئوية\n";
-            const totalRevenue = productSalesData.reduce((s, p) => s + p.revenue, 0);
-            productSalesData.forEach(p => {
-                const percent = totalRevenue ? ((p.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
-                csv += `"${p.name}",${p.qty},${p.revenue.toFixed(2)},"${percent}%"\n`;
-            });
-            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `sales_report_${Utils.getToday()}.csv`;
-            a.click();
-        }
-
-        window.filterProductTable = filterProductTable;
-        window.exportToCSV = exportToCSV;
+            window.filterProductTable = filterProductTable;
+            window.exportToCSV = exportToCSV;
+        })();
     </script>
 </body>
 </html>
