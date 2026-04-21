@@ -293,17 +293,13 @@
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
         (function() {
-            const userBtn = document.getElementById('userProfileBtn');
-            const userDropdown = document.getElementById('userDropdown');
+            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
             document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
             let invoices = [], customers = [], products = [], currentFilter = 'all', editingInvoice = null;
@@ -328,7 +324,7 @@
                 const total = invoices.length;
                 const paid = invoices.filter(i => i.status === 'paid' || i.remaining === 0).length;
                 const unpaid = total - paid;
-                const totalAmount = invoices.reduce((s, i) => s + i.total, 0);
+                const totalAmount = invoices.reduce((s, i) => s + (i.total || 0), 0);
                 document.getElementById('totalInvoices').textContent = total;
                 document.getElementById('paidInvoices').textContent = paid;
                 document.getElementById('unpaidInvoices').textContent = unpaid;
@@ -416,9 +412,7 @@
                 });
                 if (!newItems.length) { alert('أضف صنفاً واحداً على الأقل'); return; }
 
-                const afterDiscount = subtotal - discount;
-                const tax = afterDiscount * 0;
-                const total = afterDiscount + tax;
+                const total = subtotal - discount;
                 const remaining = Math.max(0, total - paid);
 
                 // حساب فرق المخزون
@@ -463,12 +457,10 @@
                 if (!editingInvoice) return;
                 if (!confirm('حذف الفاتورة؟ لا يمكن التراجع.')) return;
                 try {
-                    // إعادة المخزون
                     for (const item of editingInvoice.items || []) {
                         const prod = products.find(p => p.name === item.productName);
                         if (prod) { prod.units[0].stock += item.quantity; await DB.saveProduct(prod); }
                     }
-                    // تحديث رصيد العميل
                     if (editingInvoice.customer_id) {
                         const customer = customers.find(c => c.id === editingInvoice.customer_id);
                         if (customer) {
