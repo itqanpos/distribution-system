@@ -112,9 +112,8 @@
         .stat-card {
             background: white; border-radius: 20px; padding: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center; cursor: pointer; transition: transform 0.2s;
+            text-align: center; cursor: pointer;
         }
-        .stat-card:hover { transform: translateY(-3px); }
         .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
         .stat-card .value { font-size: 24px; font-weight: 700; }
         .stat-card .label { color: #64748b; font-size: 13px; }
@@ -259,43 +258,40 @@
     </main>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
         (function() {
-            const userBtn = document.getElementById('userProfileBtn');
-            const userDropdown = document.getElementById('userDropdown');
+            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
             document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
             let invoices = [], customers = [], productSalesData = [];
 
             async function loadData() {
                 try {
-                    invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                    const allInvoices = await DB.getInvoices();
+                    invoices = allInvoices.filter(i => i.type === 'sale');
                     customers = await DB.getParties('customer');
                     calculateStats();
                     calculateProductSales();
                     renderProductTable(productSalesData);
                     updateSummary();
-                } catch (e) { alert('فشل تحميل البيانات'); }
+                } catch (e) { console.error(e); alert('فشل تحميل البيانات'); }
             }
 
             function calculateStats() {
                 const today = Utils.getToday();
-                const todayTotal = invoices.filter(i => i.date === today).reduce((s, i) => s + i.total, 0);
+                const todayTotal = invoices.filter(i => i.date === today).reduce((s, i) => s + (i.total || 0), 0);
                 document.getElementById('todaySales').textContent = Utils.formatMoney(todayTotal);
 
                 const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-                const weekTotal = invoices.filter(i => i.date >= weekAgo.toISOString().split('T')[0]).reduce((s, i) => s + i.total, 0);
+                const weekTotal = invoices.filter(i => i.date >= weekAgo.toISOString().split('T')[0]).reduce((s, i) => s + (i.total || 0), 0);
                 document.getElementById('weekSales').textContent = Utils.formatMoney(weekTotal);
 
                 const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
-                const monthTotal = invoices.filter(i => i.date >= monthAgo.toISOString().split('T')[0]).reduce((s, i) => s + i.total, 0);
+                const monthTotal = invoices.filter(i => i.date >= monthAgo.toISOString().split('T')[0]).reduce((s, i) => s + (i.total || 0), 0);
                 document.getElementById('monthSales').textContent = Utils.formatMoney(monthTotal);
 
                 document.getElementById('invoiceCount').textContent = invoices.length;
@@ -306,7 +302,7 @@
                 invoices.forEach(inv => {
                     if (inv.items) {
                         inv.items.forEach(item => {
-                            const name = item.productName;
+                            const name = item.productName || item.name;
                             if (!salesMap[name]) salesMap[name] = { qty: 0, revenue: 0 };
                             salesMap[name].qty += item.quantity || 0;
                             salesMap[name].revenue += (item.price * item.quantity) || 0;
@@ -334,12 +330,12 @@
                 const customerMap = {};
                 invoices.forEach(inv => {
                     const cust = inv.customer_name || 'نقدي';
-                    customerMap[cust] = (customerMap[cust] || 0) + inv.total;
+                    customerMap[cust] = (customerMap[cust] || 0) + (inv.total || 0);
                 });
                 const topCust = Object.entries(customerMap).sort((a,b) => b[1] - a[1])[0];
                 document.getElementById('topCustomer').textContent = topCust ? topCust[0] : '-';
 
-                const avg = invoices.length ? invoices.reduce((s,i) => s + i.total, 0) / invoices.length : 0;
+                const avg = invoices.length ? invoices.reduce((s,i) => s + (i.total || 0), 0) / invoices.length : 0;
                 document.getElementById('avgInvoice').textContent = Utils.formatMoney(avg);
 
                 const totalDisc = invoices.reduce((s,i) => s + (i.discount || 0), 0);
