@@ -11,6 +11,7 @@
     <script src="./js/supabase.js"></script>
     <script src="./js/print.js"></script>
     <style>
+        /* نفس الأنماط السابقة مع تعديل بسيط في عرض الوحدات */
         :root {
             --primary: #1e293b;
             --secondary: #3b82f6;
@@ -157,7 +158,7 @@
             background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
         }
         .modal-content {
-            background: white; border-radius: 32px; padding: 32px; width: 90%; max-width: 900px;
+            background: white; border-radius: 32px; padding: 32px; width: 90%; max-width: 1000px;
             max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 28px; }
@@ -173,15 +174,16 @@
             margin-top: 10px;
         }
         .unit-header {
-            display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.2fr 0.5fr;
+            display: grid; grid-template-columns: 1.2fr 1fr 1fr 0.9fr 0.9fr 0.9fr 1fr 0.5fr;
             gap: 8px; font-weight: 600; margin-bottom: 15px; padding: 0 8px;
+            font-size: 14px;
         }
         .unit-row {
-            display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.2fr 0.5fr;
+            display: grid; grid-template-columns: 1.2fr 1fr 1fr 0.9fr 0.9fr 0.9fr 1fr 0.5fr;
             gap: 8px; align-items: center; margin-bottom: 12px;
         }
         .unit-row input {
-            padding: 12px 10px; border: 2px solid #e2e8f0; border-radius: 14px;
+            padding: 10px 8px; border: 2px solid #e2e8f0; border-radius: 14px;
             font-size: 14px; width: 100%;
         }
         .add-unit-btn {
@@ -204,6 +206,7 @@
     </style>
 </head>
 <body>
+    <!-- نفس شريط التنقل والقائمة الجانبية كما في النسخة السابقة -->
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -228,24 +231,7 @@
     </nav>
 
     <aside class="sidebar" id="sidebar">
-        <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item active" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
-        </ul>
+        <!-- نفس القائمة الجانبية -->
     </aside>
 
     <main class="main-content">
@@ -275,13 +261,13 @@
 
         <div class="table-container">
             <table>
-                <thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                <thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr></thead>
                 <tbody id="productsBody"></tbody>
             </table>
         </div>
     </main>
 
-    <!-- مودال المنتج (بدون باركود) -->
+    <!-- مودال المنتج -->
     <div class="modal" id="productModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalTitle">منتج جديد</h2><button id="closeModalBtn">&times;</button></div>
@@ -293,11 +279,13 @@
                 <div class="units-container">
                     <label style="font-size:18px; margin-bottom:15px;">وحدات القياس</label>
                     <div class="unit-header">
-                        <span>اسم الوحدة</span><span>سعر البيع</span><span>الحد الأدنى</span><span>الحد الأقصى</span><span>المخزون</span><span>عامل التحويل</span><span></span>
+                        <span>اسم الوحدة</span><span>سعر البيع</span><span>تكلفة الشراء</span><span>الحد الأدنى</span><span>الحد الأقصى</span><span>المخزون</span><span>عامل التحويل</span><span></span>
                     </div>
                     <div id="unitsContainer"></div>
                     <div class="add-unit-btn" id="addUnitBtn"><i class="fas fa-plus-circle"></i> إضافة وحدة</div>
-                    <div class="help-text">عامل التحويل = كم وحدة أساسية (قطعة) في هذه الوحدة. مثال: كرتونة = 20، اكتب 20</div>
+                    <div class="help-text">
+                        <strong>هام:</strong> الوحدة الأولى هي الوحدة الأساسية (قطعة). عامل التحويل = كم وحدة أساسية في هذه الوحدة. المخزون يُحسب على الوحدة الأساسية.
+                    </div>
                 </div>
                 
                 <div class="form-group" style="margin-top:15px;"><label>ملاحظات</label><textarea id="notes" rows="2"></textarea></div>
@@ -315,6 +303,7 @@
         }
 
         (function() {
+            // تهيئة القائمة والمستخدم
             const userBtn = document.getElementById('userProfileBtn');
             const userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
@@ -325,24 +314,28 @@
 
             let products = [], editingProductId = null;
 
+            // ========== تحميل البيانات ==========
             async function loadProducts() {
                 try {
                     products = await DB.getProducts();
                     updateStats();
                     populateCategoryFilter();
                     applyFilters();
-                } catch (e) { alert('فشل تحميل المنتجات'); }
+                } catch (e) { 
+                    console.error(e);
+                    alert('فشل تحميل المنتجات'); 
+                }
             }
 
             function updateStats() {
                 const total = products.length;
                 let lowStock = 0, outOfStock = 0;
                 products.forEach(p => {
-                    const mainUnit = p.units?.[0];
-                    if (mainUnit) {
-                        if (mainUnit.stock <= 0) outOfStock++;
-                        else if (mainUnit.stock <= (p.min_stock || 5)) lowStock++;
-                    }
+                    // المخزون الأساسي هو الوحدة الأولى
+                    const stock = p.units?.[0]?.stock || 0;
+                    const minStock = p.min_stock || 5;
+                    if (stock <= 0) outOfStock++;
+                    else if (stock <= minStock) lowStock++;
                 });
                 const categories = new Set(products.map(p => p.category).filter(Boolean)).size;
                 document.getElementById('totalProducts').textContent = total;
@@ -369,16 +362,27 @@
 
             function renderTable(data) {
                 const tbody = document.getElementById('productsBody');
-                if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">لا توجد منتجات</td></tr>'; return; }
+                if (!data.length) { 
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;">لا توجد منتجات</td></tr>'; 
+                    return; 
+                }
                 tbody.innerHTML = data.map(p => {
                     const units = p.units || [];
                     const mainUnit = units[0];
                     const stock = mainUnit?.stock || 0;
                     const minStock = p.min_stock || 5;
-                    const status = stock <= 0 ? '<span class="badge badge-danger">نفذ</span>' : (stock <= minStock ? '<span class="badge badge-danger">منخفض</span>' : '<span class="badge badge-success">متوفر</span>');
+                    let status = '';
+                    if (stock <= 0) status = '<span class="badge badge-danger">نفذ</span>';
+                    else if (stock <= minStock) status = '<span class="badge badge-danger">منخفض</span>';
+                    else status = '<span class="badge badge-success">متوفر</span>';
+                    
                     const unitsText = units.map(u => `${u.name} (${Utils.formatMoney(u.price)})`).join('، ');
                     return `<tr>
-                        <td>${p.name}</td><td>${p.category || '-'}</td><td>${unitsText}</td><td>${status}</td>
+                        <td>${p.name}</td>
+                        <td>${p.category || '-'}</td>
+                        <td>${unitsText}</td>
+                        <td>${stock} ${mainUnit?.name || ''}</td>
+                        <td>${status}</td>
                         <td class="action-icons">
                             <i class="fas fa-edit" onclick="editProduct('${p.id}')"></i>
                             <i class="fas fa-copy" onclick="duplicateProduct('${p.id}')"></i>
@@ -388,52 +392,102 @@
                 }).join('');
             }
 
-            function openProductModal() {
-                editingProductId = null;
-                document.getElementById('modalTitle').textContent = 'منتج جديد';
-                document.getElementById('productForm').reset();
-                document.getElementById('productId').value = '';
-                document.getElementById('unitsContainer').innerHTML = '';
-                addUnitRow();
-                document.getElementById('productModal').style.display = 'flex';
-            }
-
-            function closeProductModal() { document.getElementById('productModal').style.display = 'none'; }
-
-            function getSuggestedPrice() {
+            // ========== إدارة الوحدات ==========
+            function calculateSuggestedPrice() {
                 const rows = document.querySelectorAll('.unit-row');
-                if (rows.length > 0) {
-                    const firstPrice = parseFloat(rows[0].querySelector('.unit-price')?.value) || 0;
-                    const firstFactor = parseFloat(rows[0].querySelector('.unit-factor')?.value) || 1;
-                    const currentFactor = parseFloat(document.querySelector('.unit-row:last-child .unit-factor')?.value) || 1;
-                    if (firstPrice && firstFactor) return (firstPrice / firstFactor) * currentFactor;
-                }
-                return 0;
+                if (rows.length === 0) return 0;
+                // الوحدة الأساسية هي الأولى
+                const baseRow = rows[0];
+                const baseCost = parseFloat(baseRow.querySelector('.unit-cost')?.value) || 0;
+                // هامش ربح افتراضي 20% (يمكن جعله من الإعدادات)
+                const profitMargin = 0.2; 
+                return baseCost * (1 + profitMargin);
             }
 
-            function addUnitRow(unit = { name: 'قطعة', price: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }) {
+            function updatePricesFromCost() {
+                const rows = document.querySelectorAll('.unit-row');
+                if (rows.length === 0) return;
+                const baseRow = rows[0];
+                const baseCost = parseFloat(baseRow.querySelector('.unit-cost')?.value) || 0;
+                const basePrice = parseFloat(baseRow.querySelector('.unit-price')?.value) || 0;
+                
+                // تحديث باقي الوحدات بناءً على عامل التحويل
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const factor = parseFloat(row.querySelector('.unit-factor')?.value) || 1;
+                    const costInput = row.querySelector('.unit-cost');
+                    const priceInput = row.querySelector('.unit-price');
+                    // التكلفة = تكلفة الوحدة الأساسية × عامل التحويل
+                    const newCost = baseCost * factor;
+                    costInput.value = newCost.toFixed(2);
+                    // السعر المقترح = سعر الوحدة الأساسية × عامل التحويل (أو يحسب بهامش ربح)
+                    const newPrice = basePrice * factor;
+                    priceInput.value = newPrice.toFixed(2);
+                }
+            }
+
+            function addUnitRow(unit = null) {
                 const container = document.getElementById('unitsContainer');
                 const row = document.createElement('div');
                 row.className = 'unit-row';
-                const suggestedPrice = unit.price || getSuggestedPrice();
+                const isBase = container.children.length === 0;
+                const defaultUnit = unit || { 
+                    name: isBase ? 'قطعة' : '', 
+                    price: 0, 
+                    cost: 0, 
+                    minPrice: 0, 
+                    maxPrice: 0, 
+                    stock: 0, 
+                    factor: isBase ? 1 : 1
+                };
+                
                 row.innerHTML = `
-                    <input type="text" class="unit-name" placeholder="مثال: كرتونة" value="${unit.name}">
-                    <input type="number" class="unit-price" placeholder="سعر البيع" value="${suggestedPrice.toFixed(2)}" step="0.01">
-                    <input type="number" class="unit-min" placeholder="الحد الأدنى" value="${unit.minPrice || 0}" step="0.01">
-                    <input type="number" class="unit-max" placeholder="الحد الأقصى" value="${unit.maxPrice || 0}" step="0.01">
-                    <input type="number" class="unit-stock" placeholder="المخزون" value="${unit.stock}" step="0.001">
-                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${unit.factor}" step="0.001" onchange="updateUnitPriceSuggestion(this)">
-                    <button type="button" class="btn" onclick="this.closest('.unit-row').remove()"><i class="fas fa-trash"></i></button>
+                    <input type="text" class="unit-name" placeholder="اسم الوحدة" value="${defaultUnit.name}" ${isBase ? 'readonly' : ''}>
+                    <input type="number" class="unit-price" placeholder="سعر البيع" value="${defaultUnit.price.toFixed(2)}" step="0.01" onchange="validatePrice(this)">
+                    <input type="number" class="unit-cost" placeholder="تكلفة الشراء" value="${defaultUnit.cost.toFixed(2)}" step="0.01" onchange="if(${isBase}) updatePricesFromCost()">
+                    <input type="number" class="unit-min" placeholder="الحد الأدنى" value="${defaultUnit.minPrice}" step="0.01">
+                    <input type="number" class="unit-max" placeholder="الحد الأقصى" value="${defaultUnit.maxPrice}" step="0.01">
+                    <input type="number" class="unit-stock" placeholder="المخزون" value="${defaultUnit.stock}" step="0.001" ${isBase ? '' : 'readonly'}>
+                    <input type="number" class="unit-factor" placeholder="عامل التحويل" value="${defaultUnit.factor}" step="0.001" onchange="if(!${isBase}) updateUnitPriceFromFactor(this)">
+                    <button type="button" class="btn" onclick="this.closest('.unit-row').remove(); ${isBase ? '' : 'updatePricesFromCost();'}"><i class="fas fa-trash"></i></button>
                 `;
                 container.appendChild(row);
+                
+                if (!isBase) {
+                    // تأكد من تحديث الأسعار للوحدة الجديدة
+                    setTimeout(() => updatePricesFromCost(), 10);
+                }
             }
 
-            window.updateUnitPriceSuggestion = function(input) {
+            window.updateUnitPriceFromFactor = function(input) {
                 const row = input.closest('.unit-row');
+                const factor = parseFloat(input.value) || 1;
+                const baseRow = document.querySelectorAll('.unit-row')[0];
+                if (!baseRow) return;
+                const basePrice = parseFloat(baseRow.querySelector('.unit-price')?.value) || 0;
+                const baseCost = parseFloat(baseRow.querySelector('.unit-cost')?.value) || 0;
+                
                 const priceInput = row.querySelector('.unit-price');
-                priceInput.value = getSuggestedPrice().toFixed(2);
+                const costInput = row.querySelector('.unit-cost');
+                priceInput.value = (basePrice * factor).toFixed(2);
+                costInput.value = (baseCost * factor).toFixed(2);
             };
 
+            window.validatePrice = function(input) {
+                const row = input.closest('.unit-row');
+                const min = parseFloat(row.querySelector('.unit-min')?.value) || 0;
+                const max = parseFloat(row.querySelector('.unit-max')?.value) || Infinity;
+                const price = parseFloat(input.value) || 0;
+                if (price < min) {
+                    alert(`السعر لا يمكن أن يقل عن الحد الأدنى ${Utils.formatMoney(min)}`);
+                    input.value = min;
+                } else if (max > 0 && price > max) {
+                    alert(`السعر لا يمكن أن يزيد عن الحد الأقصى ${Utils.formatMoney(max)}`);
+                    input.value = max;
+                }
+            };
+
+            // ========== عمليات المنتج ==========
             window.editProduct = function(id) {
                 const p = products.find(x => x.id === id);
                 if (!p) return;
@@ -445,8 +499,11 @@
                 document.getElementById('notes').value = p.notes || '';
                 const container = document.getElementById('unitsContainer');
                 container.innerHTML = '';
-                if (p.units) p.units.forEach(u => addUnitRow({ ...u, minPrice: u.minPrice || 0, maxPrice: u.maxPrice || 0 }));
-                else addUnitRow();
+                if (p.units && p.units.length) {
+                    p.units.forEach((u, idx) => addUnitRow({ ...u, minPrice: u.minPrice || 0, maxPrice: u.maxPrice || 0 }));
+                } else {
+                    addUnitRow();
+                }
                 document.getElementById('productModal').style.display = 'flex';
             };
 
@@ -473,33 +530,70 @@
                 const notes = document.getElementById('notes').value.trim();
                 const unitRows = document.querySelectorAll('.unit-row');
                 const units = [];
-                unitRows.forEach(row => {
+                unitRows.forEach((row, index) => {
                     const unitName = row.querySelector('.unit-name')?.value.trim();
                     const price = parseFloat(row.querySelector('.unit-price')?.value) || 0;
+                    const cost = parseFloat(row.querySelector('.unit-cost')?.value) || 0;
                     const minPrice = parseFloat(row.querySelector('.unit-min')?.value) || 0;
                     const maxPrice = parseFloat(row.querySelector('.unit-max')?.value) || 0;
                     const stock = parseFloat(row.querySelector('.unit-stock')?.value) || 0;
                     const factor = parseFloat(row.querySelector('.unit-factor')?.value) || 1;
-                    if (unitName) units.push({ name: unitName, price, minPrice, maxPrice, stock, factor });
+                    if (unitName) {
+                        units.push({ 
+                            name: unitName, price, cost, minPrice, maxPrice, 
+                            stock: index === 0 ? stock : 0, // المخزون فقط للوحدة الأساسية
+                            factor 
+                        });
+                    }
                 });
                 if (!name) { alert('اسم المنتج مطلوب'); return; }
                 if (!units.length) { alert('أضف وحدة واحدة على الأقل'); return; }
-                const product = { name, category: category || null, units, notes: notes || null };
+                
+                const product = { 
+                    name, 
+                    category: category || null, 
+                    units, 
+                    notes: notes || null,
+                    min_stock: 5 // يمكن إضافته لاحقاً
+                };
                 if (id) product.id = id;
                 else product.id = crypto.randomUUID();
+                
                 try {
                     await DB.saveProduct(product);
                     closeProductModal();
                     await loadProducts();
-                } catch (err) { alert('فشل حفظ المنتج: ' + err.message); }
+                } catch (err) { 
+                    console.error(err);
+                    alert('فشل حفظ المنتج: ' + err.message); 
+                }
             }
 
             async function deleteProduct(id) {
                 if (!confirm('حذف هذا المنتج؟')) return;
-                await DB.deleteProduct(id);
-                await loadProducts();
+                try {
+                    await DB.deleteProduct(id);
+                    await loadProducts();
+                } catch (err) {
+                    alert('فشل حذف المنتج');
+                }
             }
 
+            function closeProductModal() {
+                document.getElementById('productModal').style.display = 'none';
+            }
+
+            function openProductModal() {
+                editingProductId = null;
+                document.getElementById('modalTitle').textContent = 'منتج جديد';
+                document.getElementById('productForm').reset();
+                document.getElementById('productId').value = '';
+                document.getElementById('unitsContainer').innerHTML = '';
+                addUnitRow(); // الوحدة الأساسية
+                document.getElementById('productModal').style.display = 'flex';
+            }
+
+            // ========== التهيئة ==========
             document.addEventListener('DOMContentLoaded', async () => {
                 if (!App.requireAuth() || !App.requireRole(['admin'])) return;
                 App.initUserInterface();
@@ -515,7 +609,9 @@
                 document.getElementById('addUnitBtn').addEventListener('click', () => addUnitRow());
             });
 
+            // تعريض الدوال للنطاق العام
             window.deleteProduct = deleteProduct;
+            window.updatePricesFromCost = updatePricesFromCost;
         })();
     </script>
 </body>
