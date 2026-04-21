@@ -1,55 +1,39 @@
+# حسابي - نظام إدارة المبيعات والمخزون
 
-### 📎 مرفق: كود SQL لإنشاء الجداول (مختصر)
+**حسابي** هو تطبيق ويب تقدمي (PWA) متكامل لإدارة عمليات البيع والشراء والمخزون والصندوق والمحاسبة. يعمل على جميع الأجهزة (هاتف، جهاز لوحي، كمبيوتر) ويمكن تثبيته كتطبيق أصلي على Android و iOS. مبني باستخدام HTML, CSS, JavaScript و Supabase كقاعدة بيانات خلفية.
 
-<details>
-<summary>اضغط لعرض كود SQL</summary>
+![لغة](https://img.shields.io/badge/اللغة-العربية-green)
+![الترخيص](https://img.shields.io/badge/الترخيص-MIT-blue)
+![الإصدار](https://img.shields.io/badge/الإصدار-1.0.0-orange)
 
-```sql
--- جدول المنتجات
-CREATE TABLE products (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  barcode TEXT, name TEXT NOT NULL, category TEXT,
-  units JSONB NOT NULL DEFAULT '[{"name":"قطعة","price":0,"minPrice":0,"maxPrice":0,"stock":0,"factor":1}]',
-  min_stock INT DEFAULT 5, notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
-);
+---
 
--- جدول الأطراف (عملاء وموردين)
-CREATE TABLE parties (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL, type TEXT CHECK (type IN ('customer','supplier')),
-  phone TEXT, address TEXT, email TEXT, balance NUMERIC DEFAULT 0,
-  last_transaction DATE, created_at TIMESTAMPTZ DEFAULT NOW()
-);
+## ✨ المميزات الرئيسية
 
--- جدول الفواتير
-CREATE TABLE invoices (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  type TEXT DEFAULT 'sale', date DATE NOT NULL,
-  customer_id UUID REFERENCES parties(id), customer_name TEXT,
-  items JSONB NOT NULL, total NUMERIC, paid NUMERIC, remaining NUMERIC,
-  discount NUMERIC DEFAULT 0, status TEXT, notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
-);
+- **نقطة بيع سريعة**: إضافة منتجات للسلة، تحديد وحدات القياس، خصومات، دفع نقدي/تحويل/آجل، طباعة فاتورة احترافية.
+- **إدارة المنتجات**: وحدات متعددة (كرتونة، علبة، قطعة)، أسعار بيع وحدود دنيا وقصوى، مخزون، تكلفة شراء لحساب الأرباح.
+- **العملاء والموردين**: إضافة وتعديل، كشف حساب كامل، تحصيل دفعات، إضافة رصيد.
+- **المشتريات**: فواتير شراء، تحديث المخزون والتكلفة تلقائياً.
+- **الصندوق**: إيداع وسحب، أرصدة منفصلة (نقدي / تحويلات)، منع السحب إذا تجاوز الرصيد.
+- **المحاسبة**: شجرة حسابات، دفتر الأستاذ، رواتب وسلف الموظفين، مصروفات، قيود يومية، ميزان مراجعة، قائمة دخل.
+- **التقارير**: مبيعات، مشتريات، أرباح الأصناف والفواتير، تقارير العملاء، تصدير CSV.
+- **المرتجعات**: مرتجع مبيعات ومشتريات مع تأثير كامل على المخزون والحسابات.
+- **المندوبين**: إدارة مندوبين، عمولات، كشف حساب لكل مندوب.
+- **الصلاحيات**: مدير (Admin) ومندوب (Rep)، لكل منهما وصول مختلف.
+- **دعم كامل للجوال**: تصميم متجاوب، قائمة جانبية، تثبيت على الشاشة الرئيسية (PWA).
+- **الطباعة**: إيصالات فواتير، كشوف حساب، فواتير شراء عبر نافذة منبثقة بتنسيق احترافي.
+- **بلوتوث**: دعم البحث عن طابعة بلوتوث والطباعة الحرارية (80mm).
 
--- جدول المشتريات
-CREATE TABLE purchases (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date DATE NOT NULL, supplier_id UUID REFERENCES parties(id), supplier_name TEXT,
-  items JSONB NOT NULL, total NUMERIC, paid NUMERIC, remaining NUMERIC,
-  status TEXT, invoice_number TEXT, notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
-);
+---
 
--- جدول حركات الصندوق
-CREATE TABLE transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date DATE NOT NULL, type TEXT CHECK (type IN ('income','expense')),
-  amount NUMERIC, description TEXT, payment_method TEXT DEFAULT 'cash',
-  reference TEXT, notes TEXT, timestamp TIMESTAMPTZ DEFAULT NOW()
-);
+## 🛠️ التقنيات المستخدمة
 
--- جدول الإعدادات
-CREATE TABLE settings (
-  id TEXT PRIMARY KEY DEFAULT 'main',
-  data JSONB NOT NULL
-);
+- **الواجهة الأمامية**: HTML5, CSS3, JavaScript (Vanilla)
+- **قاعدة البيانات**: [Supabase](https://supabase.com/) (PostgreSQL)
+- **الرسوم البيانية**: Chart.js (تمت إزالته لاحقاً واستبداله بملخصات مالية)
+- **الأيقونات**: Font Awesome 6
+- **الطباعة**: Web Bluetooth API, نافذة طباعة منبثقة
 
--- (توجد جداول أخرى للمرتجعات، الموظفين، السلف، المصروفات، المندوبين... يمكن إضافتها حسب الحاجة)
+---
+
+## 📁 هيكل المشروع
