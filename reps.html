@@ -2,11 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>المندوبين · نظام التوزيع الغذائي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>المندوبين · حسابي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/print.js"></script>
     <style>
         :root {
             --primary: #1e293b;
@@ -100,7 +103,6 @@
             padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
             cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
             background: white; border: 1px solid #cbd5e1; color: var(--primary);
-            font-size: 16px;
         }
         .btn-primary { background: var(--secondary); color: white; border: none; }
         .stats-grid {
@@ -135,8 +137,6 @@
         table { width: 100%; border-collapse: collapse; }
         th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
         td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
-        .badge { padding: 4px 10px; border-radius: 30px; font-size: 12px; font-weight: 600; display: inline-block; }
-        .badge-success { background: #d1fae5; color: #065f46; }
         .action-icons i { margin: 0 5px; color: var(--secondary); cursor: pointer; }
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -167,8 +167,8 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-truck"></i></div>
-                <div class="logo-text"><h2>نظام التوزيع</h2></div>
+                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
@@ -180,7 +180,7 @@
                 </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" onclick="App.logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -210,9 +210,7 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-users" style="color:var(--secondary); margin-left:12px;"></i>المندوبين</h1></div>
-            <div>
-                <button class="btn btn-primary" id="addRepBtn"><i class="fas fa-plus"></i> إضافة مندوب</button>
-            </div>
+            <div><button class="btn btn-primary" id="addRepBtn"><i class="fas fa-plus"></i> إضافة مندوب</button></div>
         </div>
 
         <div class="stats-grid">
@@ -225,10 +223,7 @@
         <div class="table-container">
             <div class="table-header">
                 <h3>قائمة المندوبين</h3>
-                <div class="search-wrapper">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchRep" placeholder="بحث...">
-                </div>
+                <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="searchRep" placeholder="بحث..."></div>
             </div>
             <table>
                 <thead><tr><th>الاسم</th><th>الهاتف</th><th>المنطقة</th><th>العمولة %</th><th>المبيعات</th><th>التحصيلات</th><th>العمولة المستحقة</th><th>إجراءات</th></tr></thead>
@@ -246,7 +241,7 @@
                 <div class="form-group"><label>الاسم</label><input type="text" id="repName" required></div>
                 <div class="form-group"><label>الهاتف</label><input type="tel" id="repPhone"></div>
                 <div class="form-group"><label>المنطقة</label><input type="text" id="repArea"></div>
-                <div class="form-group"><label>نسبة العمولة (%)</label><input type="number" id="repCommission" value="0" step="0.1" min="0" max="100"></div>
+                <div class="form-group"><label>نسبة العمولة (%)</label><input type="number" id="repCommission" value="0" step="0.1"></div>
                 <button type="submit" class="btn btn-primary">حفظ</button>
             </form>
         </div>
@@ -257,31 +252,27 @@
         <div class="modal-content">
             <div class="modal-header"><h2 id="statementTitle">كشف حساب مندوب</h2><button id="closeStatementBtn">&times;</button></div>
             <div id="statementBody"></div>
-            <div style="margin-top:20px;">
-                <button class="btn" id="printStatementBtn"><i class="fas fa-print"></i> طباعة</button>
-            </div>
+            <div style="margin-top:20px;"><button class="btn" id="printStatementBtn"><i class="fas fa-print"></i> طباعة</button></div>
         </div>
     </div>
 
     <script>
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
         (function() {
-            const userBtn = document.getElementById('userProfileBtn');
-            const userDropdown = document.getElementById('userDropdown');
+            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
+            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
             let reps = [], invoices = [], transactions = [];
 
             async function loadData() {
-                try {
-                    reps = await DB.getReps();
-                    invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-                    transactions = await DB.getTransactions();
-                    renderReps();
-                    updateStats();
-                } catch (e) { alert('فشل تحميل البيانات'); }
+                reps = await DB.getReps();
+                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
+                transactions = await DB.getTransactions();
+                renderReps();
+                updateStats();
             }
 
             function updateStats() {
@@ -291,9 +282,7 @@
                     const sales = repInvoices.reduce((s, i) => s + i.total, 0);
                     const collections = repInvoices.reduce((s, i) => s + i.paid, 0);
                     const commission = collections * (r.commission || 0) / 100;
-                    totalSales += sales;
-                    totalCollections += collections;
-                    totalCommission += commission;
+                    totalSales += sales; totalCollections += collections; totalCommission += commission;
                 });
                 document.getElementById('totalReps').textContent = reps.length;
                 document.getElementById('totalSales').textContent = Utils.formatMoney(totalSales);
@@ -302,25 +291,16 @@
             }
 
             function renderReps() {
-                const tbody = document.getElementById('repsBody');
                 const term = document.getElementById('searchRep').value.toLowerCase();
-                const filtered = reps.filter(r => r.name.toLowerCase().includes(term) || (r.phone || '').includes(term));
-                if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;">لا يوجد مندوبين</td></tr>'; return; }
-                tbody.innerHTML = filtered.map(r => {
+                const filtered = reps.filter(r => r.name.toLowerCase().includes(term) || (r.phone||'').includes(term));
+                const tbody = document.getElementById('repsBody');
+                tbody.innerHTML = filtered.length ? filtered.map(r => {
                     const repInvoices = invoices.filter(i => i.rep_id === r.id);
                     const sales = repInvoices.reduce((s, i) => s + i.total, 0);
                     const collections = repInvoices.reduce((s, i) => s + i.paid, 0);
                     const commission = collections * (r.commission || 0) / 100;
-                    return `<tr>
-                        <td>${r.name}</td><td>${r.phone || '-'}</td><td>${r.area || '-'}</td><td>${r.commission || 0}%</td>
-                        <td>${Utils.formatMoney(sales)}</td><td>${Utils.formatMoney(collections)}</td><td>${Utils.formatMoney(commission)}</td>
-                        <td class="action-icons">
-                            <i class="fas fa-file-invoice" onclick="showStatement('${r.id}')" title="كشف حساب"></i>
-                            <i class="fas fa-edit" onclick="editRep('${r.id}')" title="تعديل"></i>
-                            <i class="fas fa-trash" onclick="deleteRep('${r.id}')" title="حذف"></i>
-                        </td>
-                    </tr>`;
-                }).join('');
+                    return `<tr><td>${r.name}</td><td>${r.phone||'-'}</td><td>${r.area||'-'}</td><td>${r.commission||0}%</td><td>${Utils.formatMoney(sales)}</td><td>${Utils.formatMoney(collections)}</td><td>${Utils.formatMoney(commission)}</td><td class="action-icons"><i class="fas fa-file-invoice" onclick="showStatement('${r.id}')"></i><i class="fas fa-edit" onclick="editRep('${r.id}')"></i><i class="fas fa-trash" onclick="deleteRep('${r.id}')"></i></td></tr>`;
+                }).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;">لا يوجد مندوبين</td></tr>';
             }
 
             window.showStatement = function(id) {
@@ -332,37 +312,20 @@
                 const totalSales = repInvoices.reduce((s, i) => s + i.total, 0);
                 const totalPaid = repInvoices.reduce((s, i) => s + i.paid, 0);
                 const commission = totalPaid * (rep.commission || 0) / 100;
-                let html = `
-                    <p><strong>العمولة %:</strong> ${rep.commission || 0}%</p>
-                    <p><strong>إجمالي المبيعات:</strong> ${Utils.formatMoney(totalSales)}</p>
-                    <p><strong>إجمالي التحصيلات:</strong> ${Utils.formatMoney(totalPaid)}</p>
-                    <p><strong>العمولة المستحقة:</strong> ${Utils.formatMoney(commission)}</p>
-                    <h4>الفواتير</h4>
-                    <table><tr><th>رقم</th><th>تاريخ</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th></tr>
-                    ${repInvoices.map(i => `<tr><td>${i.id}</td><td>${i.date}</td><td>${i.customer_name}</td><td>${Utils.formatMoney(i.total)}</td><td>${Utils.formatMoney(i.paid)}</td></tr>`).join('')}
-                    </table>
-                    <h4>التحصيلات</h4>
-                    <table><tr><th>تاريخ</th><th>المبلغ</th><th>البيان</th></tr>
-                    ${repTrans.map(t => `<tr><td>${t.date}</td><td>${Utils.formatMoney(t.amount)}</td><td>${t.description}</td></tr>`).join('')}
-                    </table>
-                `;
+                let html = `<p><strong>العمولة %:</strong> ${rep.commission||0}%</p><p><strong>إجمالي المبيعات:</strong> ${Utils.formatMoney(totalSales)}</p><p><strong>إجمالي التحصيلات:</strong> ${Utils.formatMoney(totalPaid)}</p><p><strong>العمولة المستحقة:</strong> ${Utils.formatMoney(commission)}</p><h4>الفواتير</h4><table><tr><th>رقم</th><th>تاريخ</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th></tr>${repInvoices.map(i => `<tr><td>${i.id}</td><td>${i.date}</td><td>${i.customer_name}</td><td>${Utils.formatMoney(i.total)}</td><td>${Utils.formatMoney(i.paid)}</td></tr>`).join('')}</table><h4>التحصيلات</h4><table><tr><th>تاريخ</th><th>المبلغ</th><th>البيان</th></tr>${repTrans.map(t => `<tr><td>${t.date}</td><td>${Utils.formatMoney(t.amount)}</td><td>${t.description}</td></tr>`).join('')}</table>`;
                 document.getElementById('statementBody').innerHTML = html;
                 document.getElementById('statementModal').style.display = 'flex';
             };
 
             function printStatement() {
-                const content = document.getElementById('statementBody').innerHTML;
-                const title = document.getElementById('statementTitle').textContent;
                 const win = window.open('', '_blank');
-                win.document.write(`<html dir="rtl"><head><title>${title}</title><style>body{font-family:Segoe UI;}</style></head><body><h2>${title}</h2>${content}</body></html>`);
-                win.document.close();
-                win.print();
+                win.document.write(`<html dir="rtl"><head><title>كشف حساب</title><style>body{font-family:Segoe UI;}</style></head><body>${document.getElementById('statementBody').innerHTML}</body></html>`);
+                win.document.close(); win.print();
             }
 
             function openRepModal() {
                 document.getElementById('modalTitle').textContent = 'إضافة مندوب';
-                document.getElementById('repForm').reset();
-                document.getElementById('repId').value = '';
+                document.getElementById('repForm').reset(); document.getElementById('repId').value = '';
                 document.getElementById('repModal').style.display = 'flex';
             }
 
@@ -370,20 +333,16 @@
                 const r = reps.find(x => x.id === id);
                 if (!r) return;
                 document.getElementById('modalTitle').textContent = 'تعديل مندوب';
-                document.getElementById('repId').value = r.id;
-                document.getElementById('repName').value = r.name;
-                document.getElementById('repPhone').value = r.phone || '';
-                document.getElementById('repArea').value = r.area || '';
-                document.getElementById('repCommission').value = r.commission || 0;
+                document.getElementById('repId').value = r.id; document.getElementById('repName').value = r.name;
+                document.getElementById('repPhone').value = r.phone||''; document.getElementById('repArea').value = r.area||'';
+                document.getElementById('repCommission').value = r.commission||0;
                 document.getElementById('repModal').style.display = 'flex';
             };
 
             async function saveRep(e) {
                 e.preventDefault();
-                const id = document.getElementById('repId').value;
-                const name = document.getElementById('repName').value.trim();
-                const phone = document.getElementById('repPhone').value.trim();
-                const area = document.getElementById('repArea').value.trim();
+                const id = document.getElementById('repId').value, name = document.getElementById('repName').value.trim();
+                const phone = document.getElementById('repPhone').value.trim(), area = document.getElementById('repArea').value.trim();
                 const commission = parseFloat(document.getElementById('repCommission').value) || 0;
                 if (!name) return alert('الاسم مطلوب');
                 const rep = { name, phone, area, commission };
