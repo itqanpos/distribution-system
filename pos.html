@@ -199,7 +199,6 @@
         }
         .unit-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
 
-        /* Toast */
         .toast {
             position: fixed; bottom: 20px; left: 20px; background: #1e293b; color: white;
             padding: 12px 20px; border-radius: 40px; font-size: 14px; z-index: 9999;
@@ -417,7 +416,9 @@
                 else discount = subtotal * discountVal / 100;
                 const net = subtotal - discount;
                 document.getElementById('itemTypesCount').textContent = cart.length;
-                document.getElementById('totalPieces').textContent = cart.reduce((s,i) => s + i.quantity * (i.factor || 1), 0).toFixed(2);
+                // حساب القطع مع عامل التحويل
+                const pieces = cart.reduce((s, item) => s + (item.quantity * (item.factor || 1)), 0);
+                document.getElementById('totalPieces').textContent = pieces.toFixed(2);
                 document.getElementById('subtotal').textContent = formatMoney(subtotal);
                 document.getElementById('netTotal').textContent = formatMoney(net);
                 return { subtotal, discount, net };
@@ -595,6 +596,7 @@
                     if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: getToday(), type: 'income', amount: transferPaid, description: `فاتورة بيع ${invoice.id} (تحويل)`, payment_method: 'bank' });
                 }
 
+                // طباعة الإيصال
                 printSaleReceipt(invoice, selectedCustomer || { name: 'نقدي', balance: 0 }, cart, totals);
                 alert(`تم البيع. الفاتورة ${invoice.id}`);
                 cart = []; renderCart(); document.getElementById('discountValue').value = 0;
