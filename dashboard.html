@@ -259,17 +259,14 @@
     </main>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js');
-        }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
         (function() {
             const userBtn = document.getElementById('userProfileBtn');
             const userDropdown = document.getElementById('userDropdown');
             userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
             document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('menuToggle').addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
+            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
             document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
 
             async function loadDashboardData() {
@@ -280,8 +277,8 @@
                     const customers = await DB.getParties('customer');
                     const transactions = await DB.getTransactions();
 
-                    const todaySales = invoices.filter(i => i.date === today).reduce((s, i) => s + i.total, 0);
-                    const todayPurchases = purchases.filter(p => p.date === today).reduce((s, p) => s + p.total, 0);
+                    const todaySales = invoices.filter(i => i.date === today).reduce((s, i) => s + (i.total || 0), 0);
+                    const todayPurchases = purchases.filter(p => p.date === today).reduce((s, p) => s + (p.total || 0), 0);
                     const balance = transactions.reduce((s, t) => t.type === 'income' ? s + t.amount : s - t.amount, 0);
 
                     document.getElementById('todaySales').textContent = Utils.formatMoney(todaySales);
@@ -289,15 +286,15 @@
                     document.getElementById('customersCount').textContent = customers.length;
                     document.getElementById('cashBalance').textContent = Utils.formatMoney(balance);
 
-                    const totalRevenue = invoices.reduce((s, i) => s + i.total, 0);
-                    const totalPurchasesAmount = purchases.reduce((s, p) => s + p.total, 0);
-                    const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                    const totalRevenue = invoices.reduce((s, i) => s + (i.total || 0), 0);
+                    const totalPurchasesAmount = purchases.reduce((s, p) => s + (p.total || 0), 0);
+                    const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
                     const netProfit = totalRevenue - (totalPurchasesAmount + totalExpenses);
                     document.getElementById('totalRevenue').textContent = Utils.formatMoney(totalRevenue);
                     document.getElementById('totalExpense').textContent = Utils.formatMoney(totalPurchasesAmount + totalExpenses);
                     document.getElementById('netProfit').textContent = Utils.formatMoney(netProfit);
 
-                    const recentInv = invoices.sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
+                    const recentInv = invoices.sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,5);
                     document.getElementById('recentInvoices').innerHTML = recentInv.map(i => {
                         const status = i.status === 'paid' || i.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
                         return `<tr><td>${i.id}</td><td>${i.customer_name || 'نقدي'}</td><td>${Utils.formatMoney(i.total)}</td><td>${status}</td></tr>`;
