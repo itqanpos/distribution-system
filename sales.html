@@ -4,174 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المبيعات · حسابي</title>
+    
+    <!-- الأنماط -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/sales.css">
+    
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
+    
+    <!-- الاعتماديات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/print.js"></script>
-    <style>
-        :root {
-            --primary: #1e293b;
-            --secondary: #3b82f6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --light: #f8fafc;
-            --header-height: 65px;
-            --sidebar-width: 260px;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
-        .navbar {
-            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
-            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
-            z-index: 1001; border-bottom: 1px solid #e2e8f0;
-        }
-        .navbar-left { display: flex; align-items: center; gap: 16px; }
-        .menu-toggle {
-            background: none; border: none; font-size: 24px; color: var(--primary);
-            cursor: pointer; width: 40px; height: 40px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), #06b6d4); color: white;
-            width: 38px; height: 38px; border-radius: 12px; display: flex;
-            align-items: center; justify-content: center; font-size: 20px;
-        }
-        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
-        .navbar-right { display: flex; align-items: center; gap: 20px; }
-        .user-profile {
-            display: flex; align-items: center; gap: 12px; cursor: pointer;
-            padding: 6px 12px; border-radius: 40px; background: var(--light);
-            position: relative;
-        }
-        .user-avatar {
-            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), #06b6d4);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; font-size: 18px;
-        }
-        .user-info { text-align: right; }
-        .user-info h4 { font-size: 15px; font-weight: 600; }
-        .user-info p { font-size: 12px; color: #64748b; }
-        .user-dropdown {
-            position: absolute; top: 58px; left: 0; background: white; border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
-            z-index: 1050; border: 1px solid #e2e8f0; overflow: hidden;
-        }
-        .user-dropdown.show { display: block; }
-        .user-dropdown a {
-            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
-            color: var(--primary); text-decoration: none; border-bottom: 1px solid #f1f5f9;
-        }
-        .user-dropdown a:hover { background: var(--light); }
-        .sidebar {
-            position: fixed; top: var(--header-height); right: 0; bottom: 0;
-            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
-            border-left: 1px solid #e2e8f0; transition: width 0.25s; z-index: 999;
-            overflow-y: auto; padding: 20px 0; transform: translateX(100%);
-        }
-        .sidebar.mobile-open { transform: translateX(0); }
-        .menu-section {
-            padding: 20px 20px 8px; color: #94a3b8; font-size: 11px; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
-        }
-        .menu { list-style: none; padding: 0 12px; }
-        .menu-item {
-            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
-            color: var(--primary); text-decoration: none; border-radius: 12px;
-            white-space: nowrap; font-weight: 500; font-size: 15px;
-        }
-        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; }
-        .menu-item:hover { background: var(--light); color: var(--secondary); }
-        .menu-item.active {
-            background: #eff6ff; color: var(--secondary); font-weight: 600;
-            border-right: 4px solid var(--secondary);
-        }
-        .main-content {
-            margin-top: var(--header-height); padding: 28px 32px;
-            min-height: calc(100vh - var(--header-height));
-        }
-        .page-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 32px; flex-wrap: wrap;
-        }
-        .page-title h1 { font-size: 28px; font-weight: 700; }
-        .btn {
-            padding: 10px 20px; border: none; border-radius: 14px; font-weight: 600;
-            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-            background: white; border: 1px solid #cbd5e1; color: var(--primary);
-        }
-        .btn-primary { background: var(--secondary); color: white; border: none; }
-        .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px; margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white; border-radius: 20px; padding: 20px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            text-align: center; cursor: pointer; transition: transform 0.2s;
-        }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
-        .stat-card .value { font-size: 24px; font-weight: 700; }
-        .stat-card .label { color: #64748b; font-size: 13px; }
-
-        .sales-summary {
-            background: white; border-radius: 20px; padding: 24px;
-            margin-bottom: 30px; box-shadow: 0 8px 20px rgba(0,0,0,0.02);
-            border: 1px solid #f1f5f9;
-        }
-        .summary-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-        .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .summary-item {
-            text-align: center; padding: 20px; border-radius: 16px; background: var(--light);
-        }
-        .summary-item i { font-size: 28px; margin-bottom: 10px; color: var(--secondary); }
-        .summary-item .amount { font-size: 22px; font-weight: 700; }
-        .summary-item .label { color: #64748b; font-size: 14px; margin-top: 5px; }
-
-        .filter-bar {
-            display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
-            margin-bottom: 20px;
-        }
-        .search-wrapper {
-            display: flex; align-items: center; background: white;
-            border-radius: 30px; padding: 5px 15px; border: 1px solid #cbd5e1;
-        }
-        .search-wrapper input {
-            border: none; padding: 10px 0; width: 200px; outline: none;
-        }
-        .table-container {
-            background: white; border-radius: 20px; padding: 24px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            overflow-x: auto;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
-
-        @media print {
-            .navbar, .sidebar, .page-header .btn, .filter-bar, .menu-toggle, .user-dropdown { display: none; }
-            .main-content { margin: 0; padding: 20px; }
-            .stat-card, .summary-item { box-shadow: none; border: 1px solid #ccc; }
-            body { background: white; }
-        }
-
-        @media (max-width: 992px) {
-            .sidebar { transform: translateX(100%); }
-            .sidebar.mobile-open { transform: translateX(0); }
-            .main-content { margin-right: 0 !important; padding: 20px; }
-            .menu-toggle { display: flex; }
-            .user-info { display: none; }
-            .summary-cards { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (min-width: 993px) { .menu-toggle { display: none; } }
-    </style>
 </head>
 <body>
+    <!-- شريط التنقل -->
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -195,6 +43,7 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -216,163 +65,89 @@
         </ul>
     </aside>
 
+    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-chart-line" style="color:var(--secondary); margin-left:12px;"></i>تحليلات المبيعات</h1></div>
+            <div class="page-title"><h1><i class="fas fa-chart-line" style="color:var(--secondary); margin-left:12px;"></i>المبيعات</h1></div>
             <div>
                 <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-primary" onclick="exportToCSV()"><i class="fas fa-download"></i> تصدير CSV</button>
+                <button class="btn btn-primary" onclick="window.location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card"><div class="icon"><i class="fas fa-calendar-day"></i></div><div class="value" id="todaySales">0 ج.م</div><div class="label">مبيعات اليوم</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-calendar-week"></i></div><div class="value" id="weekSales">0 ج.م</div><div class="label">هذا الأسبوع</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-calendar-alt"></i></div><div class="value" id="monthSales">0 ج.م</div><div class="label">هذا الشهر</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-receipt"></i></div><div class="value" id="invoiceCount">0</div><div class="label">عدد الفواتير</div></div>
-        </div>
-
-        <div class="sales-summary">
-            <div class="summary-title"><i class="fas fa-chart-bar"></i> ملخص الأداء</div>
-            <div class="summary-cards">
-                <div class="summary-item"><i class="fas fa-trophy"></i><div class="amount" id="topProduct">-</div><div class="label">المنتج الأكثر مبيعاً</div></div>
-                <div class="summary-item"><i class="fas fa-user-check"></i><div class="amount" id="topCustomer">-</div><div class="label">أفضل عميل</div></div>
-                <div class="summary-item"><i class="fas fa-percent"></i><div class="amount" id="avgInvoice">0 ج.م</div><div class="label">متوسط الفاتورة</div></div>
-                <div class="summary-item"><i class="fas fa-tag"></i><div class="amount" id="totalDiscount">0 ج.م</div><div class="label">إجمالي الخصومات</div></div>
+        <!-- بطاقات الإحصائيات -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card card-sales">
+                <div class="icon"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="value" id="totalToday">0.00 ج.م</div>
+                <div class="label">مبيعات اليوم</div>
+            </div>
+            <div class="stat-card card-invoices">
+                <div class="icon"><i class="fas fa-receipt"></i></div>
+                <div class="value" id="invoiceCount">0</div>
+                <div class="label">عدد الفواتير</div>
+            </div>
+            <div class="stat-card card-average">
+                <div class="icon"><i class="fas fa-calculator"></i></div>
+                <div class="value" id="averageSale">0.00 ج.م</div>
+                <div class="label">متوسط الفاتورة</div>
+            </div>
+            <div class="stat-card card-unpaid">
+                <div class="icon"><i class="fas fa-clock"></i></div>
+                <div class="value" id="totalUnpaid">0.00 ج.م</div>
+                <div class="label">المبلغ المعلق</div>
             </div>
         </div>
 
+        <!-- شريط البحث والتصفية -->
         <div class="filter-bar">
             <div class="search-wrapper">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchProduct" placeholder="بحث عن منتج...">
+                <input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل...">
             </div>
-            <button class="btn" onclick="filterProductTable()"><i class="fas fa-filter"></i> تصفية</button>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">الكل</button>
+                <button class="filter-btn" data-filter="paid">مدفوعة</button>
+                <button class="filter-btn" data-filter="partial">جزئية</button>
+                <button class="filter-btn" data-filter="unpaid">غير مدفوعة</button>
+                <button class="filter-btn" data-filter="held">معلقة</button>
+            </div>
+            <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
+        <!-- جدول الفواتير -->
         <div class="table-container">
             <table>
-                <thead><tr><th>المنتج</th><th>الكمية المباعة</th><th>الإيرادات</th><th>% من الإجمالي</th></tr></thead>
-                <tbody id="productSalesBody"></tbody>
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>التاريخ</th>
+                        <th>العميل</th>
+                        <th>الإجمالي</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>الحالة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="salesBody">
+                    <tr><td colspan="8" class="empty-message">جاري تحميل البيانات...</td></tr>
+                </tbody>
             </table>
         </div>
     </main>
 
-    <script>
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
+    <!-- مودال تفاصيل الفاتورة -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تفاصيل الفاتورة</h2>
+                <button id="closeDetailsBtn">&times;</button>
+            </div>
+            <div id="detailsContent"></div>
+        </div>
+    </div>
 
-        (function() {
-            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
-            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-            document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
-            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
-
-            let invoices = [], customers = [], productSalesData = [];
-
-            async function loadData() {
-                try {
-                    const allInvoices = await DB.getInvoices();
-                    invoices = allInvoices.filter(i => i.type === 'sale');
-                    customers = await DB.getParties('customer');
-                    calculateStats();
-                    calculateProductSales();
-                    renderProductTable(productSalesData);
-                    updateSummary();
-                } catch (e) { console.error(e); alert('فشل تحميل البيانات'); }
-            }
-
-            function calculateStats() {
-                const today = Utils.getToday();
-                const todayTotal = invoices.filter(i => i.date === today).reduce((s, i) => s + (i.total || 0), 0);
-                document.getElementById('todaySales').textContent = Utils.formatMoney(todayTotal);
-
-                const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-                const weekTotal = invoices.filter(i => i.date >= weekAgo.toISOString().split('T')[0]).reduce((s, i) => s + (i.total || 0), 0);
-                document.getElementById('weekSales').textContent = Utils.formatMoney(weekTotal);
-
-                const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
-                const monthTotal = invoices.filter(i => i.date >= monthAgo.toISOString().split('T')[0]).reduce((s, i) => s + (i.total || 0), 0);
-                document.getElementById('monthSales').textContent = Utils.formatMoney(monthTotal);
-
-                document.getElementById('invoiceCount').textContent = invoices.length;
-            }
-
-            function calculateProductSales() {
-                const salesMap = {};
-                invoices.forEach(inv => {
-                    if (inv.items) {
-                        inv.items.forEach(item => {
-                            const name = item.productName || item.name;
-                            if (!salesMap[name]) salesMap[name] = { qty: 0, revenue: 0 };
-                            salesMap[name].qty += item.quantity || 0;
-                            salesMap[name].revenue += (item.price * item.quantity) || 0;
-                        });
-                    }
-                });
-                productSalesData = Object.entries(salesMap).map(([name, data]) => ({ name, ...data }));
-                productSalesData.sort((a, b) => b.revenue - a.revenue);
-            }
-
-            function renderProductTable(data) {
-                const totalRevenue = data.reduce((s, p) => s + p.revenue, 0);
-                const tbody = document.getElementById('productSalesBody');
-                if (!data.length) { tbody.innerHTML = '<tr><td colspan="4">لا توجد بيانات</td></tr>'; return; }
-                tbody.innerHTML = data.map(p => {
-                    const percent = totalRevenue ? ((p.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
-                    return `<tr><td>${p.name}</td><td>${p.qty}</td><td>${Utils.formatMoney(p.revenue)}</td><td>${percent}%</td></tr>`;
-                }).join('');
-            }
-
-            function updateSummary() {
-                const topProd = productSalesData[0];
-                document.getElementById('topProduct').textContent = topProd ? topProd.name : '-';
-
-                const customerMap = {};
-                invoices.forEach(inv => {
-                    const cust = inv.customer_name || 'نقدي';
-                    customerMap[cust] = (customerMap[cust] || 0) + (inv.total || 0);
-                });
-                const topCust = Object.entries(customerMap).sort((a,b) => b[1] - a[1])[0];
-                document.getElementById('topCustomer').textContent = topCust ? topCust[0] : '-';
-
-                const avg = invoices.length ? invoices.reduce((s,i) => s + (i.total || 0), 0) / invoices.length : 0;
-                document.getElementById('avgInvoice').textContent = Utils.formatMoney(avg);
-
-                const totalDisc = invoices.reduce((s,i) => s + (i.discount || 0), 0);
-                document.getElementById('totalDiscount').textContent = Utils.formatMoney(totalDisc);
-            }
-
-            function filterProductTable() {
-                const term = document.getElementById('searchProduct').value.toLowerCase();
-                const filtered = productSalesData.filter(p => p.name.toLowerCase().includes(term));
-                renderProductTable(filtered);
-            }
-
-            function exportToCSV() {
-                if (!productSalesData.length) return;
-                let csv = "المنتج,الكمية المباعة,الإيرادات,النسبة المئوية\n";
-                const totalRevenue = productSalesData.reduce((s, p) => s + p.revenue, 0);
-                productSalesData.forEach(p => {
-                    const percent = totalRevenue ? ((p.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
-                    csv += `"${p.name}",${p.qty},${p.revenue.toFixed(2)},"${percent}%"\n`;
-                });
-                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `sales_report_${Utils.getToday()}.csv`;
-                a.click();
-            }
-
-            document.addEventListener('DOMContentLoaded', async () => {
-                if (!App.requireAuth() || !App.requireRole(['admin', 'rep'])) return;
-                App.initUserInterface();
-                await loadData();
-            });
-
-            window.filterProductTable = filterProductTable;
-            window.exportToCSV = exportToCSV;
-        })();
-    </script>
+    <script src="./js/sales.js"></script>
 </body>
 </html>
