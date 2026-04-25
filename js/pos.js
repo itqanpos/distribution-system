@@ -1,9 +1,8 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار متوافق مع جدول invoices الحالي)
+   نقطة البيع - حسابي (الإصدار النهائي المستقر)
    ============================================= */
 'use strict';
 
-// دوال مساعدة احتياطية
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
@@ -56,51 +55,33 @@ const POS = {
     },
 
     bindEvents() {
-        // القائمة والمستخدم
-        this.el.userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); this.el.userDropdown.classList.toggle('show');
-        });
+        this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => { this.el.userDropdown?.classList.remove('show'); });
         this.el.menuToggle.addEventListener('click', () => { this.el.sidebar.classList.toggle('mobile-open'); });
-        this.el.logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (window.App) App.logout();
-            else window.location.href = './index.html';
-        });
+        this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // البحث
         this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
 
-        // أزرار رئيسية
         this.el.payBtn.addEventListener('click', () => this.openPaymentModal());
         this.el.holdBtn.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn.addEventListener('click', () => this.loadHeldInvoices());
 
-        // مودال الوحدة
         this.el.addToCartBtn.addEventListener('click', () => this.addToCartFromModal());
         this.el.closeUnitModalBtn.addEventListener('click', () => this.closeModal('unitQuantityModal'));
 
-        // مودال الدفع
-        this.el.confirmAndPrintBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await this.completePayment();
-        });
+        this.el.confirmAndPrintBtn.addEventListener('click', async (e) => { e.preventDefault(); await this.completePayment(); });
         this.el.closePaymentModalBtn.addEventListener('click', () => this.closeModal('paymentModal'));
         this.el.paymentMethod.addEventListener('change', () => this.togglePaymentFields());
         this.el.cashAmount.addEventListener('input', () => this.updatePaymentPreview());
         this.el.transferAmount.addEventListener('input', () => this.updatePaymentPreview());
 
-        // مودال المعلقة
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
     },
 
     async loadInitialData() {
         this.isDBReady = !!(window.DB && window.supabase);
-        if (!this.isDBReady) {
-            console.warn('⚠️ وضع الاختبار - قاعدة البيانات غير متصلة');
-            this.showToast('وضع الاختبار - البيانات محلية');
-        }
+        if (!this.isDBReady) { console.warn('⚠️ وضع الاختبار'); this.showToast('وضع الاختبار - البيانات محلية'); }
         await this.loadData();
         this.restoreCartFromStorage();
     },
@@ -111,20 +92,14 @@ const POS = {
                 this.products = await DB.getProducts();
                 this.customers = await DB.getParties('customer');
             } else {
-                // بيانات وهمية للاختبار
                 this.products = [
                     { id: '1', name: 'منتج تجريبي ١', units: [{ name: 'قطعة', price: 12, stock: 100, factor: 1 }] },
                     { id: '2', name: 'منتج تجريبي ٢', units: [{ name: 'كرتونة', price: 250, stock: 30, factor: 1 }] }
                 ];
-                this.customers = [
-                    { id: '101', name: 'عميل تجريبي', phone: '0100000000', balance: 500 }
-                ];
+                this.customers = [{ id: '101', name: 'عميل تجريبي', phone: '0100000000', balance: 500 }];
             }
             this.populateCustomerList();
-        } catch (e) {
-            console.error(e);
-            this.showToast('فشل تحميل البيانات');
-        }
+        } catch (e) { console.error(e); this.showToast('فشل تحميل البيانات'); }
     },
 
     populateCustomerList() {
@@ -141,23 +116,14 @@ const POS = {
         if (!filtered.length) { container.innerHTML = '<div class="empty-message">❌ لا توجد منتجات</div>'; return; }
         container.innerHTML = filtered.map(p => {
             const u = p.units[0];
-            return `<div class="product-item" data-id="${p.id}">
-                <div class="product-info"><h4>${p.name}</h4><p>المخزون: ${u.stock} ${u.name}</p></div>
-                <div class="product-price">${Utils.formatMoney(u.price)}</div>
-            </div>`;
+            return `<div class="product-item" data-id="${p.id}"><div class="product-info"><h4>${p.name}</h4><p>المخزون: ${u.stock} ${u.name}</p></div><div class="product-price">${Utils.formatMoney(u.price)}</div></div>`;
         }).join('');
-        container.querySelectorAll('.product-item').forEach(item => {
-            item.addEventListener('click', () => this.openUnitModal(item.dataset.id));
-        });
+        container.querySelectorAll('.product-item').forEach(item => { item.addEventListener('click', () => this.openUnitModal(item.dataset.id)); });
     },
 
     onCustomerSearch() {
         const val = this.el.customerSearchInput.value;
-        if (val === 'نقدي (بدون عميل)') {
-            this.selectedCustomer = null;
-            this.el.customerBalanceDisplay.innerHTML = '';
-            return;
-        }
+        if (val === 'نقدي (بدون عميل)') { this.selectedCustomer = null; this.el.customerBalanceDisplay.innerHTML = ''; return; }
         const option = Array.from(this.el.customerList.querySelectorAll('option')).find(o => o.value === val);
         if (option) {
             this.selectedCustomer = this.customers.find(c => c.id === option.dataset.id);
@@ -165,13 +131,9 @@ const POS = {
                 const bal = this.selectedCustomer.balance || 0;
                 this.el.customerBalanceDisplay.innerHTML = bal >= 0 ? `رصيد للعميل: ${Utils.formatMoney(bal)}` : `رصيد على العميل: ${Utils.formatMoney(-bal)}`;
             }
-        } else {
-            this.selectedCustomer = null;
-            this.el.customerBalanceDisplay.innerHTML = '';
-        }
+        } else { this.selectedCustomer = null; this.el.customerBalanceDisplay.innerHTML = ''; }
     },
 
-    // ========== السلة ==========
     calculateTotals() {
         const subtotal = this.cart.reduce((s, i) => s + i.price * i.quantity, 0);
         const discountVal = parseFloat(this.el.discountValue.value) || 0;
@@ -180,7 +142,6 @@ const POS = {
         if (discountType === 'amount') discount = discountVal;
         else discount = subtotal * discountVal / 100;
         const net = subtotal - discount;
-
         this.el.itemTypesCount.textContent = this.cart.length;
         const pieces = this.cart.reduce((s, item) => s + (item.quantity * (item.factor || 1)), 0);
         this.el.totalPieces.textContent = pieces.toFixed(2);
@@ -203,18 +164,13 @@ const POS = {
         this.calculateTotals();
     },
 
-    // ========== مودال الوحدة ==========
     openUnitModal(productId) {
         this.selectedProduct = this.products.find(p => p.id === productId);
         if (!this.selectedProduct) return;
         this.el.modalProductName.textContent = this.selectedProduct.name;
         const container = this.el.unitButtons;
-        container.innerHTML = this.selectedProduct.units.map((u, idx) =>
-            `<button class="unit-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}">${u.name}</button>`
-        ).join('');
-        container.querySelectorAll('.unit-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.selectUnit(parseInt(btn.dataset.index)));
-        });
+        container.innerHTML = this.selectedProduct.units.map((u, idx) => `<button class="unit-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}">${u.name}</button>`).join('');
+        container.querySelectorAll('.unit-btn').forEach(btn => { btn.addEventListener('click', () => this.selectUnit(parseInt(btn.dataset.index))); });
         this.selectedUnit = this.selectedProduct.units[0];
         this.el.selectedPrice.value = this.selectedUnit.price;
         this.el.stockInfo.textContent = `المخزون: ${this.selectedUnit.stock} ${this.selectedUnit.name}`;
@@ -237,21 +193,13 @@ const POS = {
         if (qty <= 0 || qty > this.selectedUnit.stock) { alert('كمية غير صالحة'); return; }
         const existing = this.cart.find(i => i.productId === this.selectedProduct.id && i.unitName === this.selectedUnit.name);
         if (existing) existing.quantity += qty;
-        else this.cart.push({
-            productId: this.selectedProduct.id,
-            productName: this.selectedProduct.name,
-            unitName: this.selectedUnit.name,
-            quantity: qty,
-            price: price,
-            factor: this.selectedUnit.factor || 1
-        });
+        else this.cart.push({ productId: this.selectedProduct.id, productName: this.selectedProduct.name, unitName: this.selectedUnit.name, quantity: qty, price: price, factor: this.selectedUnit.factor || 1 });
         this.renderCart();
         this.closeModal('unitQuantityModal');
         this.el.productSearchInput.value = '';
         this.filterProducts();
     },
 
-    // ========== الدفع ==========
     openPaymentModal() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         const totals = this.calculateTotals();
@@ -260,8 +208,7 @@ const POS = {
         this.el.payNet.textContent = Utils.formatMoney(totals.net);
         const bal = this.selectedCustomer?.balance || 0;
         this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
-        this.el.cashAmount.value = '';
-        this.el.transferAmount.value = '';
+        this.el.cashAmount.value = ''; this.el.transferAmount.value = '';
         this.el.paymentMethod.value = 'cash';
         this.togglePaymentFields();
         this.updatePaymentPreview();
@@ -290,24 +237,17 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
-    // ========== دوال آمنة للقاعدة ==========
-    cleanObject(obj) {
-        const cleaned = { ...obj };
-        delete cleaned.updated_at; // إزالة أي updated_at غير موجود
-        return cleaned;
-    },
-
-    async safeSaveParty(party) {
+    // --- دوال مساعدة آمنة ---
+    cleanObject(obj) { const c = { ...obj }; delete c.updated_at; return c; },
+    safeSaveParty(p) { if (!this.isDBReady) return; return DB.saveParty(this.cleanObject(p)); },
+    safeSaveProduct(p) { if (!this.isDBReady) return; return DB.saveProduct(this.cleanObject(p)); },
+    safeSaveInvoice(inv) {
         if (!this.isDBReady) return;
-        return DB.saveParty(this.cleanObject(party));
+        const c = { ...inv };
+        delete c.updated_at; delete c.subtotal; delete c.discount; delete c.notes; delete c.customer_name;
+        return DB.saveInvoice(c);
     },
 
-    async safeSaveProduct(product) {
-        if (!this.isDBReady) return;
-        return DB.saveProduct(this.cleanObject(product));
-    },
-
-    // بناء كائن فاتورة بأقل عدد من الحقول (المتوافقة مع جدولك)
     buildInvoice(paid, remaining, status) {
         return {
             id: crypto.randomUUID(),
@@ -315,7 +255,7 @@ const POS = {
             date: Utils.getToday(),
             customer_id: this.selectedCustomer?.id || null,
             items: this.cart,
-            total: this.calculateTotals().net, // الصافي هو الإجمالي
+            total: this.calculateTotals().net,
             paid: paid,
             remaining: remaining,
             status: status
@@ -329,14 +269,10 @@ const POS = {
             let cashPaid = 0, transferPaid = 0;
             if (method === 'cash') cashPaid = parseFloat(this.el.cashAmount.value) || 0;
             else if (method === 'transfer') transferPaid = parseFloat(this.el.transferAmount.value) || 0;
-            else if (method === 'mixed') {
-                cashPaid = parseFloat(this.el.cashAmount.value) || 0;
-                transferPaid = parseFloat(this.el.transferAmount.value) || 0;
-            }
+            else if (method === 'mixed') { cashPaid = parseFloat(this.el.cashAmount.value) || 0; transferPaid = parseFloat(this.el.transferAmount.value) || 0; }
             const totalPaid = cashPaid + transferPaid;
             const diff = totalPaid - totals.net;
 
-            // تحديث رصيد العميل
             if (this.selectedCustomer) {
                 this.selectedCustomer.balance = (this.selectedCustomer.balance || 0) + diff;
                 await this.safeSaveParty(this.selectedCustomer);
@@ -345,110 +281,58 @@ const POS = {
             const invoice = this.buildInvoice(totalPaid, diff >= 0 ? 0 : -diff, diff >= 0 ? 'paid' : 'partial');
 
             if (this.isDBReady) {
-                await DB.saveInvoice(invoice);
-                // تحديث المخزون
+                await this.safeSaveInvoice(invoice);
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
                         const unit = prod.units.find(u => u.name === item.unitName);
-                        if (unit) {
-                            prod.units[0].stock -= item.quantity * (unit.factor || 1);
-                            await this.safeSaveProduct(prod);
-                        }
+                        if (unit) { prod.units[0].stock -= item.quantity * (unit.factor || 1); await this.safeSaveProduct(prod); }
                     }
                 }
-                // المعاملات المالية
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
-                // وضع الاختبار: تخزين في localStorage
-                const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]');
-                sales.push(invoice);
-                localStorage.setItem('pos_test_sales', JSON.stringify(sales));
-                // تحديث منتجات محلية
+                const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]'); sales.push(invoice); localStorage.setItem('pos_test_sales', JSON.stringify(sales));
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
-                    if (prod) {
-                        const unit = prod.units.find(u => u.name === item.unitName);
-                        if (unit) prod.units[0].stock -= item.quantity * (unit.factor || 1);
-                    }
+                    if (prod) { const unit = prod.units.find(u => u.name === item.unitName); if (unit) prod.units[0].stock -= item.quantity * (unit.factor || 1); }
                 }
             }
 
-            // طباعة الإيصال
-            if (window.printSaleReceipt) {
-                printSaleReceipt(invoice, this.selectedCustomer || { name: 'نقدي', balance: 0 }, this.cart, totals);
-            } else {
-                alert(`تم البيع بنجاح. رقم الفاتورة: ${invoice.id}`);
-            }
+            if (window.printSaleReceipt) printSaleReceipt(invoice, this.selectedCustomer || { name: 'نقدي', balance: 0 }, this.cart, totals);
+            else alert(`تم البيع بنجاح. رقم الفاتورة: ${invoice.id}`);
 
-            // إعادة تعيين الواجهة
-            this.cart = []; this.renderCart();
-            this.el.discountValue.value = 0;
-            this.selectedCustomer = null;
-            this.el.customerSearchInput.value = '';
-            this.el.customerBalanceDisplay.innerHTML = '';
-            this.closeModal('paymentModal');
-            await this.loadData();
-            this.filterProducts();
-            this.showToast('تم البيع بنجاح');
-        } catch (error) {
-            console.error('خطأ في الدفع:', error);
-            alert('حدث خطأ أثناء إتمام الدفع: ' + error.message);
-        }
+            this.cart = []; this.renderCart(); this.el.discountValue.value = 0; this.selectedCustomer = null;
+            this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
+            this.closeModal('paymentModal'); await this.loadData(); this.filterProducts(); this.showToast('تم البيع بنجاح');
+        } catch (error) { console.error(error); alert('حدث خطأ: ' + error.message); }
     },
 
     async holdInvoice() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
             const invoice = this.buildInvoice(0, this.calculateTotals().net, 'held');
-            if (this.isDBReady) {
-                await DB.saveInvoice(invoice);
-            } else {
-                const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
-                held.push(invoice);
-                localStorage.setItem('pos_test_held', JSON.stringify(held));
-            }
-
+            if (this.isDBReady) await this.safeSaveInvoice(invoice);
+            else { const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]'); held.push(invoice); localStorage.setItem('pos_test_held', JSON.stringify(held)); }
             alert(`تم تعليق الفاتورة ${invoice.id}`);
-            this.cart = []; this.renderCart();
-            this.selectedCustomer = null;
-            this.el.customerSearchInput.value = '';
-            this.el.customerBalanceDisplay.innerHTML = '';
-            await this.loadData();
-            this.filterProducts();
-            this.showToast('تم تعليق الفاتورة');
-        } catch (error) {
-            console.error('خطأ في التعليق:', error);
-            alert('فشل تعليق الفاتورة: ' + error.message);
-        }
+            this.cart = []; this.renderCart(); this.selectedCustomer = null;
+            this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
+            await this.loadData(); this.filterProducts(); this.showToast('تم تعليق الفاتورة');
+        } catch (error) { console.error(error); alert('فشل تعليق الفاتورة: ' + error.message); }
     },
 
     async loadHeldInvoices() {
         let invoices = [];
-        if (this.isDBReady) {
-            try {
-                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale' && i.status === 'held');
-            } catch (e) { console.error(e); }
-        } else {
-            invoices = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
-        }
-
+        if (this.isDBReady) { try { invoices = (await DB.getInvoices()).filter(i => i.type === 'sale' && i.status === 'held'); } catch (e) {} }
+        else invoices = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
         const container = this.el.heldInvoicesList;
-        if (!invoices.length) {
-            container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
-        } else {
+        if (!invoices.length) container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
+        else {
             container.innerHTML = invoices.map(inv => {
-                // محاولة استخراج اسم العميل من الذاكرة
                 const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
-                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
-                    <div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div>
-                    <div><i class="fas fa-play"></i></div>
-                </div>`;
+                return `<div class="held-invoice-item" data-id="${inv.id}"><div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
             }).join('');
-            container.querySelectorAll('.held-invoice-item').forEach(item => {
-                item.addEventListener('click', () => this.resumeInvoice(item.dataset.id));
-            });
+            container.querySelectorAll('.held-invoice-item').forEach(item => item.addEventListener('click', () => this.resumeInvoice(item.dataset.id)));
         }
         this.showModal('heldInvoicesModal');
     },
@@ -457,62 +341,37 @@ const POS = {
         if (this.isDBReady) {
             const inv = (await DB.getInvoices()).find(i => i.id === id);
             if (!inv) return;
-            this.cart = inv.items;
-            this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
-            // حذف الفاتورة المعلقة من قاعدة البيانات
+            this.cart = inv.items; this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
             await supabase.from('invoices').delete().eq('id', id);
         } else {
             const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
-            const idx = held.findIndex(i => i.id === id);
-            if (idx === -1) return;
-            const inv = held[idx];
-            this.cart = inv.items;
-            this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
-            held.splice(idx, 1);
-            localStorage.setItem('pos_test_held', JSON.stringify(held));
+            const idx = held.findIndex(i => i.id === id); if (idx === -1) return;
+            const inv = held[idx]; this.cart = inv.items; this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
+            held.splice(idx, 1); localStorage.setItem('pos_test_held', JSON.stringify(held));
         }
-
-        if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
-        else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
-        this.onCustomerSearch();
-        this.renderCart();
-        this.closeModal('heldInvoicesModal');
-        this.showToast('تم تحميل الفاتورة المعلقة');
+        if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name; else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+        this.onCustomerSearch(); this.renderCart(); this.closeModal('heldInvoicesModal'); this.showToast('تم تحميل الفاتورة المعلقة');
     },
 
-    // ========== مساعدات ==========
     showModal(id) { this.el[id].style.display = 'flex'; },
     closeModal(id) { this.el[id].style.display = 'none'; },
-    showToast(msg) {
-        const toast = this.el.toast;
-        toast.textContent = msg; toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
-    },
+    showToast(msg) { const t = this.el.toast; t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); },
     saveCartToStorage() {
-        if (this.cart.length > 0) {
-            localStorage.setItem('pos_held_cart', JSON.stringify({
-                cart: this.cart, customer: this.selectedCustomer,
-                discountType: this.el.discountType.value, discountValue: this.el.discountValue.value
-            }));
-        } else localStorage.removeItem('pos_held_cart');
+        if (this.cart.length > 0) localStorage.setItem('pos_held_cart', JSON.stringify({ cart: this.cart, customer: this.selectedCustomer, discountType: this.el.discountType.value, discountValue: this.el.discountValue.value }));
+        else localStorage.removeItem('pos_held_cart');
     },
     restoreCartFromStorage() {
-        const saved = localStorage.getItem('pos_held_cart');
-        if (!saved) return;
+        const saved = localStorage.getItem('pos_held_cart'); if (!saved) return;
         try {
-            const held = JSON.parse(saved);
-            this.cart = held.cart; this.selectedCustomer = held.customer;
+            const held = JSON.parse(saved); this.cart = held.cart; this.selectedCustomer = held.customer;
             this.el.discountType.value = held.discountType; this.el.discountValue.value = held.discountValue;
-            if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
-            else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
-            this.onCustomerSearch(); this.renderCart();
-            this.showToast('تم استعادة السلة المحفوظة');
+            if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name; else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+            this.onCustomerSearch(); this.renderCart(); this.showToast('تم استعادة السلة المحفوظة');
         } catch (e) {}
         localStorage.removeItem('pos_held_cart');
     }
 };
 
-// دوال عامة لتفاعل HTML
 window.POS = POS;
 window.POSCartUpdate = (idx, val, type) => {
     if (type === 'qty') { const q = parseFloat(val); if (q <= 0) POS.cart.splice(idx, 1); else POS.cart[idx].quantity = q; }
