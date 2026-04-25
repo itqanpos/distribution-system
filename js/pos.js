@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي تمامًا)
+   نقطة البيع - حسابي (الإصدار النهائي)
    ============================================= */
 'use strict';
 
@@ -237,40 +237,7 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
-    // --- دوال آمنة (تزيل updated_at وأي حقول غير موجودة) ---
-    cleanObject(obj, extraFields = []) {
-        const c = { ...obj };
-        delete c.updated_at;
-        extraFields.forEach(f => delete c[f]);
-        return c;
-    },
-    safeSaveParty(p) { if (!this.isDBReady) return; return DB.saveParty(this.cleanObject(p)); },
-    safeSaveProduct(p) { if (!this.isDBReady) return; return DB.saveProduct(this.cleanObject(p)); },
-    safeSaveInvoice(inv) {
-        if (!this.isDBReady) return;
-        const c = this.cleanObject(inv, ['subtotal', 'discount', 'notes', 'customer_name']);
-        return DB.saveInvoice(c);
-    },
-    safeSaveTransaction(tr) {
-        if (!this.isDBReady) return;
-        const c = this.cleanObject(tr);
-        return DB.saveTransaction(c);
-    },
-
-    buildInvoice(paid, remaining, status) {
-        return {
-            id: crypto.randomUUID(),
-            type: 'sale',
-            date: Utils.getToday(),
-            customer_id: this.selectedCustomer?.id || null,
-            items: this.cart,
-            total: this.calculateTotals().net,
-            paid: paid,
-            remaining: remaining,
-            status: status
-        };
-    },
-
+    // ========== دوال قاعدة البيانات (بدون تنظيف لأن الجداول جاهزة) ==========
     async completePayment() {
         try {
             const totals = this.calculateTotals();
@@ -281,26 +248,44 @@ const POS = {
             else if (method === 'mixed') { cashPaid = parseFloat(this.el.cashAmount.value) || 0; transferPaid = parseFloat(this.el.transferAmount.value) || 0; }
             const totalPaid = cashPaid + transferPaid;
             const diff = totalPaid - totals.net;
+            const notes = this.el.paymentNotes.value;
 
+            // تحديث رصيد العميل
             if (this.selectedCustomer) {
                 this.selectedCustomer.balance = (this.selectedCustomer.balance || 0) + diff;
-                await this.safeSaveParty(this.selectedCustomer);
+                if (this.isDBReady) await DB.saveParty(this.selectedCustomer);
             }
 
-            const invoice = this.buildInvoice(totalPaid, diff >= 0 ? 0 : -diff, diff >= 0 ? 'paid' : 'partial');
+            // بناء فاتورة كاملة
+            const invoice = {
+                id: crypto.randomUUID(),
+                type: 'sale',
+                date: Utils.getToday(),
+                customer_id: this.selectedCustomer?.id || null,
+                customer_name: this.selectedCustomer?.name || 'نقدي',
+                items: this.cart,
+                subtotal: totals.subtotal,
+                discount: totals.discount,
+                total: totals.net,
+                paid: totalPaid,
+                remaining: diff >= 0 ? 0 : -diff,
+                status: diff >= 0 ? 'paid' : 'partial',
+                notes: notes || null
+            };
 
             if (this.isDBReady) {
-                await this.safeSaveInvoice(invoice);
+                await DB.saveInvoice(invoice);
+                // تحديث المخزون
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
                         const unit = prod.units.find(u => u.name === item.unitName);
-                        if (unit) { prod.units[0].stock -= item.quantity * (unit.factor || 1); await this.safeSaveProduct(prod); }
+                        if (unit) { prod.units[0].stock -= item.quantity * (unit.factor || 1); await DB.saveProduct(prod); }
                     }
                 }
-                // استخدام safeSaveTransaction
-                if (cashPaid > 0) await this.safeSaveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
-                if (transferPaid > 0) await this.safeSaveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
+                // المعاملات المالية
+                if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
+                if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
                 const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]'); sales.push(invoice); localStorage.setItem('pos_test_sales', JSON.stringify(sales));
                 for (const item of this.cart) {
@@ -321,9 +306,26 @@ const POS = {
     async holdInvoice() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
-            const invoice = this.buildInvoice(0, this.calculateTotals().net, 'held');
-            if (this.isDBReady) await this.safeSaveInvoice(invoice);
+            const totals = this.calculateTotals();
+            const invoice = {
+                id: crypto.randomUUID(),
+                type: 'sale',
+                date: Utils.getToday(),
+                customer_id: this.selectedCustomer?.id || null,
+                customer_name: this.selectedCustomer?.name || 'نقدي',
+                items: this.cart,
+                subtotal: totals.subtotal,
+                discount: totals.discount,
+                total: totals.net,
+                paid: 0,
+                remaining: totals.net,
+                status: 'held',
+                notes: 'فاتورة معلقة'
+            };
+
+            if (this.isDBReady) await DB.saveInvoice(invoice);
             else { const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]'); held.push(invoice); localStorage.setItem('pos_test_held', JSON.stringify(held)); }
+
             alert(`تم تعليق الفاتورة ${invoice.id}`);
             this.cart = []; this.renderCart(); this.selectedCustomer = null;
             this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
@@ -339,7 +341,7 @@ const POS = {
         if (!invoices.length) container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
         else {
             container.innerHTML = invoices.map(inv => {
-                const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
+                const name = inv.customer_name || this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
                 return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;"><div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
             }).join('');
             container.querySelectorAll('.held-invoice-item').forEach(item => item.addEventListener('click', () => this.resumeInvoice(item.dataset.id)));
@@ -351,15 +353,18 @@ const POS = {
         if (this.isDBReady) {
             const inv = (await DB.getInvoices()).find(i => i.id === id);
             if (!inv) return;
-            this.cart = inv.items; this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
+            this.cart = inv.items;
+            this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
             await supabase.from('invoices').delete().eq('id', id);
         } else {
             const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
             const idx = held.findIndex(i => i.id === id); if (idx === -1) return;
-            const inv = held[idx]; this.cart = inv.items; this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
+            const inv = held[idx]; this.cart = inv.items;
+            this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
             held.splice(idx, 1); localStorage.setItem('pos_test_held', JSON.stringify(held));
         }
-        if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name; else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+        if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
+        else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
         this.onCustomerSearch(); this.renderCart(); this.closeModal('heldInvoicesModal'); this.showToast('تم تحميل الفاتورة المعلقة');
     },
 
@@ -375,7 +380,8 @@ const POS = {
         try {
             const held = JSON.parse(saved); this.cart = held.cart; this.selectedCustomer = held.customer;
             this.el.discountType.value = held.discountType; this.el.discountValue.value = held.discountValue;
-            if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name; else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+            if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
+            else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
             this.onCustomerSearch(); this.renderCart(); this.showToast('تم استعادة السلة المحفوظة');
         } catch (e) {}
         localStorage.removeItem('pos_held_cart');
