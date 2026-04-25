@@ -162,3 +162,9 @@ td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
     .units-grid { grid-template-columns: 1fr; }
 }
 @media (min-width: 993px) { .menu-toggle { display: none; } }
+/* تكلفة الشراء في الوحدات الفرعية معطلة بصرياً */
+.unit-card:not(.is-base) .unit-cost {
+    background-color: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+}
