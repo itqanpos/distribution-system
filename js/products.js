@@ -1,5 +1,5 @@
 /* =============================================
-   المنتجات - حسابي (إصدار محسّن)
+   المنتجات - حسابي (إصدار مخصص للتكلفة الموحدة)
    ============================================= */
 
 'use strict';
@@ -48,37 +48,31 @@ const Products = {
             unitsContainer: document.getElementById('unitsContainer'),
             addUnitBtn: document.getElementById('addUnitBtn'),
             notes: document.getElementById('notes'),
-            // إحصائيات
             totalProducts: document.getElementById('totalProducts'),
             lowStockCount: document.getElementById('lowStockCount'),
             outOfStockCount: document.getElementById('outOfStockCount'),
             categoriesCount: document.getElementById('categoriesCount'),
             categoriesList: document.getElementById('categoriesList'),
-            // أحداث القائمة
             userProfileBtn: document.getElementById('userProfileBtn'),
             userDropdown: document.getElementById('userDropdown')
         };
     },
 
     bindEvents() {
-        // القائمة
         this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
         this.el.menuToggle.addEventListener('click', () => this.el.sidebar.classList.toggle('mobile-open'));
         this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // تصفية
         this.el.searchInput.addEventListener('input', () => this.renderTable());
         this.el.categoryFilter.addEventListener('change', () => this.renderTable());
         this.el.refreshBtn.addEventListener('click', () => this.loadData());
 
-        // فتح المودال للإضافة
         this.el.addProductBtn.addEventListener('click', () => this.openModal());
         this.el.closeModalBtn.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn.addEventListener('click', () => this.closeModal());
         this.el.productForm.addEventListener('submit', (e) => { e.preventDefault(); this.saveProduct(); });
 
-        // إضافة وحدة
         this.el.addUnitBtn.addEventListener('click', () => this.addUnitCard());
     },
 
@@ -89,7 +83,8 @@ const Products = {
             } else {
                 this.products = [
                     { id: '1', name: 'منتج تجريبي', category: 'مشروبات',
-                      units: [{ name: 'قطعة', price: 10, cost: 7, minPrice: 5, maxPrice: 15, stock: 50, factor: 1 }] }
+                      units: [{ name: 'كرتونة', price: 200, cost: 150, minPrice: 0, maxPrice: 0, stock: 30, factor: 1 },
+                              { name: 'قطعة', price: 20, cost: 15, minPrice: 0, maxPrice: 0, stock: 0, factor: 0.1 }] }
                 ];
             }
             this.updateStats();
@@ -172,6 +167,7 @@ const Products = {
         if (product?.units?.length) {
             product.units.forEach((u, i) => this.addUnitCard(u, i === 0));
         } else {
+            // إنشاء وحدة أساسية أولى (يمكن تسميتها لاحقاً)
             this.addUnitCard({ name: 'قطعة', price: 0, cost: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }, true);
         }
         this.el.productModal.style.display = 'flex';
@@ -183,14 +179,20 @@ const Products = {
 
     addUnitCard(unit = null, isBase = false) {
         const container = this.el.unitsContainer;
-        const existing = container.children.length;
-        if (existing === 0) isBase = true; // أول وحدة دائماً أساسية
+        // أول بطاقة تكون أساسية دائماً
+        if (container.children.length === 0) isBase = true;
 
         const card = document.createElement('div');
         card.className = `unit-card ${isBase ? 'is-base' : ''}`;
+        
+        // بناء حقول التكلفة: للوحدة الأساسية قابلة للتعديل، للفرعية readonly وتُحسب تلقائياً
+        const costFieldHTML = isBase
+            ? `<input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" min="0" onchange="Products.updatePricesFromBase()">`
+            : `<input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" readonly>`;
+
         card.innerHTML = `
             <div class="unit-card-header">
-                <input type="text" class="unit-name-input" value="${unit?.name || 'قطعة'}" placeholder="اسم الوحدة" ${isBase ? 'readonly' : ''}>
+                <input type="text" class="unit-name-input" value="${unit?.name || (isBase ? 'قطعة' : '')}" placeholder="اسم الوحدة">
                 ${isBase ? '<span class="base-badge">★ أساسية</span>' : ''}
             </div>
             <div class="unit-card-body">
@@ -200,7 +202,7 @@ const Products = {
                 </div>
                 <div class="unit-field">
                     <label>تكلفة الشراء</label>
-                    <input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" min="0" onchange="Products.updatePricesFromBase()">
+                    ${costFieldHTML}
                 </div>
                 <div class="unit-field">
                     <label>الحد الأدنى للسعر</label>
@@ -220,25 +222,35 @@ const Products = {
                 </div>
             </div>
             <div class="unit-card-actions">
-                ${!isBase ? '<button type="button" onclick="this.closest(\'.unit-card\').remove()">🗑️ حذف</button>' : ''}
+                ${!isBase ? '<button type="button" onclick="this.closest(\'.unit-card\').remove(); Products.updatePricesFromBase();">🗑️ حذف</button>' : ''}
             </div>
         `;
         container.appendChild(card);
+
+        // إذا أضفنا وحدة فرعية، تأكد من تحديث تكلفتها مباشرة
+        if (!isBase) {
+            this.updateSingleUnitCost(card);
+        }
     },
 
-    // تحديث السعر بناءً على عامل التحويل (للوحدات غير الأساسية)
-    updatePriceFromFactor(input) {
-        const card = input.closest('.unit-card');
+    // تحديث تكلفة وسعر وحدة فرعية واحدة بناءً على الأساسية
+    updateSingleUnitCost(card) {
         const baseCard = this.el.unitsContainer.children[0];
         if (!baseCard || card === baseCard) return;
         const basePrice = parseFloat(baseCard.querySelector('.unit-price')?.value) || 0;
         const baseCost = parseFloat(baseCard.querySelector('.unit-cost')?.value) || 0;
-        const factor = parseFloat(input.value) || 1;
+        const factor = parseFloat(card.querySelector('.unit-factor')?.value) || 1;
         card.querySelector('.unit-price').value = (basePrice * factor).toFixed(2);
         card.querySelector('.unit-cost').value = (baseCost * factor).toFixed(2);
     },
 
-    // تحديث جميع الأسعار من الوحدة الأساسية
+    // تحديث سعر وتكلفة وحدة فرعية عندما يغير المستخدم عامل التحويل
+    updatePriceFromFactor(input) {
+        const card = input.closest('.unit-card');
+        this.updateSingleUnitCost(card);
+    },
+
+    // تحديث جميع الوحدات الفرعية من الوحدة الأساسية (عند تغيير التكلفة أو السعر الأساسي)
     updatePricesFromBase() {
         const cards = [...this.el.unitsContainer.children];
         if (cards.length === 0) return;
@@ -283,7 +295,6 @@ const Products = {
             if (window.DB) {
                 await DB.saveProduct(product);
             } else {
-                // حفظ محلي للاختبار
                 const local = JSON.parse(localStorage.getItem('products') || '[]');
                 const idx = local.findIndex(p => p.id === product.id);
                 if (idx >= 0) local[idx] = product;
@@ -298,7 +309,6 @@ const Products = {
         }
     },
 
-    // ========== عمليات على المنتج ==========
     editProduct(id) {
         const product = this.products.find(p => p.id === id);
         if (product) this.openModal(product);
