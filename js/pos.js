@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (الإصدار النهائي المستقر)
+   نقطة البيع - حسابي (إصدار نهائي تمامًا)
    ============================================= */
 'use strict';
 
@@ -237,15 +237,24 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
-    // --- دوال مساعدة آمنة ---
-    cleanObject(obj) { const c = { ...obj }; delete c.updated_at; return c; },
+    // --- دوال آمنة (تزيل updated_at وأي حقول غير موجودة) ---
+    cleanObject(obj, extraFields = []) {
+        const c = { ...obj };
+        delete c.updated_at;
+        extraFields.forEach(f => delete c[f]);
+        return c;
+    },
     safeSaveParty(p) { if (!this.isDBReady) return; return DB.saveParty(this.cleanObject(p)); },
     safeSaveProduct(p) { if (!this.isDBReady) return; return DB.saveProduct(this.cleanObject(p)); },
     safeSaveInvoice(inv) {
         if (!this.isDBReady) return;
-        const c = { ...inv };
-        delete c.updated_at; delete c.subtotal; delete c.discount; delete c.notes; delete c.customer_name;
+        const c = this.cleanObject(inv, ['subtotal', 'discount', 'notes', 'customer_name']);
         return DB.saveInvoice(c);
+    },
+    safeSaveTransaction(tr) {
+        if (!this.isDBReady) return;
+        const c = this.cleanObject(tr);
+        return DB.saveTransaction(c);
     },
 
     buildInvoice(paid, remaining, status) {
@@ -289,8 +298,9 @@ const POS = {
                         if (unit) { prod.units[0].stock -= item.quantity * (unit.factor || 1); await this.safeSaveProduct(prod); }
                     }
                 }
-                if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
-                if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
+                // استخدام safeSaveTransaction
+                if (cashPaid > 0) await this.safeSaveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
+                if (transferPaid > 0) await this.safeSaveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
                 const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]'); sales.push(invoice); localStorage.setItem('pos_test_sales', JSON.stringify(sales));
                 for (const item of this.cart) {
@@ -305,7 +315,7 @@ const POS = {
             this.cart = []; this.renderCart(); this.el.discountValue.value = 0; this.selectedCustomer = null;
             this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
             this.closeModal('paymentModal'); await this.loadData(); this.filterProducts(); this.showToast('تم البيع بنجاح');
-        } catch (error) { console.error(error); alert('حدث خطأ: ' + error.message); }
+        } catch (error) { console.error('خطأ في الدفع:', error); alert('حدث خطأ: ' + error.message); }
     },
 
     async holdInvoice() {
@@ -330,7 +340,7 @@ const POS = {
         else {
             container.innerHTML = invoices.map(inv => {
                 const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
-                return `<div class="held-invoice-item" data-id="${inv.id}"><div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
+                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;"><div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
             }).join('');
             container.querySelectorAll('.held-invoice-item').forEach(item => item.addEventListener('click', () => this.resumeInvoice(item.dataset.id)));
         }
