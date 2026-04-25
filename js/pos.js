@@ -1,8 +1,9 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي متوافق)
+   نقطة البيع - حسابي (إصدار متوافق مع جدول invoices الحالي)
    ============================================= */
 'use strict';
 
+// دوال مساعدة احتياطية
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
@@ -55,6 +56,7 @@ const POS = {
     },
 
     bindEvents() {
+        // القائمة والمستخدم
         this.el.userProfileBtn.addEventListener('click', (e) => {
             e.stopPropagation(); this.el.userDropdown.classList.toggle('show');
         });
@@ -66,16 +68,20 @@ const POS = {
             else window.location.href = './index.html';
         });
 
+        // البحث
         this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
 
+        // أزرار رئيسية
         this.el.payBtn.addEventListener('click', () => this.openPaymentModal());
         this.el.holdBtn.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn.addEventListener('click', () => this.loadHeldInvoices());
 
+        // مودال الوحدة
         this.el.addToCartBtn.addEventListener('click', () => this.addToCartFromModal());
         this.el.closeUnitModalBtn.addEventListener('click', () => this.closeModal('unitQuantityModal'));
 
+        // مودال الدفع
         this.el.confirmAndPrintBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             await this.completePayment();
@@ -85,13 +91,14 @@ const POS = {
         this.el.cashAmount.addEventListener('input', () => this.updatePaymentPreview());
         this.el.transferAmount.addEventListener('input', () => this.updatePaymentPreview());
 
+        // مودال المعلقة
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
     },
 
     async loadInitialData() {
         this.isDBReady = !!(window.DB && window.supabase);
         if (!this.isDBReady) {
-            console.warn('⚠️ وضع الاختبار');
+            console.warn('⚠️ وضع الاختبار - قاعدة البيانات غير متصلة');
             this.showToast('وضع الاختبار - البيانات محلية');
         }
         await this.loadData();
@@ -104,6 +111,7 @@ const POS = {
                 this.products = await DB.getProducts();
                 this.customers = await DB.getParties('customer');
             } else {
+                // بيانات وهمية للاختبار
                 this.products = [
                     { id: '1', name: 'منتج تجريبي ١', units: [{ name: 'قطعة', price: 12, stock: 100, factor: 1 }] },
                     { id: '2', name: 'منتج تجريبي ٢', units: [{ name: 'كرتونة', price: 250, stock: 30, factor: 1 }] }
@@ -163,6 +171,7 @@ const POS = {
         }
     },
 
+    // ========== السلة ==========
     calculateTotals() {
         const subtotal = this.cart.reduce((s, i) => s + i.price * i.quantity, 0);
         const discountVal = parseFloat(this.el.discountValue.value) || 0;
@@ -194,6 +203,7 @@ const POS = {
         this.calculateTotals();
     },
 
+    // ========== مودال الوحدة ==========
     openUnitModal(productId) {
         this.selectedProduct = this.products.find(p => p.id === productId);
         if (!this.selectedProduct) return;
@@ -241,6 +251,7 @@ const POS = {
         this.filterProducts();
     },
 
+    // ========== الدفع ==========
     openPaymentModal() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         const totals = this.calculateTotals();
@@ -279,10 +290,10 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
-    // --- دوال آمنة للحذف updated_at ---
+    // ========== دوال آمنة للقاعدة ==========
     cleanObject(obj) {
         const cleaned = { ...obj };
-        delete cleaned.updated_at;
+        delete cleaned.updated_at; // إزالة أي updated_at غير موجود
         return cleaned;
     },
 
@@ -294,6 +305,21 @@ const POS = {
     async safeSaveProduct(product) {
         if (!this.isDBReady) return;
         return DB.saveProduct(this.cleanObject(product));
+    },
+
+    // بناء كائن فاتورة بأقل عدد من الحقول (المتوافقة مع جدولك)
+    buildInvoice(paid, remaining, status) {
+        return {
+            id: crypto.randomUUID(),
+            type: 'sale',
+            date: Utils.getToday(),
+            customer_id: this.selectedCustomer?.id || null,
+            items: this.cart,
+            total: this.calculateTotals().net, // الصافي هو الإجمالي
+            paid: paid,
+            remaining: remaining,
+            status: status
+        };
     },
 
     async completePayment() {
@@ -309,31 +335,18 @@ const POS = {
             }
             const totalPaid = cashPaid + transferPaid;
             const diff = totalPaid - totals.net;
-            const notes = this.el.paymentNotes.value;
 
+            // تحديث رصيد العميل
             if (this.selectedCustomer) {
                 this.selectedCustomer.balance = (this.selectedCustomer.balance || 0) + diff;
                 await this.safeSaveParty(this.selectedCustomer);
             }
 
-            // إنشاء الفاتورة بدون notes وبدون customer_name
-            const invoice = {
-                id: crypto.randomUUID(),
-                type: 'sale',
-                date: Utils.getToday(),
-                customer_id: this.selectedCustomer?.id || null,
-                items: this.cart,
-                subtotal: totals.subtotal,
-                discount: totals.discount,
-                total: totals.net,
-                paid: totalPaid,
-                remaining: diff >= 0 ? 0 : -diff,
-                status: diff >= 0 ? 'paid' : 'partial'
-                // لا notes، لا customer_name
-            };
+            const invoice = this.buildInvoice(totalPaid, diff >= 0 ? 0 : -diff, diff >= 0 ? 'paid' : 'partial');
 
             if (this.isDBReady) {
                 await DB.saveInvoice(invoice);
+                // تحديث المخزون
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
@@ -344,13 +357,15 @@ const POS = {
                         }
                     }
                 }
+                // المعاملات المالية
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
-                // وضع اختبار
+                // وضع الاختبار: تخزين في localStorage
                 const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]');
                 sales.push(invoice);
                 localStorage.setItem('pos_test_sales', JSON.stringify(sales));
+                // تحديث منتجات محلية
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
@@ -360,12 +375,14 @@ const POS = {
                 }
             }
 
+            // طباعة الإيصال
             if (window.printSaleReceipt) {
                 printSaleReceipt(invoice, this.selectedCustomer || { name: 'نقدي', balance: 0 }, this.cart, totals);
             } else {
-                alert(`تم البيع. الفاتورة ${invoice.id}`);
+                alert(`تم البيع بنجاح. رقم الفاتورة: ${invoice.id}`);
             }
 
+            // إعادة تعيين الواجهة
             this.cart = []; this.renderCart();
             this.el.discountValue.value = 0;
             this.selectedCustomer = null;
@@ -384,22 +401,7 @@ const POS = {
     async holdInvoice() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
-            const totals = this.calculateTotals();
-            // فاتورة بدون notes وبدون customer_name
-            const invoice = {
-                id: crypto.randomUUID(),
-                type: 'sale',
-                date: Utils.getToday(),
-                customer_id: this.selectedCustomer?.id || null,
-                items: this.cart,
-                subtotal: totals.subtotal,
-                discount: totals.discount,
-                total: totals.net,
-                paid: 0,
-                remaining: totals.net,
-                status: 'held'
-            };
-
+            const invoice = this.buildInvoice(0, this.calculateTotals().net, 'held');
             if (this.isDBReady) {
                 await DB.saveInvoice(invoice);
             } else {
@@ -437,6 +439,7 @@ const POS = {
             container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
         } else {
             container.innerHTML = invoices.map(inv => {
+                // محاولة استخراج اسم العميل من الذاكرة
                 const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
                 return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
                     <div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div>
@@ -456,6 +459,7 @@ const POS = {
             if (!inv) return;
             this.cart = inv.items;
             this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
+            // حذف الفاتورة المعلقة من قاعدة البيانات
             await supabase.from('invoices').delete().eq('id', id);
         } else {
             const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
@@ -476,6 +480,7 @@ const POS = {
         this.showToast('تم تحميل الفاتورة المعلقة');
     },
 
+    // ========== مساعدات ==========
     showModal(id) { this.el[id].style.display = 'flex'; },
     closeModal(id) { this.el[id].style.display = 'none'; },
     showToast(msg) {
@@ -507,6 +512,7 @@ const POS = {
     }
 };
 
+// دوال عامة لتفاعل HTML
 window.POS = POS;
 window.POSCartUpdate = (idx, val, type) => {
     if (type === 'qty') { const q = parseFloat(val); if (q <= 0) POS.cart.splice(idx, 1); else POS.cart[idx].quantity = q; }
