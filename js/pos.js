@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار محصّن)
+   نقطة البيع - حسابي (إصدار متوافق مع هيكل DB)
    ============================================= */
 'use strict';
 
@@ -20,8 +20,6 @@ const POS = {
     selectedProduct: null,
     selectedUnit: null,
     selectedCustomer: null,
-
-    // للتحقق من حالة قاعدة البيانات
     isDBReady: false,
 
     init() {
@@ -113,7 +111,6 @@ const POS = {
                 this.products = await DB.getProducts();
                 this.customers = await DB.getParties('customer');
             } else {
-                // منتجات وهمية للاختبار
                 this.products = [
                     { id: '1', name: 'منتج تجريبي ١', units: [{ name: 'قطعة', price: 12, stock: 100, factor: 1 }] },
                     { id: '2', name: 'منتج تجريبي ٢', units: [{ name: 'كرتونة', price: 250, stock: 30, factor: 1 }] }
@@ -292,6 +289,21 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
+    // دوال آمنة للحفظ (تزيل updated_at)
+    safeSaveParty(party) {
+        if (!this.isDBReady) return;
+        const cleaned = { ...party };
+        delete cleaned.updated_at; // إزالة الحقل غير الموجود
+        return DB.saveParty(cleaned);
+    },
+
+    safeSaveProduct(product) {
+        if (!this.isDBReady) return;
+        const cleaned = { ...product };
+        delete cleaned.updated_at;
+        return DB.saveProduct(cleaned);
+    },
+
     async completePayment() {
         try {
             const totals = this.calculateTotals();
@@ -307,18 +319,19 @@ const POS = {
             const diff = totalPaid - totals.net;
             const notes = this.el.paymentNotes.value;
 
-            // تحديث رصيد العميل محليًا
             if (this.selectedCustomer) {
                 this.selectedCustomer.balance = (this.selectedCustomer.balance || 0) + diff;
+                await this.safeSaveParty(this.selectedCustomer);
             }
 
+            // إنشاء الفاتورة بدون customer_name (لتجنب خطأ العمود المفقود)
             const invoice = {
                 id: crypto.randomUUID(),
                 type: 'sale',
                 date: Utils.getToday(),
                 customer_id: this.selectedCustomer?.id || null,
-                customer_name: this.selectedCustomer?.name || 'نقدي',
-                items: JSON.parse(JSON.stringify(this.cart)), // نسخة عميقة
+                // customer_name غير مدرج
+                items: this.cart,
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
@@ -329,8 +342,6 @@ const POS = {
             };
 
             if (this.isDBReady) {
-                // حفظ في قاعدة البيانات
-                await DB.saveParty(this.selectedCustomer);
                 await DB.saveInvoice(invoice);
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
@@ -338,42 +349,39 @@ const POS = {
                         const unit = prod.units.find(u => u.name === item.unitName);
                         if (unit) {
                             prod.units[0].stock -= item.quantity * (unit.factor || 1);
-                            await DB.saveProduct(prod);
+                            await this.safeSaveProduct(prod);
                         }
                     }
                 }
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
-                // وضع الاختبار: تخزين في localStorage
-                this.saveTestSale(invoice);
-                // تحديث المنتجات المحلية
+                // وضع الاختبار
+                const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]');
+                sales.push(invoice);
+                localStorage.setItem('pos_test_sales', JSON.stringify(sales));
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
                         const unit = prod.units.find(u => u.name === item.unitName);
-                        if (unit) {
-                            prod.units[0].stock -= item.quantity * (unit.factor || 1);
-                        }
+                        if (unit) prod.units[0].stock -= item.quantity * (unit.factor || 1);
                     }
                 }
             }
 
-            // طباعة الإيصال
             if (window.printSaleReceipt) {
                 printSaleReceipt(invoice, this.selectedCustomer || { name: 'نقدي', balance: 0 }, this.cart, totals);
             } else {
                 alert(`تم البيع. الفاتورة ${invoice.id}`);
             }
 
-            // إعادة تعيين
-            this.cart = [];
-            this.renderCart();
+            this.cart = []; this.renderCart();
             this.el.discountValue.value = 0;
             this.selectedCustomer = null;
             this.el.customerSearchInput.value = '';
             this.el.customerBalanceDisplay.innerHTML = '';
             this.closeModal('paymentModal');
+            await this.loadData();
             this.filterProducts();
             this.showToast('تم البيع بنجاح');
         } catch (error) {
@@ -382,7 +390,6 @@ const POS = {
         }
     },
 
-    // ========== تعليق ==========
     async holdInvoice() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
@@ -392,8 +399,8 @@ const POS = {
                 type: 'sale',
                 date: Utils.getToday(),
                 customer_id: this.selectedCustomer?.id || null,
-                customer_name: this.selectedCustomer?.name || 'نقدي',
-                items: JSON.parse(JSON.stringify(this.cart)),
+                // customer_name غير مدرج
+                items: this.cart,
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
@@ -406,15 +413,17 @@ const POS = {
             if (this.isDBReady) {
                 await DB.saveInvoice(invoice);
             } else {
-                this.saveTestHeldInvoice(invoice);
+                const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
+                held.push(invoice);
+                localStorage.setItem('pos_test_held', JSON.stringify(held));
             }
 
             alert(`تم تعليق الفاتورة ${invoice.id}`);
-            this.cart = [];
-            this.renderCart();
+            this.cart = []; this.renderCart();
             this.selectedCustomer = null;
             this.el.customerSearchInput.value = '';
             this.el.customerBalanceDisplay.innerHTML = '';
+            await this.loadData();
             this.filterProducts();
             this.showToast('تم تعليق الفاتورة');
         } catch (error) {
@@ -423,27 +432,12 @@ const POS = {
         }
     },
 
-    // ========== تخزين محلي للاختبار ==========
-    saveTestSale(invoice) {
-        const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]');
-        sales.push(invoice);
-        localStorage.setItem('pos_test_sales', JSON.stringify(sales));
-    },
-    saveTestHeldInvoice(invoice) {
-        const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
-        held.push(invoice);
-        localStorage.setItem('pos_test_held', JSON.stringify(held));
-    },
-
-    // ========== فواتير معلقة ==========
     async loadHeldInvoices() {
         let invoices = [];
         if (this.isDBReady) {
             try {
                 invoices = (await DB.getInvoices()).filter(i => i.type === 'sale' && i.status === 'held');
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         } else {
             invoices = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
         }
@@ -452,12 +446,13 @@ const POS = {
         if (!invoices.length) {
             container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
         } else {
-            container.innerHTML = invoices.map(inv => `
-                <div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
-                    <div><strong>${inv.id.substring(0,8)}</strong><br>${inv.customer_name} - ${Utils.formatMoney(inv.total)}</div>
+            container.innerHTML = invoices.map(inv => {
+                const name = inv.customer_name || this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
+                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
+                    <div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div>
                     <div><i class="fas fa-play"></i></div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
             container.querySelectorAll('.held-invoice-item').forEach(item => {
                 item.addEventListener('click', () => this.resumeInvoice(item.dataset.id));
             });
@@ -491,22 +486,18 @@ const POS = {
         this.showToast('تم تحميل الفاتورة المعلقة');
     },
 
-    // ========== مساعدات ==========
     showModal(id) { this.el[id].style.display = 'flex'; },
     closeModal(id) { this.el[id].style.display = 'none'; },
     showToast(msg) {
         const toast = this.el.toast;
-        toast.textContent = msg;
-        toast.classList.add('show');
+        toast.textContent = msg; toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 3000);
     },
     saveCartToStorage() {
         if (this.cart.length > 0) {
             localStorage.setItem('pos_held_cart', JSON.stringify({
-                cart: this.cart,
-                customer: this.selectedCustomer,
-                discountType: this.el.discountType.value,
-                discountValue: this.el.discountValue.value
+                cart: this.cart, customer: this.selectedCustomer,
+                discountType: this.el.discountType.value, discountValue: this.el.discountValue.value
             }));
         } else localStorage.removeItem('pos_held_cart');
     },
@@ -515,14 +506,11 @@ const POS = {
         if (!saved) return;
         try {
             const held = JSON.parse(saved);
-            this.cart = held.cart;
-            this.selectedCustomer = held.customer;
-            this.el.discountType.value = held.discountType;
-            this.el.discountValue.value = held.discountValue;
+            this.cart = held.cart; this.selectedCustomer = held.customer;
+            this.el.discountType.value = held.discountType; this.el.discountValue.value = held.discountValue;
             if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
             else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
-            this.onCustomerSearch();
-            this.renderCart();
+            this.onCustomerSearch(); this.renderCart();
             this.showToast('تم استعادة السلة المحفوظة');
         } catch (e) {}
         localStorage.removeItem('pos_held_cart');
@@ -532,19 +520,11 @@ const POS = {
 // دوال عامة
 window.POS = POS;
 window.POSCartUpdate = (idx, val, type) => {
-    if (type === 'qty') {
-        const q = parseFloat(val);
-        if (q <= 0) POS.cart.splice(idx, 1);
-        else POS.cart[idx].quantity = q;
-    } else if (type === 'price') {
-        POS.cart[idx].price = parseFloat(val) || 0;
-    }
+    if (type === 'qty') { const q = parseFloat(val); if (q <= 0) POS.cart.splice(idx, 1); else POS.cart[idx].quantity = q; }
+    else if (type === 'price') { POS.cart[idx].price = parseFloat(val) || 0; }
     POS.renderCart();
 };
-window.POSCartRemove = (idx) => {
-    POS.cart.splice(idx, 1);
-    POS.renderCart();
-};
+window.POSCartRemove = (idx) => { POS.cart.splice(idx, 1); POS.renderCart(); };
 
 window.addEventListener('DOMContentLoaded', () => POS.init());
 window.addEventListener('beforeunload', () => POS.saveCartToStorage());
