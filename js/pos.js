@@ -1,9 +1,8 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار متوافق مع هيكل DB)
+   نقطة البيع - حسابي (إصدار نهائي متوافق)
    ============================================= */
 'use strict';
 
-// Utils احتياطي
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
@@ -56,7 +55,6 @@ const POS = {
     },
 
     bindEvents() {
-        // القائمة والمستخدم
         this.el.userProfileBtn.addEventListener('click', (e) => {
             e.stopPropagation(); this.el.userDropdown.classList.toggle('show');
         });
@@ -68,20 +66,16 @@ const POS = {
             else window.location.href = './index.html';
         });
 
-        // البحث
         this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
 
-        // أزرار رئيسية
         this.el.payBtn.addEventListener('click', () => this.openPaymentModal());
         this.el.holdBtn.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn.addEventListener('click', () => this.loadHeldInvoices());
 
-        // مودال الوحدة
         this.el.addToCartBtn.addEventListener('click', () => this.addToCartFromModal());
         this.el.closeUnitModalBtn.addEventListener('click', () => this.closeModal('unitQuantityModal'));
 
-        // مودال الدفع
         this.el.confirmAndPrintBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             await this.completePayment();
@@ -91,14 +85,13 @@ const POS = {
         this.el.cashAmount.addEventListener('input', () => this.updatePaymentPreview());
         this.el.transferAmount.addEventListener('input', () => this.updatePaymentPreview());
 
-        // مودال المعلقة
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
     },
 
     async loadInitialData() {
         this.isDBReady = !!(window.DB && window.supabase);
         if (!this.isDBReady) {
-            console.warn('⚠️ وضع الاختبار: قاعدة البيانات غير متصلة');
+            console.warn('⚠️ وضع الاختبار');
             this.showToast('وضع الاختبار - البيانات محلية');
         }
         await this.loadData();
@@ -116,7 +109,7 @@ const POS = {
                     { id: '2', name: 'منتج تجريبي ٢', units: [{ name: 'كرتونة', price: 250, stock: 30, factor: 1 }] }
                 ];
                 this.customers = [
-                    { id: '101', name: 'عميل تجريبي', phone: '0100000000', balance: 50 }
+                    { id: '101', name: 'عميل تجريبي', phone: '0100000000', balance: 500 }
                 ];
             }
             this.populateCustomerList();
@@ -170,7 +163,6 @@ const POS = {
         }
     },
 
-    // ========== السلة ==========
     calculateTotals() {
         const subtotal = this.cart.reduce((s, i) => s + i.price * i.quantity, 0);
         const discountVal = parseFloat(this.el.discountValue.value) || 0;
@@ -202,7 +194,6 @@ const POS = {
         this.calculateTotals();
     },
 
-    // ========== مودال الوحدة ==========
     openUnitModal(productId) {
         this.selectedProduct = this.products.find(p => p.id === productId);
         if (!this.selectedProduct) return;
@@ -250,7 +241,6 @@ const POS = {
         this.filterProducts();
     },
 
-    // ========== الدفع ==========
     openPaymentModal() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         const totals = this.calculateTotals();
@@ -289,19 +279,21 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
-    // دوال آمنة للحفظ (تزيل updated_at)
-    safeSaveParty(party) {
-        if (!this.isDBReady) return;
-        const cleaned = { ...party };
-        delete cleaned.updated_at; // إزالة الحقل غير الموجود
-        return DB.saveParty(cleaned);
+    // --- دوال آمنة للحذف updated_at ---
+    cleanObject(obj) {
+        const cleaned = { ...obj };
+        delete cleaned.updated_at;
+        return cleaned;
     },
 
-    safeSaveProduct(product) {
+    async safeSaveParty(party) {
         if (!this.isDBReady) return;
-        const cleaned = { ...product };
-        delete cleaned.updated_at;
-        return DB.saveProduct(cleaned);
+        return DB.saveParty(this.cleanObject(party));
+    },
+
+    async safeSaveProduct(product) {
+        if (!this.isDBReady) return;
+        return DB.saveProduct(this.cleanObject(product));
     },
 
     async completePayment() {
@@ -324,21 +316,20 @@ const POS = {
                 await this.safeSaveParty(this.selectedCustomer);
             }
 
-            // إنشاء الفاتورة بدون customer_name (لتجنب خطأ العمود المفقود)
+            // إنشاء الفاتورة بدون notes وبدون customer_name
             const invoice = {
                 id: crypto.randomUUID(),
                 type: 'sale',
                 date: Utils.getToday(),
                 customer_id: this.selectedCustomer?.id || null,
-                // customer_name غير مدرج
                 items: this.cart,
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
                 paid: totalPaid,
                 remaining: diff >= 0 ? 0 : -diff,
-                status: diff >= 0 ? 'paid' : 'partial',
-                notes
+                status: diff >= 0 ? 'paid' : 'partial'
+                // لا notes، لا customer_name
             };
 
             if (this.isDBReady) {
@@ -356,7 +347,7 @@ const POS = {
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
-                // وضع الاختبار
+                // وضع اختبار
                 const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]');
                 sales.push(invoice);
                 localStorage.setItem('pos_test_sales', JSON.stringify(sales));
@@ -394,20 +385,19 @@ const POS = {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
             const totals = this.calculateTotals();
+            // فاتورة بدون notes وبدون customer_name
             const invoice = {
                 id: crypto.randomUUID(),
                 type: 'sale',
                 date: Utils.getToday(),
                 customer_id: this.selectedCustomer?.id || null,
-                // customer_name غير مدرج
                 items: this.cart,
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
                 paid: 0,
                 remaining: totals.net,
-                status: 'held',
-                notes: 'فاتورة معلقة'
+                status: 'held'
             };
 
             if (this.isDBReady) {
@@ -447,7 +437,7 @@ const POS = {
             container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
         } else {
             container.innerHTML = invoices.map(inv => {
-                const name = inv.customer_name || this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
+                const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
                 return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
                     <div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div>
                     <div><i class="fas fa-play"></i></div>
@@ -517,7 +507,6 @@ const POS = {
     }
 };
 
-// دوال عامة
 window.POS = POS;
 window.POSCartUpdate = (idx, val, type) => {
     if (type === 'qty') { const q = parseFloat(val); if (q <= 0) POS.cart.splice(idx, 1); else POS.cart[idx].quantity = q; }
