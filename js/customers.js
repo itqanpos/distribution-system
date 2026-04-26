@@ -1,5 +1,5 @@
 /* =============================================
-   العملاء والموردين - حسابي
+   العملاء والموردين - حسابي (النسخة المصححة)
    ============================================= */
 
 'use strict';
@@ -18,7 +18,7 @@ const Parties = {
     invoices: [],
     purchases: [],
     transactions: [],
-    currentTab: 'customers',
+    currentTab: 'customer',   // <-- تصحيح: مفرد
     isDBReady: false,
 
     init() {
@@ -91,7 +91,7 @@ const Parties = {
         this.el.tabBtns.forEach(btn => btn.addEventListener('click', () => {
             this.el.tabBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            this.currentTab = btn.dataset.tab;
+            this.currentTab = btn.dataset.tab; // 'customer' أو 'supplier'
             this.renderTable();
         }));
     },
@@ -105,7 +105,11 @@ const Parties = {
                 this.purchases = await DB.getPurchases();
                 this.transactions = await DB.getTransactions();
             } else {
-                this.parties = [{ id: 'c1', name: 'عميل 1', type: 'customer', balance: 150, phone: '0100' }];
+                // بيانات اختبارية
+                this.parties = [
+                    { id: 'c1', name: 'عميل تجريبي', type: 'customer', balance: 150, phone: '0100' },
+                    { id: 's1', name: 'مورد تجريبي', type: 'supplier', balance: 300, phone: '0111' }
+                ];
                 this.invoices = [];
                 this.purchases = [];
                 this.transactions = [];
@@ -114,6 +118,7 @@ const Parties = {
             this.renderTable();
         } catch (err) {
             console.error(err);
+            this.el.partiesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">فشل تحميل البيانات</td></tr>';
         }
     },
 
@@ -148,7 +153,6 @@ const Parties = {
         `).join('');
     },
 
-    // ====================== إدارة الطرف ======================
     openPartyModal(party = null) {
         this.el.modalTitle.textContent = party ? 'تعديل' : 'عميل / مورد جديد';
         this.el.partyId.value = party?.id || '';
@@ -198,13 +202,11 @@ const Parties = {
         await this.loadAllData();
     },
 
-    // ====================== كشف الحساب ======================
     showStatement(partyId) {
         const party = this.parties.find(p => p.id === partyId);
         if (!party) return;
         this.el.statementTitle.textContent = `كشف حساب: ${party.name}`;
 
-        // الفواتير المرتبطة (مبيعات للعميل، مشتريات للمورد)
         let invoices = [];
         if (party.type === 'customer') {
             invoices = this.invoices.filter(inv => inv.type === 'sale' && (inv.customer_id === partyId || inv.customer_name === party.name));
@@ -212,15 +214,12 @@ const Parties = {
             invoices = this.purchases.filter(p => p.supplier_id === partyId || p.supplier_name === party.name);
         }
 
-        // التحصيلات (معاملات مالية مرتبطة بالطرف - نستخدم description يحتوي على اسم الطرف أو id)
         const relatedTransactions = this.transactions.filter(tr => 
             (tr.description || '').includes(partyId) || (tr.description || '').includes(party.name)
         );
 
         let totalDebit = 0, totalCredit = 0;
-        // بناء الصفوف
         let rows = '';
-        // صفوف الفواتير (مدين للعميل، دائن للمورد؟ حسب المنظور)
         invoices.forEach(inv => {
             const amount = inv.total || 0;
             rows += `<tr>
@@ -235,9 +234,8 @@ const Parties = {
             else totalCredit += amount;
         });
 
-        // صفوف التحصيلات
         relatedTransactions.forEach(tr => {
-            const isPayment = tr.type === 'income'; // تحصيل من العميل = income، دفع للمورد = expense
+            const isPayment = tr.type === 'income';
             rows += `<tr>
                 <td>${tr.date}</td>
                 <td>${isPayment ? 'تحصيل' : 'دفع'}</td>
@@ -249,8 +247,6 @@ const Parties = {
             if (isPayment) totalCredit += tr.amount;
             else totalDebit += tr.amount;
         });
-
-        const net = party.type === 'customer' ? totalCredit - totalDebit : totalDebit - totalCredit;
 
         this.el.statementContent.innerHTML = `
             <div class="statement-header">
@@ -268,7 +264,6 @@ const Parties = {
         this.el.statementModal.style.display = 'flex';
     },
 
-    // ====================== التحصيل ======================
     openCollection(partyId) {
         const party = this.parties.find(p => p.id === partyId);
         if (!party) return;
@@ -292,11 +287,10 @@ const Parties = {
 
         if (!amount || amount <= 0) { alert('المبلغ مطلوب'); return; }
 
-        // تحديث رصيد الطرف
         if (type === 'income') {
-            party.balance = (party.balance || 0) - amount; // تحصيل من العميل يقلل رصيده
+            party.balance = (party.balance || 0) - amount;
         } else {
-            party.balance = (party.balance || 0) + amount; // دفع للمورد يزيد رصيده
+            party.balance = (party.balance || 0) + amount;
         }
 
         const transaction = {
@@ -313,7 +307,6 @@ const Parties = {
                 await DB.saveParty(party);
                 await DB.saveTransaction(transaction);
             } else {
-                // تخزين محلي
                 const arr = JSON.parse(localStorage.getItem('parties') || '[]');
                 const idx = arr.findIndex(p => p.id === party.id);
                 if (idx >= 0) arr[idx] = party;
@@ -326,7 +319,6 @@ const Parties = {
             }
             this.el.collectionModal.style.display = 'none';
             await this.loadAllData();
-            // إذا كان كشف الحساب مفتوحاً، أعد تحميله
             if (this.el.statementModal.style.display === 'flex') {
                 this.showStatement(partyId);
             }
