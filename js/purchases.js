@@ -1,5 +1,5 @@
 /* =============================================
-   المشتريات - حسابي (إصدار متوافق)
+   المشتريات - حسابي (إصدار متوافق مع هيكل DB)
    ============================================= */
 
 'use strict';
@@ -32,43 +32,19 @@ const Purchases = {
     },
 
     cacheElements() {
-        this.el = {
-            menuToggle: document.getElementById('menuToggle'),
-            sidebar: document.getElementById('sidebar'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            userProfileBtn: document.getElementById('userProfileBtn'),
-            userDropdown: document.getElementById('userDropdown'),
-            searchInput: document.getElementById('searchInput'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            purchasesBody: document.getElementById('purchasesBody'),
-            newPurchaseBtn: document.getElementById('newPurchaseBtn'),
-            totalPurchases: document.getElementById('totalPurchases'),
-            paidPurchases: document.getElementById('paidPurchases'),
-            unpaidPurchases: document.getElementById('unpaidPurchases'),
-            purchaseCount: document.getElementById('purchaseCount'),
-            filterBtns: document.querySelectorAll('.filter-btn'),
-            purchaseModal: document.getElementById('purchaseModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            closeModalBtn: document.getElementById('closeModalBtn'),
-            cancelModalBtn: document.getElementById('cancelModalBtn'),
-            purchaseForm: document.getElementById('purchaseForm'),
-            purchaseId: document.getElementById('purchaseId'),
-            supplierInput: document.getElementById('supplierInput'),
-            supplierList: document.getElementById('supplierList'),
-            purchaseDate: document.getElementById('purchaseDate'),
-            invoiceNumber: document.getElementById('invoiceNumber'),
-            itemsContainer: document.getElementById('itemsContainer'),
-            addItemRowBtn: document.getElementById('addItemRowBtn'),
-            totalAmount: document.getElementById('totalAmount'),
-            paidAmount: document.getElementById('paidAmount'),
-            paymentMethod: document.getElementById('paymentMethod'),
-            remainingAmount: document.getElementById('remainingAmount'),
-            notes: document.getElementById('notes'),
-            detailsModal: document.getElementById('detailsModal'),
-            detailsContent: document.getElementById('detailsContent'),
-            closeDetailsBtn: document.getElementById('closeDetailsBtn'),
-            productDatalist: null
-        };
+        this.el = {};
+        const ids = [
+            'menuToggle', 'sidebar', 'logoutBtn', 'userProfileBtn', 'userDropdown',
+            'searchInput', 'refreshBtn', 'purchasesBody', 'newPurchaseBtn',
+            'totalPurchases', 'paidPurchases', 'unpaidPurchases', 'purchaseCount',
+            'purchaseModal', 'modalTitle', 'closeModalBtn', 'cancelModalBtn',
+            'purchaseForm', 'purchaseId', 'supplierInput', 'supplierList',
+            'purchaseDate', 'invoiceNumber', 'itemsContainer', 'addItemBtn',
+            'totalAmount', 'paidAmount', 'paymentMethod', 'remainingAmount',
+            'detailsModal', 'detailsContent', 'closeDetailsBtn'
+        ];
+        ids.forEach(id => { this.el[id] = document.getElementById(id); });
+        this.el.filterBtns = document.querySelectorAll('.filter-btn');
     },
 
     bindEvents() {
@@ -92,8 +68,8 @@ const Purchases = {
         this.el.closeModalBtn.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn.addEventListener('click', () => this.closeModal());
         this.el.purchaseForm.addEventListener('submit', (e) => { e.preventDefault(); this.savePurchase(); });
+        this.el.addItemBtn.addEventListener('click', () => this.addItemCard());
 
-        this.el.addItemRowBtn.addEventListener('click', () => this.addItemRow());
         this.el.closeDetailsBtn.addEventListener('click', () => { this.el.detailsModal.style.display = 'none'; });
     },
 
@@ -122,16 +98,16 @@ const Purchases = {
     },
 
     populateSupplierList() {
-        this.el.supplierList.innerHTML = this.suppliers.map(s => `<option value="${s.name}" data-id="${s.id}">${s.name}</option>`).join('');
+        this.el.supplierList.innerHTML = this.suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
     },
 
     createProductDatalist() {
-        if (this.el.productDatalist) this.el.productDatalist.remove();
+        const old = document.getElementById('productDatalist');
+        if (old) old.remove();
         const datalist = document.createElement('datalist');
         datalist.id = 'productDatalist';
-        datalist.innerHTML = this.products.map(p => `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`).join('');
+        datalist.innerHTML = this.products.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
         document.body.appendChild(datalist);
-        this.el.productDatalist = datalist;
     },
 
     updateStats() {
@@ -187,13 +163,12 @@ const Purchases = {
         this.el.invoiceNumber.value = purchase?.invoice_number || '';
         this.el.paidAmount.value = purchase?.paid || 0;
         this.el.paymentMethod.value = 'cash';
-        this.el.notes.value = purchase?.notes || '';
         this.el.itemsContainer.innerHTML = '';
 
         if (purchase?.items?.length) {
-            purchase.items.forEach(item => this.addItemRow(item));
+            purchase.items.forEach(item => this.addItemCard(item));
         } else {
-            this.addItemRow();
+            this.addItemCard();
         }
         this.updateTotalAndRemaining();
         this.el.purchaseModal.style.display = 'flex';
@@ -203,27 +178,23 @@ const Purchases = {
         this.el.purchaseModal.style.display = 'none';
     },
 
-    addItemRow(item = null) {
-        const row = document.createElement('div');
-        row.className = 'item-row';
-        row.innerHTML = `
-            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:10px; align-items:center; margin-bottom:12px;">
-                <input type="text" class="item-product-name" placeholder="اسم المنتج" list="productDatalist" autocomplete="off" value="${item?.productName || ''}" onchange="Purchases.onProductSelected(this)">
-                <select class="item-unit" onchange="Purchases.onUnitChange(this)" ${!item ? 'disabled' : ''}>
-                    ${item ? this.getUnitOptions(item.productName) : '<option>اختر المنتج أولاً</option>'}
-                </select>
-                <input type="number" class="item-qty" placeholder="الكمية" min="0.001" step="0.001" value="${item?.quantity || 1}" oninput="Purchases.updateTotalAndRemaining()">
-                <input type="number" class="item-price" placeholder="سعر الشراء" step="0.01" value="${item?.price || 0}" oninput="Purchases.updateTotalAndRemaining()">
-                <button type="button" class="btn remove-btn" onclick="this.closest('.item-row').remove(); Purchases.updateTotalAndRemaining();"><i class="fas fa-trash"></i></button>
-            </div>
+    addItemCard(item = null) {
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+            <input type="text" class="item-product-name" placeholder="اسم المنتج" list="productDatalist" autocomplete="off" value="${item?.productName || ''}" onchange="Purchases.onProductSelected(this)">
+            <select class="item-unit" onchange="Purchases.onUnitChange(this)" ${!item ? 'disabled' : ''}>
+                ${item ? this.getUnitOptions(item.productName) : '<option>اختر المنتج أولاً</option>'}
+            </select>
+            <input type="number" class="item-qty" placeholder="الكمية" min="0.001" step="0.001" value="${item?.quantity || 1}" oninput="Purchases.updateTotalAndRemaining()">
+            <input type="number" class="item-price" placeholder="سعر الشراء" step="0.01" value="${item?.price || 0}" oninput="Purchases.updateTotalAndRemaining()">
+            <button type="button" class="remove-btn" onclick="this.closest('.item-card').remove(); Purchases.updateTotalAndRemaining();"><i class="fas fa-times"></i></button>
         `;
-        this.el.itemsContainer.appendChild(row);
+        this.el.itemsContainer.appendChild(card);
 
         if (item) {
-            const unitSelect = row.querySelector('.item-unit');
-            if (unitSelect && item.unitName) {
-                unitSelect.value = item.unitName;
-            }
+            const unitSelect = card.querySelector('.item-unit');
+            if (unitSelect && item.unitName) unitSelect.value = item.unitName;
         }
     },
 
@@ -234,10 +205,10 @@ const Purchases = {
     },
 
     onProductSelected(input) {
-        const row = input.closest('.item-row');
+        const card = input.closest('.item-card');
         const productName = input.value.trim();
-        const unitSelect = row.querySelector('.item-unit');
-        const priceInput = row.querySelector('.item-price');
+        const unitSelect = card.querySelector('.item-unit');
+        const priceInput = card.querySelector('.item-price');
         
         const product = this.products.find(p => p.name === productName);
         if (product) {
@@ -255,20 +226,18 @@ const Purchases = {
     },
 
     onUnitChange(select) {
-        const row = select.closest('.item-row');
+        const card = select.closest('.item-card');
         const selectedOption = select.options[select.selectedIndex];
         const cost = parseFloat(selectedOption?.dataset?.cost) || 0;
-        const priceInput = row.querySelector('.item-price');
-        priceInput.value = cost;
+        card.querySelector('.item-price').value = cost;
         this.updateTotalAndRemaining();
     },
 
     updateTotalAndRemaining() {
         let total = 0;
-        const rows = this.el.itemsContainer.querySelectorAll('.item-row');
-        rows.forEach(row => {
-            const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
-            const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+        this.el.itemsContainer.querySelectorAll('.item-card').forEach(card => {
+            const qty = parseFloat(card.querySelector('.item-qty')?.value) || 0;
+            const price = parseFloat(card.querySelector('.item-price')?.value) || 0;
             total += qty * price;
         });
         this.el.totalAmount.textContent = Utils.formatMoney(total);
@@ -278,48 +247,41 @@ const Purchases = {
     updateRemaining() {
         const total = parseFloat(this.el.totalAmount.textContent.replace(/[^0-9.-]+/g, '')) || 0;
         const paid = parseFloat(this.el.paidAmount.value) || 0;
-        const remaining = Math.max(0, total - paid);
-        this.el.remainingAmount.textContent = Utils.formatMoney(remaining);
+        this.el.remainingAmount.textContent = Utils.formatMoney(Math.max(0, total - paid));
     },
 
-    // دالة آمنة للحفظ
-    async safeSavePurchase(purchaseData) {
-        if (!this.isDBReady) return;
-        // نسخ البيانات وإزالة أي حقول غير موجودة بالجدول (احتياط)
-        const cleaned = { ...purchaseData };
-        // إزالة updated_at إذا وجدت (سيتم إضافتها تلقائياً)
-        delete cleaned.updated_at;
-        return DB.savePurchase(cleaned);
-    },
-
+    // ========== حفظ الفاتورة (متوافق مع جدول purchases) ==========
     async savePurchase() {
         const supplierName = this.el.supplierInput.value.trim();
         if (!supplierName) { alert('اسم المورد مطلوب'); return; }
 
+        // التحقق من وجود المورد أو إنشائه
         let supplierId = null;
-        const supplierOption = Array.from(this.el.supplierList.options).find(o => o.value === supplierName);
-        if (supplierOption) {
-            supplierId = supplierOption.dataset.id;
-        } else if (this.isDBReady) {
-            const newSupplier = await DB.saveParty({ name: supplierName, type: 'supplier', balance: 0 });
-            supplierId = newSupplier.id;
-            this.suppliers.push(newSupplier);
-            this.populateSupplierList();
+        if (this.isDBReady) {
+            const existing = this.suppliers.find(s => s.name === supplierName);
+            if (!existing) {
+                const newSupplier = await DB.saveParty({ name: supplierName, type: 'supplier', balance: 0 });
+                this.suppliers.push(newSupplier);
+                this.populateSupplierList();
+                supplierId = newSupplier.id;
+            } else {
+                supplierId = existing.id;
+            }
         }
 
         const date = this.el.purchaseDate.value;
         const invoiceNumber = this.el.invoiceNumber.value.trim() || null;
         const paid = parseFloat(this.el.paidAmount.value) || 0;
-        const notes = this.el.notes.value.trim() || null;
         const paymentMethod = this.el.paymentMethod.value;
 
-        const rows = this.el.itemsContainer.querySelectorAll('.item-row');
+        // جمع الأصناف
+        const cards = this.el.itemsContainer.querySelectorAll('.item-card');
         const items = [];
-        rows.forEach(row => {
-            const productName = row.querySelector('.item-product-name')?.value.trim();
-            const unitName = row.querySelector('.item-unit')?.value;
-            const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
-            const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+        cards.forEach(card => {
+            const productName = card.querySelector('.item-product-name')?.value.trim();
+            const unitName = card.querySelector('.item-unit')?.value;
+            const qty = parseFloat(card.querySelector('.item-qty')?.value) || 0;
+            const price = parseFloat(card.querySelector('.item-price')?.value) || 0;
             if (productName && unitName && qty > 0) {
                 items.push({ productName, unitName, quantity: qty, price });
             }
@@ -330,23 +292,23 @@ const Purchases = {
         const remaining = Math.max(0, total - paid);
         const status = remaining === 0 ? 'paid' : 'unpaid';
 
+        // بناء كائن الفاتورة بالحقول المتوافقة فقط
         const purchaseData = {
             id: this.editingId || crypto.randomUUID(),
             date,
-            supplier_id: supplierId,
             supplier_name: supplierName,
             invoice_number: invoiceNumber,
             items,
             total,
             paid,
             remaining,
-            status,
-            notes
+            status
+            // بدون supplier_id, بدون notes
         };
 
         try {
             if (this.isDBReady) {
-                await this.safeSavePurchase(purchaseData);
+                await DB.savePurchase(purchaseData);
 
                 // تحديث المخزون
                 for (const item of items) {
@@ -355,23 +317,26 @@ const Purchases = {
                         const unit = prod.units.find(u => u.name === item.unitName);
                         if (unit) {
                             const factor = unit.factor || 1;
-                            const quantityInBase = item.quantity * factor;
-                            prod.units[0].stock += quantityInBase;
-                            await DB.saveProduct(prod);
+                            prod.units[0].stock += item.quantity * factor;
+                            // حفظ المنتج بدون updated_at
+                            const cleanProduct = { ...prod };
+                            delete cleanProduct.updated_at;
+                            await DB.saveProduct(cleanProduct);
                         }
                     }
                 }
 
-                // معاملة الدفع
+                // تسجيل معاملة مالية إن وجدت
                 if (paid > 0 && paymentMethod !== 'credit') {
-                    await DB.saveTransaction({
+                    const transaction = {
                         id: crypto.randomUUID(),
                         date,
                         type: 'expense',
                         amount: paid,
                         description: `دفع فاتورة شراء ${purchaseData.id}`,
                         payment_method: paymentMethod === 'cash' ? 'cash' : 'bank'
-                    });
+                    };
+                    await DB.saveTransaction(transaction);
                 }
 
                 // تحديث رصيد المورد
@@ -379,7 +344,9 @@ const Purchases = {
                     const supplier = this.suppliers.find(s => s.id === supplierId);
                     if (supplier) {
                         supplier.balance = (supplier.balance || 0) + remaining;
-                        await DB.saveParty(supplier);
+                        const cleanParty = { ...supplier };
+                        delete cleanParty.updated_at;
+                        await DB.saveParty(cleanParty);
                     }
                 }
             } else {
@@ -399,6 +366,7 @@ const Purchases = {
         }
     },
 
+    // ========== تفاصيل وطباعة ==========
     viewDetails(id) {
         const purchase = this.purchases.find(p => p.id === id);
         if (!purchase) return;
@@ -420,18 +388,14 @@ const Purchases = {
                 <thead><tr><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
                 <tbody>${itemsHtml}</tbody>
             </table>
-            ${purchase.notes ? `<p style="margin-top:10px;"><strong>ملاحظات:</strong> ${purchase.notes}</p>` : ''}
         `;
         this.el.detailsModal.style.display = 'flex';
     },
 
     printPurchase(id) {
         const purchase = this.purchases.find(p => p.id === id);
-        if (purchase && window.printPurchaseOrder) {
-            printPurchaseOrder(purchase);
-        } else {
-            alert('دالة الطباعة غير متوفرة');
-        }
+        if (purchase && window.printPurchaseOrder) printPurchaseOrder(purchase);
+        else alert('دالة الطباعة غير متوفرة');
     },
 
     editPurchase(id) {
