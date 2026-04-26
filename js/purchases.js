@@ -1,5 +1,5 @@
 /* =============================================
-   المشتريات - حسابي
+   المشتريات - حسابي (إصدار متوافق)
    ============================================= */
 
 'use strict';
@@ -33,13 +33,11 @@ const Purchases = {
 
     cacheElements() {
         this.el = {
-            // القائمة
             menuToggle: document.getElementById('menuToggle'),
             sidebar: document.getElementById('sidebar'),
             logoutBtn: document.getElementById('logoutBtn'),
             userProfileBtn: document.getElementById('userProfileBtn'),
             userDropdown: document.getElementById('userDropdown'),
-            // الصفحة الرئيسية
             searchInput: document.getElementById('searchInput'),
             refreshBtn: document.getElementById('refreshBtn'),
             purchasesBody: document.getElementById('purchasesBody'),
@@ -49,7 +47,6 @@ const Purchases = {
             unpaidPurchases: document.getElementById('unpaidPurchases'),
             purchaseCount: document.getElementById('purchaseCount'),
             filterBtns: document.querySelectorAll('.filter-btn'),
-            // المودال الرئيسي
             purchaseModal: document.getElementById('purchaseModal'),
             modalTitle: document.getElementById('modalTitle'),
             closeModalBtn: document.getElementById('closeModalBtn'),
@@ -67,23 +64,19 @@ const Purchases = {
             paymentMethod: document.getElementById('paymentMethod'),
             remainingAmount: document.getElementById('remainingAmount'),
             notes: document.getElementById('notes'),
-            // مودال التفاصيل
             detailsModal: document.getElementById('detailsModal'),
             detailsContent: document.getElementById('detailsContent'),
             closeDetailsBtn: document.getElementById('closeDetailsBtn'),
-            // المنتجات datalist (سننشئها)
             productDatalist: null
         };
     },
 
     bindEvents() {
-        // القائمة
         this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
         this.el.menuToggle.addEventListener('click', () => this.el.sidebar.classList.toggle('mobile-open'));
         this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // التصفية
         this.el.searchInput.addEventListener('input', () => this.renderTable());
         this.el.refreshBtn.addEventListener('click', () => this.loadData());
         this.el.filterBtns.forEach(btn => {
@@ -95,16 +88,12 @@ const Purchases = {
             });
         });
 
-        // فتح المودال
         this.el.newPurchaseBtn.addEventListener('click', () => this.openModal());
         this.el.closeModalBtn.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn.addEventListener('click', () => this.closeModal());
         this.el.purchaseForm.addEventListener('submit', (e) => { e.preventDefault(); this.savePurchase(); });
 
-        // إضافة صنف
         this.el.addItemRowBtn.addEventListener('click', () => this.addItemRow());
-
-        // مودال التفاصيل
         this.el.closeDetailsBtn.addEventListener('click', () => { this.el.detailsModal.style.display = 'none'; });
     },
 
@@ -116,7 +105,6 @@ const Purchases = {
                 this.suppliers = await DB.getParties('supplier');
                 this.products = await DB.getProducts();
             } else {
-                // بيانات وهمية
                 this.purchases = [];
                 this.suppliers = [{ id: 's1', name: 'مورد تجريبي' }];
                 this.products = [
@@ -205,7 +193,7 @@ const Purchases = {
         if (purchase?.items?.length) {
             purchase.items.forEach(item => this.addItemRow(item));
         } else {
-            this.addItemRow(); // صف واحد فارغ
+            this.addItemRow();
         }
         this.updateTotalAndRemaining();
         this.el.purchaseModal.style.display = 'flex';
@@ -232,7 +220,6 @@ const Purchases = {
         this.el.itemsContainer.appendChild(row);
 
         if (item) {
-            // تحديد الوحدة الصحيحة
             const unitSelect = row.querySelector('.item-unit');
             if (unitSelect && item.unitName) {
                 unitSelect.value = item.unitName;
@@ -256,11 +243,9 @@ const Purchases = {
         if (product) {
             unitSelect.innerHTML = this.getUnitOptions(productName);
             unitSelect.disabled = false;
-            // اقتراح أول وحدة وسعر تكلفتها
             if (product.units.length > 0) {
                 unitSelect.value = product.units[0].name;
-                const cost = product.units[0].cost || 0;
-                priceInput.value = cost;
+                priceInput.value = product.units[0].cost || 0;
             }
         } else {
             unitSelect.innerHTML = '<option>اختر المنتج أولاً</option>';
@@ -297,18 +282,25 @@ const Purchases = {
         this.el.remainingAmount.textContent = Utils.formatMoney(remaining);
     },
 
-    // ========== حفظ الفاتورة ==========
+    // دالة آمنة للحفظ
+    async safeSavePurchase(purchaseData) {
+        if (!this.isDBReady) return;
+        // نسخ البيانات وإزالة أي حقول غير موجودة بالجدول (احتياط)
+        const cleaned = { ...purchaseData };
+        // إزالة updated_at إذا وجدت (سيتم إضافتها تلقائياً)
+        delete cleaned.updated_at;
+        return DB.savePurchase(cleaned);
+    },
+
     async savePurchase() {
         const supplierName = this.el.supplierInput.value.trim();
         if (!supplierName) { alert('اسم المورد مطلوب'); return; }
 
-        // الحصول على أو إنشاء المورد
         let supplierId = null;
         const supplierOption = Array.from(this.el.supplierList.options).find(o => o.value === supplierName);
         if (supplierOption) {
             supplierId = supplierOption.dataset.id;
         } else if (this.isDBReady) {
-            // إنشاء مورد جديد
             const newSupplier = await DB.saveParty({ name: supplierName, type: 'supplier', balance: 0 });
             supplierId = newSupplier.id;
             this.suppliers.push(newSupplier);
@@ -321,7 +313,6 @@ const Purchases = {
         const notes = this.el.notes.value.trim() || null;
         const paymentMethod = this.el.paymentMethod.value;
 
-        // جمع الأصناف
         const rows = this.el.itemsContainer.querySelectorAll('.item-row');
         const items = [];
         rows.forEach(row => {
@@ -355,15 +346,14 @@ const Purchases = {
 
         try {
             if (this.isDBReady) {
-                await DB.savePurchase(purchaseData);
+                await this.safeSavePurchase(purchaseData);
 
-                // تحديث المخزون (زيادة الكميات)
+                // تحديث المخزون
                 for (const item of items) {
                     const prod = this.products.find(p => p.name === item.productName);
                     if (prod) {
                         const unit = prod.units.find(u => u.name === item.unitName);
                         if (unit) {
-                            // تحديث المخزون الأساسي: الكمية المشتراة تحول إلى الوحدة الأساسية
                             const factor = unit.factor || 1;
                             const quantityInBase = item.quantity * factor;
                             prod.units[0].stock += quantityInBase;
@@ -372,7 +362,7 @@ const Purchases = {
                     }
                 }
 
-                // تسجيل معاملة الدفع إن وجدت
+                // معاملة الدفع
                 if (paid > 0 && paymentMethod !== 'credit') {
                     await DB.saveTransaction({
                         id: crypto.randomUUID(),
@@ -393,7 +383,6 @@ const Purchases = {
                     }
                 }
             } else {
-                // وضع الاختبار: تخزين محلي
                 const local = JSON.parse(localStorage.getItem('purchases') || '[]');
                 const idx = local.findIndex(p => p.id === purchaseData.id);
                 if (idx >= 0) local[idx] = purchaseData;
@@ -410,7 +399,6 @@ const Purchases = {
         }
     },
 
-    // ========== تفاصيل وطباعة ==========
     viewDetails(id) {
         const purchase = this.purchases.find(p => p.id === id);
         if (!purchase) return;
