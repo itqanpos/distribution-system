@@ -1,5 +1,5 @@
 /* =============================================
-   المشتريات - حسابي (تصميم محدث)
+   المشتريات - حسابي (إصدار نهائي)
    ============================================= */
 
 :root {
@@ -18,7 +18,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
 body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
 
-/* شريط التنقل والقائمة (موحد) */
+/* ========== شريط التنقل ========== */
 .navbar {
     position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
     background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -41,6 +41,7 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
 .user-dropdown a { display: flex; align-items: center; gap: 12px; padding: 14px 18px; color: var(--primary); text-decoration: none; border-bottom: 1px solid #f1f5f9; }
 .user-dropdown a:hover { background: var(--light); }
 
+/* ========== القائمة الجانبية ========== */
 .sidebar {
     position: fixed; top: var(--header-height); right: 0; bottom: 0;
     width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
@@ -55,11 +56,12 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
 .menu-item:hover { background: var(--light); color: var(--secondary); }
 .menu-item.active { background: #eff6ff; color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary); }
 
-/* المحتوى الرئيسي */
+/* ========== المحتوى الرئيسي ========== */
 .main-content { margin-top: var(--header-height); padding: 28px 32px; min-height: calc(100vh - var(--header-height)); }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 15px; }
 .page-title h1 { font-size: 28px; font-weight: 700; }
 
+/* أزرار عامة */
 .btn {
     padding: 10px 20px; border: none; border-radius: var(--border-radius); font-weight: 600;
     cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -105,25 +107,81 @@ td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
 .action-icons i { margin: 0 6px; color: var(--secondary); cursor: pointer; font-size: 17px; }
 .action-icons i:hover { opacity: 0.7; }
 
-/* المودال */
+/* ========== المودال (تصميم مرن) ========== */
 .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000; }
-.modal-content { background: white; border-radius: 28px; padding: 28px; width: 95%; max-width: 850px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.15); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.modal-content {
+    background: white;
+    border-radius: 28px;
+    width: 95%;
+    max-width: 850px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 24px 20px 16px 20px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
 .modal-header h2 { font-size: 24px; }
 .modal-header button { background: none; border: none; font-size: 28px; cursor: pointer; color: #64748b; }
 .modal-header button:hover { color: var(--danger); }
 
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+    margin-bottom: 8px;
+    min-height: 0; /* مهم لتفعيل التمرير في flex */
+}
+
+.modal-actions {
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    z-index: 10;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
 /* أقسام النموذج */
-.form-section { background: #f8fafc; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
-.section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: var(--primary); }
+.form-section {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--primary);
+}
 .section-title i { color: var(--secondary); font-size: 22px; }
 
-.form-row { display: flex; gap: 15px; margin-bottom: 15px; }
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 15px; }
+.form-row { display: flex; gap: 15px; margin-bottom: 12px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
 .form-group input, .form-group select, .form-group textarea {
-    width: 100%; padding: 14px 16px; border: 2px solid #e2e8f0; border-radius: var(--border-radius);
-    font-size: 15px; transition: border-color 0.2s; background: white;
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: var(--border-radius);
+    font-size: 15px;
+    transition: border-color 0.2s;
+    background: white;
 }
 .form-group input:focus, .form-group textarea:focus { border-color: var(--secondary); outline: none; }
 .required { color: var(--danger); }
@@ -132,30 +190,52 @@ td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
 
 /* بطاقات الأصناف */
 .item-card {
-    background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px;
-    margin-bottom: 12px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto;
-    gap: 12px; align-items: center; transition: box-shadow 0.2s;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: center;
+    transition: box-shadow 0.2s;
 }
 .item-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 .item-card input, .item-card select {
-    padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 14px;
 }
 .item-card .remove-btn {
-    background: none; border: none; color: var(--danger); cursor: pointer; font-size: 20px;
-    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .item-card .remove-btn:hover { background: #fee2e2; }
 
 .total-display, .remaining-display {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 0; margin-top: 12px; border-top: 2px dashed #cbd5e1;
-    font-size: 20px; font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    margin-top: 10px;
+    border-top: 2px dashed #cbd5e1;
+    font-size: 18px;
+    font-weight: 700;
 }
 .total-display span:last-child, .remaining-display span:last-child {
     color: var(--primary);
 }
-
-.modal-actions { display: flex; gap: 12px; margin-top: 25px; justify-content: flex-end; }
 
 /* تجاوب */
 @media (max-width: 992px) {
@@ -166,5 +246,12 @@ td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
     .user-info { display: none; }
     .form-row { flex-direction: column; }
     .item-card { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
+@media (max-width: 600px) {
+    .modal-content {
+        width: 100%;
+        border-radius: 0;
+        padding: 16px;
+    }
 }
 @media (min-width: 993px) { .menu-toggle { display: none; } }
