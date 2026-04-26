@@ -74,26 +74,10 @@
 
         <!-- بطاقات الإحصائيات -->
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="icon"><i class="fas fa-box"></i></div>
-                <div class="value" id="totalProducts">0</div>
-                <div class="label">إجمالي المنتجات</div>
-            </div>
-            <div class="stat-card">
-                <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="value" id="lowStockCount">0</div>
-                <div class="label">منخفضة المخزون</div>
-            </div>
-            <div class="stat-card">
-                <div class="icon"><i class="fas fa-times-circle"></i></div>
-                <div class="value" id="outOfStockCount">0</div>
-                <div class="label">نفذت</div>
-            </div>
-            <div class="stat-card">
-                <div class="icon"><i class="fas fa-tags"></i></div>
-                <div class="value" id="categoriesCount">0</div>
-                <div class="label">التصنيفات</div>
-            </div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="value" id="totalProducts">0</div><div class="label">إجمالي المنتجات</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-exclamation-triangle"></i></div><div class="value" id="lowStockCount">0</div><div class="label">منخفضة المخزون</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-times-circle"></i></div><div class="value" id="outOfStockCount">0</div><div class="label">نفذت</div></div>
+            <div class="stat-card"><div class="icon"><i class="fas fa-tags"></i></div><div class="value" id="categoriesCount">0</div><div class="label">التصنيفات</div></div>
         </div>
 
         <!-- شريط البحث والتصفية -->
@@ -102,81 +86,37 @@
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="بحث باسم المنتج...">
             </div>
-            <select id="categoryFilter" class="form-select">
-                <option value="all">كل التصنيفات</option>
-            </select>
+            <select id="categoryFilter" class="form-select"><option value="all">كل التصنيفات</option></select>
             <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
         <!-- جدول المنتجات -->
         <div class="table-container">
             <table>
-                <thead>
-                    <tr>
-                        <th>المنتج</th>
-                        <th>التصنيف</th>
-                        <th>الوحدات</th>
-                        <th>المخزون</th>
-                        <th>الحالة</th>
-                        <th>إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="productsBody">
-                    <tr><td colspan="6" class="empty-message">جاري التحميل...</td></tr>
-                </tbody>
+                <thead><tr><th>المنتج</th><th>التصنيف</th><th>الوحدات</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                <tbody id="productsBody"><tr><td colspan="6" class="empty-message">جاري التحميل...</td></tr></tbody>
             </table>
         </div>
     </main>
 
-    <!-- مودال إضافة / تعديل منتج (تصميم محسّن) -->
+    <!-- مودال المنتج -->
     <div class="modal" id="productModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">منتج جديد</h2>
-                <button id="closeModalBtn">&times;</button>
-            </div>
+            <div class="modal-header"><h2 id="modalTitle">منتج جديد</h2><button id="closeModalBtn">&times;</button></div>
             <form id="productForm">
                 <input type="hidden" id="productId">
-                
-                <!-- بيانات أساسية -->
                 <div class="form-row">
-                    <div class="form-group flex-2">
-                        <label>اسم المنتج <span class="required">*</span></label>
-                        <input type="text" id="productName" placeholder="أدخل اسم المنتج" required>
-                    </div>
-                    <div class="form-group flex-1">
-                        <label>التصنيف</label>
-                        <input type="text" id="category" placeholder="مثال: مشروبات" list="categoriesList" autocomplete="off">
-                        <datalist id="categoriesList"></datalist>
-                    </div>
+                    <div class="form-group flex-2"><label>اسم المنتج <span class="required">*</span></label><input type="text" id="productName" placeholder="أدخل اسم المنتج" required></div>
+                    <div class="form-group flex-1"><label>التصنيف</label><input type="text" id="category" placeholder="مثال: مشروبات" list="categoriesList" autocomplete="off"><datalist id="categoriesList"></datalist></div>
                 </div>
 
-                <!-- قائمة الوحدات (تصميم البطاقات) -->
                 <div class="units-section">
-                    <div class="section-header">
-                        <h3>وحدات القياس</h3>
-                        <button type="button" class="btn btn-sm btn-outline" id="addUnitBtn">
-                            <i class="fas fa-plus"></i> إضافة وحدة
-                        </button>
-                    </div>
-                    
-                    <div id="unitsContainer" class="units-grid">
-                        <!-- سيتم إنشاء البطاقات ديناميكياً -->
-                    </div>
-                    
-                    <div class="help-note">
-                        <i class="fas fa-info-circle"></i>
-                        <span>الوحدة الأولى هي الوحدة الأساسية (قطعة). عامل التحويل = كم وحدة أساسية في هذه الوحدة. تكلفة الشراء تحدد السعر المقترح.</span>
-                    </div>
+                    <div class="section-header"><h3>وحدات القياس</h3><button type="button" class="btn btn-sm btn-outline" id="addUnitBtn"><i class="fas fa-plus"></i> إضافة وحدة</button></div>
+                    <div id="unitsContainer" class="units-grid"></div>
+                    <div class="help-note"><i class="fas fa-info-circle"></i><span>الوحدة الأولى هي الوحدة الأساسية (الكبرى). أدخل عدد القطع في الوحدة الفرعية ليتم حساب التكلفة والسعر والمخزون تلقائياً.</span></div>
                 </div>
 
-                <!-- ملاحظات -->
-                <div class="form-group">
-                    <label>ملاحظات</label>
-                    <textarea id="notes" rows="2" placeholder="ملاحظات إضافية عن المنتج..."></textarea>
-                </div>
-
-                <!-- أزرار الإجراءات -->
+                <div class="form-group"><label>ملاحظات</label><textarea id="notes" rows="2" placeholder="ملاحظات إضافية..."></textarea></div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ المنتج</button>
                     <button type="button" class="btn btn-cancel" id="cancelModalBtn">إلغاء</button>
