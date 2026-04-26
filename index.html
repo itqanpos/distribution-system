@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    <meta name="format-detection" content="telephone=no">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
@@ -38,6 +37,7 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
+            overscroll-behavior: none;
         }
         
         .login-container {
@@ -66,18 +66,40 @@
             margin-bottom: 35px;
         }
         
-        .app-logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            border-radius: 24px;
+        /* أيقونة التطبيق بنفس نمط splash */
+        .app-icon-wrapper {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 36px;
+        }
+        
+        .app-icon-bg {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            border-radius: 25px;
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+        }
+        
+        .app-icon {
+            position: relative;
+            z-index: 1;
+            width: 65px;
+            height: 65px;
+            object-fit: contain;
+            border-radius: 15px;
+        }
+        /* أيقونة احتياطية */
+        .app-icon-fallback {
+            position: relative;
+            z-index: 1;
+            font-size: 45px;
             color: white;
-            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.3);
         }
         
         .app-title {
@@ -228,6 +250,29 @@
             font-size: 13px;
         }
         
+        /* مؤشر السحب للتحديث */
+        .pull-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 8px 20px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .pull-indicator.visible {
+            opacity: 1;
+        }
+        
         @media (max-width: 480px) {
             .login-container {
                 padding: 30px 20px;
@@ -237,9 +282,20 @@
     </style>
 </head>
 <body>
+    <!-- مؤشر السحب للتحديث -->
+    <div class="pull-indicator" id="pullIndicator">
+        <i class="fas fa-sync-alt"></i>
+        <span>اسحب للتحديث</span>
+    </div>
+    
     <div class="login-container">
         <div class="login-header">
-            <div class="app-logo"><i class="fas fa-store"></i></div>
+            <div class="app-icon-wrapper">
+                <div class="app-icon-bg"></div>
+                <img src="./icons/icon-192x192.png" alt="حسابي" class="app-icon"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <i class="fas fa-store app-icon-fallback" style="display:none;"></i>
+            </div>
             <h1 class="app-title">حسابي</h1>
             <p class="app-subtitle">نظام إدارة المبيعات والتوزيع</p>
         </div>
@@ -279,23 +335,49 @@
     </div>
     
     <script>
-        // تسجيل Service Worker
+        // ====================== تسجيل Service Worker ======================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('Service Worker مسجل بنجاح', reg.scope))
-                    .catch(err => console.warn('فشل تسجيل Service Worker', err));
+                    .then(reg => console.log('Service Worker مسجل'))
+                    .catch(err => console.warn('Service Worker فشل', err));
             });
         }
         
-        // التعامل مع حدث التثبيت (PWA)
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            window.deferredPrompt = e;
-            // يمكن إظهار زر تثبيت هنا إذا أردت
+        // ====================== سحب للتحديث ======================
+        let pullStartY = 0;
+        let pulling = false;
+        const pullThreshold = 80;
+        const pullIndicator = document.getElementById('pullIndicator');
+        
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) {
+                pullStartY = e.touches[0].clientY;
+                pulling = true;
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (!pulling) return;
+            const currentY = e.touches[0].clientY;
+            const pullDistance = currentY - pullStartY;
+            if (pullDistance > 30) {
+                pullIndicator.classList.add('visible');
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchend', async (e) => {
+            if (!pulling) return;
+            pulling = false;
+            pullIndicator.classList.remove('visible');
+            const currentY = e.changedTouches[0].clientY;
+            if (currentY - pullStartY > pullThreshold) {
+                window.location.reload();
+            }
         });
         
-        // التحقق من وجود جلسة سابقة
+        // ====================== إذا كان المستخدم مسجلاً دخوله بالفعل ======================
         (function() {
             if (window.App && App.getCurrentUser()) {
                 const user = App.getCurrentUser();
@@ -303,7 +385,7 @@
             }
         })();
         
-        // معالجة تسجيل الدخول
+        // ====================== معالجة تسجيل الدخول ======================
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -314,7 +396,6 @@
             const errorBox = document.getElementById('errorBox');
             const errorText = document.getElementById('errorText');
             
-            // إخفاء الخطأ السابق
             errorBox.classList.remove('show');
             
             if (!email || !password) {
@@ -323,7 +404,6 @@
                 return;
             }
             
-            // إظهار حالة التحميل
             loginBtn.classList.add('loading');
             loginBtn.innerHTML = '<span class="spinner"></span> جاري تسجيل الدخول...';
             
@@ -336,7 +416,6 @@
                 }
                 
                 if (result.success) {
-                    // إذا تم تحديد "تذكرني"، يمكن تخزين تفضيل (اختياري)
                     if (rememberMe) {
                         localStorage.setItem('remember_me', 'true');
                     } else {
@@ -345,12 +424,11 @@
                     window.location.href = result.redirectUrl;
                 } else {
                     errorBox.classList.add('show');
-                    errorText.textContent = result.message || 'فشل تسجيل الدخول. تحقق من بيانات الاعتماد.';
+                    errorText.textContent = result.message || 'فشل تسجيل الدخول';
                     loginBtn.classList.remove('loading');
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> تسجيل الدخول';
                 }
             } catch (err) {
-                console.error('Login error:', err);
                 errorBox.classList.add('show');
                 errorText.textContent = 'حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت.';
                 loginBtn.classList.remove('loading');
@@ -358,7 +436,11 @@
             }
         });
         
-        // إذا كان App.getCurrentUser يرجع null، تأكد من عدم وجود حلقة إعادة توجيه
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
     </script>
 </body>
 </html>
