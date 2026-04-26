@@ -1,5 +1,5 @@
 /* =============================================
-   المشتريات - حسابي (متوافق مع الجدول الكامل)
+   المشتريات - حسابي (إصدار نهائي متوافق مع عمود supplier)
    ============================================= */
 
 'use strict';
@@ -250,7 +250,7 @@ const Purchases = {
         this.el.remainingAmount.textContent = Utils.formatMoney(Math.max(0, total - paid));
     },
 
-    // ========== حفظ الفاتورة (الحقول الكاملة) ==========
+    // ========== حفظ الفاتورة (تم إضافة حقل supplier) ==========
     async savePurchase() {
         const supplierName = this.el.supplierInput.value.trim();
         if (!supplierName) { alert('اسم المورد مطلوب'); return; }
@@ -259,7 +259,6 @@ const Purchases = {
         if (this.isDBReady) {
             const existing = this.suppliers.find(s => s.name === supplierName);
             if (!existing) {
-                // إنشاء مورد جديد
                 const newSupplier = await DB.saveParty({ name: supplierName, type: 'supplier', balance: 0 });
                 this.suppliers.push(newSupplier);
                 this.populateSupplierList();
@@ -291,10 +290,11 @@ const Purchases = {
         const remaining = Math.max(0, total - paid);
         const status = remaining === 0 ? 'paid' : 'unpaid';
 
-        // بناء كائن الفاتورة مع جميع الحقول (الجدول الجديد يحتوي عليها)
+        // كائن الفاتورة مع حقل supplier الإضافي
         const purchaseData = {
             id: this.editingId || crypto.randomUUID(),
             date,
+            supplier: supplierName,               // <-- لتلبية قيد NOT NULL
             supplier_id: supplierId,
             supplier_name: supplierName,
             invoice_number: invoiceNumber,
@@ -303,7 +303,7 @@ const Purchases = {
             paid,
             remaining,
             status,
-            notes: null // أو يمكن إدخال ملاحظات لو أردنا
+            notes: null
         };
 
         try {
@@ -318,7 +318,6 @@ const Purchases = {
                         if (unit) {
                             const factor = unit.factor || 1;
                             prod.units[0].stock += item.quantity * factor;
-                            // حفظ المنتج (مؤقتاً بدون updated_at)
                             const cleanProduct = { ...prod };
                             delete cleanProduct.updated_at;
                             await DB.saveProduct(cleanProduct);
