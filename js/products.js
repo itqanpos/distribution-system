@@ -1,5 +1,5 @@
 /* =============================================
-   المنتجات - حسابي (الوحدة الأساسية هي الأكبر)
+   المنتجات - حسابي (الوحدة الأساسية هي الكبرى)
    ============================================= */
 
 'use strict';
@@ -82,9 +82,9 @@ const Products = {
                 this.products = await DB.getProducts();
             } else {
                 this.products = [
-                    { id: '1', name: 'مشروب غازي', category: 'مشروبات',
-                      units: [{ name: 'كرتونة', price: 200, cost: 150, minPrice: 0, maxPrice: 0, stock: 30, factor: 1 },
-                              { name: 'زجاجة', price: 10, cost: 7.5, minPrice: 0, maxPrice: 0, stock: 0, factor: 20 }] }
+                    { id: '1', name: 'منتج تجريبي', category: 'مشروبات',
+                      units: [{ name: 'كرتونة', price: 240, cost: 200, minPrice: 0, maxPrice: 0, stock: 30, factor: 1 },
+                              { name: 'زجاجة', price: 10, cost: 8.33, minPrice: 0, maxPrice: 0, stock: 720, factor: 24 }] }
                 ];
             }
             this.updateStats();
@@ -96,7 +96,7 @@ const Products = {
         }
     },
 
-    updateStats() { /* كما هي دون تغيير */ 
+    updateStats() {
         const total = this.products.length;
         let low = 0, out = 0;
         const categories = new Set();
@@ -112,14 +112,14 @@ const Products = {
         this.el.categoriesCount.textContent = categories.size;
     },
 
-    populateCategories() { /* كما هي */ 
+    populateCategories() {
         const cats = [...new Set(this.products.map(p => p.category).filter(Boolean))];
         this.el.categoryFilter.innerHTML = '<option value="all">كل التصنيفات</option>' +
             cats.map(c => `<option value="${c}">${c}</option>`).join('');
         this.el.categoriesList.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
     },
 
-    renderTable() { /* كما هي */ 
+    renderTable() {
         const term = this.el.searchInput.value.toLowerCase();
         const cat = this.el.categoryFilter.value;
         let filtered = this.products.filter(p => {
@@ -179,29 +179,24 @@ const Products = {
 
     addUnitCard(unit = null, isBase = false) {
         const container = this.el.unitsContainer;
-        // أول بطاقة تكون أساسية دائماً
         if (container.children.length === 0) isBase = true;
 
         const card = document.createElement('div');
         card.className = `unit-card ${isBase ? 'is-base' : ''}`;
         
-        // اسم الوحدة قابل للتعديل دائماً
         const nameHTML = `<input type="text" class="unit-name-input" value="${unit?.name || (isBase ? 'كرتونة' : 'قطعة')}" placeholder="اسم الوحدة">`;
 
-        // تكلفة الشراء: في الأساسية قابلة للتعديل، في الفرعية تُحسب تلقائياً وَتُعرض readonly
         const costHTML = isBase
             ? `<input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" min="0" onchange="Products.updatePricesFromBase()">`
             : `<input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" readonly>`;
 
-        // حقل الكمية (عدد القطع في الوحدة الأساسية) – يظهر فقط للوحدات الفرعية
         const quantityHTML = isBase
-            ? `<input type="number" class="unit-factor" value="1" step="1" min="1" readonly style="background:#f1f5f9;">`  // لا حاجة للكمية في الأساسية
-            : `<input type="number" class="unit-factor" value="${unit?.factor || 1}" step="1" min="1" onchange="Products.updatePriceFromFactor(this)">`;
+            ? `<input type="number" class="unit-factor" value="1" step="1" min="1" readonly style="background:#f1f5f9;">`
+            : `<input type="number" class="unit-factor" value="${unit?.factor || 1}" step="1" min="1" onchange="Products.updatePriceFromFactor(this); Products.updateStockForSubUnits();">`;
 
-        // مخزون الوحدة الأساسية فقط قابل للتعديل
         const stockHTML = isBase
-            ? `<input type="number" class="unit-stock" value="${unit?.stock || 0}" step="0.001" min="0">`
-            : `<input type="number" class="unit-stock" value="0" readonly>`;
+            ? `<input type="number" class="unit-stock" value="${unit?.stock || 0}" step="0.001" min="0" onchange="Products.updateStockForSubUnits()">`
+            : `<input type="number" class="unit-stock" value="${unit?.stock || 0}" step="0.001" readonly>`;
 
         card.innerHTML = `
             <div class="unit-card-header">
@@ -235,7 +230,7 @@ const Products = {
                 </div>
             </div>
             <div class="unit-card-actions">
-                ${!isBase ? '<button type="button" onclick="this.closest(\'.unit-card\').remove(); Products.updatePricesFromBase();">🗑️ حذف</button>' : ''}
+                ${!isBase ? '<button type="button" onclick="this.closest(\'.unit-card\').remove(); Products.updatePricesFromBase(); Products.updateStockForSubUnits();">🗑️ حذف</button>' : ''}
             </div>
         `;
         container.appendChild(card);
@@ -243,9 +238,24 @@ const Products = {
         if (!isBase) {
             this.updateSingleUnitCost(card);
         }
+        // تحديث المخزون للوحدات الفرعية بعد الإضافة مباشرة
+        this.updateStockForSubUnits();
     },
 
-    // تحديث تكلفة وسعر وحدة فرعية واحدة بناءً على الأساسية والكمية
+    // دالة جديدة: تحديث مخزون الوحدات الفرعية
+    updateStockForSubUnits() {
+        const cards = [...this.el.unitsContainer.children];
+        if (cards.length === 0) return;
+        const baseStock = parseFloat(cards[0].querySelector('.unit-stock')?.value) || 0;
+        cards.slice(1).forEach(card => {
+            const quantity = parseFloat(card.querySelector('.unit-factor')?.value) || 1;
+            const stockField = card.querySelector('.unit-stock');
+            if (stockField) {
+                stockField.value = (baseStock * quantity).toFixed(3);
+            }
+        });
+    },
+
     updateSingleUnitCost(card) {
         const baseCard = this.el.unitsContainer.children[0];
         if (!baseCard || card === baseCard) return;
@@ -256,13 +266,12 @@ const Products = {
         card.querySelector('.unit-cost').value = (baseCost / quantity).toFixed(2);
     },
 
-    // عند تغيير الكمية في وحدة فرعية
     updatePriceFromFactor(input) {
         const card = input.closest('.unit-card');
         this.updateSingleUnitCost(card);
+        this.updateStockForSubUnits();
     },
 
-    // تحديث جميع الوحدات الفرعية من الوحدة الأساسية
     updatePricesFromBase() {
         const cards = [...this.el.unitsContainer.children];
         if (cards.length === 0) return;
@@ -274,6 +283,7 @@ const Products = {
             card.querySelector('.unit-price').value = (basePrice / quantity).toFixed(2);
             card.querySelector('.unit-cost').value = (baseCost / quantity).toFixed(2);
         });
+        this.updateStockForSubUnits();
     },
 
     // ========== حفظ المنتج ==========
@@ -290,7 +300,7 @@ const Products = {
             cost: parseFloat(card.querySelector('.unit-cost').value) || 0,
             minPrice: parseFloat(card.querySelector('.unit-min-price').value) || 0,
             maxPrice: parseFloat(card.querySelector('.unit-max-price').value) || 0,
-            stock: i === 0 ? (parseFloat(card.querySelector('.unit-stock').value) || 0) : 0,
+            stock: parseFloat(card.querySelector('.unit-stock').value) || 0,
             factor: parseFloat(card.querySelector('.unit-factor').value) || 1
         }));
 
@@ -304,8 +314,9 @@ const Products = {
         };
 
         try {
-            if (window.DB) await DB.saveProduct(product);
-            else {
+            if (window.DB) {
+                await DB.saveProduct(product);
+            } else {
                 const local = JSON.parse(localStorage.getItem('products') || '[]');
                 const idx = local.findIndex(p => p.id === product.id);
                 if (idx >= 0) local[idx] = product;
@@ -314,13 +325,27 @@ const Products = {
             }
             this.closeModal();
             await this.loadData();
-        } catch (err) { alert('فشل حفظ المنتج'); }
+        } catch (err) {
+            console.error(err);
+            alert('فشل حفظ المنتج');
+        }
     },
 
-    editProduct(id) { const p = this.products.find(x => x.id === id); if (p) this.openModal(p); },
-    duplicateProduct(id) { const p = this.products.find(x => x.id === id); if (p) this.openModal({ ...p, id: crypto.randomUUID(), name: p.name + ' (نسخة)' }); },
+    editProduct(id) {
+        const product = this.products.find(p => p.id === id);
+        if (product) this.openModal(product);
+    },
+
+    duplicateProduct(id) {
+        const product = this.products.find(p => p.id === id);
+        if (product) {
+            const copy = { ...product, id: crypto.randomUUID(), name: product.name + ' (نسخة)' };
+            this.openModal(copy);
+        }
+    },
+
     async deleteProduct(id) {
-        if (!confirm('حذف المنتج؟')) return;
+        if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
         try {
             if (window.DB) await DB.deleteProduct(id);
             else {
