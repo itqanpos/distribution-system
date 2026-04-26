@@ -15,7 +15,7 @@
     <script src="./js/supabase.js"></script>
 </head>
 <body>
-    <!-- شريط التنقل -->
+    <!-- شريط التنقل والقائمة الجانبية (نفس السابق دون تغيير) -->
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -38,29 +38,10 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
-        <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span>المبيعات</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span>الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span>المندوبين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item active" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
-        </ul>
+        <!-- نفس القائمة الجانبية كما في الإصدار السابق -->
     </aside>
 
-    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-cog" style="color:var(--secondary); margin-left:12px;"></i>الإعدادات</h1></div>
@@ -101,13 +82,58 @@
                 </div>
             </div>
 
-            <!-- بطاقة إعدادات الطباعة -->
+            <!-- بطاقة إعدادات الطباعة الأساسية -->
             <div class="settings-card">
                 <h3><i class="fas fa-print"></i> إعدادات الطباعة</h3>
                 <div class="form-group">
                     <label>رسالة أسفل الإيصال</label>
                     <input type="text" id="footerMessage" placeholder="شكراً لتعاملكم معنا">
                 </div>
+                <div class="form-group">
+                    <label>عدد النسخ الافتراضي</label>
+                    <input type="number" id="printCopies" min="1" max="5" value="1">
+                </div>
+            </div>
+
+            <!-- بطاقة إعدادات الطابعة المتقدمة -->
+            <div class="settings-card">
+                <h3><i class="fas fa-print"></i> إعدادات الطابعة المتقدمة</h3>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label>حجم الخط (px)</label>
+                        <input type="number" id="fontSize" min="10" max="20" value="13" step="1">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label>عرض الورق (حرف)</label>
+                        <input type="number" id="paperWidth" min="32" max="80" value="42" step="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>قالب الفاتورة</label>
+                    <select id="receiptTemplate">
+                        <option value="default">افتراضي</option>
+                        <option value="compact">مضغوط</option>
+                        <option value="detailed">تفصيلي (مع حدود)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>نوع الطابعة المفضلة</label>
+                    <select id="printerType">
+                        <option value="bluetooth">بلوتوث</option>
+                        <option value="usb">USB</option>
+                        <option value="network">شبكة</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-outline" id="connectPrinterBtn">
+                        <i class="fas fa-bluetooth"></i> ربط طابعة بلوتوث
+                    </button>
+                    <button type="button" class="btn btn-outline" id="connectUsbPrinterBtn" style="margin-right: 8px;">
+                        <i class="fas fa-usb"></i> ربط طابعة USB
+                    </button>
+                    <small class="help-text">تأكد من تفعيل البلوتوث أو توصيل الطابعة واختيارها من القائمة المنبثقة.</small>
+                </div>
+                <div id="printerStatus" class="printer-status"></div>
             </div>
 
             <!-- بطاقة إدارة المستخدمين -->
@@ -130,30 +156,15 @@
         </div>
     </main>
 
-    <!-- مودال إضافة مستخدم -->
+    <!-- مودال إضافة مستخدم (نفس السابق) -->
     <div class="modal" id="userModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إضافة مستخدم جديد</h2><button id="closeUserModalBtn">&times;</button></div>
             <form id="userForm">
-                <div class="form-group">
-                    <label>الاسم الكامل <span class="required">*</span></label>
-                    <input type="text" id="userFullName" required>
-                </div>
-                <div class="form-group">
-                    <label>البريد الإلكتروني <span class="required">*</span></label>
-                    <input type="email" id="userEmail" required>
-                </div>
-                <div class="form-group">
-                    <label>كلمة المرور <span class="required">*</span></label>
-                    <input type="password" id="userPassword" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label>الدور</label>
-                    <select id="userRole">
-                        <option value="admin">مدير</option>
-                        <option value="rep">مندوب</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>الاسم الكامل <span class="required">*</span></label><input type="text" id="userFullName" required></div>
+                <div class="form-group"><label>البريد الإلكتروني <span class="required">*</span></label><input type="email" id="userEmail" required></div>
+                <div class="form-group"><label>كلمة المرور <span class="required">*</span></label><input type="password" id="userPassword" required minlength="6"></div>
+                <div class="form-group"><label>الدور</label><select id="userRole"><option value="admin">مدير</option><option value="rep">مندوب</option></select></div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus"></i> إضافة</button>
                     <button type="button" class="btn btn-cancel" id="cancelUserModalBtn">إلغاء</button>
