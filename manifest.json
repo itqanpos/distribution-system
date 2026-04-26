@@ -1,8 +1,8 @@
 {
   "name": "حسابي - نظام التوزيع",
   "short_name": "حسابي",
-  "description": "نظام إدارة التوزيع والمبيعات",
-  "start_url": "/distribution-system/index.html",
+  "description": "نظام إدارة المبيعات والمشتريات والمخزون",
+  "start_url": "/distribution-system/splash.html",
   "scope": "/distribution-system/",
   "display": "standalone",
   "orientation": "any",
