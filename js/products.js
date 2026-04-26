@@ -1,5 +1,5 @@
 /* =============================================
-   المنتجات - حسابي (إصدار مخصص للتكلفة الموحدة)
+   المنتجات - حسابي (الوحدة الأساسية هي الأكبر)
    ============================================= */
 
 'use strict';
@@ -82,9 +82,9 @@ const Products = {
                 this.products = await DB.getProducts();
             } else {
                 this.products = [
-                    { id: '1', name: 'منتج تجريبي', category: 'مشروبات',
+                    { id: '1', name: 'مشروب غازي', category: 'مشروبات',
                       units: [{ name: 'كرتونة', price: 200, cost: 150, minPrice: 0, maxPrice: 0, stock: 30, factor: 1 },
-                              { name: 'قطعة', price: 20, cost: 15, minPrice: 0, maxPrice: 0, stock: 0, factor: 0.1 }] }
+                              { name: 'زجاجة', price: 10, cost: 7.5, minPrice: 0, maxPrice: 0, stock: 0, factor: 20 }] }
                 ];
             }
             this.updateStats();
@@ -96,7 +96,7 @@ const Products = {
         }
     },
 
-    updateStats() {
+    updateStats() { /* كما هي دون تغيير */ 
         const total = this.products.length;
         let low = 0, out = 0;
         const categories = new Set();
@@ -112,14 +112,14 @@ const Products = {
         this.el.categoriesCount.textContent = categories.size;
     },
 
-    populateCategories() {
+    populateCategories() { /* كما هي */ 
         const cats = [...new Set(this.products.map(p => p.category).filter(Boolean))];
         this.el.categoryFilter.innerHTML = '<option value="all">كل التصنيفات</option>' +
             cats.map(c => `<option value="${c}">${c}</option>`).join('');
         this.el.categoriesList.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
     },
 
-    renderTable() {
+    renderTable() { /* كما هي */ 
         const term = this.el.searchInput.value.toLowerCase();
         const cat = this.el.categoryFilter.value;
         let filtered = this.products.filter(p => {
@@ -168,7 +168,7 @@ const Products = {
             product.units.forEach((u, i) => this.addUnitCard(u, i === 0));
         } else {
             // إنشاء وحدة أساسية أولى (يمكن تسميتها لاحقاً)
-            this.addUnitCard({ name: 'قطعة', price: 0, cost: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }, true);
+            this.addUnitCard({ name: 'كرتونة', price: 0, cost: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }, true);
         }
         this.el.productModal.style.display = 'flex';
     },
@@ -185,24 +185,37 @@ const Products = {
         const card = document.createElement('div');
         card.className = `unit-card ${isBase ? 'is-base' : ''}`;
         
-        // بناء حقول التكلفة: للوحدة الأساسية قابلة للتعديل، للفرعية readonly وتُحسب تلقائياً
-        const costFieldHTML = isBase
+        // اسم الوحدة قابل للتعديل دائماً
+        const nameHTML = `<input type="text" class="unit-name-input" value="${unit?.name || (isBase ? 'كرتونة' : 'قطعة')}" placeholder="اسم الوحدة">`;
+
+        // تكلفة الشراء: في الأساسية قابلة للتعديل، في الفرعية تُحسب تلقائياً وَتُعرض readonly
+        const costHTML = isBase
             ? `<input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" min="0" onchange="Products.updatePricesFromBase()">`
             : `<input type="number" class="unit-cost" value="${unit?.cost || 0}" step="0.01" readonly>`;
 
+        // حقل الكمية (عدد القطع في الوحدة الأساسية) – يظهر فقط للوحدات الفرعية
+        const quantityHTML = isBase
+            ? `<input type="number" class="unit-factor" value="1" step="1" min="1" readonly style="background:#f1f5f9;">`  // لا حاجة للكمية في الأساسية
+            : `<input type="number" class="unit-factor" value="${unit?.factor || 1}" step="1" min="1" onchange="Products.updatePriceFromFactor(this)">`;
+
+        // مخزون الوحدة الأساسية فقط قابل للتعديل
+        const stockHTML = isBase
+            ? `<input type="number" class="unit-stock" value="${unit?.stock || 0}" step="0.001" min="0">`
+            : `<input type="number" class="unit-stock" value="0" readonly>`;
+
         card.innerHTML = `
             <div class="unit-card-header">
-                <input type="text" class="unit-name-input" value="${unit?.name || (isBase ? 'قطعة' : '')}" placeholder="اسم الوحدة">
-                ${isBase ? '<span class="base-badge">★ أساسية</span>' : ''}
+                ${nameHTML}
+                ${isBase ? '<span class="base-badge">★ أساسية (الوحدة الكبرى)</span>' : ''}
             </div>
             <div class="unit-card-body">
                 <div class="unit-field">
                     <label>سعر البيع</label>
-                    <input type="number" class="unit-price" value="${unit?.price || 0}" step="0.01" min="0">
+                    <input type="number" class="unit-price" value="${unit?.price || 0}" step="0.01" min="0" ${isBase ? 'onchange="Products.updatePricesFromBase()"' : ''}>
                 </div>
                 <div class="unit-field">
                     <label>تكلفة الشراء</label>
-                    ${costFieldHTML}
+                    ${costHTML}
                 </div>
                 <div class="unit-field">
                     <label>الحد الأدنى للسعر</label>
@@ -214,11 +227,11 @@ const Products = {
                 </div>
                 <div class="unit-field">
                     <label>المخزون</label>
-                    <input type="number" class="unit-stock" value="${unit?.stock || 0}" step="0.001" min="0" ${isBase ? '' : 'readonly'}>
+                    ${stockHTML}
                 </div>
                 <div class="unit-field">
-                    <label>عامل التحويل</label>
-                    <input type="number" class="unit-factor" value="${unit?.factor || 1}" step="0.001" min="0.001" onchange="Products.updatePriceFromFactor(this)">
+                    <label>${isBase ? 'الكمية (1)' : 'عدد القطع في الأساسية'}</label>
+                    ${quantityHTML}
                 </div>
             </div>
             <div class="unit-card-actions">
@@ -227,30 +240,29 @@ const Products = {
         `;
         container.appendChild(card);
 
-        // إذا أضفنا وحدة فرعية، تأكد من تحديث تكلفتها مباشرة
         if (!isBase) {
             this.updateSingleUnitCost(card);
         }
     },
 
-    // تحديث تكلفة وسعر وحدة فرعية واحدة بناءً على الأساسية
+    // تحديث تكلفة وسعر وحدة فرعية واحدة بناءً على الأساسية والكمية
     updateSingleUnitCost(card) {
         const baseCard = this.el.unitsContainer.children[0];
         if (!baseCard || card === baseCard) return;
         const basePrice = parseFloat(baseCard.querySelector('.unit-price')?.value) || 0;
         const baseCost = parseFloat(baseCard.querySelector('.unit-cost')?.value) || 0;
-        const factor = parseFloat(card.querySelector('.unit-factor')?.value) || 1;
-        card.querySelector('.unit-price').value = (basePrice * factor).toFixed(2);
-        card.querySelector('.unit-cost').value = (baseCost * factor).toFixed(2);
+        const quantity = parseFloat(card.querySelector('.unit-factor')?.value) || 1;
+        card.querySelector('.unit-price').value = (basePrice / quantity).toFixed(2);
+        card.querySelector('.unit-cost').value = (baseCost / quantity).toFixed(2);
     },
 
-    // تحديث سعر وتكلفة وحدة فرعية عندما يغير المستخدم عامل التحويل
+    // عند تغيير الكمية في وحدة فرعية
     updatePriceFromFactor(input) {
         const card = input.closest('.unit-card');
         this.updateSingleUnitCost(card);
     },
 
-    // تحديث جميع الوحدات الفرعية من الوحدة الأساسية (عند تغيير التكلفة أو السعر الأساسي)
+    // تحديث جميع الوحدات الفرعية من الوحدة الأساسية
     updatePricesFromBase() {
         const cards = [...this.el.unitsContainer.children];
         if (cards.length === 0) return;
@@ -258,9 +270,9 @@ const Products = {
         const basePrice = parseFloat(baseCard.querySelector('.unit-price')?.value) || 0;
         const baseCost = parseFloat(baseCard.querySelector('.unit-cost')?.value) || 0;
         cards.slice(1).forEach(card => {
-            const factor = parseFloat(card.querySelector('.unit-factor')?.value) || 1;
-            card.querySelector('.unit-price').value = (basePrice * factor).toFixed(2);
-            card.querySelector('.unit-cost').value = (baseCost * factor).toFixed(2);
+            const quantity = parseFloat(card.querySelector('.unit-factor')?.value) || 1;
+            card.querySelector('.unit-price').value = (basePrice / quantity).toFixed(2);
+            card.querySelector('.unit-cost').value = (baseCost / quantity).toFixed(2);
         });
     },
 
@@ -292,9 +304,8 @@ const Products = {
         };
 
         try {
-            if (window.DB) {
-                await DB.saveProduct(product);
-            } else {
+            if (window.DB) await DB.saveProduct(product);
+            else {
                 const local = JSON.parse(localStorage.getItem('products') || '[]');
                 const idx = local.findIndex(p => p.id === product.id);
                 if (idx >= 0) local[idx] = product;
@@ -303,27 +314,13 @@ const Products = {
             }
             this.closeModal();
             await this.loadData();
-        } catch (err) {
-            console.error(err);
-            alert('فشل حفظ المنتج');
-        }
+        } catch (err) { alert('فشل حفظ المنتج'); }
     },
 
-    editProduct(id) {
-        const product = this.products.find(p => p.id === id);
-        if (product) this.openModal(product);
-    },
-
-    duplicateProduct(id) {
-        const product = this.products.find(p => p.id === id);
-        if (product) {
-            const copy = { ...product, id: crypto.randomUUID(), name: product.name + ' (نسخة)' };
-            this.openModal(copy);
-        }
-    },
-
+    editProduct(id) { const p = this.products.find(x => x.id === id); if (p) this.openModal(p); },
+    duplicateProduct(id) { const p = this.products.find(x => x.id === id); if (p) this.openModal({ ...p, id: crypto.randomUUID(), name: p.name + ' (نسخة)' }); },
     async deleteProduct(id) {
-        if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+        if (!confirm('حذف المنتج؟')) return;
         try {
             if (window.DB) await DB.deleteProduct(id);
             else {
