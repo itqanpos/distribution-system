@@ -13,10 +13,7 @@
     
     <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#10b981">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="theme-color" content="#3b82f6">
     
     <style>
         * {
@@ -27,7 +24,7 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%);
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -55,40 +52,50 @@
         
         .app-icon-wrapper {
             position: relative;
-            width: 160px;
-            height: 160px;
+            width: 140px;
+            height: 140px;
             margin: 0 auto 30px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         
+        /* الخلفية المتوهجة تبقى موجودة */
         .app-icon-bg {
             position: absolute;
-            width: 160px;
-            height: 160px;
-            background: white;
-            border-radius: 30px;
-            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.25);
+            width: 140px;
+            height: 140px;
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            border-radius: 35px;
+            box-shadow: 0 25px 60px rgba(59, 130, 246, 0.35);
+            animation: pulse 2s infinite;
         }
         
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 25px 60px rgba(59, 130, 246, 0.35); }
+            50% { box-shadow: 0 25px 80px rgba(59, 130, 246, 0.55); }
+        }
+        
+        /* أيقونة التطبيق - الآن بصيغة img */
         .app-icon {
             position: relative;
             z-index: 1;
-            width: 110px;
-            height: 110px;
+            width: 90px;
+            height: 90px;
             object-fit: contain;
+            border-radius: 20px; /* اختياري */
         }
         
         .app-title {
             font-size: 40px;
             font-weight: 700;
-            color: #065f46;
+            color: #1e293b;
             margin-bottom: 10px;
+            letter-spacing: -1px;
         }
         
         .app-version {
-            color: #047857;
+            color: #64748b;
             font-size: 16px;
             margin-bottom: 30px;
         }
@@ -96,7 +103,7 @@
         .loading-bar-container {
             width: 200px;
             height: 4px;
-            background: #d1fae5;
+            background: #e2e8f0;
             border-radius: 2px;
             margin: 0 auto;
             overflow: hidden;
@@ -104,7 +111,7 @@
         
         .loading-bar {
             height: 100%;
-            background: linear-gradient(90deg, #10b981, #059669);
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
             border-radius: 2px;
             width: 0%;
             animation: loading 1.5s ease-in-out infinite;
@@ -118,7 +125,7 @@
         
         .pull-hint {
             margin-top: 40px;
-            color: #065f46;
+            color: #94a3b8;
             font-size: 13px;
             opacity: 0;
             animation: fadeIn 1s ease 1.5s forwards;
@@ -138,6 +145,7 @@
             60% { transform: translateY(-5px); }
         }
         
+        /* مؤشر السحب للتحديث */
         .pull-indicator {
             position: fixed;
             top: 20px;
@@ -161,19 +169,19 @@
         }
         
         .pull-indicator i {
-            color: #10b981;
+            color: #3b82f6;
             font-size: 18px;
         }
         
         .status-message {
             margin-top: 20px;
-            color: #047857;
+            color: #64748b;
             font-size: 14px;
         }
     </style>
 </head>
 <body>
-
+    <!-- مؤشر السحب للتحديث -->
     <div class="pull-indicator" id="pullIndicator">
         <i class="fas fa-sync-alt"></i>
         <span>اسحب للتحديث</span>
@@ -182,9 +190,15 @@
     <div class="splash-container">
         <div class="app-icon-wrapper">
             <div class="app-icon-bg"></div>
-            
-            <!-- 🔥 اللوجو الجديد -->
-            <img src="logo.png" class="app-icon" alt="حسابي">
+            <!-- 
+                 هنا يتم عرض الأيقونة من ملف الصورة.
+                 تأكد من وجود ملف icon-192x192.png داخل مجلد icons.
+                 يمكنك تغيير المسار إذا كانت الأيقونة باسم آخر.
+            -->
+            <img src="./icons/icon-192x192.png" alt="حسابي" class="app-icon"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <!-- أيقونة احتياطية في حالة عدم وجود الصورة -->
+            <i class="fas fa-store app-icon" style="display:none; font-size:65px; color:white;"></i>
         </div>
         
         <h1 class="app-title">حسابي</h1>
@@ -202,12 +216,16 @@
     </div>
     
     <script>
+        // ====================== تسجيل Service Worker ======================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js');
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service Worker مسجل بنجاح', reg.scope))
+                    .catch(err => console.warn('فشل تسجيل Service Worker', err));
             });
         }
         
+        // ====================== سحب للتحديث ======================
         let pullStartY = 0;
         let pulling = false;
         const pullThreshold = 100;
@@ -248,15 +266,51 @@
             const statusEl = document.getElementById('statusMessage');
             statusEl.textContent = 'جاري التحديث...';
             
+            try {
+                if (window.App && App.getCurrentUser()) {
+                    const user = App.getCurrentUser();
+                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+                    return;
+                }
+                
+                if (window.DB) {
+                    await DB.getSettings().catch(() => {});
+                    statusEl.textContent = 'تم الاتصال بنجاح';
+                } else {
+                    statusEl.textContent = 'قاعدة البيانات غير متصلة';
+                }
+            } catch (err) {
+                statusEl.textContent = 'فشل الاتصال: ' + err.message;
+            }
+            
             setTimeout(() => {
-                window.location.href = './index.html';
+                if (window.App && App.getCurrentUser()) {
+                    const user = App.getCurrentUser();
+                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+                } else {
+                    window.location.href = './index.html';
+                }
             }, 3000);
         }
         
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                window.location.href = './index.html';
-            }, 2500);
+        // ====================== تحميل تلقائي ======================
+        window.addEventListener('load', async () => {
+            if (window.App && App.getCurrentUser()) {
+                const user = App.getCurrentUser();
+                setTimeout(() => {
+                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+                }, 2000);
+            } else {
+                setTimeout(() => {
+                    window.location.href = './index.html';
+                }, 2500);
+            }
+        });
+        
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
         });
     </script>
 </body>
