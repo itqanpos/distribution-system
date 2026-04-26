@@ -1,5 +1,5 @@
 /* =============================================
-   الإعدادات - حسابي (إصدار متقدم مع طابعة)
+   الإعدادات - حسابي (JavaScript كامل)
    ============================================= */
 
 'use strict';
@@ -22,6 +22,7 @@ const Settings = {
 
     cacheElements() {
         this.el = {
+            // القائمة
             menuToggle: document.getElementById('menuToggle'),
             sidebar: document.getElementById('sidebar'),
             logoutBtn: document.getElementById('logoutBtn'),
@@ -38,10 +39,10 @@ const Settings = {
             // طباعة أساسية
             footerMessage: document.getElementById('footerMessage'),
             printCopies: document.getElementById('printCopies'),
+            receiptTemplate: document.getElementById('receiptTemplate'),
             // طباعة متقدمة
             fontSize: document.getElementById('fontSize'),
             paperWidth: document.getElementById('paperWidth'),
-            receiptTemplate: document.getElementById('receiptTemplate'),
             printerType: document.getElementById('printerType'),
             connectPrinterBtn: document.getElementById('connectPrinterBtn'),
             connectUsbPrinterBtn: document.getElementById('connectUsbPrinterBtn'),
@@ -99,26 +100,25 @@ const Settings = {
             } else {
                 this.currentSettings = {};
             }
-            const p = this.currentSettings.printing || {};
-            const f = this.currentSettings.financial || {};
-            const c = this.currentSettings.company || {};
+            const company = this.currentSettings.company || {};
+            const financial = this.currentSettings.financial || {};
+            const printing = this.currentSettings.printing || {};
 
-            this.el.companyName.value = c.name || '';
-            this.el.companyPhone.value = c.phone || '';
-            this.el.companyAddress.value = c.address || '';
-            this.el.currency.value = f.currency || 'ج.م';
-            this.el.openingBalance.value = f.opening_cash_balance || 0;
+            this.el.companyName.value = company.name || '';
+            this.el.companyPhone.value = company.phone || '';
+            this.el.companyAddress.value = company.address || '';
+            this.el.currency.value = financial.currency || 'ج.م';
+            this.el.openingBalance.value = financial.opening_cash_balance || 0;
             this.el.minStock.value = this.currentSettings.min_stock || 5;
-            this.el.footerMessage.value = p.footer_message || '';
-            this.el.printCopies.value = p.copies || 1;
-            this.el.fontSize.value = p.font_size || 13;
-            this.el.paperWidth.value = p.paper_width || 42;
-            this.el.receiptTemplate.value = p.template || 'default';
-            this.el.printerType.value = p.printer_type || 'bluetooth';
+            this.el.footerMessage.value = printing.footer_message || '';
+            this.el.printCopies.value = printing.copies || 1;
+            this.el.receiptTemplate.value = printing.template || 'default';
+            this.el.fontSize.value = printing.font_size || 13;
+            this.el.paperWidth.value = printing.paper_width || 42;
+            this.el.printerType.value = printing.printer_type || 'bluetooth';
 
-            // عرض حالة الطابعة إن كانت قد حفظت
-            if (p.printer_name) {
-                this.showPrinterStatus(`الطابعة المفضلة: ${p.printer_name}`, 'connected');
+            if (printing.printer_name) {
+                this.showPrinterStatus(`الطابعة المحفوظة: ${printing.printer_name}`, 'connected');
             }
         } catch (err) {
             console.error('فشل تحميل الإعدادات', err);
@@ -143,7 +143,6 @@ const Settings = {
                 paper_width: parseInt(this.el.paperWidth.value) || 42,
                 template: this.el.receiptTemplate.value,
                 printer_type: this.el.printerType.value,
-                // الاحتفاظ باسم الطابعة إن كانت قد حفظت سابقاً
                 printer_name: this.currentSettings.printing?.printer_name || null
             },
             min_stock: parseInt(this.el.minStock.value) || 5
@@ -164,7 +163,7 @@ const Settings = {
         }
     },
 
-    // ========== ربط الطابعات (Web Bluetooth و WebUSB) ==========
+    // ========== ربط الطابعات ==========
     async connectBluetoothPrinter() {
         if (!navigator.bluetooth) {
             this.showPrinterStatus('متصفحك لا يدعم Bluetooth. استخدم Chrome على أندرويد/ويندوز.', 'error');
@@ -173,13 +172,11 @@ const Settings = {
         try {
             const device = await navigator.bluetooth.requestDevice({
                 acceptAllDevices: true,
-                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'] // خدمة طباعة شائعة
+                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
             });
             this.showPrinterStatus(`تم ربط الطابعة: ${device.name}`, 'connected');
-            // حفظ اسم الطابعة مؤقتاً (سيُحفظ مع الإعدادات عند الضغط على حفظ)
             if (!this.currentSettings.printing) this.currentSettings.printing = {};
             this.currentSettings.printing.printer_name = device.name;
-            // تنبيه المستخدم بضرورة حفظ الإعدادات
             alert('تم ربط الطابعة بنجاح. اضغط "حفظ جميع الإعدادات" لتخزينها.');
         } catch (error) {
             console.error(error);
@@ -213,7 +210,7 @@ const Settings = {
         el.className = 'printer-status ' + type;
     },
 
-    // ========== إدارة المستخدمين (كما هي دون تغيير) ==========
+    // ========== إدارة المستخدمين ==========
     async loadUsers() {
         if (!this.isDBReady) {
             this.el.usersBody.innerHTML = '<tr><td colspan="4">قاعدة البيانات غير متصلة</td></tr>';
