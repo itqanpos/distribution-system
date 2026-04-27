@@ -25,6 +25,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/print.js"></script>
+
+    <!-- أنماط إضافية لدعم الألوان في الموديل -->
+    <style>
+        .text-danger { color: #dc2626 !important; } /* أحمر */
+        .text-success { color: #16a34a !important; } /* أخضر */
+    </style>
 </head>
 <body>
     <!-- شريط التنقل -->
@@ -125,7 +131,8 @@
         </div>
     </div>
 
-    <!-- المودالات -->
+    <!-- ==================== المودالات ==================== -->
+    <!-- مودال اختيار الوحدة والكمية -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -137,6 +144,7 @@
         </div>
     </div>
 
+    <!-- مودال الدفع (النسخة المعدلة بألوان الرصيد) -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -144,7 +152,11 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
-                <div class="summary-row"><span id="currentBalanceLabel">الرصيد الحالي:</span> <span id="currentBalance">0.00 ج.م</span></div>
+                <!-- عرض الرصيد الحالي بألوان ديناميكية -->
+                <div class="summary-row">
+                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
+                    <span id="currentBalance">0.00 ج.م</span>
+                </div>
             </div>
             <div class="form-group"><label>طريقة الدفع</label>
                 <select id="paymentMethod">
@@ -157,12 +169,17 @@
             <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
             <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
-            <div class="summary-row"><span id="balanceAfterLabel">الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
+            <!-- عرض الرصيد بعد الدفع بألوان ديناميكية -->
+            <div class="summary-row">
+                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
+                <span id="balanceAfter">0.00 ج.م</span>
+            </div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
             <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
         </div>
     </div>
 
+    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -172,8 +189,42 @@
 
     <div class="toast" id="toast"></div>
 
-    <!-- سكريبت نقطة البيع -->
+    <!-- سكريبت نقطة البيع الرئيسي -->
     <script src="./js/pos.js"></script>
+
+    <!-- سكريبت تلوين الأرصدة في موديل الدفع تلقائيًا -->
+    <script>
+        (function() {
+            // دالة لتحديث لون العنصر بناءً على الرصيد
+            function updateBalanceColor(element) {
+                if (!element) return;
+                // استخرج القيمة الرقمية من النص (مثلاً "150.00 ج.م" أو "-50.00 ج.م")
+                let text = element.textContent.trim();
+                let numericValue = parseFloat(text.replace(/[^\d.-]/g, ''));
+                if (isNaN(numericValue)) return;
+
+                // إزالة الكلاسات القديمة
+                element.classList.remove('text-danger', 'text-success');
+                if (numericValue < 0) {
+                    element.classList.add('text-danger'); // أحمر لو مدين (سالب)
+                } else if (numericValue > 0) {
+                    element.classList.add('text-success'); // أخضر لو دائن (موجب)
+                }
+            }
+
+            // مراقبة التغييرات في عناصر الرصيد
+            const balanceEls = ['currentBalance', 'balanceAfter'];
+            balanceEls.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                // تحديث فوري
+                updateBalanceColor(el);
+                // استخدام MutationObserver لمراقبة تغيير المحتوى
+                const observer = new MutationObserver(() => updateBalanceColor(el));
+                observer.observe(el, { characterData: true, subtree: true, childList: true });
+            });
+        })();
+    </script>
 
     <!-- Service Worker + سحب للتحديث -->
     <script>
