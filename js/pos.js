@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار موحد - Offline + Touch)
+   نقطة البيع - حسابي (إصدار نهائي - Touch & Buttons)
    ============================================= */
 'use strict';
 
@@ -63,6 +63,10 @@ const POS = {
         this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
 
+        // أحداث الخصم (مربوطة هنا بدلاً من oninput في HTML)
+        this.el.discountValue.addEventListener('input', () => this.calculateTotals());
+        this.el.discountType.addEventListener('change', () => this.calculateTotals());
+
         this.el.payBtn.addEventListener('click', () => this.openPaymentModal());
         this.el.holdBtn.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn.addEventListener('click', () => this.loadHeldInvoices());
@@ -78,7 +82,7 @@ const POS = {
 
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
 
-        // تفويض النقر على المنتجات (يعمل مع اللمس)
+        // تفويض النقر على المنتجات (يعمل باللمس)
         this.el.productListContainer.addEventListener('click', (e) => {
             const item = e.target.closest('.product-item');
             if (item && item.dataset.id) {
@@ -115,7 +119,6 @@ const POS = {
             this.customers.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name} (${c.phone || ''})</option>`).join('');
     },
 
-    // عرض المخزون بشكل مفهوم (بدون كسور)
     formatStockDisplay(product) {
         const baseUnit = product.units?.[0];
         if (!baseUnit) return '0';
@@ -142,7 +145,6 @@ const POS = {
                 <div class="product-price">${Utils.formatMoney(p.units[0].price)}</div>
             </div>`;
         }).join('');
-        // تفويض الحدث سيتم عبر المستمع المضاف في bindEvents
     },
 
     onCustomerSearch() {
@@ -328,6 +330,7 @@ const POS = {
             if (this.selectedCustomer) {
                 this.selectedCustomer.balance = (this.selectedCustomer.balance || 0) + diff;
                 if (this.isDBReady) await DB.saveParty(this.selectedCustomer);
+                else if (window.localDB) await localDB.put('parties', this.selectedCustomer);
             }
 
             const invoice = {
@@ -359,22 +362,17 @@ const POS = {
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
-                // وضع Offline أو اختبار
-                for (const item of this.cart) {
-                    const prod = this.products.find(p => p.id === item.productId);
-                    if (prod) {
-                        const reduction = this.getBaseQuantityReduction(item);
-                        prod.units[0].stock = Math.max(0, prod.units[0].stock - reduction);
-                    }
-                }
+                // وضع Offline
                 if (window.localDB) {
                     await localDB.put('invoices', invoice);
                     for (const item of this.cart) {
                         const prod = this.products.find(p => p.id === item.productId);
-                        if (prod) await localDB.put('products', prod);
+                        if (prod) {
+                            const reduction = this.getBaseQuantityReduction(item);
+                            prod.units[0].stock = Math.max(0, prod.units[0].stock - reduction);
+                            await localDB.put('products', prod);
+                        }
                     }
-                    if (cashPaid > 0) await localDB.put('transactions', { id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
-                    if (transferPaid > 0) await localDB.put('transactions', { id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
                 }
             }
 
