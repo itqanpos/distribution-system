@@ -15,11 +15,9 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
     
-    <!-- Offline + Supabase -->
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,6 +25,11 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
+    <!-- شريط حالة الاتصال (يظهر عند عدم الاتصال) -->
+    <div id="offlineBar" style="display:none; background:#ef4444; color:white; text-align:center; padding:6px; font-weight:bold; position:fixed; top:0; left:0; right:0; z-index:9999;">
+        لا يوجد اتصال بالإنترنت - البيانات محفوظة محلياً
+    </div>
+
     <!-- شريط التنقل -->
     <nav class="navbar">
         <div class="navbar-left">
@@ -76,8 +79,9 @@
         </ul>
     </aside>
 
-    <!-- حاوية نقطة البيع -->
+    <!-- حاوية نقطة البيع الرئيسية (تخطيط جديد مرن) -->
     <div class="pos-container">
+        <!-- العمود الأيسر: البحث والمنتجات (قابل للتمرير) -->
         <div class="left-panel">
             <div class="customer-box">
                 <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." list="customerList" autocomplete="off">
@@ -94,38 +98,43 @@
             </div>
         </div>
 
+        <!-- العمود الأيمن: السلة (الملخص والأزرار ثابتان، فقط عناصر السلة قابلة للتمرير) -->
         <div class="cart-section">
-            <div class="cart-items">
+            <div class="cart-items" id="cartItemsContainer">
                 <div class="cart-header-row">
                     <span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span>
                 </div>
-                <div id="cartItemsContainer"></div>
+                <!-- عناصر السلة ستُضاف هنا -->
+                <div style="padding:20px; text-align:center;">السلة فارغة</div>
             </div>
-            <div class="cart-summary">
-                <div class="summary-stats">
-                    <div class="stat-item"><div class="label">الأصناف</div><div class="value" id="itemTypesCount">0</div></div>
-                    <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
+            <!-- قسم ملخص السلة وأزرار الإجراءات (ثابت في الأسفل) -->
+            <div class="cart-footer">
+                <div class="cart-summary">
+                    <div class="summary-stats">
+                        <div class="stat-item"><div class="label">الأصناف</div><div class="value" id="itemTypesCount">0</div></div>
+                        <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
+                    </div>
+                    <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
+                    <div class="summary-row discount-row">
+                        <span>الخصم:</span>
+                        <input type="number" id="discountValue" value="0" min="0" step="0.01" style="width:100px;">
+                        <select id="discountType">
+                            <option value="amount">ج.م</option>
+                            <option value="percent">%</option>
+                        </select>
+                    </div>
+                    <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
                 </div>
-                <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
-                <div class="summary-row discount-row">
-                    <span>الخصم:</span>
-                    <input type="number" id="discountValue" value="0" min="0" step="0.01" style="width:100px;">
-                    <select id="discountType">
-                        <option value="amount">ج.م</option>
-                        <option value="percent">%</option>
-                    </select>
+                <div class="action-buttons">
+                    <button class="btn btn-success" id="payBtn"><i class="fas fa-check"></i> دفع</button>
+                    <button class="btn btn-warning" id="holdBtn"><i class="fas fa-pause"></i> تعليق</button>
+                    <button class="btn btn-primary" id="heldInvoicesBtn"><i class="fas fa-list"></i> معلقة</button>
                 </div>
-                <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
-            </div>
-            <div class="action-buttons">
-                <button class="btn btn-success" id="payBtn"><i class="fas fa-check"></i> دفع</button>
-                <button class="btn btn-warning" id="holdBtn"><i class="fas fa-pause"></i> تعليق</button>
-                <button class="btn btn-primary" id="heldInvoicesBtn"><i class="fas fa-list"></i> معلقة</button>
             </div>
         </div>
     </div>
 
-    <!-- مودالات -->
+    <!-- المودالات (كما هي) -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -136,7 +145,6 @@
             <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
         </div>
     </div>
-
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -162,17 +170,15 @@
             <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
         </div>
     </div>
-
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
             <div id="heldInvoicesList"></div>
         </div>
     </div>
-
     <div class="toast" id="toast"></div>
 
-    <!-- سكريبت نقطة البيع (الإصدار الموحد) -->
+    <!-- سكريبت نقطة البيع (الإصدار المثبت مع إدارة الاتصال) -->
     <script src="./js/pos.js"></script>
     
     <!-- Service Worker + سحب للتحديث -->
@@ -180,7 +186,7 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
         }
-        
+        // سحب للتحديث
         let pullStartY = 0, pulling = false;
         const pullThreshold = 80;
         const pullIndicator = document.createElement('div');
@@ -188,7 +194,6 @@
         pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
         pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
         document.body.appendChild(pullIndicator);
-        
         document.addEventListener('touchstart', (e) => { if(window.scrollY===0){ pullStartY=e.touches[0].clientY; pulling=true; } }, {passive:false});
         document.addEventListener('touchmove', (e) => { if(!pulling) return; if(e.touches[0].clientY-pullStartY>30){ pullIndicator.style.opacity='1'; e.preventDefault(); } }, {passive:false});
         document.addEventListener('touchend', (e) => { if(!pulling) return; pulling=false; pullIndicator.style.opacity='0'; if(e.changedTouches[0].clientY-pullStartY>pullThreshold) window.location.reload(); });
