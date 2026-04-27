@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (مخزون ذكي بدون كسور ظاهرية)
+   نقطة البيع - حسابي (إصدار موحد - Offline + Touch)
    ============================================= */
 'use strict';
 
@@ -77,6 +77,14 @@ const POS = {
         this.el.transferAmount.addEventListener('input', () => this.updatePaymentPreview());
 
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
+
+        // تفويض النقر على المنتجات (يعمل مع اللمس)
+        this.el.productListContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.product-item');
+            if (item && item.dataset.id) {
+                this.openUnitModal(item.dataset.id);
+            }
+        });
     },
 
     async loadInitialData() {
@@ -93,10 +101,7 @@ const POS = {
                 this.customers = await DB.getParties('customer');
             } else {
                 this.products = [
-                    { id: '1', name: 'بيبسي', units: [
-                        { name: 'كرتونة', price: 240, cost: 200, minPrice: 0, maxPrice: 0, stock: 5, factor: 1 },
-                        { name: 'علبة', price: 10, cost: 8.33, minPrice: 0, maxPrice: 0, stock: 0, factor: 24 }
-                    ]}
+                    { id: '1', name: 'بيبسي', units: [{ name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 }, { name: 'علبة', price: 10, cost: 8.33, stock: 0, factor: 24 }] }
                 ];
                 this.customers = [{ id: '101', name: 'عميل تجريبي', balance: 500 }];
             }
@@ -110,25 +115,19 @@ const POS = {
             this.customers.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name} (${c.phone || ''})</option>`).join('');
     },
 
-    // ========== عرض المخزون بشكل مفهوم (بدون كسور) ==========
+    // عرض المخزون بشكل مفهوم (بدون كسور)
     formatStockDisplay(product) {
         const baseUnit = product.units?.[0];
         if (!baseUnit) return '0';
-        const stock = baseUnit.stock || 0; // القيمة المخزنة (مثلاً 4.1667)
-        const subUnit = product.units?.[1]; // أول وحدة فرعية
-        if (!subUnit || subUnit.factor === 1) {
-            return `${Math.floor(stock)} ${baseUnit.name}`;
-        }
+        const stock = baseUnit.stock || 0;
+        const subUnit = product.units?.[1];
+        if (!subUnit || subUnit.factor === 1) return `${Math.floor(stock)} ${baseUnit.name}`;
         const factor = subUnit.factor;
         const wholeUnits = Math.floor(stock);
         const remainder = Math.round((stock - wholeUnits) * factor);
-        if (remainder === 0) {
-            return `${wholeUnits} ${baseUnit.name}`;
-        } else if (wholeUnits === 0) {
-            return `${remainder} ${subUnit.name}`;
-        } else {
-            return `${wholeUnits} ${baseUnit.name} و ${remainder} ${subUnit.name}`;
-        }
+        if (remainder === 0) return `${wholeUnits} ${baseUnit.name}`;
+        if (wholeUnits === 0) return `${remainder} ${subUnit.name}`;
+        return `${wholeUnits} ${baseUnit.name} و ${remainder} ${subUnit.name}`;
     },
 
     filterProducts() {
@@ -143,7 +142,7 @@ const POS = {
                 <div class="product-price">${Utils.formatMoney(p.units[0].price)}</div>
             </div>`;
         }).join('');
-        container.querySelectorAll('.product-item').forEach(item => { item.addEventListener('click', () => this.openUnitModal(item.dataset.id)); });
+        // تفويض الحدث سيتم عبر المستمع المضاف في bindEvents
     },
 
     onCustomerSearch() {
@@ -168,9 +167,8 @@ const POS = {
         else discount = subtotal * discountVal / 100;
         const net = subtotal - discount;
         this.el.itemTypesCount.textContent = this.cart.length;
-        // عدد القطع الإجمالي (بوحدة العلب مثلاً)
-        const pieces = this.cart.reduce((s, item) => s + (item.quantity * (item.isBaseUnit ? (item.factor || 1) : 1) * (item.factor || 1)), 0);
-        this.el.totalPieces.textContent = pieces;
+        const pieces = this.cart.reduce((s, item) => s + (item.quantity * (item.factor || 1)), 0);
+        this.el.totalPieces.textContent = pieces.toFixed(0);
         this.el.subtotal.textContent = Utils.formatMoney(subtotal);
         this.el.netTotal.textContent = Utils.formatMoney(net);
         return { subtotal, discount, net };
@@ -190,7 +188,7 @@ const POS = {
         this.calculateTotals();
     },
 
-    // ========== مودال اختيار الوحدة والكمية ==========
+    // ========== مودال الوحدة ==========
     openUnitModal(productId) {
         this.selectedProduct = this.products.find(p => p.id === productId);
         if (!this.selectedProduct) return;
@@ -199,8 +197,9 @@ const POS = {
         container.innerHTML = this.selectedProduct.units.map((u, idx) =>
             `<button class="unit-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}">${u.name}</button>`
         ).join('');
-        container.querySelectorAll('.unit-btn').forEach(btn => { btn.addEventListener('click', () => this.selectUnit(parseInt(btn.dataset.index))); });
-
+        container.querySelectorAll('.unit-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.selectUnit(parseInt(btn.dataset.index)));
+        });
         this.selectedUnit = this.selectedProduct.units[0];
         this.updateUnitModalInfo();
         this.showModal('unitQuantityModal');
@@ -215,16 +214,14 @@ const POS = {
     updateUnitModalInfo() {
         if (!this.selectedProduct || !this.selectedUnit) return;
         const baseUnit = this.selectedProduct.units[0];
-        const baseStock = baseUnit.stock || 0; // قيمة عشرية دقيقة
+        const baseStock = baseUnit.stock || 0;
         const selectedUnit = this.selectedUnit;
         const factor = selectedUnit.factor || 1;
         let availableStock = 0;
 
         if (selectedUnit === baseUnit) {
-            // بيع كرتونات كاملة: فقط العدد الصحيح للكراتين
             availableStock = Math.floor(baseStock);
         } else {
-            // بيع بوحدة فرعية: إجمالي القطع المتاحة كعدد صحيح
             const wholeBase = Math.floor(baseStock);
             const remainderPieces = Math.round((baseStock - wholeBase) * factor);
             availableStock = wholeBase * factor + remainderPieces;
@@ -234,7 +231,6 @@ const POS = {
         this.el.selectedQuantity.max = availableStock > 0 ? availableStock : 0;
         this.el.selectedQuantity.value = availableStock > 0 ? 1 : 0;
 
-        // عرض المخزون المتاح بشكل جميل
         if (selectedUnit === baseUnit) {
             this.el.stockInfo.textContent = `المخزون المتاح: ${availableStock} ${baseUnit.name}`;
         } else {
@@ -250,33 +246,27 @@ const POS = {
     addToCartFromModal() {
         const qty = parseFloat(this.el.selectedQuantity.value);
         const maxAvailable = parseFloat(this.el.selectedQuantity.max) || 0;
-        if (qty <= 0 || qty > maxAvailable) {
-            alert(`الكمية غير متاحة. الحد الأقصى: ${maxAvailable} ${this.selectedUnit.name}`);
-            return;
-        }
+        if (qty <= 0 || qty > maxAvailable) { alert(`الكمية غير متاحة. الحد الأقصى: ${maxAvailable} ${this.selectedUnit.name}`); return; }
 
         const price = parseFloat(this.el.selectedPrice.value);
         const existing = this.cart.find(i => i.productId === this.selectedProduct.id && i.unitName === this.selectedUnit.name);
-        if (existing) {
-            existing.quantity += qty;
-        } else {
-            this.cart.push({
-                productId: this.selectedProduct.id,
-                productName: this.selectedProduct.name,
-                unitName: this.selectedUnit.name,
-                quantity: qty,
-                price: price,
-                factor: this.selectedUnit.factor || 1,
-                isBaseUnit: this.selectedUnit === this.selectedProduct.units[0]
-            });
-        }
+        if (existing) existing.quantity += qty;
+        else this.cart.push({
+            productId: this.selectedProduct.id,
+            productName: this.selectedProduct.name,
+            unitName: this.selectedUnit.name,
+            quantity: qty,
+            price: price,
+            factor: this.selectedUnit.factor || 1,
+            isBaseUnit: this.selectedUnit === this.selectedProduct.units[0]
+        });
         this.renderCart();
         this.closeModal('unitQuantityModal');
         this.el.productSearchInput.value = '';
         this.filterProducts();
     },
 
-    // ========== عمليات الدفع ==========
+    // ========== الدفع ==========
     openPaymentModal() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         const totals = this.calculateTotals();
@@ -314,17 +304,13 @@ const POS = {
         this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
     },
 
-    // تحويل الكمية المباعة إلى ما يكافئها من الوحدة الأساسية
     getBaseQuantityReduction(item) {
         const baseUnit = this.products.find(p => p.id === item.productId)?.units[0];
         if (!baseUnit) return 0;
-        if (item.unitName === baseUnit.name) {
-            return item.quantity; // بيع كرتونات
-        } else {
-            const selectedUnit = this.products.find(p => p.id === item.productId)?.units.find(u => u.name === item.unitName);
-            const factor = selectedUnit?.factor || 1;
-            return item.quantity / factor; // تحويل العلب إلى جزء من كرتونة
-        }
+        if (item.unitName === baseUnit.name) return item.quantity;
+        const selectedUnit = this.products.find(p => p.id === item.productId)?.units.find(u => u.name === item.unitName);
+        const factor = selectedUnit?.factor || 1;
+        return item.quantity / factor;
     },
 
     async completePayment() {
@@ -362,7 +348,6 @@ const POS = {
 
             if (this.isDBReady) {
                 await DB.saveInvoice(invoice);
-                // تحديث المخزون الأساسي لكل عنصر
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
@@ -374,6 +359,7 @@ const POS = {
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
+                // وضع Offline أو اختبار
                 for (const item of this.cart) {
                     const prod = this.products.find(p => p.id === item.productId);
                     if (prod) {
@@ -381,9 +367,15 @@ const POS = {
                         prod.units[0].stock = Math.max(0, prod.units[0].stock - reduction);
                     }
                 }
-                const sales = JSON.parse(localStorage.getItem('pos_test_sales') || '[]');
-                sales.push(invoice);
-                localStorage.setItem('pos_test_sales', JSON.stringify(sales));
+                if (window.localDB) {
+                    await localDB.put('invoices', invoice);
+                    for (const item of this.cart) {
+                        const prod = this.products.find(p => p.id === item.productId);
+                        if (prod) await localDB.put('products', prod);
+                    }
+                    if (cashPaid > 0) await localDB.put('transactions', { id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
+                    if (transferPaid > 0) await localDB.put('transactions', { id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
+                }
             }
 
             if (window.printSaleReceipt) printSaleReceipt(invoice, this.selectedCustomer || { name: 'نقدي', balance: 0 }, this.cart, totals);
@@ -398,7 +390,7 @@ const POS = {
         } catch (error) { console.error('خطأ في الدفع:', error); alert('حدث خطأ: ' + error.message); }
     },
 
-    // ========== تعليق الفاتورة ==========
+    // ========== تعليق ==========
     async holdInvoice() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
@@ -411,11 +403,8 @@ const POS = {
                 total: totals.net, paid: 0, remaining: totals.net, status: 'held', notes: 'فاتورة معلقة'
             };
             if (this.isDBReady) await DB.saveInvoice(invoice);
-            else {
-                const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
-                held.push(invoice);
-                localStorage.setItem('pos_test_held', JSON.stringify(held));
-            }
+            else if (window.localDB) await localDB.put('invoices', invoice);
+
             alert(`تم تعليق الفاتورة ${invoice.id}`);
             this.cart = []; this.renderCart(); this.selectedCustomer = null;
             this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
@@ -426,7 +415,8 @@ const POS = {
     async loadHeldInvoices() {
         let invoices = [];
         if (this.isDBReady) { try { invoices = (await DB.getInvoices()).filter(i => i.type === 'sale' && i.status === 'held'); } catch (e) {} }
-        else invoices = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
+        else if (window.localDB) { invoices = (await localDB.getAll('invoices')).filter(i => i.type === 'sale' && i.status === 'held'); }
+
         const container = this.el.heldInvoicesList;
         if (!invoices.length) container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
         else {
@@ -440,19 +430,18 @@ const POS = {
     },
 
     async resumeInvoice(id) {
+        let inv;
         if (this.isDBReady) {
-            const inv = (await DB.getInvoices()).find(i => i.id === id);
-            if (!inv) return;
-            this.cart = inv.items;
-            this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
-            await supabase.from('invoices').delete().eq('id', id);
-        } else {
-            const held = JSON.parse(localStorage.getItem('pos_test_held') || '[]');
-            const idx = held.findIndex(i => i.id === id); if (idx === -1) return;
-            const inv = held[idx]; this.cart = inv.items;
-            this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
-            held.splice(idx, 1); localStorage.setItem('pos_test_held', JSON.stringify(held));
+            inv = (await DB.getInvoices()).find(i => i.id === id);
+            if (inv) await supabase.from('invoices').delete().eq('id', id);
+        } else if (window.localDB) {
+            const held = await localDB.getAll('invoices');
+            inv = held.find(i => i.id === id);
+            if (inv) await localDB.delete('invoices', id);
         }
+        if (!inv) return;
+        this.cart = inv.items;
+        this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
         if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
         else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
         this.onCustomerSearch(); this.renderCart(); this.closeModal('heldInvoicesModal'); this.showToast('تم تحميل الفاتورة المعلقة');
