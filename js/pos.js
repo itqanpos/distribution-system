@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي - ثبات الأزرار + Offline)
+   نقطة البيع - حسابي (إصدار نهائي)
    ============================================= */
 'use strict';
 
@@ -85,7 +85,7 @@ const POS = {
 
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
 
-        // تفويض النقر على المنتجات
+        // تفويض النقر على المنتجات (يعمل باللمس)
         this.el.productListContainer.addEventListener('click', (e) => {
             const item = e.target.closest('.product-item');
             if (item && item.dataset.id) {
@@ -94,18 +94,14 @@ const POS = {
         });
     },
 
-    // ==================== إدارة حالة الاتصال ====================
-    handleConnectionStatus() {
-        this.updateOnlineStatus();
-    },
+    handleConnectionStatus() { this.updateOnlineStatus(); },
     updateOnlineStatus() {
-        const bar = document.getElementById('offlineBar');
-        if (bar) {
-            if (navigator.onLine) {
-                bar.style.display = 'none';
-            } else {
-                bar.style.display = 'block';
-            }
+        const navbar = document.getElementById('mainNavbar');
+        if (!navbar) return;
+        if (navigator.onLine) {
+            navbar.classList.remove('offline');
+        } else {
+            navbar.classList.add('offline');
         }
     },
 
@@ -196,7 +192,6 @@ const POS = {
 
     renderCart() {
         const container = this.el.cartItemsContainer;
-        // تأكد من أن الحاوية فارغة ماعدا صف العنوان الذي قد يبقى، لكننا سنعيد بناءه بالكامل
         container.innerHTML = `
             <div class="cart-header-row">
                 <span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span>
@@ -394,7 +389,6 @@ const POS = {
                 if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
                 if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
             } else {
-                // وضع Offline
                 if (window.localDB) {
                     await localDB.put('invoices', invoice);
                     for (const item of this.cart) {
