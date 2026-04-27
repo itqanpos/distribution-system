@@ -19,10 +19,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/dashboard.css">
     
-    <!-- Supabase + Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- تحميل Supabase و Chart.js بشكل غير متزامن لتسريع عرض الصفحة -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="./js/supabase.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 <body>
     <!-- شريط التنقل -->
@@ -84,7 +84,9 @@
         </div>
 
         <!-- بطاقات الإحصائيات -->
-        <div class="stats-grid" id="statsGrid"></div>
+        <div class="stats-grid" id="statsGrid">
+            <!-- سيتم إنشاؤها بواسطة JavaScript -->
+        </div>
 
         <!-- الرسم البياني -->
         <div class="chart-container">
@@ -110,7 +112,7 @@
             </div>
         </div>
 
-        <!-- أزرار سريعة -->
+        <!-- أزرار سريعة (تم تعديل التنسيق) -->
         <div class="quick-actions">
             <a href="./pos.html" class="btn btn-primary"><i class="fas fa-cash-register"></i> نقطة البيع</a>
             <a href="./purchases.html" class="btn btn-primary"><i class="fas fa-shopping-cart"></i> فاتورة شراء</a>
@@ -119,8 +121,8 @@
         </div>
     </main>
 
-    <!-- سكريبت لوحة التحكم -->
-    <script src="./js/dashboard.js"></script>
+    <!-- سكريبت لوحة التحكم (محمل بشكل مؤجل) -->
+    <script src="./js/dashboard.js" defer></script>
     
     <!-- Service Worker + سحب للتحديث -->
     <script>
