@@ -13,7 +13,7 @@ const defaultPrintSettings = {
     fontSize: 13,
     paperWidth: 42,
     template: 'detailed',
-    copies: 1
+    copies: 1 
 };
 
 async function getPrintSettings() {
