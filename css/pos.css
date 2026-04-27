@@ -1,7 +1,6 @@
 /* =============================================
-   نقطة البيع - حسابي (تصميم السلة الموسعة)
+   نقطة البيع - حسابي (CSS نهائي)
    ============================================= */
-
 :root {
     --primary: #1e293b;
     --secondary: #3b82f6;
@@ -58,7 +57,7 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
 .menu-item:hover { background: var(--light); color: var(--secondary); }
 .menu-item.active { background: #eff6ff; color: var(--secondary); font-weight: 600; border-right: 4px solid var(--secondary); }
 
-/* حاوية نقطة البيع - تصميم جديد */
+/* حاوية نقطة البيع */
 .pos-container {
     margin-top: var(--header-height);
     height: calc(100vh - var(--header-height));
@@ -67,8 +66,8 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
     overflow: hidden;
 }
 
-/* منطقة العميل والبحث (ثابتة) */
-.customer-search-area {
+/* منطقة البحث العلوية (ثابتة) */
+.top-search-area {
     padding: 12px 16px;
     background: #f1f5f9;
     flex-shrink: 0;
@@ -86,19 +85,23 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
 }
 .customer-box input {
     width: 100%;
-    padding: 12px 14px;
+    padding: 14px 16px;
     border: none;
     border-radius: 16px 16px 0 0;
     font-size: 15px;
+    outline: none;
 }
 .customer-balance {
-    padding: 6px 14px 10px;
-    font-size: 13px;
-    color: #64748b;
+    padding: 6px 16px 12px;
+    font-size: 14px;
+    font-weight: 600;
 }
+.customer-balance.positive { color: var(--success); }
+.customer-balance.negative { color: var(--danger); }
 
 .search-header {
     flex: 1;
+    position: relative;
 }
 .search-header input {
     width: 100%;
@@ -108,9 +111,41 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
     font-size: 15px;
     background: white;
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    outline: none;
 }
 
-/* منطقة السلة الرئيسية (تأخذ المساحة الأكبر وتُمرر) */
+/* القائمة المنسدلة للبحث */
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    z-index: 500;
+    max-height: 240px;
+    overflow-y: auto;
+    display: none;
+    margin-top: 4px;
+}
+.search-dropdown.show { display: block; }
+.search-dropdown .dropdown-item {
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.1s;
+}
+.search-dropdown .dropdown-item:active { background: #eff6ff; }
+.dropdown-item .item-info h4 { font-size: 15px; margin-bottom: 2px; }
+.dropdown-item .item-info small { font-size: 12px; color: #64748b; }
+.dropdown-item .item-price { font-weight: bold; color: var(--secondary); }
+
+/* منطقة السلة الرئيسية (تأخذ المساحة المتبقية) */
 .cart-main-area {
     flex: 1;
     display: flex;
@@ -162,11 +197,7 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
     text-align: center;
 }
 
-.empty-cart-message {
-    text-align: center;
-    padding: 40px 20px;
-    color: #94a3b8;
-}
+.empty-cart-message { text-align: center; padding: 40px 20px; color: #94a3b8; }
 
 /* تذييل السلة (ثابت) */
 .cart-footer {
@@ -176,75 +207,23 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
     border-top: 1px solid #e2e8f0;
 }
 
-.cart-summary {
-    margin-bottom: 16px;
-}
+.cart-summary { margin-bottom: 16px; }
 
-.summary-stats {
-    display: flex;
-    justify-content: space-around;
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 10px;
-    margin-bottom: 12px;
-}
-
+.summary-stats { display: flex; justify-content: space-around; background: #f8fafc; border-radius: 12px; padding: 10px; margin-bottom: 12px; }
 .stat-item { text-align: center; }
 .stat-item .label { font-size: 12px; color: #64748b; }
 .stat-item .value { font-size: 18px; font-weight: 700; }
 
-.summary-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    align-items: center;
-    font-size: 15px;
-}
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; font-size: 15px; }
+.summary-row.total { font-size: 20px; font-weight: bold; margin-top: 4px; padding-top: 8px; border-top: 1px dashed #e2e8f0; }
 
-.summary-row.total {
-    font-size: 20px;
-    font-weight: bold;
-    margin-top: 4px;
-    padding-top: 8px;
-    border-top: 1px dashed #e2e8f0;
-}
-
-.discount-row {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-
-.discount-row input, .discount-row select {
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    font-size: 14px;
-}
-
+.discount-row { display: flex; gap: 5px; align-items: center; }
+.discount-row input, .discount-row select { padding: 6px 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
 .discount-row input { width: 80px; }
 
 /* أزرار الإجراءات */
-.action-buttons {
-    display: flex;
-    gap: 10px;
-}
-
-.btn {
-    padding: 14px 16px;
-    border: none;
-    border-radius: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    flex: 1;
-    font-size: 15px;
-    -webkit-tap-highlight-color: transparent;
-}
-
+.action-buttons { display: flex; gap: 10px; }
+.btn { padding: 14px 16px; border: none; border-radius: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; font-size: 15px; -webkit-tap-highlight-color: transparent; }
 .btn-success { background: var(--success); color: white; }
 .btn-warning { background: var(--warning); color: white; }
 .btn-primary { background: var(--secondary); color: white; }
@@ -257,27 +236,13 @@ body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
 .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
 .form-group input, .form-group select { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px; }
 .unit-selector { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-.unit-btn {
-    flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px;
-    background: white; cursor: pointer; font-weight: 600;
-    -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
-}
+.unit-btn { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 12px; background: white; cursor: pointer; font-weight: 600; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .unit-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
 .toast { position: fixed; bottom: 20px; left: 20px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 40px; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s; }
 .toast.show { opacity: 1; }
 
 @media (max-width: 768px) {
-    .customer-search-area {
-        flex-direction: column;
-        gap: 8px;
-        padding: 8px 12px;
-    }
-    .cart-main-area {
-        margin: 0 8px;
-        border-radius: 20px 20px 0 0;
-    }
-    .cart-header-row, .cart-item-row {
-        grid-template-columns: 2.5fr 1fr 1fr 1fr 0.4fr;
-        font-size: 12px;
-    }
+    .top-search-area { flex-direction: column; gap: 8px; padding: 8px 12px; }
+    .cart-main-area { margin: 0 8px; border-radius: 20px 20px 0 0; }
+    .cart-header-row, .cart-item-row { grid-template-columns: 2.5fr 1fr 1fr 1fr 0.4fr; font-size: 12px; }
 }
