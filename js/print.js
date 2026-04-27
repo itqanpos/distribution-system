@@ -1,5 +1,5 @@
 /* =============================================
-   نظام الطباعة - حسابي (إصدار محسّن)
+   نظام الطباعة - حسابي (إصدار كامل مع قالب مخطط)
    ============================================= */
 'use strict';
 
@@ -10,9 +10,9 @@ const defaultPrintSettings = {
     companyAddress: '',
     footerMessage: 'شكراً لتعاملكم معنا',
     currency: 'ج.م',
-    fontSize: 13,        // حجم الخط (px)
-    paperWidth: 42,      // عدد الأحرف في السطر (يتحكم في عرض الورق)
-    template: 'detailed', // افتراضي، compact، detailed
+    fontSize: 13,
+    paperWidth: 42,
+    template: 'detailed',
     copies: 1
 };
 
@@ -36,13 +36,11 @@ async function getPrintSettings() {
     return defaultPrintSettings;
 }
 
-// دالة مساعدة لتنسيق المبلغ
 function formatMoney(amount, currency) {
     if (amount === null || amount === undefined) amount = 0;
     return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
 }
 
-// دالة مساعدة لإنشاء خط فاصل
 function separatorLine(widthChars, char = '-') {
     let line = '';
     for (let i = 0; i < widthChars; i++) line += char;
@@ -51,15 +49,10 @@ function separatorLine(widthChars, char = '-') {
 
 /**
  * طباعة إيصال بيع
- * @param {Object} invoice - الفاتورة
- * @param {Object} customer - العميل
- * @param {Array} items - الأصناف
- * @param {Object} totals - { subtotal, discount, net }
  */
 window.printSaleReceipt = async function(invoice, customer, items, totals) {
     const settings = await getPrintSettings();
     
-    // إنشاء نافذة جديدة
     const win = window.open('', '_blank', `width=${settings.paperWidth * 10},height=700`);
     if (!win) {
         alert('الرجاء السماح بالنوافذ المنبثقة للطباعة');
@@ -67,13 +60,12 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
     }
 
     const { fontSize, paperWidth, template, currency, companyName, companyPhone, companyAddress, footerMessage } = settings;
-    
-    // إعداد حجم الخط بناءً على paperWidth (كلما زاد العرض قل حجم الخط نسبياً)
     const effectiveFontSize = Math.min(fontSize, Math.floor(paperWidth * 0.35));
-    
-    // عدد الأحرف المستخدمة للخطوط
     const width = paperWidth;
     
+    // استخدام رقم الفاتورة الجديد
+    const invNumber = invoice.invoice_number || invoice.id.substring(0,8);
+
     // تحضير صفوف المنتجات
     let itemsHtml = '';
     items.forEach(item => {
@@ -81,6 +73,7 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
         const price = formatMoney(item.price, currency);
         const total = formatMoney(item.price * item.quantity, currency);
         const name = item.productName.length > 18 ? item.productName.substring(0, 16) + '..' : item.productName;
+        // لكل قالب قد نستخدم نفس الصف أو نعدل الأعمدة
         itemsHtml += `
             <tr>
                 <td class="item-name">${name} <small>(${item.unitName})</small></td>
@@ -100,13 +93,12 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
     let receiptHtml = '';
     
     if (template === 'compact') {
-        // قالب مضغوط بدون حدود
         receiptHtml = `
             <div class="receipt compact">
                 <div class="header">${companyName}</div>
                 <div class="sub">${companyPhone} ${companyAddress ? ' - ' + companyAddress : ''}</div>
                 <div class="line">${separatorLine(width, '-')}</div>
-                <div>فاتورة: ${invoice.id.substring(0,8)} &nbsp;|&nbsp; تاريخ: ${invoice.date}</div>
+                <div>فاتورة: ${invNumber} &nbsp;|&nbsp; تاريخ: ${invoice.date}</div>
                 <div>عميل: ${customerName}</div>
                 <div class="line">${separatorLine(width, '-')}</div>
                 <table>${itemsHtml}</table>
@@ -120,13 +112,12 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
             </div>
         `;
     } else if (template === 'detailed') {
-        // قالب تفصيلي مع حدود
         receiptHtml = `
             <div class="receipt detailed">
                 <div class="header">${companyName}</div>
                 <div class="sub">${companyPhone} ${companyAddress ? ' - ' + companyAddress : ''}</div>
                 <div class="line">${separatorLine(width, '=')}</div>
-                <div class="info-row"><span>فاتورة:</span> <strong>${invoice.id.substring(0,8)}</strong></div>
+                <div class="info-row"><span>فاتورة:</span> <strong>${invNumber}</strong></div>
                 <div class="info-row"><span>تاريخ:</span> ${invoice.date}</div>
                 <div class="info-row"><span>عميل:</span> ${customerName}</div>
                 <div class="line">${separatorLine(width, '=')}</div>
@@ -146,14 +137,50 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
                 <div class="center footer">${footerMessage}</div>
             </div>
         `;
+    } else if (template === 'bordered') {
+        // قالب مخطط بحدود
+        receiptHtml = `
+            <div class="receipt bordered">
+                <div class="header">${companyName}</div>
+                <div class="sub">${companyPhone} ${companyAddress ? ' - ' + companyAddress : ''}</div>
+                <div class="line">${separatorLine(width, '=')}</div>
+                <div class="info-row"><span>فاتورة:</span> <strong>${invNumber}</strong></div>
+                <div class="info-row"><span>تاريخ:</span> ${invoice.date}</div>
+                <div class="info-row"><span>عميل:</span> ${customerName}</div>
+                <div class="line">${separatorLine(width, '=')}</div>
+                <table class="bordered-table">
+                    <thead>
+                        <tr>
+                            <th class="col-name">الصنف</th>
+                            <th class="col-qty">الكمية</th>
+                            <th class="col-price">السعر</th>
+                            <th class="col-total">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+                <div class="line">${separatorLine(width, '-')}</div>
+                <div class="sum"><span>الإجمالي:</span> ${formatMoney(totals.subtotal, currency)}</div>
+                <div class="sum"><span>الخصم:</span> ${formatMoney(totals.discount, currency)}</div>
+                <div class="sum big"><span>الصافي:</span> ${formatMoney(totals.net, currency)}</div>
+                <div class="line">${separatorLine(width, '-')}</div>
+                <div class="info-row"><span>مدفوع:</span> ${formatMoney(invoice.paid, currency)}</div>
+                <div class="info-row"><span>متبقي:</span> ${invoice.remaining === 0 ? '0.00 ' + currency : formatMoney(invoice.remaining, currency)}</div>
+                <div class="info-row"><span>عدد القطع:</span> ${totalPieces}</div>
+                <div class="info-row"><span>رصيد العميل:</span> ${customer?.balance >= 0 ? formatMoney(customer.balance, currency) : formatMoney(-customer.balance, currency) + ' (عليه)'}</div>
+                <div class="center footer">${footerMessage}</div>
+            </div>
+        `;
     } else {
-        // قالب افتراضي (بسيط)
+        // افتراضي
         receiptHtml = `
             <div class="receipt default">
                 <div class="header">${companyName}</div>
                 <div class="sub">${companyPhone} ${companyAddress ? ' - ' + companyAddress : ''}</div>
                 <div class="line">${separatorLine(width, '-')}</div>
-                <div>فاتورة: ${invoice.id.substring(0,8)}</div>
+                <div>فاتورة: ${invNumber}</div>
                 <div>تاريخ: ${invoice.date}</div>
                 <div>عميل: ${customerName}</div>
                 <div class="line">${separatorLine(width, '-')}</div>
@@ -205,6 +232,33 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
                 .info-row { display: flex; justify-content: space-between; margin: 4px 0; }
                 .center { text-align: center; margin-top: 12px; font-style: italic; }
                 .footer { border-top: 1px dashed #000; padding-top: 8px; }
+                
+                /* جدول مخطط (bordered) */
+                .bordered-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 10px 0;
+                    border: 1px solid #000;
+                }
+                .bordered-table th,
+                .bordered-table td {
+                    border: 1px solid #000;
+                    padding: 5px 8px;
+                    text-align: right;
+                }
+                .bordered-table th {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                .bordered-table .col-name { width: 40%; text-align: right; }
+                .bordered-table .col-qty { width: 15%; text-align: center; }
+                .bordered-table .col-price { width: 20%; text-align: right; }
+                .bordered-table .col-total { width: 25%; text-align: right; }
+                .bordered-table tbody tr:nth-child(even) {
+                    background-color: #fafafa;
+                }
+                
                 @media print {
                     body { margin: 2mm; }
                 }
@@ -226,7 +280,6 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
 
 /**
  * طباعة أمر شراء
- * @param {Object} purchase - فاتورة الشراء
  */
 window.printPurchaseOrder = async function(purchase) {
     const settings = await getPrintSettings();
@@ -236,6 +289,7 @@ window.printPurchaseOrder = async function(purchase) {
     const { fontSize, paperWidth, currency, companyName } = settings;
     const width = paperWidth;
     const effectiveFontSize = Math.min(fontSize, Math.floor(paperWidth * 0.35));
+    const invNumber = purchase.invoice_number || purchase.id.substring(0,8);
 
     let itemsHtml = '';
     (purchase.items || []).forEach(item => {
@@ -245,10 +299,10 @@ window.printPurchaseOrder = async function(purchase) {
         const name = item.productName.length > 18 ? item.productName.substring(0, 16) + '..' : item.productName;
         itemsHtml += `
             <tr>
-                <td class="item-name">${name} <small>(${item.unitName})</small></td>
-                <td class="item-qty">${qty}</td>
-                <td class="item-price">${price}</td>
-                <td class="item-total">${total}</td>
+                <td>${name} <small>(${item.unitName})</small></td>
+                <td>${qty}</td>
+                <td>${price}</td>
+                <td>${total}</td>
             </tr>
         `;
     });
@@ -261,12 +315,12 @@ window.printPurchaseOrder = async function(purchase) {
             body { font-family: 'Courier New', monospace; margin: 12px; font-size: ${effectiveFontSize}px; }
             .header { text-align: center; font-weight: bold; font-size: ${effectiveFontSize + 2}px; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-            th, td { padding: 4px 0; border-bottom: 1px dashed #ccc; }
+            th, td { padding: 4px 0; border-bottom: 1px dashed #ccc; text-align: right; }
             .item-total { font-weight: bold; }
         </style></head>
         <body>
             <div class="header">${companyName} - أمر شراء</div>
-            <p>فاتورة: ${purchase.invoice_number || purchase.id.substring(0,8)} | تاريخ: ${purchase.date}</p>
+            <p>فاتورة: ${invNumber} | تاريخ: ${purchase.date}</p>
             <p>مورد: ${purchase.supplier_name}</p>
             <table>${itemsHtml}</table>
             <p>الإجمالي: ${formatMoney(purchase.total, currency)} | مدفوع: ${formatMoney(purchase.paid, currency)} | متبقي: ${formatMoney(purchase.remaining, currency)}</p>
@@ -276,4 +330,4 @@ window.printPurchaseOrder = async function(purchase) {
     win.document.close();
 };
 
-console.log('✅ نظام الطباعة المحسّن جاهز');
+console.log('✅ نظام الطباعة المحسّن مع قالب مخطط جاهز');
