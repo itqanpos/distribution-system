@@ -19,13 +19,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/dashboard.css">
     
-    <!-- تحميل Supabase و Chart.js بشكل غير متزامن لتسريع عرض الصفحة -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-    <script src="./js/supabase.js" defer></script>
+    <!-- Offline + Supabase -->
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 <body>
-    <!-- شريط التنقل -->
+    <!-- شريط التنقل (مع مسافة أمان iOS) -->
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -112,7 +114,7 @@
             </div>
         </div>
 
-        <!-- أزرار سريعة (تم تعديل التنسيق) -->
+        <!-- أزرار سريعة -->
         <div class="quick-actions">
             <a href="./pos.html" class="btn btn-primary"><i class="fas fa-cash-register"></i> نقطة البيع</a>
             <a href="./purchases.html" class="btn btn-primary"><i class="fas fa-shopping-cart"></i> فاتورة شراء</a>
@@ -121,17 +123,12 @@
         </div>
     </main>
 
-    <!-- سكريبت لوحة التحكم (محمل بشكل مؤجل) -->
-    <script src="./js/dashboard.js" defer></script>
+    <script src="./js/dashboard.js"></script>
     
     <!-- Service Worker + سحب للتحديث -->
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('SW مسجل'))
-                    .catch(err => console.warn('SW فشل', err));
-            });
+            navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
         }
         
         let pullStartY = 0, pulling = false;
