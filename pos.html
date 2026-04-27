@@ -27,7 +27,7 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
-    <!-- شريط التنقل (بدون تغيير) -->
+    <!-- شريط التنقل -->
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -76,7 +76,7 @@
         </ul>
     </aside>
 
-    <!-- حاوية نقطة البيع (بدون تغيير) -->
+    <!-- حاوية نقطة البيع -->
     <div class="pos-container">
         <div class="left-panel">
             <div class="customer-box">
@@ -109,8 +109,8 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
                 <div class="summary-row discount-row">
                     <span>الخصم:</span>
-                    <input type="number" id="discountValue" value="0" min="0" step="0.01" style="width:100px;" oninput="POS.calculateTotals()">
-                    <select id="discountType" onchange="POS.calculateTotals()">
+                    <input type="number" id="discountValue" value="0" min="0" step="0.01" style="width:100px;">
+                    <select id="discountType">
                         <option value="amount">ج.م</option>
                         <option value="percent">%</option>
                     </select>
@@ -125,7 +125,7 @@
         </div>
     </div>
 
-    <!-- مودالات (بدون تغيير) -->
+    <!-- مودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -172,7 +172,7 @@
 
     <div class="toast" id="toast"></div>
 
-    <!-- سكريبت نقطة البيع -->
+    <!-- سكريبت نقطة البيع (الإصدار الموحد) -->
     <script src="./js/pos.js"></script>
     
     <!-- Service Worker + سحب للتحديث -->
