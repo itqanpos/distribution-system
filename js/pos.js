@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي - Touch & Buttons)
+   نقطة البيع - حسابي (إصدار نهائي - ثبات الأزرار + Offline)
    ============================================= */
 'use strict';
 
@@ -24,6 +24,10 @@ const POS = {
     init() {
         this.cacheElements();
         this.bindEvents();
+        this.handleConnectionStatus();
+        window.addEventListener('online', () => this.updateOnlineStatus());
+        window.addEventListener('offline', () => this.updateOnlineStatus());
+        
         if (window.App) {
             if (!App.requireAuth()) return;
             App.initUserInterface();
@@ -63,7 +67,6 @@ const POS = {
         this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
 
-        // أحداث الخصم (مربوطة هنا بدلاً من oninput في HTML)
         this.el.discountValue.addEventListener('input', () => this.calculateTotals());
         this.el.discountType.addEventListener('change', () => this.calculateTotals());
 
@@ -82,13 +85,28 @@ const POS = {
 
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
 
-        // تفويض النقر على المنتجات (يعمل باللمس)
+        // تفويض النقر على المنتجات
         this.el.productListContainer.addEventListener('click', (e) => {
             const item = e.target.closest('.product-item');
             if (item && item.dataset.id) {
                 this.openUnitModal(item.dataset.id);
             }
         });
+    },
+
+    // ==================== إدارة حالة الاتصال ====================
+    handleConnectionStatus() {
+        this.updateOnlineStatus();
+    },
+    updateOnlineStatus() {
+        const bar = document.getElementById('offlineBar');
+        if (bar) {
+            if (navigator.onLine) {
+                bar.style.display = 'none';
+            } else {
+                bar.style.display = 'block';
+            }
+        }
     },
 
     async loadInitialData() {
@@ -178,15 +196,29 @@ const POS = {
 
     renderCart() {
         const container = this.el.cartItemsContainer;
-        if (!this.cart.length) { container.innerHTML = '<div style="padding:20px; text-align:center;">السلة فارغة</div>'; this.calculateTotals(); return; }
-        container.innerHTML = this.cart.map((item, idx) => `
-            <div class="cart-item-row">
+        // تأكد من أن الحاوية فارغة ماعدا صف العنوان الذي قد يبقى، لكننا سنعيد بناءه بالكامل
+        container.innerHTML = `
+            <div class="cart-header-row">
+                <span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span>
+            </div>
+        `;
+        if (!this.cart.length) {
+            container.innerHTML += '<div style="padding:20px; text-align:center;">السلة فارغة</div>';
+            this.calculateTotals();
+            return;
+        }
+        this.cart.forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.className = 'cart-item-row';
+            row.innerHTML = `
                 <div><span class="cart-item-name">${item.productName}</span><br><span class="cart-item-unit">${item.unitName}</span></div>
                 <div><input type="number" value="${item.quantity}" min="0.001" onchange="window.POSCartUpdate(${idx}, this.value, 'qty')"></div>
                 <div><input type="number" value="${item.price}" step="0.01" onchange="window.POSCartUpdate(${idx}, this.value, 'price')"></div>
                 <div>${Utils.formatMoney(item.price * item.quantity)}</div>
                 <div><i class="fas fa-trash" style="color:var(--danger); cursor:pointer;" onclick="window.POSCartRemove(${idx})"></i></div>
-            </div>`).join('');
+            `;
+            container.appendChild(row);
+        });
         this.calculateTotals();
     },
 
