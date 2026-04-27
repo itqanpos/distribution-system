@@ -5,12 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الإعدادات · حسابي</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/settings.css">
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/settings.css">
+    
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
 </head>
@@ -20,7 +29,11 @@
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-icon">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width: 38px; height: 38px; object-fit: contain; border-radius: 10px;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none; font-size:20px; color:white;"></i>
+                </div>
                 <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
@@ -43,7 +56,6 @@
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span>المبيعات</span></a></li>
             <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
@@ -127,6 +139,7 @@
                         <option value="default">افتراضي</option>
                         <option value="compact">مضغوط</option>
                         <option value="detailed">تفصيلي (مع حدود)</option>
+                        <option value="bordered">مخطط (بحدود كاملة)</option>
                     </select>
                 </div>
             </div>
@@ -191,30 +204,12 @@
     <!-- مودال إضافة مستخدم -->
     <div class="modal" id="userModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>إضافة مستخدم جديد</h2>
-                <button id="closeUserModalBtn">&times;</button>
-            </div>
+            <div class="modal-header"><h2>إضافة مستخدم جديد</h2><button id="closeUserModalBtn">&times;</button></div>
             <form id="userForm">
-                <div class="form-group">
-                    <label>الاسم الكامل <span class="required">*</span></label>
-                    <input type="text" id="userFullName" required>
-                </div>
-                <div class="form-group">
-                    <label>البريد الإلكتروني <span class="required">*</span></label>
-                    <input type="email" id="userEmail" required>
-                </div>
-                <div class="form-group">
-                    <label>كلمة المرور <span class="required">*</span></label>
-                    <input type="password" id="userPassword" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label>الدور</label>
-                    <select id="userRole">
-                        <option value="admin">مدير</option>
-                        <option value="rep">مندوب</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>الاسم الكامل <span class="required">*</span></label><input type="text" id="userFullName" required></div>
+                <div class="form-group"><label>البريد الإلكتروني <span class="required">*</span></label><input type="email" id="userEmail" required></div>
+                <div class="form-group"><label>كلمة المرور <span class="required">*</span></label><input type="password" id="userPassword" required minlength="6"></div>
+                <div class="form-group"><label>الدور</label><select id="userRole"><option value="admin">مدير</option><option value="rep">مندوب</option></select></div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus"></i> إضافة</button>
                     <button type="button" class="btn btn-cancel" id="cancelUserModalBtn">إلغاء</button>
@@ -224,5 +219,24 @@
     </div>
 
     <script src="./js/settings.js"></script>
+    
+    <!-- Service Worker + سحب للتحديث -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+        }
+        
+        let pullStartY = 0, pulling = false;
+        const pullThreshold = 80;
+        const pullIndicator = document.createElement('div');
+        pullIndicator.className = 'pull-indicator';
+        pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
+        pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
+        document.body.appendChild(pullIndicator);
+        
+        document.addEventListener('touchstart', (e) => { if(window.scrollY===0){ pullStartY=e.touches[0].clientY; pulling=true; } }, {passive:false});
+        document.addEventListener('touchmove', (e) => { if(!pulling) return; if(e.touches[0].clientY-pullStartY>30){ pullIndicator.style.opacity='1'; e.preventDefault(); } }, {passive:false});
+        document.addEventListener('touchend', (e) => { if(!pulling) return; pulling=false; pullIndicator.style.opacity='0'; if(e.changedTouches[0].clientY-pullStartY>pullThreshold) window.location.reload(); });
+    </script>
 </body>
 </html>
