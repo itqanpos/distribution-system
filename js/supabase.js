@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - الإصدار النهائي مع دعم Offline
+   supabase.js - الإصدار النهائي مع دعم Offline وتوليد رقم الفاتورة YY-0001
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -23,7 +23,7 @@
     // دوال مساعدة
     function cleanObject(obj) {
         const cleaned = { ...obj };
-        delete cleaned.updated_at; // إزالة أي updated_at غير موجود في بعض الجداول (حفاظاً على التوافق)
+        delete cleaned.updated_at;
         return cleaned;
     }
 
@@ -39,16 +39,13 @@
     }
 
     // ==================== الطبقة المحلية (Offline) ====================
-    // توقع وجود localDB و syncManager معرفين من db-local.js و sync.js
     const local = window.localDB;
     const syncer = window.syncManager;
 
-    // دوال مساعدة للتبديل بين السحابة والمحلي
     async function getWithFallback(storeName, cloudFetcher) {
         if (navigator.onLine && supabaseClient) {
             try {
                 const data = await cloudFetcher();
-                // تحديث التخزين المحلي
                 if (local && data && Array.isArray(data)) {
                     for (const item of data) {
                         await local.put(storeName, cleanObject(item)).catch(() => {});
@@ -65,11 +62,9 @@
     }
 
     async function saveWithFallback(storeName, data, cloudSaver) {
-        // حفظ محلي دائماً
         if (local) {
             await local.put(storeName, cleanObject(data)).catch(() => {});
         }
-
         if (navigator.onLine && supabaseClient) {
             try {
                 const result = await cloudSaver(data);
@@ -89,10 +84,9 @@
                         data: cleanObject(data)
                     }).catch(() => {});
                 }
-                return data; // إرجاع البيانات المحفوظة محلياً كأنها نجحت
+                return data;
             }
         } else {
-            // غير متصل، أضف إلى طابور المزامنة
             if (local) {
                 await local.addToSyncQueue?.({
                     type: data.id ? 'UPDATE' : 'INSERT',
@@ -479,8 +473,21 @@
                 }
             }
             return 'user';
+        },
+
+        // ========== توليد رقم الفاتورة ==========
+        generateInvoiceNumber: async function() {
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2); // YY
+            const storageKey = `inv_counter_${year}`;
+            
+            let currentNumber = parseInt(localStorage.getItem(storageKey) || '0', 10);
+            currentNumber += 1;
+            localStorage.setItem(storageKey, currentNumber.toString());
+            
+            return year + '-' + String(currentNumber).padStart(4, '0');
         }
     };
 
-    console.log('✅ نظام حسابي مع دعم Offline جاهز');
+    console.log('✅ نظام حسابي مع دعم Offline وتوليد أرقام الفواتير جاهز');
 })();
