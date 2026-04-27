@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي)
+   نقطة البيع - حسابي (إصدار نهائي - سلة موسعة)
    ============================================= */
 'use strict';
 
@@ -85,7 +85,7 @@ const POS = {
 
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
 
-        // تفويض النقر على المنتجات (يعمل باللمس)
+        // تفويض النقر على المنتجات
         this.el.productListContainer.addEventListener('click', (e) => {
             const item = e.target.closest('.product-item');
             if (item && item.dataset.id) {
@@ -198,7 +198,7 @@ const POS = {
             </div>
         `;
         if (!this.cart.length) {
-            container.innerHTML += '<div style="padding:20px; text-align:center;">السلة فارغة</div>';
+            container.innerHTML += '<div class="empty-cart-message">السلة فارغة</div>';
             this.calculateTotals();
             return;
         }
@@ -342,6 +342,15 @@ const POS = {
         return item.quantity / factor;
     },
 
+    generateLocalInvoiceNumber() {
+        const year = new Date().getFullYear().toString().slice(-2);
+        const key = `inv_counter_${year}`;
+        let num = parseInt(localStorage.getItem(key) || '0', 10);
+        num += 1;
+        localStorage.setItem(key, num.toString());
+        return year + '-' + String(num).padStart(4, '0');
+    },
+
     async completePayment() {
         try {
             const totals = this.calculateTotals();
@@ -360,8 +369,11 @@ const POS = {
                 else if (window.localDB) await localDB.put('parties', this.selectedCustomer);
             }
 
+            const invoiceNumber = this.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
+
             const invoice = {
                 id: crypto.randomUUID(),
+                invoice_number: invoiceNumber,
                 type: 'sale',
                 date: Utils.getToday(),
                 customer_id: this.selectedCustomer?.id || null,
@@ -386,8 +398,8 @@ const POS = {
                         await DB.saveProduct(prod);
                     }
                 }
-                if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoice.id}`, payment_method: 'cash' });
-                if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoice.id}`, payment_method: 'bank' });
+                if (cashPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'cash' });
+                if (transferPaid > 0) await DB.saveTransaction({ id: crypto.randomUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'bank' });
             } else {
                 if (window.localDB) {
                     await localDB.put('invoices', invoice);
@@ -403,24 +415,23 @@ const POS = {
             }
 
             if (window.printSaleReceipt) printSaleReceipt(invoice, this.selectedCustomer || { name: 'نقدي', balance: 0 }, this.cart, totals);
-            else alert(`تم البيع بنجاح. رقم الفاتورة: ${invoice.id}`);
+            else alert(`تم البيع بنجاح. رقم الفاتورة: ${invoiceNumber}`);
 
             this.cart = []; this.renderCart(); this.el.discountValue.value = 0; this.selectedCustomer = null;
             this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
             this.closeModal('paymentModal');
             await this.loadData();
-            this.filterProducts();
             this.showToast('تم البيع بنجاح');
         } catch (error) { console.error('خطأ في الدفع:', error); alert('حدث خطأ: ' + error.message); }
     },
 
-    // ========== تعليق ==========
     async holdInvoice() {
         if (!this.cart.length) { alert('السلة فارغة'); return; }
         try {
             const totals = this.calculateTotals();
+            const invoiceNumber = this.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
             const invoice = {
-                id: crypto.randomUUID(), type: 'sale', date: Utils.getToday(),
+                id: crypto.randomUUID(), invoice_number: invoiceNumber, type: 'sale', date: Utils.getToday(),
                 customer_id: this.selectedCustomer?.id || null,
                 customer_name: this.selectedCustomer?.name || 'نقدي',
                 items: this.cart, subtotal: totals.subtotal, discount: totals.discount,
@@ -429,10 +440,10 @@ const POS = {
             if (this.isDBReady) await DB.saveInvoice(invoice);
             else if (window.localDB) await localDB.put('invoices', invoice);
 
-            alert(`تم تعليق الفاتورة ${invoice.id}`);
+            alert(`تم تعليق الفاتورة ${invoiceNumber}`);
             this.cart = []; this.renderCart(); this.selectedCustomer = null;
             this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = '';
-            await this.loadData(); this.filterProducts(); this.showToast('تم تعليق الفاتورة');
+            await this.loadData(); this.showToast('تم تعليق الفاتورة');
         } catch (error) { console.error(error); alert('فشل تعليق الفاتورة: ' + error.message); }
     },
 
@@ -446,7 +457,8 @@ const POS = {
         else {
             container.innerHTML = invoices.map(inv => {
                 const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
-                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;"><div><strong>${inv.id.substring(0,8)}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
+                const invNumber = inv.invoice_number || inv.id.substring(0,8);
+                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;"><div><strong>${invNumber}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
             }).join('');
             container.querySelectorAll('.held-invoice-item').forEach(item => item.addEventListener('click', () => this.resumeInvoice(item.dataset.id)));
         }
