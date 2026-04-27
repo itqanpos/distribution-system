@@ -4,18 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نقطة البيع · حسابي</title>
-    
+
+    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    
+
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    
+
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
-    
+
+    <!-- Offline + Supabase -->
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -23,6 +27,7 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
+    <!-- شريط التنقل -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -50,6 +55,7 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -70,20 +76,22 @@
         </ul>
     </aside>
 
+    <!-- حاوية نقطة البيع الرئيسية -->
     <div class="pos-container">
-        <!-- العميل والبحث (ثابت) -->
-        <div class="customer-search-area">
+        <!-- منطقة العميل والبحث (ثابتة، عرض كامل) -->
+        <div class="top-search-area">
             <div class="customer-box">
-                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." list="customerList" autocomplete="off">
+                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
                 <datalist id="customerList"></datalist>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
             <div class="search-header">
                 <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
+                <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
 
-        <!-- السلة (قابلة للتمرير وتشغل أكبر مساحة) -->
+        <!-- السلة (أكبر مساحة، قابلة للتمرير) -->
         <div class="cart-main-area">
             <div class="cart-items" id="cartItemsContainer">
                 <div class="cart-header-row">
@@ -117,6 +125,7 @@
         </div>
     </div>
 
+    <!-- المودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -163,13 +172,15 @@
 
     <div class="toast" id="toast"></div>
 
+    <!-- سكريبت نقطة البيع -->
     <script src="./js/pos.js"></script>
-    
+
+    <!-- Service Worker + سحب للتحديث -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
         }
-        
+
         let pullStartY = 0, pulling = false;
         const pullThreshold = 80;
         const pullIndicator = document.createElement('div');
@@ -177,7 +188,7 @@
         pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
         pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
         document.body.appendChild(pullIndicator);
-        
+
         document.addEventListener('touchstart', (e) => { if(window.scrollY===0){ pullStartY=e.touches[0].clientY; pulling=true; } }, {passive:false});
         document.addEventListener('touchmove', (e) => { if(!pulling) return; if(e.touches[0].clientY-pullStartY>30){ pullIndicator.style.opacity='1'; e.preventDefault(); } }, {passive:false});
         document.addEventListener('touchend', (e) => { if(!pulling) return; pulling=false; pullIndicator.style.opacity='0'; if(e.changedTouches[0].clientY-pullStartY>pullThreshold) window.location.reload(); });
