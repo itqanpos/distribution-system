@@ -15,6 +15,9 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         * {
             margin: 0;
@@ -40,14 +43,8 @@
         }
         
         @keyframes fadeInScale {
-            0% {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
         }
         
         .app-icon-wrapper {
@@ -60,7 +57,6 @@
             justify-content: center;
         }
         
-        /* الخلفية المتوهجة تبقى موجودة */
         .app-icon-bg {
             position: absolute;
             width: 140px;
@@ -76,14 +72,20 @@
             50% { box-shadow: 0 25px 80px rgba(59, 130, 246, 0.55); }
         }
         
-        /* أيقونة التطبيق - الآن بصيغة img */
         .app-icon {
             position: relative;
             z-index: 1;
             width: 90px;
             height: 90px;
             object-fit: contain;
-            border-radius: 20px; /* اختياري */
+            border-radius: 20px;
+        }
+        
+        .app-icon-fallback {
+            position: relative;
+            z-index: 1;
+            font-size: 65px;
+            color: white;
         }
         
         .app-title {
@@ -145,7 +147,6 @@
             60% { transform: translateY(-5px); }
         }
         
-        /* مؤشر السحب للتحديث */
         .pull-indicator {
             position: fixed;
             top: 20px;
@@ -168,11 +169,6 @@
             opacity: 1;
         }
         
-        .pull-indicator i {
-            color: #3b82f6;
-            font-size: 18px;
-        }
-        
         .status-message {
             margin-top: 20px;
             color: #64748b;
@@ -190,15 +186,9 @@
     <div class="splash-container">
         <div class="app-icon-wrapper">
             <div class="app-icon-bg"></div>
-            <!-- 
-                 هنا يتم عرض الأيقونة من ملف الصورة.
-                 تأكد من وجود ملف icon-192x192.png داخل مجلد icons.
-                 يمكنك تغيير المسار إذا كانت الأيقونة باسم آخر.
-            -->
             <img src="./icons/icon-192x192.png" alt="حسابي" class="app-icon"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-            <!-- أيقونة احتياطية في حالة عدم وجود الصورة -->
-            <i class="fas fa-store app-icon" style="display:none; font-size:65px; color:white;"></i>
+            <i class="fas fa-store app-icon-fallback" style="display:none;"></i>
         </div>
         
         <h1 class="app-title">حسابي</h1>
@@ -208,26 +198,31 @@
             <div class="loading-bar"></div>
         </div>
         
-        <p class="status-message" id="statusMessage">جاري الاتصال بقاعدة البيانات...</p>
+        <p class="status-message" id="statusMessage">جاري تجهيز البيانات...</p>
         
         <div class="pull-hint">
             <i class="fas fa-arrow-down"></i> اسحب للأسفل للتحديث
         </div>
     </div>
     
+    <!-- تحميل مكتبات Offline أولاً -->
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    
     <script>
         // ====================== تسجيل Service Worker ======================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('Service Worker مسجل بنجاح', reg.scope))
-                    .catch(err => console.warn('فشل تسجيل Service Worker', err));
+                    .then(reg => console.log('SW مسجل'))
+                    .catch(err => console.warn('SW فشل', err));
             });
         }
         
         // ====================== سحب للتحديث ======================
-        let pullStartY = 0;
-        let pulling = false;
+        let pullStartY = 0, pulling = false;
         const pullThreshold = 100;
         const pullIndicator = document.getElementById('pullIndicator');
         
@@ -241,9 +236,7 @@
         document.addEventListener('touchmove', (e) => {
             if (!pulling) return;
             const currentY = e.touches[0].clientY;
-            const pullDistance = currentY - pullStartY;
-            
-            if (pullDistance > 30) {
+            if (currentY - pullStartY > 30) {
                 pullIndicator.classList.add('visible');
                 e.preventDefault();
             }
@@ -253,59 +246,38 @@
             if (!pulling) return;
             pulling = false;
             pullIndicator.classList.remove('visible');
-            
-            const currentY = e.changedTouches[0].clientY;
-            const pullDistance = currentY - pullStartY;
-            
-            if (pullDistance > pullThreshold) {
-                await refreshApp();
+            if (e.changedTouches[0].clientY - pullStartY > pullThreshold) {
+                window.location.reload();
             }
         });
         
-        async function refreshApp() {
+        // ====================== دالة بدء التشغيل ======================
+        async function bootApp() {
             const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = 'جاري التحديث...';
             
-            try {
-                if (window.App && App.getCurrentUser()) {
-                    const user = App.getCurrentUser();
-                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
-                    return;
-                }
-                
-                if (window.DB) {
-                    await DB.getSettings().catch(() => {});
-                    statusEl.textContent = 'تم الاتصال بنجاح';
-                } else {
-                    statusEl.textContent = 'قاعدة البيانات غير متصلة';
-                }
-            } catch (err) {
-                statusEl.textContent = 'فشل الاتصال: ' + err.message;
+            // انتظار تهيئة localDB إذا وجدت
+            if (window.localDB && window.localDB.initPromise) {
+                statusEl.textContent = 'تجهيز التخزين المحلي...';
+                await window.localDB.initPromise;
             }
             
-            setTimeout(() => {
-                if (window.App && App.getCurrentUser()) {
-                    const user = App.getCurrentUser();
-                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
-                } else {
-                    window.location.href = './index.html';
-                }
-            }, 3000);
-        }
-        
-        // ====================== تحميل تلقائي ======================
-        window.addEventListener('load', async () => {
+            // التحقق من وجود جلسة سابقة
             if (window.App && App.getCurrentUser()) {
+                statusEl.textContent = 'جاري تحميل حسابك...';
                 const user = App.getCurrentUser();
                 setTimeout(() => {
                     window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
-                }, 2000);
+                }, 1000);
             } else {
+                statusEl.textContent = 'جاري التوجيه لتسجيل الدخول...';
                 setTimeout(() => {
                     window.location.href = './index.html';
-                }, 2500);
+                }, 1000);
             }
-        });
+        }
+        
+        // ابدأ بعد تحميل الصفحة مباشرة
+        window.addEventListener('load', bootApp);
         
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
