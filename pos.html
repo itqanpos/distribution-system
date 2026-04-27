@@ -5,21 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نقطة البيع · حسابي</title>
     
-    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
     
-    <!-- Offline + Supabase -->
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,7 +23,6 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
-    <!-- شريط التنقل -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -55,7 +50,6 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية (بدون المبيعات) -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -76,32 +70,26 @@
         </ul>
     </aside>
 
-    <!-- حاوية نقطة البيع -->
     <div class="pos-container">
-        <!-- العمود الأيسر: البحث والمنتجات -->
-        <div class="left-panel">
+        <!-- العميل والبحث (ثابت) -->
+        <div class="customer-search-area">
             <div class="customer-box">
                 <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." list="customerList" autocomplete="off">
                 <datalist id="customerList"></datalist>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
-            <div class="products-section">
-                <div class="search-header">
-                    <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
-                </div>
-                <div class="product-list" id="productListContainer">
-                    <div class="empty-message">🔍 ابدأ بكتابة اسم المنتج للبحث</div>
-                </div>
+            <div class="search-header">
+                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
             </div>
         </div>
 
-        <!-- العمود الأيمن: السلة -->
-        <div class="cart-section">
+        <!-- السلة (قابلة للتمرير وتشغل أكبر مساحة) -->
+        <div class="cart-main-area">
             <div class="cart-items" id="cartItemsContainer">
                 <div class="cart-header-row">
                     <span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span>
                 </div>
-                <div style="padding:20px; text-align:center;">السلة فارغة</div>
+                <div class="empty-cart-message">السلة فارغة</div>
             </div>
             <div class="cart-footer">
                 <div class="cart-summary">
@@ -112,7 +100,7 @@
                     <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
                     <div class="summary-row discount-row">
                         <span>الخصم:</span>
-                        <input type="number" id="discountValue" value="0" min="0" step="0.01" style="width:100px;">
+                        <input type="number" id="discountValue" value="0" min="0" step="0.01">
                         <select id="discountType">
                             <option value="amount">ج.م</option>
                             <option value="percent">%</option>
@@ -129,7 +117,6 @@
         </div>
     </div>
 
-    <!-- مودال اختيار الوحدة -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -141,7 +128,6 @@
         </div>
     </div>
 
-    <!-- مودال الدفع -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -168,7 +154,6 @@
         </div>
     </div>
 
-    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -176,13 +161,10 @@
         </div>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <!-- سكريبت نقطة البيع (النسخة النهائية) -->
     <script src="./js/pos.js"></script>
     
-    <!-- Service Worker + سحب للتحديث -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
