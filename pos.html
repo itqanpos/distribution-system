@@ -19,13 +19,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
     
-    <!-- Supabase + Print -->
+    <!-- Offline + Supabase -->
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/print.js"></script>
 </head>
 <body>
-    <!-- شريط التنقل -->
+    <!-- شريط التنقل (بدون تغيير) -->
     <nav class="navbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -74,9 +76,8 @@
         </ul>
     </aside>
 
-    <!-- حاوية نقطة البيع -->
+    <!-- حاوية نقطة البيع (بدون تغيير) -->
     <div class="pos-container">
-        <!-- لوحة العمليات اليسرى -->
         <div class="left-panel">
             <div class="customer-box">
                 <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." list="customerList" autocomplete="off">
@@ -93,7 +94,6 @@
             </div>
         </div>
 
-        <!-- سلة المشتريات -->
         <div class="cart-section">
             <div class="cart-items">
                 <div class="cart-header-row">
@@ -125,7 +125,7 @@
         </div>
     </div>
 
-    <!-- مودال اختيار الوحدة -->
+    <!-- مودالات (بدون تغيير) -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -137,7 +137,6 @@
         </div>
     </div>
 
-    <!-- مودال الدفع -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -164,7 +163,6 @@
         </div>
     </div>
 
-    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -172,7 +170,6 @@
         </div>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <!-- سكريبت نقطة البيع -->
@@ -181,11 +178,7 @@
     <!-- Service Worker + سحب للتحديث -->
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('SW مسجل'))
-                    .catch(err => console.warn('SW فشل', err));
-            });
+            navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
         }
         
         let pullStartY = 0, pulling = false;
