@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي بعد التصحيح)
+   نقطة البيع - حسابي (إصدار نهائي - معدل)
    ============================================= */
 'use strict';
 
@@ -61,19 +61,30 @@ const POS = {
     bindEvents() {
         this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => { this.el.userDropdown?.classList.remove('show'); });
-        this.el.menuToggle.addEventListener('click', () => { this.el.sidebar.classList.toggle('mobile-open'); });
+
+        // ✅ تم الإصلاح: استخدام 'open' بدلاً من 'mobile-open'
+        this.el.menuToggle.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); });
+
         this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // البحث مع debounce لتجنب الوميض
+        // البحث مع debounce
         let searchTimeout;
         this.el.productSearchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => this.filterProducts(), 150);
         });
+
+        // ✅ تم تحسين الضغط على عنصر القائمة المنسدلة
         this.el.productDropdown.addEventListener('click', (e) => {
             const item = e.target.closest('.dropdown-item');
             if (item && item.dataset.id) {
-                this.openUnitModal(item.dataset.id);
+                const id = item.dataset.id;
+                console.log('محاولة فتح مودال للمنتج:', id);
+                if (this.products.length > 0) {
+                    this.openUnitModal(id);
+                } else {
+                    alert('المنتجات غير محملة بعد. حاول مرة أخرى.');
+                }
                 this.hideProductDropdown();
                 this.el.productSearchInput.value = '';
             }
@@ -272,7 +283,10 @@ const POS = {
     // ========== مودال الوحدة ==========
     openUnitModal(productId) {
         this.selectedProduct = this.products.find(p => p.id === productId);
-        if (!this.selectedProduct) return;
+        if (!this.selectedProduct) {
+            alert('المنتج غير موجود');
+            return;
+        }
         this.el.modalProductName.textContent = this.selectedProduct.name;
         const container = this.el.unitButtons;
         container.innerHTML = this.selectedProduct.units.map((u, idx) =>
@@ -352,7 +366,6 @@ const POS = {
         this.el.payNet.textContent = Utils.formatMoney(totals.net);
         const bal = this.selectedCustomer?.balance || 0;
         this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
-        // تعيين اللون المناسب
         if (bal >= 0) {
             this.el.currentBalance.classList.remove('text-danger');
             this.el.currentBalance.classList.add('text-success');
@@ -388,7 +401,6 @@ const POS = {
         this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
         this.el.balanceAfterLabel.textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
         this.el.balanceAfter.textContent = Utils.formatMoney(Math.abs(newBal));
-        // تلوين الأرصدة
         if (newBal >= 0) {
             this.el.balanceAfter.classList.remove('text-danger');
             this.el.balanceAfter.classList.add('text-success');
