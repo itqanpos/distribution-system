@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي - معدل)
+   نقطة البيع - حسابي (إصدار نهائي - جميع المشاكل محلولة)
    ============================================= */
 'use strict';
 
@@ -61,10 +61,7 @@ const POS = {
     bindEvents() {
         this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => { this.el.userDropdown?.classList.remove('show'); });
-
-        // ✅ تم الإصلاح: استخدام 'open' بدلاً من 'mobile-open'
         this.el.menuToggle.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); });
-
         this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
         // البحث مع debounce
@@ -74,17 +71,12 @@ const POS = {
             searchTimeout = setTimeout(() => this.filterProducts(), 150);
         });
 
-        // ✅ تم تحسين الضغط على عنصر القائمة المنسدلة
+        // الضغط على عنصر في القائمة المنسدلة - تم إصلاحه
         this.el.productDropdown.addEventListener('click', (e) => {
             const item = e.target.closest('.dropdown-item');
             if (item && item.dataset.id) {
-                const id = item.dataset.id;
-                console.log('محاولة فتح مودال للمنتج:', id);
-                if (this.products.length > 0) {
-                    this.openUnitModal(id);
-                } else {
-                    alert('المنتجات غير محملة بعد. حاول مرة أخرى.');
-                }
+                console.log('🔘 اختيار منتج:', item.dataset.id);
+                this.openUnitModal(item.dataset.id);
                 this.hideProductDropdown();
                 this.el.productSearchInput.value = '';
             }
@@ -97,7 +89,6 @@ const POS = {
         });
 
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
-
         this.el.discountValue.addEventListener('input', () => this.calculateTotals());
         this.el.discountType.addEventListener('change', () => this.calculateTotals());
 
@@ -139,10 +130,16 @@ const POS = {
         try {
             if (this.isDBReady) {
                 this.products = await DB.getProducts();
+                // تأكد من أن units كائن وليس نصًا (إن لزم)
+                this.products = this.products.map(p => {
+                    if (typeof p.units === 'string') {
+                        try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
+                    }
+                    return p;
+                });
                 this.customers = await DB.getParties('customer');
                 console.log(`📦 تم تحميل ${this.products.length} منتج و ${this.customers.length} عميل.`);
             } else {
-                // بيانات تجريبية
                 this.products = [
                     { id: '1', name: 'بيبسي', units: [{ name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 }, { name: 'علبة', price: 10, cost: 8.33, stock: 0, factor: 24 }] },
                     { id: '2', name: 'شيبسي', units: [{ name: 'كرتونة', price: 150, cost: 120, stock: 8, factor: 1 }, { name: 'كيس', price: 5, cost: 4, stock: 0, factor: 30 }] }
@@ -219,7 +216,7 @@ const POS = {
         }
         const option = Array.from(this.el.customerList.querySelectorAll('option')).find(o => o.value === val);
         if (option) {
-            this.selectedCustomer = this.customers.find(c => c.id === option.dataset.id);
+            this.selectedCustomer = this.customers.find(c => c.id == option.dataset.id);
             if (this.selectedCustomer) {
                 const bal = this.selectedCustomer.balance || 0;
                 if (bal >= 0) {
@@ -280,11 +277,17 @@ const POS = {
         this.calculateTotals();
     },
 
-    // ========== مودال الوحدة ==========
+    // ========== مودال الوحدة (تم إصلاحه) ==========
     openUnitModal(productId) {
-        this.selectedProduct = this.products.find(p => p.id === productId);
+        // استخدام المقارنة الفضفاضة لتجنب مشكلة نص/رقم
+        this.selectedProduct = this.products.find(p => p.id == productId);
         if (!this.selectedProduct) {
             alert('المنتج غير موجود');
+            console.error('لم يتم العثور على المنتج:', productId);
+            return;
+        }
+        if (!this.selectedProduct.units || !Array.isArray(this.selectedProduct.units) || this.selectedProduct.units.length === 0) {
+            alert('المنتج لا يحتوي على وحدات');
             return;
         }
         this.el.modalProductName.textContent = this.selectedProduct.name;
@@ -340,7 +343,7 @@ const POS = {
         const maxAvailable = parseFloat(this.el.selectedQuantity.max) || 0;
         if (qty <= 0 || qty > maxAvailable) { alert(`الكمية غير متاحة. الحد الأقصى: ${maxAvailable} ${this.selectedUnit.name}`); return; }
         const price = parseFloat(this.el.selectedPrice.value);
-        const existing = this.cart.find(i => i.productId === this.selectedProduct.id && i.unitName === this.selectedUnit.name);
+        const existing = this.cart.find(i => i.productId == this.selectedProduct.id && i.unitName === this.selectedUnit.name);
         if (existing) existing.quantity += qty;
         else this.cart.push({
             productId: this.selectedProduct.id,
@@ -411,10 +414,10 @@ const POS = {
     },
 
     getBaseQuantityReduction(item) {
-        const baseUnit = this.products.find(p => p.id === item.productId)?.units[0];
+        const baseUnit = this.products.find(p => p.id == item.productId)?.units[0];
         if (!baseUnit) return 0;
         if (item.unitName === baseUnit.name) return item.quantity;
-        const selectedUnit = this.products.find(p => p.id === item.productId)?.units.find(u => u.name === item.unitName);
+        const selectedUnit = this.products.find(p => p.id == item.productId)?.units.find(u => u.name === item.unitName);
         const factor = selectedUnit?.factor || 1;
         return item.quantity / factor;
     },
@@ -467,7 +470,7 @@ const POS = {
             if (this.isDBReady) {
                 await DB.saveInvoice(invoice);
                 for (const item of this.cart) {
-                    const prod = this.products.find(p => p.id === item.productId);
+                    const prod = this.products.find(p => p.id == item.productId);
                     if (prod) {
                         const reduction = this.getBaseQuantityReduction(item);
                         prod.units[0].stock = Math.max(0, prod.units[0].stock - reduction);
@@ -480,7 +483,7 @@ const POS = {
                 if (window.localDB) {
                     await localDB.put('invoices', invoice);
                     for (const item of this.cart) {
-                        const prod = this.products.find(p => p.id === item.productId);
+                        const prod = this.products.find(p => p.id == item.productId);
                         if (prod) {
                             const reduction = this.getBaseQuantityReduction(item);
                             prod.units[0].stock = Math.max(0, prod.units[0].stock - reduction);
@@ -518,7 +521,8 @@ const POS = {
             alert(`تم تعليق الفاتورة ${invoiceNumber}`);
             this.cart = []; this.renderCart(); this.selectedCustomer = null;
             this.el.customerSearchInput.value = ''; this.el.customerBalanceDisplay.innerHTML = ''; this.el.customerBalanceDisplay.className = 'customer-balance';
-            await this.loadData(); this.showToast('تم تعليق الفاتورة');
+            await this.loadData();
+            this.showToast('تم تعليق الفاتورة');
         } catch (error) { console.error(error); alert('فشل تعليق الفاتورة: ' + error.message); }
     },
 
@@ -530,7 +534,7 @@ const POS = {
         if (!invoices.length) container.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد فواتير معلقة</p>';
         else {
             container.innerHTML = invoices.map(inv => {
-                const name = this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
+                const name = this.customers.find(c => c.id == inv.customer_id)?.name || 'نقدي';
                 const invNumber = inv.invoice_number || inv.id.substring(0,8);
                 return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;"><div><strong>${invNumber}</strong><br>${name} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
             }).join('');
@@ -541,26 +545,49 @@ const POS = {
 
     async resumeInvoice(id) {
         let inv;
-        if (this.isDBReady) {
-            const invoices = await DB.getInvoices();
-            inv = invoices.find(i => i.id === id);
-            if (inv) await DB.deleteInvoice(id);  // استخدام دالة DB الجديدة
-        } else if (window.localDB) {
-            const held = await localDB.getAll('invoices');
-            inv = held.find(i => i.id === id);
-            if (inv) await localDB.delete('invoices', id);
+        try {
+            if (this.isDBReady) {
+                const invoices = await DB.getInvoices();
+                inv = invoices.find(i => i.id == id);
+                if (inv) {
+                    await DB.deleteInvoice(id).catch(err => console.warn('فشل حذف الفاتورة المعلقة:', err));
+                }
+            } else if (window.localDB) {
+                const held = await localDB.getAll('invoices');
+                inv = held.find(i => i.id == id);
+                if (inv) await localDB.delete('invoices', id).catch(() => {});
+            }
+            if (!inv) {
+                alert('الفاتورة غير موجودة');
+                return;
+            }
+            this.cart = inv.items;
+            this.selectedCustomer = this.customers.find(c => c.id == inv.customer_id) || null;
+            if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
+            else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+            this.onCustomerSearch(); this.renderCart(); this.closeModal('heldInvoicesModal');
+            this.showToast('تم تحميل الفاتورة المعلقة');
+        } catch (err) {
+            console.error('خطأ في استرجاع الفاتورة:', err);
+            alert('فشل استرجاع الفاتورة المعلقة');
         }
-        if (!inv) return;
-        this.cart = inv.items;
-        this.selectedCustomer = this.customers.find(c => c.id === inv.customer_id) || null;
-        if (this.selectedCustomer) this.el.customerSearchInput.value = this.selectedCustomer.name;
-        else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
-        this.onCustomerSearch(); this.renderCart(); this.closeModal('heldInvoicesModal'); this.showToast('تم تحميل الفاتورة المعلقة');
     },
 
-    showModal(id) { this.el[id].style.display = 'flex'; },
-    closeModal(id) { this.el[id].style.display = 'none'; },
-    showToast(msg) { const t = this.el.toast; t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); },
+    // تم تغيير دوال إظهار/إخفاء المودال لاستخدام الكلاس "open" للتوافق مع CSS
+    showModal(id) {
+        const modal = this.el[id];
+        if (modal) {
+            modal.classList.add('open');
+        }
+    },
+    closeModal(id) {
+        const modal = this.el[id];
+        if (modal) {
+            modal.classList.remove('open');
+        }
+    },
+
+    showToast(msg) { const t = this.el.toast; if (!t) return; t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); },
     saveCartToStorage() {
         if (this.cart.length > 0) localStorage.setItem('pos_held_cart', JSON.stringify({ cart: this.cart, customer: this.selectedCustomer, discountType: this.el.discountType.value, discountValue: this.el.discountValue.value }));
         else localStorage.removeItem('pos_held_cart');
