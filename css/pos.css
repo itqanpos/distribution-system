@@ -15,6 +15,7 @@ body {
     margin: 0;
     font-family: 'Segoe UI', Tahoma, sans-serif;
     background: #f5f7fa;
+    /* المسافات الآمنة */
     padding-top: var(--safe-top);
     padding-bottom: calc(60px + var(--safe-bottom));
     padding-left: var(--safe-left);
@@ -242,14 +243,13 @@ body {
     background: white;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
     max-height: 250px;
     overflow-y: auto;
-    z-index: 1000;            /* عالية عشان تظهر قدام أي حاجة */
+    z-index: 9999;            /* عالية جدا لضمان الظهور */
     display: none;
 }
 
-/* دي القاعدة المضافة عشان تظهر لما نضيف كلاس show */
 .search-dropdown.show {
     display: block;
 }
@@ -283,8 +283,8 @@ body {
 .cart-items {
     flex: 1;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch; /* التمرير الناعم iOS */
+    overscroll-behavior: contain;      /* منع شد الصفحة */
     will-change: scroll-position;
     padding: 10px 15px;
 }
