@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي)
+   نقطة البيع - حسابي (إصدار نهائي - بحث محسن)
    ============================================= */
 'use strict';
 
@@ -64,7 +64,7 @@ const POS = {
         this.el.menuToggle.addEventListener('click', () => { this.el.sidebar.classList.toggle('mobile-open'); });
         this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // البحث عن المنتج (قائمة منسدلة)
+        // البحث عن المنتج (قائمة منسدلة) - محسّن
         this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
         this.el.productDropdown.addEventListener('click', (e) => {
             const item = e.target.closest('.dropdown-item');
@@ -121,6 +121,12 @@ const POS = {
         if (!this.isDBReady) { console.warn('⚠️ وضع الاختبار'); this.showToast('وضع الاختبار - البيانات محلية'); }
         await this.loadData();
         this.restoreCartFromStorage();
+        
+        // تشخيص: لو المنتجات فضيت بعد التحميل
+        if (this.products.length === 0) {
+            console.warn('⚠️ لم يتم تحميل أي منتجات. تحقق من قاعدة البيانات أو IndexedDB.');
+            this.showToast('لا توجد منتجات. أضف منتجات أولاً.');
+        }
     },
 
     async loadData() {
@@ -128,14 +134,25 @@ const POS = {
             if (this.isDBReady) {
                 this.products = await DB.getProducts();
                 this.customers = await DB.getParties('customer');
+                console.log(`📦 تم تحميل ${this.products.length} منتج و ${this.customers.length} عميل.`);
+                if (this.products.length === 0) {
+                    console.warn('⚠️ لا توجد منتجات في قاعدة البيانات. يمكنك إضافة منتجات من صفحة المنتجات.');
+                }
             } else {
+                // بيانات تجريبية للتطوير
                 this.products = [
-                    { id: '1', name: 'بيبسي', units: [{ name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 }, { name: 'علبة', price: 10, cost: 8.33, stock: 0, factor: 24 }] }
+                    { id: '1', name: 'بيبسي', units: [{ name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 }, { name: 'علبة', price: 10, cost: 8.33, stock: 0, factor: 24 }] },
+                    { id: '2', name: 'شيبسي', units: [{ name: 'كرتونة', price: 150, cost: 120, stock: 8, factor: 1 }, { name: 'كيس', price: 5, cost: 4, stock: 0, factor: 30 }] }
                 ];
                 this.customers = [{ id: '101', name: 'عميل تجريبي', balance: 500 }, { id: '102', name: 'عميل مدين', balance: -200 }];
             }
             this.populateCustomerList();
-        } catch (e) { console.error(e); this.showToast('فشل تحميل البيانات'); }
+        } catch (e) {
+            console.error('فشل تحميل البيانات:', e);
+            this.showToast('فشل تحميل البيانات');
+            this.products = [];
+            this.customers = [];
+        }
     },
 
     populateCustomerList() {
@@ -158,28 +175,39 @@ const POS = {
         return `${wholeUnits} ${baseUnit.name} و ${remainder} ${subUnit.name}`;
     },
 
+    // ========== دالة البحث (محسّنة) ==========
     filterProducts() {
         const term = this.el.productSearchInput.value.trim().toLowerCase();
         const dropdown = this.el.productDropdown;
-        if (!term) { dropdown.classList.remove('show'); return; }
-        const filtered = this.products.filter(p => p.name.toLowerCase().includes(term));
-        if (!filtered.length) {
-            dropdown.innerHTML = '<div class="dropdown-item" style="color:#94a3b8;">لا توجد منتجات</div>';
+        
+        if (!term) {
+            dropdown.classList.remove('show');
+            return;
+        }
+        
+        // لو مفيش منتجات خالص
+        if (!this.products || this.products.length === 0) {
+            dropdown.innerHTML = '<div class="dropdown-item" style="color:#dc2626; text-align:center;">⚠️ لا توجد منتجات. أضف منتجات أولاً.</div>';
             dropdown.classList.add('show');
             return;
         }
-        dropdown.innerHTML = filtered.map(p => `
-            <div class="dropdown-item" data-id="${p.id}">
-                <div class="item-info"><h4>${p.name}</h4><small>${this.formatStockDisplay(p)}</small></div>
-                <div class="item-price">${Utils.formatMoney(p.units[0].price)}</div>
-            </div>
-        `).join('');
+        
+        const filtered = this.products.filter(p => p.name.toLowerCase().includes(term));
+        if (!filtered.length) {
+            dropdown.innerHTML = '<div class="dropdown-item" style="color:#94a3b8;">لا توجد نتائج متطابقة</div>';
+        } else {
+            dropdown.innerHTML = filtered.map(p => `
+                <div class="dropdown-item" data-id="${p.id}">
+                    <div class="item-info"><h4>${p.name}</h4><small>${this.formatStockDisplay(p)}</small></div>
+                    <div class="item-price">${Utils.formatMoney(p.units[0].price)}</div>
+                </div>
+            `).join('');
+        }
         dropdown.classList.add('show');
     },
 
     hideProductDropdown() {
-        const dropdown = this.el.productDropdown;
-        dropdown.classList.remove('show');
+        this.el.productDropdown.classList.remove('show');
     },
 
     onCustomerSearch() {
@@ -363,7 +391,24 @@ const POS = {
         const newBal = currentBal + diff;
         this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
         this.el.balanceAfterLabel.textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
-        this.el.balanceAfter.textContent = (newBal >= 0 ? '' : '-') + Utils.formatMoney(Math.abs(newBal));
+        this.el.balanceAfter.textContent = Utils.formatMoney(Math.abs(newBal));
+        // تلوين الأرصدة بناءً على القيمة (موجب أو سالب)
+        const balAfterEl = this.el.balanceAfter;
+        if (newBal >= 0) {
+            balAfterEl.classList.remove('text-danger');
+            balAfterEl.classList.add('text-success');
+        } else {
+            balAfterEl.classList.remove('text-success');
+            balAfterEl.classList.add('text-danger');
+        }
+        const curBalEl = this.el.currentBalance;
+        if (currentBal >= 0) {
+            curBalEl.classList.remove('text-danger');
+            curBalEl.classList.add('text-success');
+        } else {
+            curBalEl.classList.remove('text-success');
+            curBalEl.classList.add('text-danger');
+        }
     },
 
     getBaseQuantityReduction(item) {
