@@ -123,34 +123,27 @@ body {
     background: #f1f5f9;
 }
 
-/* ========== القائمة الجانبية ========== */
-.sidebar {
+
+sidebar {
     position: fixed;
     top: 0;
     right: -280px;
     width: 280px;
     height: 100%;
-    background: var(--dark);
+    background: #ffffff;               /* خلفية بيضاء بدل الداكن */
+    border-left: 1px solid #e2e8f0;    /* حد فاصل جميل */
     padding: 15px;
     z-index: 999;
     transition: right 0.3s ease;
     overflow-y: auto;
-}
-
-.sidebar.open {
-    right: 0;
-}
-
-.menu {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05); /* ظل خفيف */
 }
 
 .menu-section {
-    color: #94a3b8;
-    font-size: 0.8rem;
+    color: #64748b;                   /* لون نص فاتح محترم */
+    font-size: 0.75rem;
     text-transform: uppercase;
+    letter-spacing: 1px;
     margin: 20px 0 10px;
     padding: 0 10px;
 }
@@ -158,29 +151,36 @@ body {
 .menu-item {
     display: flex;
     align-items: center;
-    padding: 10px 15px;
-    color: #cbd5e1;
+    padding: 12px 15px;
+    color: #334155;                  /* نص غامق شوية */
     text-decoration: none;
-    border-radius: 6px;
-    margin-bottom: 5px;
-    transition: background 0.2s;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    transition: all 0.2s;
+    font-weight: 500;
 }
 
 .menu-item i {
     width: 20px;
     margin-left: 10px;
     text-align: center;
+    color: #64748b;                 /* أيقونة بلون هادئ */
 }
 
 .menu-item:hover {
-    background: #334155;
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
 .menu-item.active {
-    background: var(--primary);
-    color: white;
+    background: #eff6ff;            /* أزرق فاتح جدًا للعنصر النشط */
+    color: #3b82f6;
+    font-weight: 600;
 }
 
+.menu-item.active i {
+    color: #3b82f6;
+}======= القائمة 
 /* ========== المحتوى الرئيسي ========== */
 .main-content {
     max-width: 1200px;
