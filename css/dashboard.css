@@ -409,3 +409,20 @@ th {
         gap: 10px;
     }
 }
+.main-content {
+    background: #f8fafc;           /* خلفية الصفحة الرئيسية */
+    border-radius: 12px;
+    margin: 10px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 16px;          /* تدوير أجمل */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
