@@ -20,14 +20,12 @@
     window.supabase = supabaseClient;
     console.log('✅ Supabase client initialized');
 
-    // دوال مساعدة
     function cleanObject(obj) {
         const cleaned = { ...obj };
         delete cleaned.updated_at;
         return cleaned;
     }
 
-    // ==================== Utils (احتياطي) ====================
     if (!window.Utils) {
         window.Utils = {
             formatMoney: (amount, currency = 'ج.م') => {
@@ -38,7 +36,6 @@
         };
     }
 
-    // ==================== الطبقة المحلية (Offline) ====================
     const local = window.localDB;
     const syncer = window.syncManager;
 
@@ -245,7 +242,7 @@
             }
         },
 
-        // ---- الأطراف (عملاء وموردين) ----
+        // ---- الأطراف ----
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -299,7 +296,7 @@
             }
         },
 
-        // ---- الفواتير ----
+        // ---- الفواتير (محدثة مع الحذف) ----
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
@@ -315,6 +312,21 @@
                 if (error) throw error;
                 return data;
             });
+        },
+        async deleteInvoice(id) {
+            if (local) await local.delete('invoices', id).catch(() => {});
+            if (navigator.onLine && supabaseClient) {
+                try {
+                    const { error } = await supabaseClient.from('invoices').delete().eq('id', id);
+                    if (error) throw error;
+                } catch (error) {
+                    console.warn('فشل حذف الفاتورة سحابياً، إضافة للأمر للمزامنة');
+                    if (syncer) await syncer.addToSyncQueue?.({ type: 'DELETE', table: 'invoices', data: { id } });
+                    else if (local) await local.addToSyncQueue?.({ type: 'DELETE', table: 'invoices', data: { id } });
+                }
+            } else if (local) {
+                await local.addToSyncQueue?.({ type: 'DELETE', table: 'invoices', data: { id } });
+            }
         },
 
         // ---- المشتريات ----
@@ -346,74 +358,6 @@
             if (!t.id) t.id = crypto.randomUUID();
             return saveWithFallback('transactions', t, async (trans) => {
                 const { data, error } = await supabaseClient.from('transactions').upsert(cleanObject(trans), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-
-        // ---- المرتجعات ----
-        async getReturns(type = null) {
-            return getWithFallback('returns', async () => {
-                let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
-                if (type) q = q.eq('type', type);
-                const { data, error } = await q;
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveReturn(r) {
-            if (!r.id) r.id = crypto.randomUUID();
-            return saveWithFallback('returns', r, async (ret) => {
-                const { data, error } = await supabaseClient.from('returns').upsert(cleanObject(ret), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-
-        // ---- موظفين وسلف ----
-        async getEmployees() {
-            return getWithFallback('employees', async () => {
-                const { data, error } = await supabaseClient.from('employees').select('*').order('name');
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveEmployee(emp) {
-            if (!emp.id) emp.id = crypto.randomUUID();
-            return saveWithFallback('employees', emp, async (employee) => {
-                const { data, error } = await supabaseClient.from('employees').upsert(cleanObject(employee), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-        async getLoans() {
-            return getWithFallback('loans', async () => {
-                const { data, error } = await supabaseClient.from('loans').select('*').order('date', { ascending: false });
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveLoan(l) {
-            if (!l.id) l.id = crypto.randomUUID();
-            return saveWithFallback('loans', l, async (loan) => {
-                const { data, error } = await supabaseClient.from('loans').upsert(cleanObject(loan), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-
-        // ---- المصروفات ----
-        async getExpenses() {
-            return getWithFallback('expenses', async () => {
-                const { data, error } = await supabaseClient.from('expenses').select('*').order('date', { ascending: false });
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveExpense(exp) {
-            if (!exp.id) exp.id = crypto.randomUUID();
-            return saveWithFallback('expenses', exp, async (expense) => {
-                const { data, error } = await supabaseClient.from('expenses').upsert(cleanObject(expense), { onConflict: 'id' }).select().single();
                 if (error) throw error;
                 return data;
             });
@@ -478,7 +422,7 @@
         // ========== توليد رقم الفاتورة ==========
         generateInvoiceNumber: async function() {
             const now = new Date();
-            const year = now.getFullYear().toString().slice(-2); // YY
+            const year = now.getFullYear().toString().slice(-2);
             const storageKey = `inv_counter_${year}`;
             
             let currentNumber = parseInt(localStorage.getItem(storageKey) || '0', 10);
