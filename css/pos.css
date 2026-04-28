@@ -15,7 +15,6 @@ body {
     margin: 0;
     font-family: 'Segoe UI', Tahoma, sans-serif;
     background: #f5f7fa;
-    /* المسافات الآمنة */
     padding-top: var(--safe-top);
     padding-bottom: calc(60px + var(--safe-bottom));
     padding-left: var(--safe-left);
@@ -185,7 +184,7 @@ body {
 .pos-container {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 60px); /* ناقص ارتفاع النافبار تقريبًا */
+    height: calc(100vh - 60px);
     height: calc(100vh - 60px - var(--safe-top) - var(--safe-bottom));
     max-width: 800px;
     margin: 0 auto;
@@ -234,6 +233,7 @@ body {
     font-size: 16px;
 }
 
+/* === القائمة المنسدلة للبحث (Dropdown) === */
 .search-dropdown {
     position: absolute;
     top: 45px;
@@ -245,8 +245,13 @@ body {
     box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     max-height: 250px;
     overflow-y: auto;
-    z-index: 100;
+    z-index: 1000;            /* عالية عشان تظهر قدام أي حاجة */
     display: none;
+}
+
+/* دي القاعدة المضافة عشان تظهر لما نضيف كلاس show */
+.search-dropdown.show {
+    display: block;
 }
 
 .search-dropdown .dropdown-item {
@@ -278,8 +283,8 @@ body {
 .cart-items {
     flex: 1;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* التمرير الناعم iOS */
-    overscroll-behavior: contain;      /* منع شد الصفحة */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     will-change: scroll-position;
     padding: 10px 15px;
 }
