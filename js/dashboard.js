@@ -1,415 +1,294 @@
-/* =============================================
-   لوحة التحكم - حسابي (Production-Ready v2.0)
-   ============================================= */
 'use strict';
 
-// ==================== الأدوات المساعدة ====================
-const Utils = window.Utils || {
-    formatMoney: (amount, currency = 'ج.م') => {
-        return Number(amount).toLocaleString('en-US', { 
-            minimumFractionDigits: 2, 
-            maximumFractionDigits: 2 
-        }) + ' ' + currency;
-    },
-    getToday: () => new Date().toISOString().split('T')[0],
-    escapeHTML: (str) => {
-        const div = document.createElement('div');
-        div.appendChild(document.createTextNode(str));
-        return div.innerHTML;
-    },
-    round: (value, decimals = 2) => {
-        return Number(Math.round(value + 'e' + decimals) + 'e-' + decimals);
-    }
+// الأدوات المساعدة (موجودة ضمن Utils العامة، لكن نتأكد)
+const U = window.Utils || {
+    formatMoney: (v) => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
+    escapeHTML: (s) => (String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]),
+    today: () => new Date().toISOString().split('T')[0],
+    round: (v, d=2) => Number(Math.round(v+'e'+d)+'e-'+d)
 };
 
-if (!window.Utils) window.Utils = Utils;
-
-// ==================== Dashboard Controller ====================
 const Dashboard = {
+    el: {},
     state: {
-        isDBReady: false,
-        isLoading: false,
-        stats: {
-            todaySales: 0,
-            todayPurchases: 0,
-            customersCount: 0,
-            productsCount: 0,
-            cashBalance: 0
-        },
+        ready: false,
+        loading: false,
+        stats: { salesToday:0, purchasesToday:0, customers:0, products:0, cash:0 },
         chartData: [],
         recentInvoices: [],
         recentPurchases: []
     },
 
-    el: {},
-
     init() {
-        this.cacheElements();
+        this.cacheDOM();
         this.bindEvents();
-        this.setCurrentDate();
-        this.state.isDBReady = !!(window.DB && window.supabase);
+        this.setDate();
+        this.state.ready = !!(window.DB && window.supabase);
         
         if (window.App) {
             if (!App.requireAuth()) return;
             App.initUserInterface();
         }
-
         this.loadAllData();
     },
 
-    cacheElements() {
-        const ids = [
-            'menuToggle', 'sidebar', 'userDropdown', 'userProfileBtn',
-            'logoutBtn', 'currentDate', 'statsGrid', 'salesChart',
-            'recentInvoices', 'recentPurchases', 'loadingIndicator',
-            'chartError', 'toast'
-        ];
-        ids.forEach(id => { this.el[id] = document.getElementById(id); });
+    cacheDOM() {
+        const ids = ['menuToggle','sidebar','userDropdown','userProfileBtn','logoutBtn',
+                     'currentDate','statsGrid','salesChart','recentInvoices','recentPurchases',
+                     'loadingIndicator','chartError','toast'];
+        ids.forEach(id => this.el[id] = document.getElementById(id));
     },
 
     bindEvents() {
-        // القائمة الجانبية
-        this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-        });
-
-        // قائمة المستخدم
+        this.el.menuToggle?.addEventListener('click', () => this.el.sidebar.classList.toggle('open'));
         this.el.userProfileBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.el.userDropdown?.classList.toggle('show');
         });
-        document.addEventListener('click', () => {
-            this.el.userDropdown?.classList.remove('show');
-        });
-
-        // تسجيل الخروج
+        document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            if (window.App) App.logout();
-            else window.location.href = './index.html';
+            window.App ? App.logout() : location.href = './index.html';
         });
     },
 
-    setCurrentDate() {
-        if (!this.el.currentDate) return;
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        this.el.currentDate.textContent = now.toLocaleDateString('ar-EG', options);
-    },
-
-    showLoading(show = true) {
-        if (this.el.loadingIndicator) {
-            this.el.loadingIndicator.style.display = show ? 'block' : 'none';
+    setDate() {
+        if (this.el.currentDate) {
+            this.el.currentDate.textContent = new Date().toLocaleDateString('ar-EG', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
         }
-        this.state.isLoading = show;
     },
 
-    showToast(msg) {
+    toggleLoading(show) {
+        if (this.el.loadingIndicator) this.el.loadingIndicator.style.display = show ? 'block' : 'none';
+        this.state.loading = show;
+    },
+
+    toast(msg) {
         const t = this.el.toast;
         if (!t) return;
         t.textContent = msg;
         t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+        clearTimeout(this._t);
+        this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    // ==================== تحميل البيانات ====================
+    // -------- تحميل البيانات الرئيسية --------
     async loadAllData() {
-        this.showLoading(true);
+        this.toggleLoading(true);
         try {
             await Promise.all([
                 this.loadStats(),
-                this.loadInvoices(),
-                this.loadPurchases()
+                this.loadRecentInvoices(),
+                this.loadRecentPurchases()
             ]);
             this.renderStats();
             this.renderTables();
             this.renderChart();
         } catch (e) {
-            console.error('خطأ في تحميل بيانات لوحة التحكم:', e);
-            this.showToast('فشل تحميل بعض البيانات');
+            console.error(e);
+            this.toast('تعذر تحميل بعض البيانات');
         } finally {
-            this.showLoading(false);
+            this.toggleLoading(false);
         }
     },
 
     async loadStats() {
+        // لو DB مش موجود، استخدم بيانات وهمية
+        if (!this.state.ready) {
+            this.state.stats = {
+                salesToday: 12500, purchasesToday: 4530,
+                customers: 45, products: 120, cash: 28000
+            };
+            this.state.chartData = this._dummyChart();
+            return;
+        }
+
         try {
-            const today = Utils.getToday();
+            const today = U.today();
+            const [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                DB.getInvoices().catch(() => []),
+                DB.getPurchases().catch(() => []),
+                DB.getParties('customer').catch(() => []),
+                DB.getProducts().catch(() => []),
+                DB.getTransactions().catch(() => []),
+                DB.getSettings().catch(() => ({}))
+            ]);
+
+            const todayInvoices = invoices.filter(inv => inv.date === today && inv.type === 'sale');
+            this.state.stats.salesToday = U.round(todayInvoices.reduce((s, inv) => s + (inv.total||0), 0));
             
-            if (this.state.isDBReady) {
-                // تحميل الإحصائيات من Supabase أو المحلي
-                const [invoices, purchases, parties, products, transactions] = await Promise.all([
-                    DB.getInvoices().catch(() => []),
-                    DB.getPurchases().catch(() => []),
-                    DB.getParties('customer').catch(() => []),
-                    DB.getProducts().catch(() => []),
-                    DB.getTransactions().catch(() => [])
-                ]);
-
-                // مبيعات اليوم
-                const todayInvoices = invoices.filter(inv => inv.date === today && inv.type === 'sale');
-                this.state.stats.todaySales = Utils.round(
-                    todayInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0)
-                );
-                this.state.chartData = this.prepareChartData(invoices);
-
-                // مشتريات اليوم
-                const todayPurchases = purchases.filter(p => p.date === today);
-                this.state.stats.todayPurchases = Utils.round(
-                    todayPurchases.reduce((sum, p) => sum + (p.total || 0), 0)
-                );
-
-                // عدد العملاء
-                this.state.stats.customersCount = parties.length;
-
-                // عدد المنتجات
-                this.state.stats.productsCount = products.length;
-
-                // رصيد الصندوق
-                const cashTransactions = transactions.filter(t => 
-                    t.payment_method === 'cash' || !t.payment_method
-                );
-                const income = cashTransactions.filter(t => t.type === 'income')
-                    .reduce((s, t) => s + (t.amount || 0), 0);
-                const expense = cashTransactions.filter(t => t.type === 'expense')
-                    .reduce((s, t) => s + (t.amount || 0), 0);
-                const settings = await DB.getSettings().catch(() => ({}));
-                const openingBalance = settings.openingBalance || 0;
-                this.state.stats.cashBalance = Utils.round(openingBalance + income - expense);
-            } else {
-                // بيانات افتراضية للتطوير
-                this.state.stats = {
-                    todaySales: 12500,
-                    todayPurchases: 4530,
-                    customersCount: 45,
-                    productsCount: 120,
-                    cashBalance: 28000
-                };
-                this.state.chartData = this.generateDummyChartData();
-            }
+            const todayPurchases = purchases.filter(p => p.date === today);
+            this.state.stats.purchasesToday = U.round(todayPurchases.reduce((s, p) => s + (p.total||0), 0));
+            
+            this.state.stats.customers = parties.length;
+            this.state.stats.products = products.length;
+            
+            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount||0), 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount||0), 0);
+            this.state.stats.cash = U.round((settings.openingBalance||0) + income - expense);
+            
+            this.state.chartData = this._prepareChart(invoices);
         } catch (e) {
-            console.error('خطأ تحميل الإحصائيات:', e);
+            console.warn('فشل تحميل الإحصائيات', e);
+            // استخدم بيانات افتراضية عند الخطأ
+            this.state.stats = { salesToday:0, purchasesToday:0, customers:0, products:0, cash:0 };
+            this.state.chartData = [];
         }
     },
 
-    async loadInvoices() {
+    async loadRecentInvoices() {
+        if (!this.state.ready) {
+            this.state.recentInvoices = [
+                { invoice_number: '28-0005', customer_name: 'أحمد محمد', date: U.today(), total: 1500, status: 'paid' }
+            ];
+            return;
+        }
         try {
-            if (this.state.isDBReady) {
-                const invoices = await DB.getInvoices().catch(() => []);
-                this.state.recentInvoices = invoices
-                    .filter(inv => inv.type === 'sale')
-                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                    .slice(0, 5);
-            } else {
-                this.state.recentInvoices = [
-                    { id: '1', invoice_number: '28-0005', customer_name: 'أحمد محمد', date: Utils.getToday(), total: 1500, status: 'paid' },
-                    { id: '2', invoice_number: '28-0004', customer_name: 'نقدي', date: Utils.getToday(), total: 350, status: 'paid' }
-                ];
-            }
+            const invs = await DB.getInvoices().catch(() => []);
+            this.state.recentInvoices = invs.filter(i => i.type === 'sale')
+                .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                .slice(0, 5);
         } catch (e) {
-            console.error('خطأ تحميل الفواتير:', e);
             this.state.recentInvoices = [];
         }
     },
 
-    async loadPurchases() {
+    async loadRecentPurchases() {
+        if (!this.state.ready) {
+            this.state.recentPurchases = [
+                { supplier_name: 'شركة الأمل', date: U.today(), total: 4500, status: 'paid' }
+            ];
+            return;
+        }
         try {
-            if (this.state.isDBReady) {
-                const purchases = await DB.getPurchases().catch(() => []);
-                this.state.recentPurchases = purchases
-                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                    .slice(0, 5);
-            } else {
-                this.state.recentPurchases = [
-                    { id: '1', supplier_name: 'شركة الأمل', date: Utils.getToday(), total: 4500, status: 'paid' }
-                ];
-            }
+            const pur = await DB.getPurchases().catch(() => []);
+            this.state.recentPurchases = pur.sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,5);
         } catch (e) {
-            console.error('خطأ تحميل المشتريات:', e);
             this.state.recentPurchases = [];
         }
     },
 
-    prepareChartData(invoices) {
-        const days = [];
-        const now = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
-            const dayTotal = invoices
-                .filter(inv => inv.date === dateStr && inv.type === 'sale')
-                .reduce((sum, inv) => sum + (inv.total || 0), 0);
-            days.push({
-                date: dateStr,
-                label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }),
-                total: Utils.round(dayTotal)
-            });
-        }
-        return days;
-    },
-
-    generateDummyChartData() {
-        const days = [];
-        const now = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            days.push({
-                date: d.toISOString().split('T')[0],
-                label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }),
-                total: Math.floor(Math.random() * 5000) + 500
-            });
-        }
-        return days;
-    },
-
-    // ==================== عرض البيانات ====================
+    // -------- عرض البيانات --------
     renderStats() {
         if (!this.el.statsGrid) return;
         const s = this.state.stats;
-        
         const cards = [
-            { title: 'مبيعات اليوم', value: Utils.formatMoney(s.todaySales), icon: 'fa-chart-line', color: '#16a34a' },
-            { title: 'مشتريات اليوم', value: Utils.formatMoney(s.todayPurchases), icon: 'fa-shopping-cart', color: '#dc2626' },
-            { title: 'العملاء', value: s.customersCount, icon: 'fa-users', color: '#3b82f6' },
-            { title: 'المنتجات', value: s.productsCount, icon: 'fa-boxes', color: '#f59e0b' },
-            { title: 'رصيد الصندوق', value: Utils.formatMoney(s.cashBalance), icon: 'fa-cash-register', color: '#8b5cf6' }
+            { title: 'مبيعات اليوم', value: U.formatMoney(s.salesToday), icon: 'fa-chart-line', color: '#16a34a' },
+            { title: 'مشتريات اليوم', value: U.formatMoney(s.purchasesToday), icon: 'fa-shopping-cart', color: '#dc2626' },
+            { title: 'العملاء', value: s.customers, icon: 'fa-users', color: '#3b82f6' },
+            { title: 'المنتجات', value: s.products, icon: 'fa-boxes', color: '#f59e0b' },
+            { title: 'رصيد الصندوق', value: U.formatMoney(s.cash), icon: 'fa-cash-register', color: '#8b5cf6' }
         ];
-
-        this.el.statsGrid.innerHTML = cards.map(card => `
-            <div class="stat-card" style="border-right: 4px solid ${card.color};">
-                <div class="stat-icon" style="color:${card.color};"><i class="fas ${card.icon}"></i></div>
+        this.el.statsGrid.innerHTML = cards.map(c => `
+            <div class="stat-card" style="border-right: 4px solid ${c.color};">
+                <div class="stat-icon" style="color:${c.color};"><i class="fas ${c.icon}"></i></div>
                 <div class="stat-content">
-                    <div class="stat-title">${Utils.escapeHTML(card.title)}</div>
-                    <div class="stat-value">${Utils.escapeHTML(String(card.value))}</div>
+                    <div class="stat-title">${U.escapeHTML(c.title)}</div>
+                    <div class="stat-value">${U.escapeHTML(String(c.value))}</div>
                 </div>
             </div>
         `).join('');
-
-        // إضافة تأثير hover للبطاقات
-        document.querySelectorAll('.stat-card').forEach(card => {
-            card.addEventListener('mouseenter', () => card.style.transform = 'translateY(-2px)');
-            card.addEventListener('mouseleave', () => card.style.transform = 'translateY(0)');
-        });
     },
 
     renderTables() {
-        // جدول آخر الفواتير
-        if (this.el.recentInvoices) {
+        // آخر الفواتير
+        const invEl = this.el.recentInvoices;
+        if (invEl) {
             if (!this.state.recentInvoices.length) {
-                this.el.recentInvoices.innerHTML = '<div style="text-align:center; padding:20px;">لا توجد فواتير</div>';
+                invEl.innerHTML = '<div class="empty">لا توجد فواتير</div>';
             } else {
-                let html = '<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>';
-                html += this.state.recentInvoices.map(inv => {
-                    const safeNum = Utils.escapeHTML(inv.invoice_number || inv.id?.substring(0,8) || '');
-                    const safeName = Utils.escapeHTML(inv.customer_name || 'نقدي');
-                    const date = new Date(inv.date || Date.now()).toLocaleDateString('ar-EG');
-                    const amount = Utils.formatMoney(inv.total || 0);
-                    const statusClass = inv.status === 'paid' ? 'badge-success' : 
-                                       inv.status === 'held' ? 'badge-warning' : 'badge-danger';
-                    const statusText = inv.status === 'paid' ? 'مدفوعة' : 
-                                      inv.status === 'held' ? 'معلقة' : 'غير مدفوعة';
-                    return `<tr>
-                        <td>${safeNum}</td>
-                        <td>${safeName}</td>
-                        <td>${date}</td>
-                        <td>${amount}</td>
-                        <td><span class="badge ${statusClass}">${statusText}</span></td>
-                    </tr>`;
-                }).join('');
-                html += '</tbody></table>';
-                this.el.recentInvoices.innerHTML = html;
+                let rows = this.state.recentInvoices.map(inv => `
+                    <tr>
+                        <td>${U.escapeHTML(inv.invoice_number || '')}</td>
+                        <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
+                        <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
+                        <td>${U.formatMoney(inv.total)}</td>
+                        <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
+                    </tr>
+                `).join('');
+                invEl.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
 
-        // جدول آخر المشتريات
-        if (this.el.recentPurchases) {
+        // آخر المشتريات
+        const purEl = this.el.recentPurchases;
+        if (purEl) {
             if (!this.state.recentPurchases.length) {
-                this.el.recentPurchases.innerHTML = '<div style="text-align:center; padding:20px;">لا توجد مشتريات</div>';
+                purEl.innerHTML = '<div class="empty">لا توجد مشتريات</div>';
             } else {
-                let html = '<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>';
-                html += this.state.recentPurchases.map(p => {
-                    const safeName = Utils.escapeHTML(p.supplier_name || 'غير معروف');
-                    const date = new Date(p.date || Date.now()).toLocaleDateString('ar-EG');
-                    const amount = Utils.formatMoney(p.total || 0);
-                    const statusClass = p.status === 'paid' ? 'badge-success' : 'badge-danger';
-                    const statusText = p.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة';
-                    return `<tr>
-                        <td>${safeName}</td>
-                        <td>${date}</td>
-                        <td>${amount}</td>
-                        <td><span class="badge ${statusClass}">${statusText}</span></td>
-                    </tr>`;
-                }).join('');
-                html += '</tbody></table>';
-                this.el.recentPurchases.innerHTML = html;
+                let rows = this.state.recentPurchases.map(p => `
+                    <tr>
+                        <td>${U.escapeHTML(p.supplier_name || 'غير معروف')}</td>
+                        <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
+                        <td>${U.formatMoney(p.total)}</td>
+                        <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
+                    </tr>
+                `).join('');
+                purEl.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
     },
 
     renderChart() {
         if (!this.el.salesChart || !this.state.chartData.length) {
-            if (this.el.chartError) {
-                this.el.chartError.style.display = 'block';
-                this.el.chartError.textContent = 'لا توجد بيانات كافية لعرض الرسم البياني';
-            }
+            if (this.el.chartError) this.el.chartError.style.display = 'block';
             return;
         }
-
-        try {
-            if (this._chartInstance) {
-                this._chartInstance.destroy();
+        if (this._chart) this._chart.destroy();
+        const ctx = this.el.salesChart.getContext('2d');
+        this._chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: this.state.chartData.map(d => d.label),
+                datasets: [{
+                    label: 'المبيعات',
+                    data: this.state.chartData.map(d => d.total),
+                    backgroundColor: 'rgba(59,130,246,0.6)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
             }
+        });
+    },
 
-            const ctx = this.el.salesChart.getContext('2d');
-            this._chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: this.state.chartData.map(d => d.label),
-                    datasets: [{
-                        label: 'المبيعات (ج.م)',
-                        data: this.state.chartData.map(d => d.total),
-                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                        borderColor: '#3b82f6',
-                        borderWidth: 1,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => `${Utils.formatMoney(ctx.raw)}`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: (value) => Utils.formatMoney(value)
-                            }
-                        }
-                    }
-                }
+    _prepareChart(invoices) {
+        const days = [];
+        const now = new Date();
+        for (let i=29; i>=0; i--) {
+            const d = new Date(now); d.setDate(d.getDate()-i);
+            const ds = d.toISOString().split('T')[0];
+            const total = invoices.filter(inv => inv.date===ds && inv.type==='sale')
+                .reduce((s, inv) => s + (inv.total||0), 0);
+            days.push({
+                date: ds,
+                label: d.toLocaleDateString('ar-EG', { day:'numeric', month:'short' }),
+                total: U.round(total)
             });
-        } catch (e) {
-            console.error('خطأ في رسم المخطط:', e);
-            if (this.el.chartError) {
-                this.el.chartError.style.display = 'block';
-                this.el.chartError.textContent = 'فشل عرض الرسم البياني';
-            }
         }
+        return days;
+    },
+
+    _dummyChart() {
+        const days = [], now = new Date();
+        for (let i=29; i>=0; i--) {
+            const d = new Date(now); d.setDate(d.getDate()-i);
+            days.push({
+                date: d.toISOString().split('T')[0],
+                label: d.toLocaleDateString('ar-EG', { day:'numeric', month:'short' }),
+                total: Math.floor(Math.random()*5000)+500
+            });
+        }
+        return days;
     }
 };
 
-// ==================== بدء التشغيل ====================
 window.addEventListener('DOMContentLoaded', () => Dashboard.init());
-
-// تعريض الدوال للاستخدام الخارجي
-window.Dashboard = Dashboard;
