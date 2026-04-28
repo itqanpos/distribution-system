@@ -1,5 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (إصدار نهائي - بحث محسن)
+   نقطة البيع - حسابي (إصدار نهائي بعد التصحيح)
    ============================================= */
 'use strict';
 
@@ -64,8 +64,12 @@ const POS = {
         this.el.menuToggle.addEventListener('click', () => { this.el.sidebar.classList.toggle('mobile-open'); });
         this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // البحث عن المنتج (قائمة منسدلة) - محسّن
-        this.el.productSearchInput.addEventListener('input', () => this.filterProducts());
+        // البحث مع debounce لتجنب الوميض
+        let searchTimeout;
+        this.el.productSearchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => this.filterProducts(), 150);
+        });
         this.el.productDropdown.addEventListener('click', (e) => {
             const item = e.target.closest('.dropdown-item');
             if (item && item.dataset.id) {
@@ -75,37 +79,30 @@ const POS = {
             }
         });
 
-        // إخفاء القائمة عند النقر خارجها
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.search-header')) {
                 this.hideProductDropdown();
             }
         });
 
-        // العميل
         this.el.customerSearchInput.addEventListener('input', () => this.onCustomerSearch());
 
-        // الخصم
         this.el.discountValue.addEventListener('input', () => this.calculateTotals());
         this.el.discountType.addEventListener('change', () => this.calculateTotals());
 
-        // أزرار الإجراءات
         this.el.payBtn.addEventListener('click', () => this.openPaymentModal());
         this.el.holdBtn.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn.addEventListener('click', () => this.loadHeldInvoices());
 
-        // مودال الوحدة
         this.el.addToCartBtn.addEventListener('click', () => this.addToCartFromModal());
         this.el.closeUnitModalBtn.addEventListener('click', () => this.closeModal('unitQuantityModal'));
 
-        // مودال الدفع
         this.el.confirmAndPrintBtn.addEventListener('click', async (e) => { e.preventDefault(); await this.completePayment(); });
         this.el.closePaymentModalBtn.addEventListener('click', () => this.closeModal('paymentModal'));
         this.el.paymentMethod.addEventListener('change', () => this.togglePaymentFields());
         this.el.cashAmount.addEventListener('input', () => this.updatePaymentPreview());
         this.el.transferAmount.addEventListener('input', () => this.updatePaymentPreview());
 
-        // مودال المعلقة
         this.el.closeHeldModalBtn.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
     },
 
@@ -118,13 +115,11 @@ const POS = {
 
     async loadInitialData() {
         this.isDBReady = !!(window.DB && window.supabase);
-        if (!this.isDBReady) { console.warn('⚠️ وضع الاختبار'); this.showToast('وضع الاختبار - البيانات محلية'); }
+        if (!this.isDBReady) { console.warn('⚠️ وضع الاختبار'); }
         await this.loadData();
         this.restoreCartFromStorage();
-        
-        // تشخيص: لو المنتجات فضيت بعد التحميل
         if (this.products.length === 0) {
-            console.warn('⚠️ لم يتم تحميل أي منتجات. تحقق من قاعدة البيانات أو IndexedDB.');
+            console.warn('⚠️ لا توجد منتجات في قاعدة البيانات.');
             this.showToast('لا توجد منتجات. أضف منتجات أولاً.');
         }
     },
@@ -135,11 +130,8 @@ const POS = {
                 this.products = await DB.getProducts();
                 this.customers = await DB.getParties('customer');
                 console.log(`📦 تم تحميل ${this.products.length} منتج و ${this.customers.length} عميل.`);
-                if (this.products.length === 0) {
-                    console.warn('⚠️ لا توجد منتجات في قاعدة البيانات. يمكنك إضافة منتجات من صفحة المنتجات.');
-                }
             } else {
-                // بيانات تجريبية للتطوير
+                // بيانات تجريبية
                 this.products = [
                     { id: '1', name: 'بيبسي', units: [{ name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 }, { name: 'علبة', price: 10, cost: 8.33, stock: 0, factor: 24 }] },
                     { id: '2', name: 'شيبسي', units: [{ name: 'كرتونة', price: 150, cost: 120, stock: 8, factor: 1 }, { name: 'كيس', price: 5, cost: 4, stock: 0, factor: 30 }] }
@@ -148,7 +140,7 @@ const POS = {
             }
             this.populateCustomerList();
         } catch (e) {
-            console.error('فشل تحميل البيانات:', e);
+            console.error(e);
             this.showToast('فشل تحميل البيانات');
             this.products = [];
             this.customers = [];
@@ -175,23 +167,18 @@ const POS = {
         return `${wholeUnits} ${baseUnit.name} و ${remainder} ${subUnit.name}`;
     },
 
-    // ========== دالة البحث (محسّنة) ==========
     filterProducts() {
         const term = this.el.productSearchInput.value.trim().toLowerCase();
         const dropdown = this.el.productDropdown;
-        
         if (!term) {
             dropdown.classList.remove('show');
             return;
         }
-        
-        // لو مفيش منتجات خالص
-        if (!this.products || this.products.length === 0) {
+        if (!this.products.length) {
             dropdown.innerHTML = '<div class="dropdown-item" style="color:#dc2626; text-align:center;">⚠️ لا توجد منتجات. أضف منتجات أولاً.</div>';
             dropdown.classList.add('show');
             return;
         }
-        
         const filtered = this.products.filter(p => p.name.toLowerCase().includes(term));
         if (!filtered.length) {
             dropdown.innerHTML = '<div class="dropdown-item" style="color:#94a3b8;">لا توجد نتائج متطابقة</div>';
@@ -365,6 +352,14 @@ const POS = {
         this.el.payNet.textContent = Utils.formatMoney(totals.net);
         const bal = this.selectedCustomer?.balance || 0;
         this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
+        // تعيين اللون المناسب
+        if (bal >= 0) {
+            this.el.currentBalance.classList.remove('text-danger');
+            this.el.currentBalance.classList.add('text-success');
+        } else {
+            this.el.currentBalance.classList.remove('text-success');
+            this.el.currentBalance.classList.add('text-danger');
+        }
         this.el.cashAmount.value = ''; this.el.transferAmount.value = '';
         this.el.paymentMethod.value = 'cash';
         this.togglePaymentFields();
@@ -380,7 +375,8 @@ const POS = {
     },
 
     updatePaymentPreview() {
-        const net = parseFloat(this.el.payNet.textContent.replace(/[^0-9.-]+/g, ''));
+        const netText = this.el.payNet.textContent.replace(/[^0-9.-]+/g, '');
+        const net = parseFloat(netText) || 0;
         const method = this.el.paymentMethod.value;
         let paid = 0;
         if (method === 'cash') paid = parseFloat(this.el.cashAmount.value) || 0;
@@ -392,22 +388,13 @@ const POS = {
         this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
         this.el.balanceAfterLabel.textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
         this.el.balanceAfter.textContent = Utils.formatMoney(Math.abs(newBal));
-        // تلوين الأرصدة بناءً على القيمة (موجب أو سالب)
-        const balAfterEl = this.el.balanceAfter;
+        // تلوين الأرصدة
         if (newBal >= 0) {
-            balAfterEl.classList.remove('text-danger');
-            balAfterEl.classList.add('text-success');
+            this.el.balanceAfter.classList.remove('text-danger');
+            this.el.balanceAfter.classList.add('text-success');
         } else {
-            balAfterEl.classList.remove('text-success');
-            balAfterEl.classList.add('text-danger');
-        }
-        const curBalEl = this.el.currentBalance;
-        if (currentBal >= 0) {
-            curBalEl.classList.remove('text-danger');
-            curBalEl.classList.add('text-success');
-        } else {
-            curBalEl.classList.remove('text-success');
-            curBalEl.classList.add('text-danger');
+            this.el.balanceAfter.classList.remove('text-success');
+            this.el.balanceAfter.classList.add('text-danger');
         }
     },
 
@@ -543,8 +530,9 @@ const POS = {
     async resumeInvoice(id) {
         let inv;
         if (this.isDBReady) {
-            inv = (await DB.getInvoices()).find(i => i.id === id);
-            if (inv) await supabase.from('invoices').delete().eq('id', id);
+            const invoices = await DB.getInvoices();
+            inv = invoices.find(i => i.id === id);
+            if (inv) await DB.deleteInvoice(id);  // استخدام دالة DB الجديدة
         } else if (window.localDB) {
             const held = await localDB.getAll('invoices');
             inv = held.find(i => i.id === id);
