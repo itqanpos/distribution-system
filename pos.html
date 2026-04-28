@@ -25,12 +25,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/print.js"></script>
-
-    <!-- أنماط إضافية لدعم الألوان في الموديل -->
-    <style>
-        .text-danger { color: #dc2626 !important; } /* أحمر */
-        .text-success { color: #16a34a !important; } /* أخضر */
-    </style>
 </head>
 <body>
     <!-- شريط التنقل -->
@@ -191,40 +185,6 @@
 
     <!-- سكريبت نقطة البيع الرئيسي -->
     <script src="./js/pos.js"></script>
-
-    <!-- سكريبت تلوين الأرصدة في موديل الدفع تلقائيًا -->
-    <script>
-        (function() {
-            // دالة لتحديث لون العنصر بناءً على الرصيد
-            function updateBalanceColor(element) {
-                if (!element) return;
-                // استخرج القيمة الرقمية من النص (مثلاً "150.00 ج.م" أو "-50.00 ج.م")
-                let text = element.textContent.trim();
-                let numericValue = parseFloat(text.replace(/[^\d.-]/g, ''));
-                if (isNaN(numericValue)) return;
-
-                // إزالة الكلاسات القديمة
-                element.classList.remove('text-danger', 'text-success');
-                if (numericValue < 0) {
-                    element.classList.add('text-danger'); // أحمر لو مدين (سالب)
-                } else if (numericValue > 0) {
-                    element.classList.add('text-success'); // أخضر لو دائن (موجب)
-                }
-            }
-
-            // مراقبة التغييرات في عناصر الرصيد
-            const balanceEls = ['currentBalance', 'balanceAfter'];
-            balanceEls.forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                // تحديث فوري
-                updateBalanceColor(el);
-                // استخدام MutationObserver لمراقبة تغيير المحتوى
-                const observer = new MutationObserver(() => updateBalanceColor(el));
-                observer.observe(el, { characterData: true, subtree: true, childList: true });
-            });
-        })();
-    </script>
 
     <!-- Service Worker + سحب للتحديث -->
     <script>
