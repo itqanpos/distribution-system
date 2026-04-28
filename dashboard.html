@@ -27,13 +27,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 <body>
-    <!-- شريط التنقل (مع مسافة أمان iOS) -->
-    <nav class="navbar">
+    <!-- شريط التنقل -->
+    <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle" id="menuToggle" aria-label="فتح القائمة">
+                <i class="fas fa-bars"></i>
+            </button>
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width: 38px; height: 38px; object-fit: contain; border-radius: 10px;"
+                    <img src="./icons/icon-192x192.png" alt="حسابي" 
+                         style="width: 38px; height: 38px; object-fit: contain; border-radius: 10px;"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <i class="fas fa-store" style="display:none; font-size:20px; color:white;"></i>
                 </div>
@@ -41,7 +44,7 @@
             </div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile" id="userProfileBtn">
+            <div class="user-profile" id="userProfileBtn" role="button" tabindex="0" aria-label="قائمة المستخدم">
                 <div class="user-avatar" id="userAvatar">U</div>
                 <div class="user-info">
                     <h4 id="userName">مدير النظام</h4>
@@ -55,8 +58,8 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية (بدون المبيعات) -->
-    <aside class="sidebar" id="sidebar">
+    <!-- القائمة الجانبية -->
+    <aside class="sidebar" id="sidebar" aria-label="القائمة الرئيسية">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item active" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
@@ -85,6 +88,12 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
+        <!-- مؤشر التحميل -->
+        <div id="loadingIndicator" class="loading-indicator" style="display:none; text-align:center; padding:40px;">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p>جاري تحميل البيانات...</p>
+        </div>
+
         <!-- بطاقات الإحصائيات -->
         <div class="stats-grid" id="statsGrid">
             <!-- سيتم إنشاؤها بواسطة JavaScript -->
@@ -96,6 +105,7 @@
             <div class="chart-wrapper">
                 <canvas id="salesChart"></canvas>
             </div>
+            <div id="chartError" style="display:none; color:#dc2626; text-align:center; padding:20px;"></div>
         </div>
 
         <!-- جداول سريعة -->
@@ -123,6 +133,7 @@
         </div>
     </main>
 
+    <div class="toast" id="toast"></div>
     <script src="./js/dashboard.js"></script>
     
     <!-- Service Worker + سحب للتحديث -->
