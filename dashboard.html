@@ -5,22 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة التحكم · حسابي</title>
     
+    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Offline + Supabase (يجب تحميلها قبل dashboard.js) -->
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    
+
+    <!-- ========== CSS مدمج ========== -->
     <style>
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
@@ -47,7 +54,9 @@
             --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
             --transition: 0.2s ease;
         }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background: var(--gray-50);
@@ -60,6 +69,8 @@
             min-height: 100vh;
             line-height: 1.6;
         }
+
+        /* شريط التنقل */
         .navbar {
             display: flex; justify-content: space-between; align-items: center;
             background: white; border-bottom: 1px solid var(--gray-200);
@@ -102,6 +113,8 @@
             transition: background var(--transition);
         }
         .user-dropdown a:hover { background: var(--gray-50); color: var(--primary); }
+
+        /* القائمة الجانبية */
         .sidebar {
             position: fixed; top: 0; right: -300px; width: 300px; height: 100%;
             background: white; border-left: 1px solid var(--gray-200);
@@ -117,10 +130,14 @@
         .menu-item:hover i { color: var(--primary); }
         .menu-item.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
         .menu-item.active i { color: var(--primary); }
+
+        /* المحتوى الرئيسي */
         .main-content { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
         .page-title h1 { font-size: 1.6rem; font-weight: 700; color: var(--gray-900); margin: 0; display: flex; align-items: center; }
         .date-display { background: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: var(--gray-600); box-shadow: var(--shadow-sm); font-weight: 500; }
+
+        /* بطاقات الإحصائيات */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
         .stat-card { background: white; border-radius: var(--radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm); transition: all var(--transition); cursor: default; }
         .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
@@ -128,9 +145,13 @@
         .stat-content { flex: 1; }
         .stat-title { font-size: 0.8rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
         .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--gray-900); }
+
+        /* الرسم البياني */
         .chart-container { background: white; border-radius: var(--radius-lg); padding: 24px; margin-bottom: 28px; box-shadow: var(--shadow-sm); }
         .chart-container h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; color: var(--gray-800); }
         .chart-wrapper { height: 280px; position: relative; }
+
+        /* جداول سريعة */
         .tables-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
         .table-box { background: white; border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); }
         .table-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--gray-700); display: flex; align-items: center; gap: 8px; }
@@ -143,6 +164,8 @@
         .badge-success { background: #ecfdf5; color: #059669; }
         .badge-danger { background: #fef2f2; color: #dc2626; }
         .badge-warning { background: #fffbeb; color: #d97706; }
+
+        /* أزرار سريعة */
         .quick-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
         .btn {
             padding: 12px 24px; border: none; border-radius: var(--radius-sm);
@@ -152,6 +175,8 @@
         }
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+        /* Toast */
         .toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: var(--gray-900); color: white; padding: 12px 28px;
@@ -159,8 +184,10 @@
             opacity: 0; transition: opacity 0.3s ease; pointer-events: none; box-shadow: var(--shadow-lg);
         }
         .toast.show { opacity: 1; }
+
         .loading-indicator { color: var(--gray-500); font-size: 0.9rem; }
         .empty { text-align: center; padding: 30px; color: var(--gray-400); font-size: 0.9rem; }
+
         @media (max-width: 768px) {
             .tables-row { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -175,6 +202,7 @@
     </style>
 </head>
 <body>
+    <!-- شريط التنقل -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -202,6 +230,7 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -222,6 +251,7 @@
         </ul>
     </aside>
 
+    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1></div>
@@ -261,342 +291,7 @@
 
     <div class="toast" id="toast"></div>
 
-    <script>
-        'use strict';
-
-        console.log('✅ لوحة التحكم – بدء التحميل');
-
-        const U = {
-            formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
-            escapeHTML: (s) => {
-                const d = document.createElement('div');
-                d.appendChild(document.createTextNode(s));
-                return d.innerHTML;
-            },
-            today: () => new Date().toISOString().split('T')[0],
-            round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d)
-        };
-
-        const Dashboard = {
-            el: {},
-            state: {
-                ready: false,
-                loading: false,
-                stats: { salesToday: 0, purchasesToday: 0, customers: 0, products: 0, cash: 0 },
-                chartData: [],
-                recentInvoices: [],
-                recentPurchases: []
-            },
-
-            async init() {
-                console.log('1️⃣ تهيئة Dashboard');
-                this.cacheDOM();
-                this.bindEvents();
-                this.setDate();
-
-                // انتظار تجهيز DB (Supabase + Offline)
-                await this.waitForDB();
-                console.log('هل DB جاهز؟', this.state.ready);
-
-                if (window.App) {
-                    App.requireAuth();
-                    App.initUserInterface();
-                }
-
-                this.renderStats();
-                this.renderTables();
-                this.loadAllData();
-            },
-
-            cacheDOM() {
-                const ids = ['menuToggle', 'sidebar', 'userDropdown', 'userProfileBtn', 'logoutBtn',
-                             'currentDate', 'statsGrid', 'salesChart', 'recentInvoices', 'recentPurchases',
-                             'loadingIndicator', 'chartError', 'toast'];
-                ids.forEach(id => this.el[id] = document.getElementById(id));
-            },
-
-            bindEvents() {
-                this.el.menuToggle?.addEventListener('click', () => this.el.sidebar.classList.toggle('open'));
-                this.el.userProfileBtn?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.el.userDropdown?.classList.toggle('show');
-                });
-                document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-                this.el.logoutBtn?.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (window.App) App.logout();
-                    else location.href = './index.html';
-                });
-
-                document.querySelectorAll('.menu-item').forEach(link => {
-                    link.addEventListener('click', () => {
-                        this.el.sidebar.classList.remove('open');
-                    });
-                });
-
-                window.addEventListener('online', () => {
-                    this.toast('تم استعادة الاتصال – جاري التحديث...');
-                    this.loadAllData();
-                });
-
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible') {
-                        this.loadAllData();
-                    }
-                });
-            },
-
-            setDate() {
-                if (this.el.currentDate) {
-                    this.el.currentDate.textContent = new Date().toLocaleDateString('ar-EG', {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                    });
-                }
-            },
-
-            toggleLoading(show) {
-                if (this.el.loadingIndicator) this.el.loadingIndicator.style.display = show ? 'block' : 'none';
-                this.state.loading = show;
-            },
-
-            toast(msg) {
-                const t = this.el.toast;
-                if (!t) return;
-                t.textContent = msg;
-                t.classList.add('show');
-                clearTimeout(this._t);
-                this._t = setTimeout(() => t.classList.remove('show'), 3000);
-            },
-
-            waitForDB() {
-                return new Promise(resolve => {
-                    if (window.DB && window.supabase) {
-                        this.state.ready = true;
-                        resolve();
-                        return;
-                    }
-                    let attempts = 0;
-                    const check = setInterval(() => {
-                        if (window.DB && window.supabase) {
-                            this.state.ready = true;
-                            clearInterval(check);
-                            resolve();
-                        }
-                        if (++attempts > 50) {
-                            clearInterval(check);
-                            console.warn('لم يتم تحميل DB، سيتم استخدام IndexedDB');
-                            // تفعيل وضع IndexedDB
-                            if (window.localDB) this.state.ready = 'local';
-                            resolve();
-                        }
-                    }, 100);
-                });
-            },
-
-            async loadAllData() {
-                console.log('3️⃣ بدء تحميل البيانات');
-                this.toggleLoading(true);
-                try {
-                    await Promise.all([
-                        this.loadStats(),
-                        this.loadRecentInvoices(),
-                        this.loadRecentPurchases()
-                    ]);
-                    console.log('✅ كل البيانات تم تحميلها');
-                } catch (e) {
-                    console.error('خطأ عام:', e);
-                    this.toast('تعذر تحميل بعض البيانات');
-                } finally {
-                    this.toggleLoading(false);
-                    this.renderStats();
-                    this.renderTables();
-                    this.renderChart();
-                    console.log('4️⃣ تم عرض كل البيانات');
-                }
-            },
-
-            async loadStats() {
-                try {
-                    const today = U.today();
-                    let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
-
-                    if (this.state.ready === true) {
-                        [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                            DB.getInvoices().catch(()=>[]),
-                            DB.getPurchases().catch(()=>[]),
-                            DB.getParties('customer').catch(()=>[]),
-                            DB.getProducts().catch(()=>[]),
-                            DB.getTransactions().catch(()=>[]),
-                            DB.getSettings().catch(()=>({}))
-                        ]);
-                    } else if (window.localDB) {
-                        invoices = await localDB.getAll('invoices') || [];
-                        purchases = await localDB.getAll('purchases') || [];
-                        const allParties = await localDB.getAll('parties') || [];
-                        parties = allParties.filter(p => p.type === 'customer');
-                        products = await localDB.getAll('products') || [];
-                        transactions = await localDB.getAll('transactions') || [];
-                        const s = await localDB.getById('settings', 'main');
-                        settings = s?.data || {};
-                    }
-
-                    console.log('📦 الفواتير:', invoices.length, 'المشتريات:', purchases.length, 'العملاء:', parties.length, 'المنتجات:', products.length);
-
-                    const todayInvoices = invoices.filter(inv => inv.date === today && inv.type === 'sale');
-                    this.state.stats.salesToday = U.round(todayInvoices.reduce((s, inv) => s + (inv.total || 0), 0));
-
-                    const todayPurchases = purchases.filter(p => p.date === today);
-                    this.state.stats.purchasesToday = U.round(todayPurchases.reduce((s, p) => s + (p.total || 0), 0));
-
-                    this.state.stats.customers = parties.length;
-                    this.state.stats.products = products.length;
-
-                    const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
-                    const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
-                    const openingBalance = settings?.financial?.opening_cash_balance || 0;
-                    this.state.stats.cash = U.round(openingBalance + income - expense);
-
-                    this.state.chartData = this._prepareChart(invoices);
-                } catch (e) {
-                    console.error('فشل loadStats:', e);
-                }
-            },
-
-            async loadRecentInvoices() {
-                try {
-                    if (this.state.ready === true) {
-                        const invs = await DB.getInvoices().catch(()=>[]);
-                        this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-                    } else if (window.localDB) {
-                        const invs = await localDB.getAll('invoices') || [];
-                        this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-                    }
-                } catch (e) {}
-            },
-
-            async loadRecentPurchases() {
-                try {
-                    if (this.state.ready === true) {
-                        const pur = await DB.getPurchases().catch(()=>[]);
-                        this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-                    } else if (window.localDB) {
-                        const pur = await localDB.getAll('purchases') || [];
-                        this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-                    }
-                } catch (e) {}
-            },
-
-            renderStats() {
-                if (!this.el.statsGrid) return;
-                const s = this.state.stats;
-                const cards = [
-                    { title: 'مبيعات اليوم', value: U.formatMoney(s.salesToday), icon: 'fa-chart-line', color: '#16a34a' },
-                    { title: 'مشتريات اليوم', value: U.formatMoney(s.purchasesToday), icon: 'fa-shopping-cart', color: '#dc2626' },
-                    { title: 'العملاء', value: s.customers, icon: 'fa-users', color: '#3b82f6' },
-                    { title: 'المنتجات', value: s.products, icon: 'fa-boxes', color: '#f59e0b' },
-                    { title: 'رصيد الصندوق', value: U.formatMoney(s.cash), icon: 'fa-cash-register', color: '#8b5cf6' }
-                ];
-                this.el.statsGrid.innerHTML = cards.map(c => `
-                    <div class="stat-card" style="border-right:4px solid ${c.color};">
-                        <div class="stat-icon" style="color:${c.color};"><i class="fas ${c.icon}"></i></div>
-                        <div class="stat-content">
-                            <div class="stat-title">${U.escapeHTML(c.title)}</div>
-                            <div class="stat-value">${U.escapeHTML(String(c.value))}</div>
-                        </div>
-                    </div>
-                `).join('');
-            },
-
-            renderTables() {
-                if (this.el.recentInvoices) {
-                    const invs = this.state.recentInvoices;
-                    if (!invs.length) {
-                        this.el.recentInvoices.innerHTML = '<div class="empty">لا توجد فواتير حديثة</div>';
-                    } else {
-                        let rows = invs.map(inv => `
-                            <tr>
-                                <td>${U.escapeHTML(inv.invoice_number || '')}</td>
-                                <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
-                                <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
-                                <td>${U.formatMoney(inv.total)}</td>
-                                <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
-                            </tr>
-                        `).join('');
-                        this.el.recentInvoices.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
-                    }
-                }
-
-                if (this.el.recentPurchases) {
-                    const pur = this.state.recentPurchases;
-                    if (!pur.length) {
-                        this.el.recentPurchases.innerHTML = '<div class="empty">لا توجد مشتريات حديثة</div>';
-                    } else {
-                        let rows = pur.map(p => `
-                            <tr>
-                                <td>${U.escapeHTML(p.supplier_name || 'غير معروف')}</td>
-                                <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
-                                <td>${U.formatMoney(p.total)}</td>
-                                <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
-                            </tr>
-                        `).join('');
-                        this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
-                    }
-                }
-            },
-
-            renderChart() {
-                if (!this.el.salesChart) return;
-                if (!this.state.chartData.length) {
-                    if (this.el.chartError) {
-                        this.el.chartError.style.display = 'block';
-                        this.el.chartError.textContent = 'لا توجد بيانات كافية للرسم البياني';
-                    }
-                    return;
-                }
-                if (this.el.chartError) this.el.chartError.style.display = 'none';
-                if (this._chart) this._chart.destroy();
-                const ctx = this.el.salesChart.getContext('2d');
-                this._chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: this.state.chartData.map(d => d.label),
-                        datasets: [{
-                            label: 'المبيعات',
-                            data: this.state.chartData.map(d => d.total),
-                            backgroundColor: 'rgba(59,130,246,0.6)',
-                            borderColor: '#3b82f6',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
-                    }
-                });
-            },
-
-            _prepareChart(invoices) {
-                const days = [];
-                const now = new Date();
-                for (let i = 29; i >= 0; i--) {
-                    const d = new Date(now);
-                    d.setDate(d.getDate() - i);
-                    const ds = d.toISOString().split('T')[0];
-                    const total = invoices.filter(inv => inv.date === ds && inv.type === 'sale').reduce((s, inv) => s + (inv.total || 0), 0);
-                    days.push({ date: ds, label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }), total: U.round(total) });
-                }
-                return days;
-            }
-        };
-
-        window.addEventListener('DOMContentLoaded', () => Dashboard.init());
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-        }
-    </script>
+    <!-- ملف الجافاسكريبت المنفصل -->
+    <script src="./js/dashboard.js"></script>
 </body>
 </html>
