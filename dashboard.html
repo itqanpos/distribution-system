@@ -19,12 +19,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- مكتبات خارجية -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- ========== الملفات الأساسية للاتصال بقاعدة البيانات ========== -->
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
 
     <!-- ========== CSS مدمج بالكامل ========== -->
     <style>
-        /* === متغيرات المسافات الآمنة للآيفون === */
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -54,12 +58,7 @@
             --transition: 0.2s ease;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background: var(--gray-50);
@@ -73,312 +72,144 @@
             line-height: 1.6;
         }
 
-        /* ========== شريط التنقل ========== */
         .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            border-bottom: 1px solid var(--gray-200);
-            padding: 12px 24px;
-            padding-top: calc(12px + var(--safe-top));
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: var(--shadow-sm);
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; border-bottom: 1px solid var(--gray-200);
+            padding: 12px 24px; padding-top: calc(12px + var(--safe-top));
+            position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm);
         }
-
         .navbar-left { display: flex; align-items: center; gap: 12px; }
         .navbar-right { display: flex; align-items: center; }
-
         .menu-toggle {
-            background: none;
-            border: none;
-            color: var(--gray-700);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: var(--radius-sm);
-            transition: background var(--transition);
+            background: none; border: none; color: var(--gray-700);
+            font-size: 1.5rem; cursor: pointer; padding: 8px;
+            border-radius: var(--radius-sm); transition: background var(--transition);
         }
-
         .menu-toggle:hover { background: var(--gray-100); }
-
         .logo { display: flex; align-items: center; gap: 10px; }
         .logo-text h2 { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); margin: 0; }
-
         .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            position: relative;
-            padding: 6px 12px;
-            border-radius: var(--radius-md);
+            display: flex; align-items: center; gap: 10px; cursor: pointer;
+            position: relative; padding: 6px 12px; border-radius: var(--radius-md);
             transition: background var(--transition);
         }
-
         .user-profile:hover { background: var(--gray-100); }
-
         .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--primary);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1rem;
+            width: 40px; height: 40px; background: var(--primary); color: white;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-weight: 700; font-size: 1rem;
         }
-
         .user-info h4 { margin: 0; font-size: 0.9rem; font-weight: 600; }
         .user-info p { margin: 0; font-size: 0.75rem; color: var(--gray-500); }
-
         .user-dropdown {
-            position: absolute;
-            top: 55px;
-            left: 0;
-            background: white;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg);
-            display: none;
-            flex-direction: column;
-            min-width: 180px;
-            z-index: 200;
-            overflow: hidden;
+            position: absolute; top: 55px; left: 0; background: white;
+            border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+            display: none; flex-direction: column; min-width: 180px; z-index: 200; overflow: hidden;
         }
-
         .user-dropdown.show { display: flex; }
-
         .user-dropdown a {
-            padding: 12px 18px;
-            color: var(--gray-700);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 500;
+            padding: 12px 18px; color: var(--gray-700); text-decoration: none;
+            display: flex; align-items: center; gap: 10px; font-weight: 500;
             transition: background var(--transition);
         }
-
         .user-dropdown a:hover { background: var(--gray-50); color: var(--primary); }
 
-        /* ========== القائمة الجانبية ========== */
         .sidebar {
-            position: fixed;
-            top: 0;
-            right: -300px;
-            width: 300px;
-            height: 100%;
-            background: white;
-            border-left: 1px solid var(--gray-200);
-            padding: 24px 16px;
-            z-index: 150;
-            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow-y: auto;
-            box-shadow: var(--shadow-lg);
+            position: fixed; top: 0; right: -300px; width: 300px; height: 100%;
+            background: white; border-left: 1px solid var(--gray-200);
+            padding: 24px 16px; z-index: 150; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto; box-shadow: var(--shadow-lg);
         }
-
         .sidebar.open { right: 0; }
-
         .menu { list-style: none; }
-
         .menu-section {
-            color: var(--gray-400);
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin: 24px 0 8px;
-            padding: 0 12px;
+            color: var(--gray-400); font-size: 0.7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px; margin: 24px 0 8px; padding: 0 12px;
         }
-
         .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            color: var(--gray-700);
-            text-decoration: none;
-            border-radius: var(--radius-sm);
-            margin-bottom: 2px;
-            font-weight: 500;
-            transition: all var(--transition);
+            display: flex; align-items: center; padding: 12px 16px;
+            color: var(--gray-700); text-decoration: none; border-radius: var(--radius-sm);
+            margin-bottom: 2px; font-weight: 500; transition: all var(--transition);
         }
-
         .menu-item i { width: 22px; margin-left: 12px; text-align: center; color: var(--gray-500); font-size: 1rem; }
         .menu-item:hover { background: var(--gray-50); color: var(--gray-900); }
         .menu-item:hover i { color: var(--primary); }
         .menu-item.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
         .menu-item.active i { color: var(--primary); }
 
-        /* ========== المحتوى الرئيسي ========== */
-        .main-content {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 24px 20px;
-        }
-
+        .main-content { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
         .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 28px;
-            flex-wrap: wrap;
-            gap: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
         }
-
         .page-title h1 { font-size: 1.6rem; font-weight: 700; color: var(--gray-900); margin: 0; display: flex; align-items: center; }
-
         .date-display {
-            background: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: var(--gray-600);
-            box-shadow: var(--shadow-sm);
-            font-weight: 500;
+            background: white; padding: 8px 16px; border-radius: 20px;
+            font-size: 0.85rem; color: var(--gray-600); box-shadow: var(--shadow-sm); font-weight: 500;
         }
-
-        /* ========== بطاقات الإحصائيات ========== */
         .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 28px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px; margin-bottom: 28px;
         }
-
         .stat-card {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            box-shadow: var(--shadow-sm);
-            transition: all var(--transition);
-            cursor: default;
+            background: white; border-radius: var(--radius-lg); padding: 20px;
+            display: flex; align-items: center; gap: 16px;
+            box-shadow: var(--shadow-sm); transition: all var(--transition); cursor: default;
         }
-
         .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-
         .stat-icon { font-size: 2rem; width: 45px; text-align: center; }
         .stat-content { flex: 1; }
-
         .stat-title {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--gray-500);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            font-size: 0.8rem; font-weight: 600; color: var(--gray-500);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
         }
-
         .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--gray-900); }
-
-        /* ========== الرسم البياني ========== */
         .chart-container {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            margin-bottom: 28px;
-            box-shadow: var(--shadow-sm);
+            background: white; border-radius: var(--radius-lg); padding: 24px;
+            margin-bottom: 28px; box-shadow: var(--shadow-sm);
         }
-
         .chart-container h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; color: var(--gray-800); }
         .chart-wrapper { height: 280px; position: relative; }
-
-        /* ========== جداول سريعة ========== */
-        .tables-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 28px;
-        }
-
+        .tables-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
         .table-box {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            box-shadow: var(--shadow-sm);
+            background: white; border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm);
         }
-
         .table-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--gray-700); display: flex; align-items: center; gap: 8px; }
-
         .table-responsive { overflow-x: auto; }
-
         table { width: 100%; border-collapse: collapse; }
-
-        th, td {
-            padding: 10px 14px;
-            text-align: right;
-            border-bottom: 1px solid var(--gray-100);
-            font-size: 0.85rem;
-        }
-
+        th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--gray-100); font-size: 0.85rem; }
         th { background: var(--gray-50); font-weight: 700; color: var(--gray-600); white-space: nowrap; }
         tr:hover td { background: #fcfcfc; }
-
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
         .badge-success { background: #ecfdf5; color: #059669; }
         .badge-danger { background: #fef2f2; color: #dc2626; }
         .badge-warning { background: #fffbeb; color: #d97706; }
-
-        /* ========== أزرار سريعة ========== */
         .quick-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-
         .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
+            padding: 12px 24px; border: none; border-radius: var(--radius-sm);
+            cursor: pointer; text-decoration: none; display: inline-flex;
+            align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600;
             transition: all var(--transition);
         }
-
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
-
-        /* ========== Toast ========== */
         .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--gray-900);
-            color: white;
-            padding: 12px 28px;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            z-index: 3000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-            box-shadow: var(--shadow-lg);
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: var(--gray-900); color: white; padding: 12px 28px;
+            border-radius: 30px; font-weight: 600; font-size: 0.9rem; z-index: 3000;
+            opacity: 0; transition: opacity 0.3s ease; pointer-events: none; box-shadow: var(--shadow-lg);
         }
-
         .toast.show { opacity: 1; }
-
-        /* ========== تحميل ========== */
         .loading-indicator { color: var(--gray-500); font-size: 0.9rem; }
         .loading { text-align: center; padding: 30px; color: var(--gray-500); font-style: italic; }
         .empty { text-align: center; padding: 30px; color: var(--gray-400); font-size: 0.9rem; }
 
-        /* ========== تجاوب الشاشات الصغيرة ========== */
         @media (max-width: 768px) {
             .tables-row { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .page-header { flex-direction: column; align-items: flex-start; }
             .sidebar { width: 280px; }
         }
-
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: 1fr; }
             .navbar { padding: 10px 16px; }
@@ -476,7 +307,7 @@
 
     <div class="toast" id="toast"></div>
 
-    <!-- ========== JavaScript مدمج كامل ========== -->
+    <!-- ========== JavaScript مدمج كامل مع انتظار DB ========== -->
     <script>
         'use strict';
 
@@ -491,7 +322,7 @@
                 return d.innerHTML;
             },
             today: () => new Date().toISOString().split('T')[0],
-            round: (v, d=2) => Number(Math.round(v+'e'+d)+'e-'+d)
+            round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d)
         };
 
         const Dashboard = {
@@ -499,38 +330,36 @@
             state: {
                 ready: false,
                 loading: false,
-                stats: { salesToday:0, purchasesToday:0, customers:0, products:0, cash:0 },
+                stats: { salesToday: 0, purchasesToday: 0, customers: 0, products: 0, cash: 0 },
                 chartData: [],
                 recentInvoices: [],
                 recentPurchases: []
             },
 
-            init() {
+            async init() {
                 console.log('1️⃣ تهيئة Dashboard');
                 this.cacheDOM();
                 this.bindEvents();
                 this.setDate();
 
-                // فحص وجود Supabase + DB
-                this.state.ready = !!(window.supabase && window.DB);
-                console.log('هل النظام جاهز؟', this.state.ready);
+                // انتظار تجهيز DB (Supabase + Offline)
+                await this.waitForDB();
+                console.log('هل DB جاهز؟', this.state.ready);
 
                 if (window.App) {
                     App.requireAuth();
                     App.initUserInterface();
                 }
 
-                // عرض البطاقات والجداول الفارغة أولاً
                 this.renderStats();
                 this.renderTables();
-                // ثم تحميل البيانات الحقيقية
                 this.loadAllData();
             },
 
             cacheDOM() {
-                const ids = ['menuToggle','sidebar','userDropdown','userProfileBtn','logoutBtn',
-                             'currentDate','statsGrid','salesChart','recentInvoices','recentPurchases',
-                             'loadingIndicator','chartError','toast'];
+                const ids = ['menuToggle', 'sidebar', 'userDropdown', 'userProfileBtn', 'logoutBtn',
+                             'currentDate', 'statsGrid', 'salesChart', 'recentInvoices', 'recentPurchases',
+                             'loadingIndicator', 'chartError', 'toast'];
                 ids.forEach(id => this.el[id] = document.getElementById(id));
                 console.log('2️⃣ DOM تم تخزينه');
             },
@@ -546,6 +375,26 @@
                     e.preventDefault();
                     if (window.App) App.logout();
                     else location.href = './index.html';
+                });
+
+                // إغلاق القائمة الجانبية عند النقر على أي رابط
+                document.querySelectorAll('.menu-item').forEach(link => {
+                    link.addEventListener('click', () => {
+                        this.el.sidebar.classList.remove('open');
+                    });
+                });
+
+                // تحديث تلقائي عند استعادة الاتصال
+                window.addEventListener('online', () => {
+                    this.toast('تم استعادة الاتصال – جاري التحديث...');
+                    this.loadAllData();
+                });
+
+                // تحديث عند العودة للصفحة
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        this.loadAllData();
+                    }
                 });
             },
 
@@ -571,16 +420,43 @@
                 this._t = setTimeout(() => t.classList.remove('show'), 3000);
             },
 
+            // انتظار تحميل DB (Supabase) أو الاستسلام بعد 5 ثوانٍ
+            waitForDB() {
+                return new Promise(resolve => {
+                    if (window.DB && window.supabase) {
+                        this.state.ready = true;
+                        return resolve();
+                    }
+                    let attempts = 0;
+                    const check = setInterval(() => {
+                        if (window.DB && window.supabase) {
+                            this.state.ready = true;
+                            clearInterval(check);
+                            resolve();
+                        }
+                        if (++attempts > 50) {
+                            clearInterval(check);
+                            console.warn('لم يتم تحميل DB، سيتم عرض بيانات فارغة');
+                            resolve();
+                        }
+                    }, 100);
+                });
+            },
+
             async loadAllData() {
                 console.log('3️⃣ بدء تحميل البيانات');
                 this.toggleLoading(true);
                 try {
-                    await Promise.all([
-                        this.loadStats(),
-                        this.loadRecentInvoices(),
-                        this.loadRecentPurchases()
-                    ]);
-                    console.log('✅ كل البيانات تم تحميلها');
+                    if (this.state.ready) {
+                        await Promise.all([
+                            this.loadStats(),
+                            this.loadRecentInvoices(),
+                            this.loadRecentPurchases()
+                        ]);
+                        console.log('✅ كل البيانات تم تحميلها');
+                    } else {
+                        console.warn('DB غير متاح، تخطي التحميل');
+                    }
                 } catch (e) {
                     console.error('خطأ عام:', e);
                     this.toast('تعذر تحميل بعض البيانات');
@@ -594,21 +470,7 @@
             },
 
             async loadStats() {
-                console.log('5️⃣ تحميل الإحصائيات...');
-                // لو DB مش موجود، استخدم بيانات وهمية للتجربة
-                if (!this.state.ready) {
-                    this.state.stats = {
-                        salesToday: 12500,
-                        purchasesToday: 4530,
-                        customers: 45,
-                        products: 120,
-                        cash: 28000
-                    };
-                    this.state.chartData = this._dummyChart();
-                    console.log('🧪 تم استخدام بيانات وهمية');
-                    return;
-                }
-
+                if (!this.state.ready) return;
                 try {
                     const today = U.today();
                     const [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
@@ -633,48 +495,38 @@
 
                     const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
                     const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
-                    this.state.stats.cash = U.round((settings.openingBalance || 0) + income - expense);
+                    const openingBalance = settings?.financial?.opening_cash_balance || 0;
+                    this.state.stats.cash = U.round(openingBalance + income - expense);
 
                     this.state.chartData = this._prepareChart(invoices);
-                    console.log('✔️ الإحصائيات: ', this.state.stats);
                 } catch (e) {
                     console.error('فشل loadStats:', e);
                 }
             },
 
             async loadRecentInvoices() {
-                if (!this.state.ready) {
-                    this.state.recentInvoices = [
-                        { invoice_number: '28-0005', customer_name: 'أحمد محمد', date: U.today(), total: 1500, status: 'paid' }
-                    ];
-                    return;
-                }
+                if (!this.state.ready) return;
                 try {
                     const invs = await DB.getInvoices().catch(() => []);
                     this.state.recentInvoices = invs
                         .filter(i => i.type === 'sale')
-                        .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                         .slice(0, 5);
                 } catch (e) {}
             },
 
             async loadRecentPurchases() {
-                if (!this.state.ready) {
-                    this.state.recentPurchases = [
-                        { supplier_name: 'شركة الأمل', date: U.today(), total: 4500, status: 'paid' }
-                    ];
-                    return;
-                }
+                if (!this.state.ready) return;
                 try {
                     const pur = await DB.getPurchases().catch(() => []);
                     this.state.recentPurchases = pur
-                        .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                         .slice(0, 5);
                 } catch (e) {}
             },
 
             renderStats() {
-                console.log('6️⃣ renderStats');
+                console.log('5️⃣ renderStats');
                 if (!this.el.statsGrid) return;
                 const s = this.state.stats;
                 const cards = [
@@ -697,7 +549,7 @@
             },
 
             renderTables() {
-                console.log('7️⃣ renderTables');
+                console.log('6️⃣ renderTables');
                 if (this.el.recentInvoices) {
                     const invs = this.state.recentInvoices;
                     if (!invs.length) {
@@ -736,7 +588,7 @@
             },
 
             renderChart() {
-                console.log('8️⃣ renderChart');
+                console.log('7️⃣ renderChart');
                 if (!this.el.salesChart) return;
                 if (!this.state.chartData.length) {
                     if (this.el.chartError) {
@@ -774,21 +626,12 @@
             _prepareChart(invoices) {
                 const days = [];
                 const now = new Date();
-                for (let i=29; i>=0; i--) {
-                    const d = new Date(now); d.setDate(d.getDate()-i);
+                for (let i = 29; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - i);
                     const ds = d.toISOString().split('T')[0];
-                    const total = invoices.filter(inv => inv.date===ds && inv.type==='sale').reduce((s,inv)=> s + (inv.total||0), 0);
-                    days.push({ date: ds, label: d.toLocaleDateString('ar-EG',{day:'numeric',month:'short'}), total: U.round(total) });
-                }
-                return days;
-            },
-
-            _dummyChart() {
-                const days = [];
-                const now = new Date();
-                for (let i=29; i>=0; i--) {
-                    const d = new Date(now); d.setDate(d.getDate()-i);
-                    days.push({ date: d.toISOString().split('T')[0], label: d.toLocaleDateString('ar-EG',{day:'numeric',month:'short'}), total: Math.floor(Math.random()*5000)+500 });
+                    const total = invoices.filter(inv => inv.date === ds && inv.type === 'sale').reduce((s, inv) => s + (inv.total || 0), 0);
+                    days.push({ date: ds, label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }), total: U.round(total) });
                 }
                 return days;
             }
@@ -797,9 +640,9 @@
         // بدء التشغيل عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', () => Dashboard.init());
 
-        // سحب للتحديث
+        // Service Worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+            navigator.serviceWorker.register('./service-worker.js').catch(() => {});
         }
     </script>
 </body>
