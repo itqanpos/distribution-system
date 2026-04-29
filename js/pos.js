@@ -1,6 +1,5 @@
 /* =============================================
-   نقطة البيع - حسابي (Production-Ready v2.0)
-   تمت المراجعة: الأمان، الأداء، الدقة، الصيانة
+   نقطة البيع - حسابي (Production-Ready v2.0) - مصحح
    ============================================= */
 'use strict';
 
@@ -14,14 +13,12 @@ const Utils = {
     },
     getToday: () => new Date().toISOString().split('T')[0],
     
-    // منع XSS - تعقيم النصوص قبل عرضها
     escapeHTML: (str) => {
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
     },
     
-    // دالة debounce للبحث
     debounce: (fn, delay) => {
         let timer;
         return (...args) => {
@@ -30,12 +27,10 @@ const Utils = {
         };
     },
     
-    // معالجة دقة الأرقام العشرية (floating point)
     round: (value, decimals = 3) => {
         return Number(Math.round(value + 'e' + decimals) + 'e-' + decimals);
     },
     
-    // توليد UUID احتياطي
     generateUUID: () => {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return crypto.randomUUID();
@@ -49,16 +44,15 @@ const Utils = {
 
 // ==================== POS Main Object ====================
 const POS = {
-    // ---------- State (Internal - لا يُقرأ من DOM أبدًا) ----------
     state: {
         products: [],
         customers: [],
         cart: [],
         selectedProduct: null,
         selectedUnit: null,
-        selectedCustomerId: null,  // ✅ نستخدم ID فقط، وليس الكائن كاملًا
+        selectedCustomerId: null,
         isDBReady: false,
-        isProcessing: false,      // ✅ لمنع الضغط المزدوج على الدفع
+        isProcessing: false,
         subtotal: 0,
         discount: 0,
         discountType: 'amount',
@@ -66,17 +60,14 @@ const POS = {
         netTotal: 0
     },
 
-    // ---------- Cache للبحث السريع ----------
     cache: {
-        productMap: new Map(),       // ✅ بديل عن .find() المتكرر
+        productMap: new Map(),
         customerMap: new Map(),
         productUnitsCache: new Map()
     },
 
-    // ---------- عناصر DOM ----------
     el: {},
 
-    // ---------- التهيئة ----------
     init() {
         this.cacheDOM();
         this.bindEvents();
@@ -114,7 +105,6 @@ const POS = {
     },
 
     bindEvents() {
-        // قائمة المستخدم
         this.el.userProfileBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.el.userDropdown.classList.toggle('show');
@@ -123,23 +113,19 @@ const POS = {
             this.el.userDropdown?.classList.remove('show');
         });
 
-        // القائمة الجانبية
         this.el.menuToggle?.addEventListener('click', () => {
             this.el.sidebar.classList.toggle('open');
         });
 
-        // تسجيل الخروج
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.App) App.logout();
             else window.location.href = './index.html';
         });
 
-        // البحث عن المنتج (مع debounce)
         const debouncedSearch = Utils.debounce(() => this.filterProducts(), 150);
         this.el.productSearchInput?.addEventListener('input', debouncedSearch);
 
-        // اختيار منتج من القائمة المنسدلة
         this.el.productDropdown?.addEventListener('click', (e) => {
             const item = e.target.closest('.dropdown-item');
             if (item && item.dataset.id) {
@@ -149,17 +135,14 @@ const POS = {
             }
         });
 
-        // إخفاء القائمة المنسدلة
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.search-header')) {
                 this.hideProductDropdown();
             }
         });
 
-        // العميل
         this.el.customerSearchInput?.addEventListener('input', () => this.onCustomerSearch());
 
-        // الخصم
         this.el.discountValue?.addEventListener('input', () => {
             this.state.discountValue = parseFloat(this.el.discountValue.value) || 0;
             this.updateTotalsAndUI();
@@ -169,16 +152,13 @@ const POS = {
             this.updateTotalsAndUI();
         });
 
-        // أزرار الإجراءات
         this.el.payBtn?.addEventListener('click', () => this.openPaymentModal());
         this.el.holdBtn?.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn?.addEventListener('click', () => this.loadHeldInvoices());
 
-        // مودال الوحدة
         this.el.addToCartBtn?.addEventListener('click', () => this.addToCartFromModal());
         this.el.closeUnitModalBtn?.addEventListener('click', () => this.closeModal('unitQuantityModal'));
 
-        // مودال الدفع
         this.el.confirmAndPrintBtn?.addEventListener('click', async (e) => {
             e.preventDefault();
             await this.completePayment();
@@ -188,11 +168,9 @@ const POS = {
         this.el.cashAmount?.addEventListener('input', () => this.updatePaymentPreview());
         this.el.transferAmount?.addEventListener('input', () => this.updatePaymentPreview());
 
-        // مودال المعلقة
         this.el.closeHeldModalBtn?.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
     },
 
-    // ---------- حالة الاتصال ----------
     handleConnectionStatus() { this.updateOnlineStatus(); },
     updateOnlineStatus() {
         const navbar = document.getElementById('mainNavbar');
@@ -200,7 +178,6 @@ const POS = {
         navbar.classList.toggle('offline', !navigator.onLine);
     },
 
-    // ---------- تحميل البيانات ----------
     async loadInitialData() {
         this.state.isDBReady = !!(window.DB && window.supabase);
         if (!this.state.isDBReady) {
@@ -220,7 +197,6 @@ const POS = {
         try {
             if (this.state.isDBReady) {
                 this.state.products = await DB.getProducts() || [];
-                // معالجة units إن كانت نصًا
                 this.state.products = this.state.products.map(p => {
                     if (typeof p.units === 'string') {
                         try { p.units = JSON.parse(p.units); } 
@@ -230,7 +206,6 @@ const POS = {
                 });
                 this.state.customers = await DB.getParties('customer') || [];
             } else {
-                // بيانات تجريبية
                 this.state.products = [
                     { id: '1', name: 'بيبسي', units: [
                         { name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 },
@@ -255,7 +230,6 @@ const POS = {
         }
     },
 
-    // ✅ بناء كاش للبحث السريع
     buildCache() {
         this.cache.productMap.clear();
         this.cache.customerMap.clear();
@@ -280,7 +254,6 @@ const POS = {
             ).join('');
     },
 
-    // ---------- عرض المخزون ----------
     formatStockDisplay(product) {
         const baseUnit = product?.units?.[0];
         if (!baseUnit) return '0';
@@ -297,7 +270,6 @@ const POS = {
         return `${wholeUnits} ${Utils.escapeHTML(baseUnit.name)} و ${remainder} ${Utils.escapeHTML(subUnit.name)}`;
     },
 
-    // ---------- البحث عن المنتجات ----------
     filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
         const dropdown = this.el.productDropdown;
@@ -337,7 +309,6 @@ const POS = {
         this.el.productDropdown?.classList.remove('show');
     },
 
-    // ---------- العميل ----------
     onCustomerSearch() {
         const val = this.el.customerSearchInput?.value || '';
         const balanceDiv = this.el.customerBalanceDisplay;
@@ -355,7 +326,7 @@ const POS = {
         if (option && option.dataset.id) {
             const customer = this.cache.customerMap.get(option.dataset.id);
             if (customer) {
-                this.state.selectedCustomerId = customer.id;  // ✅ نخزن ID فقط
+                this.state.selectedCustomerId = customer.id;
                 const bal = customer.balance || 0;
                 if (bal >= 0) {
                     balanceDiv.innerHTML = `رصيد للعميل: ${Utils.formatMoney(bal)}`;
@@ -377,7 +348,6 @@ const POS = {
         return this.cache.customerMap.get(this.state.selectedCustomerId) || null;
     },
 
-    // ---------- الحسابات (دقيقة 100%) ----------
     calculateTotals() {
         let subtotal = 0;
         for (const item of this.state.cart) {
@@ -409,7 +379,6 @@ const POS = {
         this.el.totalPieces.textContent = Math.round(pieces);
     },
 
-    // ---------- السلة ----------
     renderCart() {
         const container = this.el.cartItemsContainer;
         if (!container) return;
@@ -440,7 +409,6 @@ const POS = {
             container.appendChild(row);
         });
 
-        // ✅ استخدام event delegation بدل inline handlers
         container.querySelectorAll('.cart-qty-input').forEach(input => {
             input.addEventListener('change', (e) => {
                 const idx = parseInt(e.target.dataset.idx);
@@ -474,7 +442,6 @@ const POS = {
         this.updateTotalsAndUI();
     },
 
-    // ---------- مودال الوحدة ----------
     openUnitModal(productId) {
         const product = this.cache.productMap.get(String(productId)) 
                      || this.cache.productMap.get(productId);
@@ -559,7 +526,6 @@ const POS = {
         const qty = parseFloat(this.el.selectedQuantity?.value) || 0;
         const maxAvailable = parseFloat(this.el.selectedQuantity?.max) || 0;
         
-        // ✅ منع إضافة كمية غير متاحة
         if (qty <= 0 || qty > maxAvailable) {
             alert(`الكمية غير متاحة. الحد الأقصى: ${maxAvailable} ${this.state.selectedUnit?.name || ''}`);
             return;
@@ -593,7 +559,6 @@ const POS = {
         this.hideProductDropdown();
     },
 
-    // ---------- المودال ----------
     showModal(id) {
         const modal = this.el[id];
         if (modal) modal.classList.add('open');
@@ -603,7 +568,6 @@ const POS = {
         if (modal) modal.classList.remove('open');
     },
 
-    // ---------- الدفع ----------
     openPaymentModal() {
         if (!this.state.cart.length) {
             alert('السلة فارغة');
@@ -636,7 +600,7 @@ const POS = {
     },
 
     updatePaymentPreview() {
-        const net = this.state.netTotal;  // ✅ استخدام state بدل قراءة DOM
+        const net = this.state.netTotal;
         const method = this.el.paymentMethod?.value || 'cash';
         let paid = 0;
         if (method === 'cash') paid = parseFloat(this.el.cashAmount?.value) || 0;
@@ -665,7 +629,6 @@ const POS = {
         return item.quantity / factor;
     },
 
-    // ✅ منع الضغط المزدوج
     async completePayment() {
         if (this.state.isProcessing) {
             this.showToast('جاري معالجة الدفع...');
@@ -693,7 +656,6 @@ const POS = {
                 ? await DB.generateInvoiceNumber() 
                 : this.generateLocalInvoiceNumber();
 
-            // تجهيز الفاتورة
             const invoice = {
                 id: Utils.generateUUID(),
                 invoice_number: invoiceNumber,
@@ -701,7 +663,7 @@ const POS = {
                 date: Utils.getToday(),
                 customer_id: this.state.selectedCustomerId || null,
                 customer_name: this.getSelectedCustomer()?.name || 'نقدي',
-                items: JSON.parse(JSON.stringify(this.state.cart)), // ✅ deep clone
+                items: JSON.parse(JSON.stringify(this.state.cart)),
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
@@ -711,14 +673,12 @@ const POS = {
                 notes: notes
             };
 
-            // ✅ حفظ الفاتورة أولاً
             if (this.state.isDBReady) {
                 await DB.saveInvoice(invoice);
             } else if (window.localDB) {
                 await localDB.put('invoices', invoice);
             }
 
-            // ✅ خصم المخزون
             for (const item of this.state.cart) {
                 const prod = this.cache.productMap.get(String(item.productId));
                 if (prod) {
@@ -732,7 +692,6 @@ const POS = {
                 }
             }
 
-            // ✅ تحديث رصيد العميل (بعد نجاح كل الحفظ)
             const customer = this.getSelectedCustomer();
             if (customer) {
                 customer.balance = Utils.round((customer.balance || 0) + diff, 2);
@@ -743,7 +702,6 @@ const POS = {
                 }
             }
 
-            // ✅ تسجيل المعاملات المالية
             if (cashPaid > 0) {
                 const trans = {
                     id: Utils.generateUUID(),
@@ -769,14 +727,12 @@ const POS = {
                 else if (window.localDB) await localDB.put('transactions', trans);
             }
 
-            // طباعة
             if (window.printSaleReceipt) {
                 printSaleReceipt(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals);
             } else {
                 alert(`تم البيع بنجاح. رقم الفاتورة: ${invoiceNumber}`);
             }
 
-            // إعادة تعيين
             this.state.cart = [];
             this.state.selectedCustomerId = null;
             this.state.discountValue = 0;
@@ -809,7 +765,6 @@ const POS = {
         return year + '-' + String(num).padStart(4, '0');
     },
 
-    // ---------- تعليق الفواتير ----------
     async holdInvoice() {
         if (!this.state.cart.length) {
             alert('السلة فارغة');
@@ -828,7 +783,7 @@ const POS = {
                 date: Utils.getToday(),
                 customer_id: this.state.selectedCustomerId || null,
                 customer_name: this.getSelectedCustomer()?.name || 'نقدي',
-                items: JSON.parse(JSON.stringify(this.state.cart)), // ✅ deep clone
+                items: JSON.parse(JSON.stringify(this.state.cart)),
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
@@ -903,8 +858,9 @@ const POS = {
             if (this.state.isDBReady) {
                 const invoices = await DB.getInvoices();
                 inv = invoices.find(i => String(i.id) === String(id));
-                if (inv) {
-                    await DB.deleteInvoice(id).catch(err => console.warn('فشل حذف الفاتورة المعلقة:', err));
+                // ✅ تم إصلاح مشكلة DB.deleteInvoice غير الموجودة
+                if (inv && window.supabase) {
+                    await supabase.from('invoices').delete().eq('id', id);
                 }
             } else if (window.localDB) {
                 const held = await localDB.getAll('invoices');
@@ -916,7 +872,6 @@ const POS = {
                 return;
             }
 
-            // ✅ deep clone لتجنب مشاكل reference
             this.state.cart = JSON.parse(JSON.stringify(inv.items || []));
             this.state.selectedCustomerId = inv.customer_id || null;
             
@@ -938,7 +893,6 @@ const POS = {
         }
     },
 
-    // ---------- Toast ----------
     showToast(msg) {
         const t = this.el.toast;
         if (!t) return;
@@ -948,10 +902,8 @@ const POS = {
         this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    // ---------- حفظ/استرجاع السلة (مع customerId فقط) ----------
     saveCartToStorage() {
         if (this.state.cart.length > 0) {
-            // ✅ نخزن customerId فقط وليس الكائن كاملًا
             const data = {
                 cart: this.state.cart,
                 customerId: this.state.selectedCustomerId,
