@@ -78,7 +78,7 @@
 
     <!-- حاوية نقطة البيع الرئيسية -->
     <div class="pos-container">
-        <!-- منطقة العميل والبحث (ثابتة، عرض كامل) -->
+        <!-- منطقة العميل والبحث -->
         <div class="top-search-area">
             <div class="customer-box">
                 <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
@@ -91,7 +91,7 @@
             </div>
         </div>
 
-        <!-- السلة (أكبر مساحة، قابلة للتمرير) -->
+        <!-- السلة -->
         <div class="cart-main-area">
             <div class="cart-items" id="cartItemsContainer">
                 <div class="cart-header-row">
@@ -125,8 +125,7 @@
         </div>
     </div>
 
-    <!-- ==================== المودالات ==================== -->
-    <!-- مودال اختيار الوحدة والكمية -->
+    <!-- المودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -138,7 +137,6 @@
         </div>
     </div>
 
-    <!-- مودال الدفع (النسخة المعدلة بألوان الرصيد) -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -146,7 +144,6 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
-                <!-- عرض الرصيد الحالي بألوان ديناميكية -->
                 <div class="summary-row">
                     <span id="currentBalanceLabel">الرصيد الحالي:</span>
                     <span id="currentBalance">0.00 ج.م</span>
@@ -163,7 +160,6 @@
             <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
             <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
-            <!-- عرض الرصيد بعد الدفع بألوان ديناميكية -->
             <div class="summary-row">
                 <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
                 <span id="balanceAfter">0.00 ج.م</span>
@@ -173,7 +169,6 @@
         </div>
     </div>
 
-    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -183,7 +178,6 @@
 
     <div class="toast" id="toast"></div>
 
-    <!-- سكريبت نقطة البيع الرئيسي -->
     <script src="./js/pos.js"></script>
 
     <!-- Service Worker + سحب للتحديث -->
