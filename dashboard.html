@@ -5,40 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة التحكم · حسابي</title>
     
-    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- مكتبات خارجية -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- ========== الملفات الأساسية للاتصال بقاعدة البيانات ========== -->
+    
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-
-    <!-- ========== CSS مدمج بالكامل ========== -->
+    
     <style>
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
-            --safe-left: env(safe-area-inset-left, 0px);
-            --safe-right: env(safe-area-inset-right, 0px);
             --primary: #2563eb;
             --secondary: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
-            --dark: #0f172a;
             --gray-50: #f8fafc;
             --gray-100: #f1f5f9;
             --gray-200: #e2e8f0;
@@ -52,12 +42,11 @@
             --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 16px;
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
             --transition: 0.2s ease;
         }
-
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
@@ -71,7 +60,6 @@
             min-height: 100vh;
             line-height: 1.6;
         }
-
         .navbar {
             display: flex; justify-content: space-between; align-items: center;
             background: white; border-bottom: 1px solid var(--gray-200);
@@ -87,6 +75,7 @@
         }
         .menu-toggle:hover { background: var(--gray-100); }
         .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon img { width: 38px; height: 38px; object-fit: contain; border-radius: 10px; }
         .logo-text h2 { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); margin: 0; }
         .user-profile {
             display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -113,7 +102,6 @@
             transition: background var(--transition);
         }
         .user-dropdown a:hover { background: var(--gray-50); color: var(--primary); }
-
         .sidebar {
             position: fixed; top: 0; right: -300px; width: 300px; height: 100%;
             background: white; border-left: 1px solid var(--gray-200);
@@ -122,58 +110,29 @@
         }
         .sidebar.open { right: 0; }
         .menu { list-style: none; }
-        .menu-section {
-            color: var(--gray-400); font-size: 0.7rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 1.5px; margin: 24px 0 8px; padding: 0 12px;
-        }
-        .menu-item {
-            display: flex; align-items: center; padding: 12px 16px;
-            color: var(--gray-700); text-decoration: none; border-radius: var(--radius-sm);
-            margin-bottom: 2px; font-weight: 500; transition: all var(--transition);
-        }
+        .menu-section { color: var(--gray-400); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin: 24px 0 8px; padding: 0 12px; }
+        .menu-item { display: flex; align-items: center; padding: 12px 16px; color: var(--gray-700); text-decoration: none; border-radius: var(--radius-sm); margin-bottom: 2px; font-weight: 500; transition: all var(--transition); }
         .menu-item i { width: 22px; margin-left: 12px; text-align: center; color: var(--gray-500); font-size: 1rem; }
         .menu-item:hover { background: var(--gray-50); color: var(--gray-900); }
         .menu-item:hover i { color: var(--primary); }
         .menu-item.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
         .menu-item.active i { color: var(--primary); }
-
         .main-content { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
-        .page-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
-        }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
         .page-title h1 { font-size: 1.6rem; font-weight: 700; color: var(--gray-900); margin: 0; display: flex; align-items: center; }
-        .date-display {
-            background: white; padding: 8px 16px; border-radius: 20px;
-            font-size: 0.85rem; color: var(--gray-600); box-shadow: var(--shadow-sm); font-weight: 500;
-        }
-        .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px; margin-bottom: 28px;
-        }
-        .stat-card {
-            background: white; border-radius: var(--radius-lg); padding: 20px;
-            display: flex; align-items: center; gap: 16px;
-            box-shadow: var(--shadow-sm); transition: all var(--transition); cursor: default;
-        }
+        .date-display { background: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: var(--gray-600); box-shadow: var(--shadow-sm); font-weight: 500; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .stat-card { background: white; border-radius: var(--radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm); transition: all var(--transition); cursor: default; }
         .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
         .stat-icon { font-size: 2rem; width: 45px; text-align: center; }
         .stat-content { flex: 1; }
-        .stat-title {
-            font-size: 0.8rem; font-weight: 600; color: var(--gray-500);
-            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
-        }
+        .stat-title { font-size: 0.8rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
         .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--gray-900); }
-        .chart-container {
-            background: white; border-radius: var(--radius-lg); padding: 24px;
-            margin-bottom: 28px; box-shadow: var(--shadow-sm);
-        }
+        .chart-container { background: white; border-radius: var(--radius-lg); padding: 24px; margin-bottom: 28px; box-shadow: var(--shadow-sm); }
         .chart-container h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; color: var(--gray-800); }
         .chart-wrapper { height: 280px; position: relative; }
         .tables-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
-        .table-box {
-            background: white; border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm);
-        }
+        .table-box { background: white; border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); }
         .table-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--gray-700); display: flex; align-items: center; gap: 8px; }
         .table-responsive { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
@@ -201,9 +160,7 @@
         }
         .toast.show { opacity: 1; }
         .loading-indicator { color: var(--gray-500); font-size: 0.9rem; }
-        .loading { text-align: center; padding: 30px; color: var(--gray-500); font-style: italic; }
         .empty { text-align: center; padding: 30px; color: var(--gray-400); font-size: 0.9rem; }
-
         @media (max-width: 768px) {
             .tables-row { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -218,13 +175,12 @@
     </style>
 </head>
 <body>
-    <!-- شريط التنقل -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px; height:38px; object-fit:contain; border-radius:10px;"
+                    <img src="./icons/icon-192x192.png" alt="حسابي"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <i class="fas fa-store" style="display:none; font-size:20px; color:white;"></i>
                 </div>
@@ -246,7 +202,6 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -267,7 +222,6 @@
         </ul>
     </aside>
 
-    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1></div>
@@ -307,13 +261,11 @@
 
     <div class="toast" id="toast"></div>
 
-    <!-- ========== JavaScript مدمج كامل مع انتظار DB ========== -->
     <script>
         'use strict';
 
         console.log('✅ لوحة التحكم – بدء التحميل');
 
-        // الأدوات المساعدة
         const U = {
             formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
             escapeHTML: (s) => {
@@ -361,7 +313,6 @@
                              'currentDate', 'statsGrid', 'salesChart', 'recentInvoices', 'recentPurchases',
                              'loadingIndicator', 'chartError', 'toast'];
                 ids.forEach(id => this.el[id] = document.getElementById(id));
-                console.log('2️⃣ DOM تم تخزينه');
             },
 
             bindEvents() {
@@ -377,20 +328,17 @@
                     else location.href = './index.html';
                 });
 
-                // إغلاق القائمة الجانبية عند النقر على أي رابط
                 document.querySelectorAll('.menu-item').forEach(link => {
                     link.addEventListener('click', () => {
                         this.el.sidebar.classList.remove('open');
                     });
                 });
 
-                // تحديث تلقائي عند استعادة الاتصال
                 window.addEventListener('online', () => {
                     this.toast('تم استعادة الاتصال – جاري التحديث...');
                     this.loadAllData();
                 });
 
-                // تحديث عند العودة للصفحة
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'visible') {
                         this.loadAllData();
@@ -420,12 +368,12 @@
                 this._t = setTimeout(() => t.classList.remove('show'), 3000);
             },
 
-            // انتظار تحميل DB (Supabase) أو الاستسلام بعد 5 ثوانٍ
             waitForDB() {
                 return new Promise(resolve => {
                     if (window.DB && window.supabase) {
                         this.state.ready = true;
-                        return resolve();
+                        resolve();
+                        return;
                     }
                     let attempts = 0;
                     const check = setInterval(() => {
@@ -436,87 +384,25 @@
                         }
                         if (++attempts > 50) {
                             clearInterval(check);
-                            console.warn('لم يتم تحميل DB، سيتم عرض بيانات فارغة');
+                            console.warn('لم يتم تحميل DB، سيتم استخدام IndexedDB');
+                            // تفعيل وضع IndexedDB
+                            if (window.localDB) this.state.ready = 'local';
                             resolve();
                         }
                     }, 100);
                 });
             },
-// داخل Dashboard.init() بعد waitForDB()
-await this.waitForDB();
 
-// إذا لم يكن DB جاهزًا، نستخدم localDB مباشرة
-this.state.ready = !!(window.DB && window.supabase);
-if (!this.state.ready && window.localDB) {
-    console.warn('⚠️ DB غير جاهز، استخدام IndexedDB');
-}
-
-// تعديل loadStats:
-async loadStats() {
-    try {
-        let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
-        if (this.state.ready) {
-            [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                DB.getInvoices().catch(()=>[]),
-                DB.getPurchases().catch(()=>[]),
-                DB.getParties('customer').catch(()=>[]),
-                DB.getProducts().catch(()=>[]),
-                DB.getTransactions().catch(()=>[]),
-                DB.getSettings().catch(()=>({}))
-            ]);
-        } else if (window.localDB) {
-            invoices = await localDB.getAll('invoices') || [];
-            purchases = await localDB.getAll('purchases') || [];
-            const allParties = await localDB.getAll('parties') || [];
-            parties = allParties.filter(p => p.type === 'customer');
-            products = await localDB.getAll('products') || [];
-            transactions = await localDB.getAll('transactions') || [];
-            const s = await localDB.getById('settings', 'main');
-            settings = s?.data || {};
-        }
-        // ... باقي الحسابات (نفس السابق)
-    } catch(e) {}
-}
-
-// تعديل loadRecentInvoices:
-async loadRecentInvoices() {
-    try {
-        if (this.state.ready) {
-            const invs = await DB.getInvoices().catch(()=>[]);
-            this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-        } else if (window.localDB) {
-            const invs = await localDB.getAll('invoices') || [];
-            this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-        }
-    } catch(e) {}
-}
-
-// تعديل loadRecentPurchases:
-async loadRecentPurchases() {
-    try {
-        if (this.state.ready) {
-            const pur = await DB.getPurchases().catch(()=>[]);
-            this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-        } else if (window.localDB) {
-            const pur = await localDB.getAll('purchases') || [];
-            this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
-        }
-    } catch(e) {}
-}
             async loadAllData() {
                 console.log('3️⃣ بدء تحميل البيانات');
                 this.toggleLoading(true);
                 try {
-                    if (this.state.ready) {
-                        await Promise.all([
-                            this.loadStats(),
-                            this.loadRecentInvoices(),
-                            this.loadRecentPurchases()
-                        ]);
-                        console.log('✅ كل البيانات تم تحميلها');
-                    } else {
-                        console.warn('DB غير متاح، تخطي التحميل');
-                    }
+                    await Promise.all([
+                        this.loadStats(),
+                        this.loadRecentInvoices(),
+                        this.loadRecentPurchases()
+                    ]);
+                    console.log('✅ كل البيانات تم تحميلها');
                 } catch (e) {
                     console.error('خطأ عام:', e);
                     this.toast('تعذر تحميل بعض البيانات');
@@ -530,17 +416,29 @@ async loadRecentPurchases() {
             },
 
             async loadStats() {
-                if (!this.state.ready) return;
                 try {
                     const today = U.today();
-                    const [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                        DB.getInvoices().catch(() => []),
-                        DB.getPurchases().catch(() => []),
-                        DB.getParties('customer').catch(() => []),
-                        DB.getProducts().catch(() => []),
-                        DB.getTransactions().catch(() => []),
-                        DB.getSettings().catch(() => ({}))
-                    ]);
+                    let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
+
+                    if (this.state.ready === true) {
+                        [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                            DB.getInvoices().catch(()=>[]),
+                            DB.getPurchases().catch(()=>[]),
+                            DB.getParties('customer').catch(()=>[]),
+                            DB.getProducts().catch(()=>[]),
+                            DB.getTransactions().catch(()=>[]),
+                            DB.getSettings().catch(()=>({}))
+                        ]);
+                    } else if (window.localDB) {
+                        invoices = await localDB.getAll('invoices') || [];
+                        purchases = await localDB.getAll('purchases') || [];
+                        const allParties = await localDB.getAll('parties') || [];
+                        parties = allParties.filter(p => p.type === 'customer');
+                        products = await localDB.getAll('products') || [];
+                        transactions = await localDB.getAll('transactions') || [];
+                        const s = await localDB.getById('settings', 'main');
+                        settings = s?.data || {};
+                    }
 
                     console.log('📦 الفواتير:', invoices.length, 'المشتريات:', purchases.length, 'العملاء:', parties.length, 'المنتجات:', products.length);
 
@@ -565,28 +463,30 @@ async loadRecentPurchases() {
             },
 
             async loadRecentInvoices() {
-                if (!this.state.ready) return;
                 try {
-                    const invs = await DB.getInvoices().catch(() => []);
-                    this.state.recentInvoices = invs
-                        .filter(i => i.type === 'sale')
-                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                        .slice(0, 5);
+                    if (this.state.ready === true) {
+                        const invs = await DB.getInvoices().catch(()=>[]);
+                        this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+                    } else if (window.localDB) {
+                        const invs = await localDB.getAll('invoices') || [];
+                        this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+                    }
                 } catch (e) {}
             },
 
             async loadRecentPurchases() {
-                if (!this.state.ready) return;
                 try {
-                    const pur = await DB.getPurchases().catch(() => []);
-                    this.state.recentPurchases = pur
-                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                        .slice(0, 5);
+                    if (this.state.ready === true) {
+                        const pur = await DB.getPurchases().catch(()=>[]);
+                        this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+                    } else if (window.localDB) {
+                        const pur = await localDB.getAll('purchases') || [];
+                        this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+                    }
                 } catch (e) {}
             },
 
             renderStats() {
-                console.log('5️⃣ renderStats');
                 if (!this.el.statsGrid) return;
                 const s = this.state.stats;
                 const cards = [
@@ -605,11 +505,9 @@ async loadRecentPurchases() {
                         </div>
                     </div>
                 `).join('');
-                console.log('✔️ البطاقات تم عرضها');
             },
 
             renderTables() {
-                console.log('6️⃣ renderTables');
                 if (this.el.recentInvoices) {
                     const invs = this.state.recentInvoices;
                     if (!invs.length) {
@@ -644,11 +542,9 @@ async loadRecentPurchases() {
                         this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
                     }
                 }
-                console.log('✔️ الجداول تم عرضها');
             },
 
             renderChart() {
-                console.log('7️⃣ renderChart');
                 if (!this.el.salesChart) return;
                 if (!this.state.chartData.length) {
                     if (this.el.chartError) {
@@ -680,7 +576,6 @@ async loadRecentPurchases() {
                         scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
                     }
                 });
-                console.log('✔️ الرسم البياني تم');
             },
 
             _prepareChart(invoices) {
@@ -697,10 +592,8 @@ async loadRecentPurchases() {
             }
         };
 
-        // بدء التشغيل عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', () => Dashboard.init());
 
-        // Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(() => {});
         }
