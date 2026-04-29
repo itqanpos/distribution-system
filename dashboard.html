@@ -442,7 +442,67 @@
                     }, 100);
                 });
             },
+// داخل Dashboard.init() بعد waitForDB()
+await this.waitForDB();
 
+// إذا لم يكن DB جاهزًا، نستخدم localDB مباشرة
+this.state.ready = !!(window.DB && window.supabase);
+if (!this.state.ready && window.localDB) {
+    console.warn('⚠️ DB غير جاهز، استخدام IndexedDB');
+}
+
+// تعديل loadStats:
+async loadStats() {
+    try {
+        let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
+        if (this.state.ready) {
+            [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                DB.getInvoices().catch(()=>[]),
+                DB.getPurchases().catch(()=>[]),
+                DB.getParties('customer').catch(()=>[]),
+                DB.getProducts().catch(()=>[]),
+                DB.getTransactions().catch(()=>[]),
+                DB.getSettings().catch(()=>({}))
+            ]);
+        } else if (window.localDB) {
+            invoices = await localDB.getAll('invoices') || [];
+            purchases = await localDB.getAll('purchases') || [];
+            const allParties = await localDB.getAll('parties') || [];
+            parties = allParties.filter(p => p.type === 'customer');
+            products = await localDB.getAll('products') || [];
+            transactions = await localDB.getAll('transactions') || [];
+            const s = await localDB.getById('settings', 'main');
+            settings = s?.data || {};
+        }
+        // ... باقي الحسابات (نفس السابق)
+    } catch(e) {}
+}
+
+// تعديل loadRecentInvoices:
+async loadRecentInvoices() {
+    try {
+        if (this.state.ready) {
+            const invs = await DB.getInvoices().catch(()=>[]);
+            this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+        } else if (window.localDB) {
+            const invs = await localDB.getAll('invoices') || [];
+            this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+        }
+    } catch(e) {}
+}
+
+// تعديل loadRecentPurchases:
+async loadRecentPurchases() {
+    try {
+        if (this.state.ready) {
+            const pur = await DB.getPurchases().catch(()=>[]);
+            this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+        } else if (window.localDB) {
+            const pur = await localDB.getAll('purchases') || [];
+            this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+        }
+    } catch(e) {}
+}
             async loadAllData() {
                 console.log('3️⃣ بدء تحميل البيانات');
                 this.toggleLoading(true);
