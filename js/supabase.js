@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - الإصدار النهائي مع دعم Offline وتوليد رقم الفاتورة YY-0001
+   supabase.js - مع دعم Offline كامل وشفاف
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -20,26 +20,41 @@
     window.supabase = supabaseClient;
     console.log('✅ Supabase client initialized');
 
+    // ==================== الأدوات المساعدة ====================
     function cleanObject(obj) {
         const cleaned = { ...obj };
-        delete cleaned.updated_at;
+        delete cleaned.updated_at; // إزالة أي updated_at غير موجود في بعض الجداول
         return cleaned;
     }
 
-    if (!window.Utils) {
-        window.Utils = {
-            formatMoney: (amount, currency = 'ج.م') => {
-                if (amount === null || amount === undefined) amount = 0;
-                return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
-            },
-            getToday: () => new Date().toISOString().split('T')[0]
-        };
-    }
-
+    // ==================== الطبقة المحلية (Offline) ====================
     const local = window.localDB;
     const syncer = window.syncManager;
 
     async function getWithFallback(storeName, cloudFetcher) {
+        // ✅ تحسين: إذا كان localDB موجوداً، نقرأ منه أولاً لنضمن السرعة
+        if (local) {
+            try {
+                const localData = await local.getAll(storeName);
+                // إذا كانت البيانات المحلية غير فارغة، نعرضها فوراً
+                if (localData && localData.length > 0) {
+                    console.log(`📦 ${storeName}: تم العرض من IndexedDB (${localData.length} عنصر)`);
+                    // لكننا نحاول تحديثها من السحابة في الخلفية
+                    if (navigator.onLine && supabaseClient) {
+                        cloudFetcher().then(cloudData => {
+                            if (cloudData && Array.isArray(cloudData)) {
+                                for (const item of cloudData) {
+                                    local.put(storeName, cleanObject(item)).catch(() => {});
+                                }
+                            }
+                        }).catch(() => {});
+                    }
+                    return localData;
+                }
+            } catch (e) { /* نتجاهل ونكمل */ }
+        }
+
+        // إذا لم توجد بيانات محلية، نلجأ للسحابة
         if (navigator.onLine && supabaseClient) {
             try {
                 const data = await cloudFetcher();
@@ -59,31 +74,28 @@
     }
 
     async function saveWithFallback(storeName, data, cloudSaver) {
+        // ✅ حفظ محلي دائماً (حتى لو كنا متصلين)
         if (local) {
             await local.put(storeName, cleanObject(data)).catch(() => {});
         }
+        // محاولة الحفظ السحابي
         if (navigator.onLine && supabaseClient) {
             try {
                 const result = await cloudSaver(data);
                 return result;
             } catch (error) {
-                console.warn(`فشل حفظ ${storeName} في السحابة، إضافة لطابور المزامنة:`, error);
-                if (syncer) {
-                    await syncer.addToSyncQueue?.({
-                        type: data.id ? (await local?.getById(storeName, data.id)) ? 'UPDATE' : 'INSERT' : 'INSERT',
-                        table: storeName,
-                        data: cleanObject(data)
-                    }).catch(() => {});
-                } else if (local) {
+                console.warn(`فشل حفظ ${storeName} في السحابة، أُضيف لطابور المزامنة:`, error);
+                if (local) {
                     await local.addToSyncQueue?.({
                         type: data.id ? 'UPDATE' : 'INSERT',
                         table: storeName,
                         data: cleanObject(data)
                     }).catch(() => {});
                 }
-                return data;
+                return data; // نُرجع البيانات المحفوظة محلياً
             }
         } else {
+            // غير متصل: أضف إلى طابور المزامنة
             if (local) {
                 await local.addToSyncQueue?.({
                     type: data.id ? 'UPDATE' : 'INSERT',
@@ -101,13 +113,11 @@
             try {
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
-
                 const { data: profile } = await supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', data.user.id)
                     .single();
-
                 const session = {
                     id: data.user.id,
                     email: data.user.email,
@@ -117,7 +127,6 @@
                     loginTime: new Date().toLocaleString('en-US')
                 };
                 localStorage.setItem('app_session', JSON.stringify(session));
-
                 const redirectUrl = session.role === 'admin' ? './dashboard.html' : './pos.html';
                 return { success: true, redirectUrl, user: session };
             } catch (err) {
@@ -129,12 +138,10 @@
         async signup(email, password, fullName, role = 'rep') {
             try {
                 const { data, error } = await supabaseClient.auth.signUp({
-                    email,
-                    password,
+                    email, password,
                     options: { data: { full_name: fullName } }
                 });
                 if (error) throw error;
-
                 if (data.user) {
                     await supabaseClient.from('profiles').upsert({
                         id: data.user.id,
@@ -142,7 +149,6 @@
                         role: role
                     }, { onConflict: 'id' });
                 }
-
                 return { success: true, message: 'تم إنشاء الحساب.' };
             } catch (err) {
                 return { success: false, message: err.message };
@@ -170,10 +176,7 @@
 
         requireRole(allowedRoles) {
             const user = this.getCurrentUser();
-            if (!user) {
-                window.location.href = './index.html';
-                return false;
-            }
+            if (!user) { window.location.href = './index.html'; return false; }
             const userRole = (user.role || '').toLowerCase();
             const allowed = allowedRoles.map(r => r.toLowerCase());
             if (!allowed.includes(userRole)) {
@@ -242,7 +245,7 @@
             }
         },
 
-        // ---- الأطراف ----
+        // ---- الأطراف (عملاء وموردين) ----
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -296,7 +299,7 @@
             }
         },
 
-        // ---- الفواتير (محدثة مع الحذف) ----
+        // ---- الفواتير (أهم دالة) ----
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
@@ -312,21 +315,6 @@
                 if (error) throw error;
                 return data;
             });
-        },
-        async deleteInvoice(id) {
-            if (local) await local.delete('invoices', id).catch(() => {});
-            if (navigator.onLine && supabaseClient) {
-                try {
-                    const { error } = await supabaseClient.from('invoices').delete().eq('id', id);
-                    if (error) throw error;
-                } catch (error) {
-                    console.warn('فشل حذف الفاتورة سحابياً، إضافة للأمر للمزامنة');
-                    if (syncer) await syncer.addToSyncQueue?.({ type: 'DELETE', table: 'invoices', data: { id } });
-                    else if (local) await local.addToSyncQueue?.({ type: 'DELETE', table: 'invoices', data: { id } });
-                }
-            } else if (local) {
-                await local.addToSyncQueue?.({ type: 'DELETE', table: 'invoices', data: { id } });
-            }
         },
 
         // ---- المشتريات ----
@@ -363,6 +351,74 @@
             });
         },
 
+        // ---- المرتجعات ----
+        async getReturns(type = null) {
+            return getWithFallback('returns', async () => {
+                let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
+                if (type) q = q.eq('type', type);
+                const { data, error } = await q;
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveReturn(r) {
+            if (!r.id) r.id = crypto.randomUUID();
+            return saveWithFallback('returns', r, async (ret) => {
+                const { data, error } = await supabaseClient.from('returns').upsert(cleanObject(ret), { onConflict: 'id' }).select().single();
+                if (error) throw error;
+                return data;
+            });
+        },
+
+        // ---- موظفين وسلف ----
+        async getEmployees() {
+            return getWithFallback('employees', async () => {
+                const { data, error } = await supabaseClient.from('employees').select('*').order('name');
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveEmployee(emp) {
+            if (!emp.id) emp.id = crypto.randomUUID();
+            return saveWithFallback('employees', emp, async (employee) => {
+                const { data, error } = await supabaseClient.from('employees').upsert(cleanObject(employee), { onConflict: 'id' }).select().single();
+                if (error) throw error;
+                return data;
+            });
+        },
+        async getLoans() {
+            return getWithFallback('loans', async () => {
+                const { data, error } = await supabaseClient.from('loans').select('*').order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveLoan(l) {
+            if (!l.id) l.id = crypto.randomUUID();
+            return saveWithFallback('loans', l, async (loan) => {
+                const { data, error } = await supabaseClient.from('loans').upsert(cleanObject(loan), { onConflict: 'id' }).select().single();
+                if (error) throw error;
+                return data;
+            });
+        },
+
+        // ---- المصروفات ----
+        async getExpenses() {
+            return getWithFallback('expenses', async () => {
+                const { data, error } = await supabaseClient.from('expenses').select('*').order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveExpense(exp) {
+            if (!exp.id) exp.id = crypto.randomUUID();
+            return saveWithFallback('expenses', exp, async (expense) => {
+                const { data, error } = await supabaseClient.from('expenses').upsert(cleanObject(expense), { onConflict: 'id' }).select().single();
+                if (error) throw error;
+                return data;
+            });
+        },
+
         // ---- الإعدادات ----
         async getSettings() {
             if (local) {
@@ -376,9 +432,7 @@
                     const settings = data ? data.data : {};
                     if (local) await local.put('settings', { id: 'main', data: settings });
                     return settings;
-                } catch (e) {
-                    return {};
-                }
+                } catch (e) { return {}; }
             }
             return {};
         },
@@ -391,11 +445,11 @@
                     if (error) throw error;
                     return result.data;
                 } catch (e) {
-                    if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
+                    if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data }).catch(() => {});
                     return s;
                 }
             } else {
-                if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
+                if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data }).catch(() => {});
                 return s;
             }
         },
@@ -412,9 +466,7 @@
                     const { data, error } = await supabaseClient.from('profiles').select('role').eq('id', userId).single();
                     if (error) return 'user';
                     return data?.role || 'user';
-                } catch (e) {
-                    return 'user';
-                }
+                } catch (e) { return 'user'; }
             }
             return 'user';
         },
@@ -424,14 +476,12 @@
             const now = new Date();
             const year = now.getFullYear().toString().slice(-2);
             const storageKey = `inv_counter_${year}`;
-            
             let currentNumber = parseInt(localStorage.getItem(storageKey) || '0', 10);
             currentNumber += 1;
             localStorage.setItem(storageKey, currentNumber.toString());
-            
             return year + '-' + String(currentNumber).padStart(4, '0');
         }
     };
 
-    console.log('✅ نظام حسابي مع دعم Offline وتوليد أرقام الفواتير جاهز');
+    console.log('✅ نظام حسابي مع دعم Offline كامل جاهز');
 })();
