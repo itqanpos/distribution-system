@@ -22,6 +22,7 @@
     <script src="./js/print.js"></script>
     
     <style>
+        /* نفس الـ CSS السابق للفواتير */
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -119,6 +120,7 @@
         .main-content { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
         .page-title h1 { font-size: 1.6rem; font-weight: 700; color: var(--gray-900); margin: 0; display: flex; align-items: center; }
+        .btn-primary { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
         .stat-card { background: white; border-radius: var(--radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm); transition: all var(--transition); }
         .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
@@ -212,7 +214,7 @@
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-file-invoice"></i> الفواتير</h1></div>
             <div>
-                <button class="btn" onclick="window.location.href='./pos.html'" style="padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">+ فاتورة بيع جديدة</button>
+                <a href="./pos.html" class="btn-primary"><i class="fas fa-plus"></i> فاتورة بيع جديدة</a>
             </div>
         </div>
 
@@ -280,20 +282,45 @@
             async init() {
                 this.cacheDOM();
                 this.bindEvents();
+                console.log('⏳ انتظار تجهيز DB...');
                 await this.waitForDB();
+                console.log('DB جاهز:', this.state.ready);
                 if (window.App) { App.requireAuth(); App.initUserInterface(); }
+                // تحميل البيانات أول مرة
                 await this.loadAllData();
                 this.renderTable();
                 this.updateStats();
+                // تحديث تلقائي عند استعادة الاتصال أو ظهور الصفحة
+                window.addEventListener('online', () => {
+                    this.loadAllData().then(() => { this.renderTable(); this.updateStats(); });
+                });
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        this.loadAllData().then(() => { this.renderTable(); this.updateStats(); });
+                    }
+                });
             },
 
             waitForDB() {
                 return new Promise(resolve => {
-                    if (window.DB && window.supabase) { this.state.ready = true; resolve(); return; }
+                    if (window.DB && window.supabase) {
+                        this.state.ready = true;
+                        resolve();
+                        return;
+                    }
                     let attempts = 0;
                     const check = setInterval(() => {
-                        if (window.DB && window.supabase) { this.state.ready = true; clearInterval(check); resolve(); }
-                        if (++attempts > 50) { clearInterval(check); resolve(); }
+                        if (window.DB && window.supabase) {
+                            this.state.ready = true;
+                            clearInterval(check);
+                            console.log('✔️ DB أصبح جاهزاً بعد محاولات');
+                            resolve();
+                        }
+                        if (++attempts > 50) {
+                            clearInterval(check);
+                            console.warn('⚠️ لم يتم تحميل DB، سيتم استخدام IndexedDB مباشرة');
+                            resolve();
+                        }
                     }, 100);
                 });
             },
@@ -316,19 +343,31 @@
                 this.el.statusFilter?.addEventListener('change', () => this.renderTable());
                 this.el.closeDetailsBtn?.addEventListener('click', () => this.el.detailsModal.classList.remove('open'));
                 document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => this.el.sidebar.classList.remove('open')));
-                window.addEventListener('online', () => { this.loadAllData().then(() => { this.renderTable(); this.updateStats(); }); });
             },
 
             async loadAllData() {
+                console.log('🔄 جاري تحميل الفواتير...');
                 try {
                     if (this.state.ready) {
                         this.state.invoices = await DB.getInvoices() || [];
                         this.state.customers = await DB.getParties('customer') || [];
+                    } else if (window.localDB) {
+                        // محاولة مباشرة من IndexedDB
+                        console.log('📦 جلب من IndexedDB');
+                        const all = await localDB.getAll('invoices');
+                        this.state.invoices = all || [];
+                        const parties = await localDB.getAll('parties');
+                        this.state.customers = (parties || []).filter(p => p.type === 'customer');
                     } else {
                         this.state.invoices = [];
                         this.state.customers = [];
                     }
-                } catch (e) { console.error(e); }
+                    console.log('عدد الفواتير:', this.state.invoices.length);
+                } catch (e) {
+                    console.error('فشل تحميل البيانات:', e);
+                    this.state.invoices = [];
+                    this.state.customers = [];
+                }
             },
 
             updateStats() {
@@ -354,7 +393,7 @@
                 filtered.sort((a,b) => (b.date||'').localeCompare(a.date||''));
                 const tbody = this.el.invoicesBody;
                 if (!filtered.length) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;">لا توجد فواتير مطابقة</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px; color: #94a3b8;">لا توجد فواتير. ربما لم يتم بيع أي منتج بعد.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = filtered.map(inv => {
