@@ -1,7 +1,13 @@
+/* =============================================
+   dashboard.js - لوحة التحكم (إصدار محسّن)
+   يعمل مع الصفحة الجديدة بدون ملفات CSS خارجية
+   ============================================= */
 'use strict';
 
+console.log('✅ لوحة التحكم – بدء التحميل');
+
 // الأدوات المساعدة
-const U = window.Utils || {
+const U = {
     formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
     escapeHTML: (s) => {
         const d = document.createElement('div');
@@ -9,7 +15,7 @@ const U = window.Utils || {
         return d.innerHTML;
     },
     today: () => new Date().toISOString().split('T')[0],
-    round: (v, d=2) => Number(Math.round(v+'e'+d)+'e-'+d)
+    round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d)
 };
 
 const Dashboard = {
@@ -17,40 +23,40 @@ const Dashboard = {
     state: {
         ready: false,
         loading: false,
-        stats: {
-            salesToday: 0,
-            purchasesToday: 0,
-            customers: 0,
-            products: 0,
-            cash: 0
-        },
+        stats: { salesToday: 0, purchasesToday: 0, customers: 0, products: 0, cash: 0 },
         chartData: [],
         recentInvoices: [],
         recentPurchases: []
     },
 
     init() {
+        console.log('1️⃣ تهيئة Dashboard');
         this.cacheDOM();
         this.bindEvents();
         this.setDate();
-        this.state.ready = !!(window.DB && window.supabase);
+
+        // فحص وجود Supabase + DB
+        this.state.ready = !!(window.supabase && window.DB);
+        console.log('هل النظام جاهز؟', this.state.ready);
 
         if (window.App) {
-            if (!App.requireAuth()) return;
+            App.requireAuth();
             App.initUserInterface();
         }
 
-        // تحميل البيانات فوراً مع إظهار القيم الافتراضية
-        this.renderStats();       // عرض الأصفار الأولية
-        this.renderTables();      // جداول فارغة
-        this.loadAllData();       // ثم تحميل البيانات الحقيقية
+        // عرض البطاقات والجداول الفارغة أولاً
+        this.renderStats();
+        this.renderTables();
+        // ثم تحميل البيانات الحقيقية
+        this.loadAllData();
     },
 
     cacheDOM() {
-        const ids = ['menuToggle','sidebar','userDropdown','userProfileBtn','logoutBtn',
-                     'currentDate','statsGrid','salesChart','recentInvoices','recentPurchases',
-                     'loadingIndicator','chartError','toast'];
+        const ids = ['menuToggle', 'sidebar', 'userDropdown', 'userProfileBtn', 'logoutBtn',
+                     'currentDate', 'statsGrid', 'salesChart', 'recentInvoices', 'recentPurchases',
+                     'loadingIndicator', 'chartError', 'toast'];
         ids.forEach(id => this.el[id] = document.getElementById(id));
+        console.log('2️⃣ DOM تم تخزينه');
     },
 
     bindEvents() {
@@ -62,7 +68,28 @@ const Dashboard = {
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            window.App ? App.logout() : location.href = './index.html';
+            if (window.App) App.logout();
+            else location.href = './index.html';
+        });
+
+        // إغلاق القائمة الجانبية عند النقر على أي رابط
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+            });
+        });
+
+        // تحديث تلقائي عند استعادة الاتصال
+        window.addEventListener('online', () => {
+            this.toast('تم استعادة الاتصال – جاري التحديث...');
+            this.loadAllData();
+        });
+
+        // تحديث عند العودة للصفحة (visibility change)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                this.loadAllData();
+            }
         });
     },
 
@@ -88,8 +115,8 @@ const Dashboard = {
         this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    // ------- تحميل البيانات (مع ضمان وجود قيم افتراضية حتى لو فشل) -------
     async loadAllData() {
+        console.log('3️⃣ بدء تحميل البيانات');
         this.toggleLoading(true);
         try {
             await Promise.all([
@@ -97,19 +124,22 @@ const Dashboard = {
                 this.loadRecentInvoices(),
                 this.loadRecentPurchases()
             ]);
+            console.log('✅ كل البيانات تم تحميلها');
         } catch (e) {
-            console.error('خطأ عام في تحميل البيانات:', e);
-            this.toast('بعض البيانات لم تحمل');
+            console.error('خطأ عام:', e);
+            this.toast('تعذر تحميل بعض البيانات');
         } finally {
             this.toggleLoading(false);
             this.renderStats();
             this.renderTables();
             this.renderChart();
+            console.log('4️⃣ تم عرض كل البيانات');
         }
     },
 
     async loadStats() {
-        // لو النظام مش جاهز، استخدم بيانات وهمية للعرض التجريبي
+        console.log('5️⃣ تحميل الإحصائيات...');
+        // لو DB مش موجود، استخدم بيانات وهمية للتجربة
         if (!this.state.ready) {
             this.state.stats = {
                 salesToday: 12500,
@@ -119,12 +149,12 @@ const Dashboard = {
                 cash: 28000
             };
             this.state.chartData = this._dummyChart();
+            console.log('🧪 تم استخدام بيانات وهمية');
             return;
         }
 
         try {
             const today = U.today();
-            // نجيب البيانات، كل دالة محمية بـ .catch(() => [])
             const [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
                 DB.getInvoices().catch(() => []),
                 DB.getPurchases().catch(() => []),
@@ -133,6 +163,8 @@ const Dashboard = {
                 DB.getTransactions().catch(() => []),
                 DB.getSettings().catch(() => ({}))
             ]);
+
+            console.log('📦 الفواتير:', invoices.length, 'المشتريات:', purchases.length, 'العملاء:', parties.length, 'المنتجات:', products.length);
 
             const todayInvoices = invoices.filter(inv => inv.date === today && inv.type === 'sale');
             this.state.stats.salesToday = U.round(todayInvoices.reduce((s, inv) => s + (inv.total || 0), 0));
@@ -145,13 +177,13 @@ const Dashboard = {
 
             const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
             const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
-            this.state.stats.cash = U.round((settings.openingBalance || 0) + income - expense);
+            const openingBalance = settings?.financial?.opening_cash_balance || 0;
+            this.state.stats.cash = U.round(openingBalance + income - expense);
 
             this.state.chartData = this._prepareChart(invoices);
-
+            console.log('✔️ الإحصائيات: ', this.state.stats);
         } catch (e) {
-            console.warn('فشل تحميل الإحصائيات:', e);
-            // ترك القيم صفرية مع عرضها
+            console.error('فشل loadStats:', e);
         }
     },
 
@@ -166,11 +198,9 @@ const Dashboard = {
             const invs = await DB.getInvoices().catch(() => []);
             this.state.recentInvoices = invs
                 .filter(i => i.type === 'sale')
-                .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                 .slice(0, 5);
-        } catch (e) {
-            this.state.recentInvoices = [];
-        }
+        } catch (e) {}
     },
 
     async loadRecentPurchases() {
@@ -183,15 +213,13 @@ const Dashboard = {
         try {
             const pur = await DB.getPurchases().catch(() => []);
             this.state.recentPurchases = pur
-                .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                 .slice(0, 5);
-        } catch (e) {
-            this.state.recentPurchases = [];
-        }
+        } catch (e) {}
     },
 
-    // ------- عرض البيانات (تتعامل مع القيم الفارغة) -------
     renderStats() {
+        console.log('6️⃣ renderStats');
         if (!this.el.statsGrid) return;
         const s = this.state.stats;
         const cards = [
@@ -201,9 +229,8 @@ const Dashboard = {
             { title: 'المنتجات', value: s.products, icon: 'fa-boxes', color: '#f59e0b' },
             { title: 'رصيد الصندوق', value: U.formatMoney(s.cash), icon: 'fa-cash-register', color: '#8b5cf6' }
         ];
-
         this.el.statsGrid.innerHTML = cards.map(c => `
-            <div class="stat-card" style="border-right: 4px solid ${c.color};">
+            <div class="stat-card" style="border-right:4px solid ${c.color};">
                 <div class="stat-icon" style="color:${c.color};"><i class="fas ${c.icon}"></i></div>
                 <div class="stat-content">
                     <div class="stat-title">${U.escapeHTML(c.title)}</div>
@@ -211,10 +238,11 @@ const Dashboard = {
                 </div>
             </div>
         `).join('');
+        console.log('✔️ البطاقات تم عرضها');
     },
 
     renderTables() {
-        // آخر الفواتير
+        console.log('7️⃣ renderTables');
         if (this.el.recentInvoices) {
             const invs = this.state.recentInvoices;
             if (!invs.length) {
@@ -224,7 +252,7 @@ const Dashboard = {
                     <tr>
                         <td>${U.escapeHTML(inv.invoice_number || '')}</td>
                         <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
-                        <td>${new Date(inv.date || Date.now()).toLocaleDateString('ar-EG')}</td>
+                        <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(inv.total)}</td>
                         <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
                     </tr>
@@ -233,7 +261,6 @@ const Dashboard = {
             }
         }
 
-        // آخر المشتريات
         if (this.el.recentPurchases) {
             const pur = this.state.recentPurchases;
             if (!pur.length) {
@@ -242,7 +269,7 @@ const Dashboard = {
                 let rows = pur.map(p => `
                     <tr>
                         <td>${U.escapeHTML(p.supplier_name || 'غير معروف')}</td>
-                        <td>${new Date(p.date || Date.now()).toLocaleDateString('ar-EG')}</td>
+                        <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(p.total)}</td>
                         <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
                     </tr>
@@ -250,12 +277,13 @@ const Dashboard = {
                 this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
+        console.log('✔️ الجداول تم عرضها');
     },
 
     renderChart() {
+        console.log('8️⃣ renderChart');
         if (!this.el.salesChart) return;
-        // لو مفيش بيانات كافية، أخفي الكانفاس وأظهر رسالة
-        if (!this.state.chartData || this.state.chartData.length === 0) {
+        if (!this.state.chartData.length) {
             if (this.el.chartError) {
                 this.el.chartError.style.display = 'block';
                 this.el.chartError.textContent = 'لا توجد بيانات كافية للرسم البياني';
@@ -263,7 +291,6 @@ const Dashboard = {
             return;
         }
         if (this.el.chartError) this.el.chartError.style.display = 'none';
-
         if (this._chart) this._chart.destroy();
         const ctx = this.el.salesChart.getContext('2d');
         this._chart = new Chart(ctx, {
@@ -283,14 +310,10 @@ const Dashboard = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: v => U.formatMoney(v) }
-                    }
-                }
+                scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
             }
         });
+        console.log('✔️ الرسم البياني تم');
     },
 
     _prepareChart(invoices) {
@@ -300,14 +323,8 @@ const Dashboard = {
             const d = new Date(now);
             d.setDate(d.getDate() - i);
             const ds = d.toISOString().split('T')[0];
-            const total = invoices
-                .filter(inv => inv.date === ds && inv.type === 'sale')
-                .reduce((s, inv) => s + (inv.total || 0), 0);
-            days.push({
-                date: ds,
-                label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }),
-                total: U.round(total)
-            });
+            const total = invoices.filter(inv => inv.date === ds && inv.type === 'sale').reduce((s, inv) => s + (inv.total || 0), 0);
+            days.push({ date: ds, label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }), total: U.round(total) });
         }
         return days;
     },
@@ -318,15 +335,16 @@ const Dashboard = {
         for (let i = 29; i >= 0; i--) {
             const d = new Date(now);
             d.setDate(d.getDate() - i);
-            days.push({
-                date: d.toISOString().split('T')[0],
-                label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }),
-                total: Math.floor(Math.random() * 5000) + 500
-            });
+            days.push({ date: d.toISOString().split('T')[0], label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }), total: Math.floor(Math.random() * 5000) + 500 });
         }
         return days;
     }
 };
 
-// تشغيل الصفحة
+// بدء التشغيل عند تحميل الصفحة
 window.addEventListener('DOMContentLoaded', () => Dashboard.init());
+
+// سحب للتحديث
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+}
