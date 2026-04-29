@@ -1,6 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (إصدار محسّن)
-   يعمل مع الصفحة الجديدة بدون ملفات CSS خارجية
+   dashboard.js - لوحة التحكم (مستقل)
    ============================================= */
 'use strict';
 
@@ -9,11 +8,7 @@ console.log('✅ لوحة التحكم – بدء التحميل');
 // الأدوات المساعدة
 const U = {
     formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
-    escapeHTML: (s) => {
-        const d = document.createElement('div');
-        d.appendChild(document.createTextNode(s));
-        return d.innerHTML;
-    },
+    escapeHTML: (s) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; },
     today: () => new Date().toISOString().split('T')[0],
     round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d)
 };
@@ -29,25 +24,23 @@ const Dashboard = {
         recentPurchases: []
     },
 
-    init() {
+    async init() {
         console.log('1️⃣ تهيئة Dashboard');
         this.cacheDOM();
         this.bindEvents();
         this.setDate();
 
-        // فحص وجود Supabase + DB
-        this.state.ready = !!(window.supabase && window.DB);
-        console.log('هل النظام جاهز؟', this.state.ready);
+        // انتظار تجهيز DB (Supabase + Offline)
+        await this.waitForDB();
+        console.log('هل DB جاهز؟', this.state.ready);
 
         if (window.App) {
             App.requireAuth();
             App.initUserInterface();
         }
 
-        // عرض البطاقات والجداول الفارغة أولاً
         this.renderStats();
         this.renderTables();
-        // ثم تحميل البيانات الحقيقية
         this.loadAllData();
     },
 
@@ -85,7 +78,7 @@ const Dashboard = {
             this.loadAllData();
         });
 
-        // تحديث عند العودة للصفحة (visibility change)
+        // تحديث عند العودة للصفحة
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 this.loadAllData();
@@ -115,6 +108,30 @@ const Dashboard = {
         this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
+    // انتظار تحميل DB (Supabase) أو الاستسلام بعد 5 ثوانٍ
+    waitForDB() {
+        return new Promise(resolve => {
+            if (window.DB && window.supabase) {
+                this.state.ready = true;
+                return resolve();
+            }
+            let attempts = 0;
+            const check = setInterval(() => {
+                if (window.DB && window.supabase) {
+                    this.state.ready = true;
+                    clearInterval(check);
+                    resolve();
+                }
+                if (++attempts > 50) {
+                    clearInterval(check);
+                    console.warn('لم يتم تحميل DB، سيتم استخدام IndexedDB');
+                    if (window.localDB) this.state.ready = 'local';
+                    resolve();
+                }
+            }, 100);
+        });
+    },
+
     async loadAllData() {
         console.log('3️⃣ بدء تحميل البيانات');
         this.toggleLoading(true);
@@ -138,31 +155,29 @@ const Dashboard = {
     },
 
     async loadStats() {
-        console.log('5️⃣ تحميل الإحصائيات...');
-        // لو DB مش موجود، استخدم بيانات وهمية للتجربة
-        if (!this.state.ready) {
-            this.state.stats = {
-                salesToday: 12500,
-                purchasesToday: 4530,
-                customers: 45,
-                products: 120,
-                cash: 28000
-            };
-            this.state.chartData = this._dummyChart();
-            console.log('🧪 تم استخدام بيانات وهمية');
-            return;
-        }
-
         try {
             const today = U.today();
-            const [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                DB.getInvoices().catch(() => []),
-                DB.getPurchases().catch(() => []),
-                DB.getParties('customer').catch(() => []),
-                DB.getProducts().catch(() => []),
-                DB.getTransactions().catch(() => []),
-                DB.getSettings().catch(() => ({}))
-            ]);
+            let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
+
+            if (this.state.ready === true) {
+                [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                    DB.getInvoices().catch(()=>[]),
+                    DB.getPurchases().catch(()=>[]),
+                    DB.getParties('customer').catch(()=>[]),
+                    DB.getProducts().catch(()=>[]),
+                    DB.getTransactions().catch(()=>[]),
+                    DB.getSettings().catch(()=>({}))
+                ]);
+            } else if (window.localDB) {
+                invoices = await localDB.getAll('invoices') || [];
+                purchases = await localDB.getAll('purchases') || [];
+                const allParties = await localDB.getAll('parties') || [];
+                parties = allParties.filter(p => p.type === 'customer');
+                products = await localDB.getAll('products') || [];
+                transactions = await localDB.getAll('transactions') || [];
+                const s = await localDB.getById('settings', 'main');
+                settings = s?.data || {};
+            }
 
             console.log('📦 الفواتير:', invoices.length, 'المشتريات:', purchases.length, 'العملاء:', parties.length, 'المنتجات:', products.length);
 
@@ -181,45 +196,37 @@ const Dashboard = {
             this.state.stats.cash = U.round(openingBalance + income - expense);
 
             this.state.chartData = this._prepareChart(invoices);
-            console.log('✔️ الإحصائيات: ', this.state.stats);
         } catch (e) {
             console.error('فشل loadStats:', e);
         }
     },
 
     async loadRecentInvoices() {
-        if (!this.state.ready) {
-            this.state.recentInvoices = [
-                { invoice_number: '28-0005', customer_name: 'أحمد محمد', date: U.today(), total: 1500, status: 'paid' }
-            ];
-            return;
-        }
         try {
-            const invs = await DB.getInvoices().catch(() => []);
-            this.state.recentInvoices = invs
-                .filter(i => i.type === 'sale')
-                .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                .slice(0, 5);
+            if (this.state.ready === true) {
+                const invs = await DB.getInvoices().catch(()=>[]);
+                this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            } else if (window.localDB) {
+                const invs = await localDB.getAll('invoices') || [];
+                this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            }
         } catch (e) {}
     },
 
     async loadRecentPurchases() {
-        if (!this.state.ready) {
-            this.state.recentPurchases = [
-                { supplier_name: 'شركة الأمل', date: U.today(), total: 4500, status: 'paid' }
-            ];
-            return;
-        }
         try {
-            const pur = await DB.getPurchases().catch(() => []);
-            this.state.recentPurchases = pur
-                .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                .slice(0, 5);
+            if (this.state.ready === true) {
+                const pur = await DB.getPurchases().catch(()=>[]);
+                this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            } else if (window.localDB) {
+                const pur = await localDB.getAll('purchases') || [];
+                this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            }
         } catch (e) {}
     },
 
     renderStats() {
-        console.log('6️⃣ renderStats');
+        console.log('5️⃣ renderStats');
         if (!this.el.statsGrid) return;
         const s = this.state.stats;
         const cards = [
@@ -242,7 +249,7 @@ const Dashboard = {
     },
 
     renderTables() {
-        console.log('7️⃣ renderTables');
+        console.log('6️⃣ renderTables');
         if (this.el.recentInvoices) {
             const invs = this.state.recentInvoices;
             if (!invs.length) {
@@ -281,7 +288,7 @@ const Dashboard = {
     },
 
     renderChart() {
-        console.log('8️⃣ renderChart');
+        console.log('7️⃣ renderChart');
         if (!this.el.salesChart) return;
         if (!this.state.chartData.length) {
             if (this.el.chartError) {
@@ -327,24 +334,13 @@ const Dashboard = {
             days.push({ date: ds, label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }), total: U.round(total) });
         }
         return days;
-    },
-
-    _dummyChart() {
-        const days = [];
-        const now = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            days.push({ date: d.toISOString().split('T')[0], label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }), total: Math.floor(Math.random() * 5000) + 500 });
-        }
-        return days;
     }
 };
 
 // بدء التشغيل عند تحميل الصفحة
 window.addEventListener('DOMContentLoaded', () => Dashboard.init());
 
-// سحب للتحديث
+// Service Worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./service-worker.js').catch(() => {});
 }
