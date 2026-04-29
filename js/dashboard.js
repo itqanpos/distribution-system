@@ -1,9 +1,13 @@
 'use strict';
 
-// الأدوات المساعدة (موجودة ضمن Utils العامة، لكن نتأكد)
+// الأدوات المساعدة
 const U = window.Utils || {
-    formatMoney: (v) => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
-    escapeHTML: (s) => (String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]),
+    formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
+    escapeHTML: (s) => {
+        const d = document.createElement('div');
+        d.appendChild(document.createTextNode(s));
+        return d.innerHTML;
+    },
     today: () => new Date().toISOString().split('T')[0],
     round: (v, d=2) => Number(Math.round(v+'e'+d)+'e-'+d)
 };
@@ -13,7 +17,13 @@ const Dashboard = {
     state: {
         ready: false,
         loading: false,
-        stats: { salesToday:0, purchasesToday:0, customers:0, products:0, cash:0 },
+        stats: {
+            salesToday: 0,
+            purchasesToday: 0,
+            customers: 0,
+            products: 0,
+            cash: 0
+        },
         chartData: [],
         recentInvoices: [],
         recentPurchases: []
@@ -24,12 +34,16 @@ const Dashboard = {
         this.bindEvents();
         this.setDate();
         this.state.ready = !!(window.DB && window.supabase);
-        
+
         if (window.App) {
             if (!App.requireAuth()) return;
             App.initUserInterface();
         }
-        this.loadAllData();
+
+        // تحميل البيانات فوراً مع إظهار القيم الافتراضية
+        this.renderStats();       // عرض الأصفار الأولية
+        this.renderTables();      // جداول فارغة
+        this.loadAllData();       // ثم تحميل البيانات الحقيقية
     },
 
     cacheDOM() {
@@ -74,7 +88,7 @@ const Dashboard = {
         this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    // -------- تحميل البيانات الرئيسية --------
+    // ------- تحميل البيانات (مع ضمان وجود قيم افتراضية حتى لو فشل) -------
     async loadAllData() {
         this.toggleLoading(true);
         try {
@@ -83,23 +97,26 @@ const Dashboard = {
                 this.loadRecentInvoices(),
                 this.loadRecentPurchases()
             ]);
+        } catch (e) {
+            console.error('خطأ عام في تحميل البيانات:', e);
+            this.toast('بعض البيانات لم تحمل');
+        } finally {
+            this.toggleLoading(false);
             this.renderStats();
             this.renderTables();
             this.renderChart();
-        } catch (e) {
-            console.error(e);
-            this.toast('تعذر تحميل بعض البيانات');
-        } finally {
-            this.toggleLoading(false);
         }
     },
 
     async loadStats() {
-        // لو DB مش موجود، استخدم بيانات وهمية
+        // لو النظام مش جاهز، استخدم بيانات وهمية للعرض التجريبي
         if (!this.state.ready) {
             this.state.stats = {
-                salesToday: 12500, purchasesToday: 4530,
-                customers: 45, products: 120, cash: 28000
+                salesToday: 12500,
+                purchasesToday: 4530,
+                customers: 45,
+                products: 120,
+                cash: 28000
             };
             this.state.chartData = this._dummyChart();
             return;
@@ -107,6 +124,7 @@ const Dashboard = {
 
         try {
             const today = U.today();
+            // نجيب البيانات، كل دالة محمية بـ .catch(() => [])
             const [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
                 DB.getInvoices().catch(() => []),
                 DB.getPurchases().catch(() => []),
@@ -117,24 +135,23 @@ const Dashboard = {
             ]);
 
             const todayInvoices = invoices.filter(inv => inv.date === today && inv.type === 'sale');
-            this.state.stats.salesToday = U.round(todayInvoices.reduce((s, inv) => s + (inv.total||0), 0));
-            
+            this.state.stats.salesToday = U.round(todayInvoices.reduce((s, inv) => s + (inv.total || 0), 0));
+
             const todayPurchases = purchases.filter(p => p.date === today);
-            this.state.stats.purchasesToday = U.round(todayPurchases.reduce((s, p) => s + (p.total||0), 0));
-            
+            this.state.stats.purchasesToday = U.round(todayPurchases.reduce((s, p) => s + (p.total || 0), 0));
+
             this.state.stats.customers = parties.length;
             this.state.stats.products = products.length;
-            
-            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount||0), 0);
-            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount||0), 0);
-            this.state.stats.cash = U.round((settings.openingBalance||0) + income - expense);
-            
+
+            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
+            this.state.stats.cash = U.round((settings.openingBalance || 0) + income - expense);
+
             this.state.chartData = this._prepareChart(invoices);
+
         } catch (e) {
-            console.warn('فشل تحميل الإحصائيات', e);
-            // استخدم بيانات افتراضية عند الخطأ
-            this.state.stats = { salesToday:0, purchasesToday:0, customers:0, products:0, cash:0 };
-            this.state.chartData = [];
+            console.warn('فشل تحميل الإحصائيات:', e);
+            // ترك القيم صفرية مع عرضها
         }
     },
 
@@ -147,7 +164,8 @@ const Dashboard = {
         }
         try {
             const invs = await DB.getInvoices().catch(() => []);
-            this.state.recentInvoices = invs.filter(i => i.type === 'sale')
+            this.state.recentInvoices = invs
+                .filter(i => i.type === 'sale')
                 .sort((a,b) => (b.date||'').localeCompare(a.date||''))
                 .slice(0, 5);
         } catch (e) {
@@ -164,13 +182,15 @@ const Dashboard = {
         }
         try {
             const pur = await DB.getPurchases().catch(() => []);
-            this.state.recentPurchases = pur.sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,5);
+            this.state.recentPurchases = pur
+                .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                .slice(0, 5);
         } catch (e) {
             this.state.recentPurchases = [];
         }
     },
 
-    // -------- عرض البيانات --------
+    // ------- عرض البيانات (تتعامل مع القيم الفارغة) -------
     renderStats() {
         if (!this.el.statsGrid) return;
         const s = this.state.stats;
@@ -181,6 +201,7 @@ const Dashboard = {
             { title: 'المنتجات', value: s.products, icon: 'fa-boxes', color: '#f59e0b' },
             { title: 'رصيد الصندوق', value: U.formatMoney(s.cash), icon: 'fa-cash-register', color: '#8b5cf6' }
         ];
+
         this.el.statsGrid.innerHTML = cards.map(c => `
             <div class="stat-card" style="border-right: 4px solid ${c.color};">
                 <div class="stat-icon" style="color:${c.color};"><i class="fas ${c.icon}"></i></div>
@@ -194,48 +215,55 @@ const Dashboard = {
 
     renderTables() {
         // آخر الفواتير
-        const invEl = this.el.recentInvoices;
-        if (invEl) {
-            if (!this.state.recentInvoices.length) {
-                invEl.innerHTML = '<div class="empty">لا توجد فواتير</div>';
+        if (this.el.recentInvoices) {
+            const invs = this.state.recentInvoices;
+            if (!invs.length) {
+                this.el.recentInvoices.innerHTML = '<div class="empty">لا توجد فواتير حديثة</div>';
             } else {
-                let rows = this.state.recentInvoices.map(inv => `
+                let rows = invs.map(inv => `
                     <tr>
                         <td>${U.escapeHTML(inv.invoice_number || '')}</td>
                         <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
-                        <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
+                        <td>${new Date(inv.date || Date.now()).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(inv.total)}</td>
                         <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
                     </tr>
                 `).join('');
-                invEl.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
+                this.el.recentInvoices.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
 
         // آخر المشتريات
-        const purEl = this.el.recentPurchases;
-        if (purEl) {
-            if (!this.state.recentPurchases.length) {
-                purEl.innerHTML = '<div class="empty">لا توجد مشتريات</div>';
+        if (this.el.recentPurchases) {
+            const pur = this.state.recentPurchases;
+            if (!pur.length) {
+                this.el.recentPurchases.innerHTML = '<div class="empty">لا توجد مشتريات حديثة</div>';
             } else {
-                let rows = this.state.recentPurchases.map(p => `
+                let rows = pur.map(p => `
                     <tr>
                         <td>${U.escapeHTML(p.supplier_name || 'غير معروف')}</td>
-                        <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
+                        <td>${new Date(p.date || Date.now()).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(p.total)}</td>
                         <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
                     </tr>
                 `).join('');
-                purEl.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
+                this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
     },
 
     renderChart() {
-        if (!this.el.salesChart || !this.state.chartData.length) {
-            if (this.el.chartError) this.el.chartError.style.display = 'block';
+        if (!this.el.salesChart) return;
+        // لو مفيش بيانات كافية، أخفي الكانفاس وأظهر رسالة
+        if (!this.state.chartData || this.state.chartData.length === 0) {
+            if (this.el.chartError) {
+                this.el.chartError.style.display = 'block';
+                this.el.chartError.textContent = 'لا توجد بيانات كافية للرسم البياني';
+            }
             return;
         }
+        if (this.el.chartError) this.el.chartError.style.display = 'none';
+
         if (this._chart) this._chart.destroy();
         const ctx = this.el.salesChart.getContext('2d');
         this._chart = new Chart(ctx, {
@@ -255,7 +283,12 @@ const Dashboard = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => U.formatMoney(v) }
+                    }
+                }
             }
         });
     },
@@ -263,14 +296,16 @@ const Dashboard = {
     _prepareChart(invoices) {
         const days = [];
         const now = new Date();
-        for (let i=29; i>=0; i--) {
-            const d = new Date(now); d.setDate(d.getDate()-i);
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
             const ds = d.toISOString().split('T')[0];
-            const total = invoices.filter(inv => inv.date===ds && inv.type==='sale')
-                .reduce((s, inv) => s + (inv.total||0), 0);
+            const total = invoices
+                .filter(inv => inv.date === ds && inv.type === 'sale')
+                .reduce((s, inv) => s + (inv.total || 0), 0);
             days.push({
                 date: ds,
-                label: d.toLocaleDateString('ar-EG', { day:'numeric', month:'short' }),
+                label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }),
                 total: U.round(total)
             });
         }
@@ -278,17 +313,20 @@ const Dashboard = {
     },
 
     _dummyChart() {
-        const days = [], now = new Date();
-        for (let i=29; i>=0; i--) {
-            const d = new Date(now); d.setDate(d.getDate()-i);
+        const days = [];
+        const now = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
             days.push({
                 date: d.toISOString().split('T')[0],
-                label: d.toLocaleDateString('ar-EG', { day:'numeric', month:'short' }),
-                total: Math.floor(Math.random()*5000)+500
+                label: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }),
+                total: Math.floor(Math.random() * 5000) + 500
             });
         }
         return days;
     }
 };
 
+// تشغيل الصفحة
 window.addEventListener('DOMContentLoaded', () => Dashboard.init());
