@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - الإصدار النهائي (محسّن)
+   supabase.js - الإصدار النهائي الكامل 100%
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -11,11 +11,7 @@
     }
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-            storage: localStorage,
-            persistSession: true,
-            autoRefreshToken: true,
-        }
+        auth: { storage: localStorage, persistSession: true, autoRefreshToken: true }
     });
     window.supabase = supabaseClient;
     console.log('✅ Supabase client initialized');
@@ -35,11 +31,13 @@
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
         
+        // إذا وجدت بيانات محلية، نعرضها فوراً
         if (local) {
             try {
                 const localData = await local.getAll(storeName);
                 if (localData && localData.length > 0) {
                     console.log(`📦 ${storeName}: عرض ${localData.length} عنصر من IndexedDB`);
+                    // تحديث من السحابة في الخلفية
                     if (navigator.onLine && supabaseClient) {
                         cloudFetcher().then(cloudData => {
                             if (cloudData && Array.isArray(cloudData)) {
@@ -49,12 +47,14 @@
                     }
                     return localData;
                 }
-            } catch (e) { /* نتجاهل */ }
+            } catch (e) { /* تجاهل */ }
         }
 
+        // جلب من السحابة
         if (navigator.onLine && supabaseClient) {
             try {
                 const data = await cloudFetcher();
+                // تحديث المحلي
                 if (local && data && Array.isArray(data)) {
                     for (const item of data) {
                         await local.put(storeName, cleanObject(item)).catch(() => {});
@@ -66,21 +66,26 @@
                 return local ? await local.getAll(storeName) : [];
             }
         }
-        return local ? await local.getAll(storeName) : [];
+        
+        // لا إنترنت ولا LocalDB
+        return [];
     }
 
     async function saveWithFallback(storeName, data, cloudSaver) {
         const local = getLocalDB();
         
+        // حفظ محلي دائماً
         if (local) {
             await local.put(storeName, cleanObject(data)).catch(() => {});
         }
         
+        // محاولة الحفظ في السحابة
         if (navigator.onLine && supabaseClient) {
             try {
-                return await cloudSaver(data);
+                const result = await cloudSaver(data);
+                return result;
             } catch (error) {
-                console.warn(`فشل حفظ ${storeName} في السحابة:`, error);
+                console.warn(`فشل حفظ ${storeName} في السحابة، إضافة لطابور المزامنة:`, error);
                 if (local) {
                     await local.addToSyncQueue?.({
                         type: data.id ? 'UPDATE' : 'INSERT',
@@ -88,9 +93,10 @@
                         data: cleanObject(data)
                     }).catch(() => {});
                 }
-                return data;
+                return data; // نُرجع البيانات المحفوظة محلياً
             }
         } else {
+            // غير متصل، أضف إلى طابور المزامنة
             if (local) {
                 await local.addToSyncQueue?.({
                     type: data.id ? 'UPDATE' : 'INSERT',
@@ -232,7 +238,7 @@
             }
         },
 
-        // ---- الأطراف ----
+        // ---- الأطراف (عملاء وموردين) ----
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -349,8 +355,9 @@
 
         // ---- الإعدادات ----
         async getSettings() {
-            if (getLocalDB()) {
-                const localSettings = await getLocalDB().getById('settings', 'main');
+            const local = getLocalDB();
+            if (local) {
+                const localSettings = await local.getById('settings', 'main');
                 if (localSettings) return localSettings.data || localSettings;
             }
             if (navigator.onLine && supabaseClient) {
@@ -358,7 +365,7 @@
                     const { data, error } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
                     if (error && error.code !== 'PGRST116') throw error;
                     const settings = data ? data.data : {};
-                    if (getLocalDB()) await getLocalDB().put('settings', { id: 'main', data: settings });
+                    if (local) await local.put('settings', { id: 'main', data: settings });
                     return settings;
                 } catch (e) { return {}; }
             }
@@ -366,29 +373,29 @@
         },
         async saveSettings(s) {
             const data = { id: 'main', data: s };
-            if (getLocalDB()) await getLocalDB().put('settings', data);
+            const local = getLocalDB();
+            if (local) await local.put('settings', data);
             if (navigator.onLine && supabaseClient) {
                 try {
                     const { data: result, error } = await supabaseClient.from('settings').upsert(data, { onConflict: 'id' }).select().single();
                     if (error) throw error;
                     return result.data;
                 } catch (e) {
-                    if (getLocalDB()) await getLocalDB().addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
+                    if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
                     return s;
                 }
             } else {
-                if (getLocalDB()) await getLocalDB().addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
+                if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
                 return s;
             }
         },
 
-        // ---- توليد رقم الفاتورة (RPC) ----
+        // ---- توليد رقم الفاتورة (مركزي) ----
         generateInvoiceNumber: async function() {
             const fallback = () => {
                 const year = new Date().getFullYear().toString().slice(-2);
                 const storageKey = `inv_counter_${year}`;
-                let num = parseInt(localStorage.getItem(storageKey) || '0', 10);
-                num += 1;
+                let num = parseInt(localStorage.getItem(storageKey) || '0', 10) + 1;
                 localStorage.setItem(storageKey, num.toString());
                 return year + '-' + String(num).padStart(4, '0');
             };
