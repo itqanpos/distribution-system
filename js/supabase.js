@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - إصدار كامل ومتين مع دعم Offline
+   supabase.js - الإصدار النهائي (محسّن)
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -23,63 +23,57 @@
     // ==================== الأدوات المساعدة ====================
     function cleanObject(obj) {
         const cleaned = { ...obj };
-        delete cleaned.updated_at; // إزالة أي updated_at غير موجود في بعض الجداول
+        delete cleaned.updated_at;
         return cleaned;
     }
 
-    // ==================== طبقة Offline الآمنة ====================
     function getLocalDB() {
         return (window.localDB && window.localDB.ready) ? window.localDB : null;
     }
 
+    // ==================== طبقة Offline ====================
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
         
-        // ✅ إذا كان هناك تخزين محلي جاهز، اقرأ منه أولاً (لأداء أفضل)
         if (local) {
             try {
                 const localData = await local.getAll(storeName);
                 if (localData && localData.length > 0) {
                     console.log(`📦 ${storeName}: عرض ${localData.length} عنصر من IndexedDB`);
-                    // تحديث في الخلفية من السحابة
-                    if (navigator.onLine) {
+                    if (navigator.onLine && supabaseClient) {
                         cloudFetcher().then(cloudData => {
-                            if (cloudData) {
-                                cloudData.forEach(item => local.put(storeName, cleanObject(item)).catch(()=>{}));
+                            if (cloudData && Array.isArray(cloudData)) {
+                                cloudData.forEach(item => local.put(storeName, cleanObject(item)).catch(() => {}));
                             }
-                        }).catch(()=>{});
+                        }).catch(() => {});
                     }
                     return localData;
                 }
-            } catch (e) { /* نتجاهل أخطاء IndexedDB */ }
+            } catch (e) { /* نتجاهل */ }
         }
 
-        // ✅ لا توجد بيانات محلية أو فشلت، نجلب من السحابة
         if (navigator.onLine && supabaseClient) {
             try {
                 const data = await cloudFetcher();
                 if (local && data && Array.isArray(data)) {
                     for (const item of data) {
-                        await local.put(storeName, cleanObject(item)).catch(()=>{});
+                        await local.put(storeName, cleanObject(item)).catch(() => {});
                     }
                 }
                 return data;
             } catch (error) {
                 console.warn(`فشل جلب ${storeName} من السحابة:`, error);
-                return [];
+                return local ? await local.getAll(storeName) : [];
             }
-        } else {
-            // لا إنترنت ولا LocalDB: إرجاع مصفوفة فارغة
-            return [];
         }
+        return local ? await local.getAll(storeName) : [];
     }
 
     async function saveWithFallback(storeName, data, cloudSaver) {
         const local = getLocalDB();
         
-        // ✅ حفظ محلي دائماً (إن أمكن)
         if (local) {
-            await local.put(storeName, cleanObject(data)).catch(()=>{});
+            await local.put(storeName, cleanObject(data)).catch(() => {});
         }
         
         if (navigator.onLine && supabaseClient) {
@@ -92,7 +86,7 @@
                         type: data.id ? 'UPDATE' : 'INSERT',
                         table: storeName,
                         data: cleanObject(data)
-                    }).catch(()=>{});
+                    }).catch(() => {});
                 }
                 return data;
             }
@@ -102,7 +96,7 @@
                     type: data.id ? 'UPDATE' : 'INSERT',
                     table: storeName,
                     data: cleanObject(data)
-                }).catch(()=>{});
+                }).catch(() => {});
             }
             return data;
         }
@@ -114,20 +108,23 @@
             try {
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
+
                 const { data: profile } = await supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', data.user.id)
                     .single();
+
                 const session = {
                     id: data.user.id,
                     email: data.user.email,
                     fullName: profile?.full_name || data.user.email,
                     role: profile?.role || 'rep',
                     avatar: profile?.full_name?.charAt(0).toUpperCase() || 'U',
-                    loginTime: new Date().toLocaleString('en-US')
+                    loginTime: new Date().toLocaleString('ar-EG')
                 };
                 localStorage.setItem('app_session', JSON.stringify(session));
+
                 const redirectUrl = session.role === 'admin' ? './dashboard.html' : './pos.html';
                 return { success: true, redirectUrl, user: session };
             } catch (err) {
@@ -139,10 +136,12 @@
         async signup(email, password, fullName, role = 'rep') {
             try {
                 const { data, error } = await supabaseClient.auth.signUp({
-                    email, password,
+                    email,
+                    password,
                     options: { data: { full_name: fullName } }
                 });
                 if (error) throw error;
+
                 if (data.user) {
                     await supabaseClient.from('profiles').upsert({
                         id: data.user.id,
@@ -150,6 +149,7 @@
                         role: role
                     }, { onConflict: 'id' });
                 }
+
                 return { success: true, message: 'تم إنشاء الحساب.' };
             } catch (err) {
                 return { success: false, message: err.message };
@@ -177,28 +177,15 @@
 
         requireRole(allowedRoles) {
             const user = this.getCurrentUser();
-            if (!user) { window.location.href = './index.html'; return false; }
+            if (!user) {
+                window.location.href = './index.html';
+                return false;
+            }
             const userRole = (user.role || '').toLowerCase();
             const allowed = allowedRoles.map(r => r.toLowerCase());
             if (!allowed.includes(userRole)) {
                 alert('غير مسموح لك بالوصول إلى هذه الصفحة');
                 window.location.href = userRole === 'admin' ? './dashboard.html' : './pos.html';
-                return false;
-            }
-            return true;
-        },
-
-        hasPermission(permission) {
-            const user = this.getCurrentUser();
-            if (!user) return false;
-            if (user.role === 'admin') return true;
-            const repPermissions = ['pos', 'view_products', 'view_customers', 'view_invoices', 'view_sales', 'view_reports', 'create_invoice', 'hold_invoice', 'return_sale'];
-            return repPermissions.includes(permission);
-        },
-
-        requirePermission(permission) {
-            if (!this.hasPermission(permission)) {
-                alert('ليس لديك صلاحية لتنفيذ هذا الإجراء.');
                 return false;
             }
             return true;
@@ -238,14 +225,14 @@
         },
         async deleteProduct(id) {
             const local = getLocalDB();
-            if (local) await local.delete('products', id).catch(()=>{});
+            if (local) await local.delete('products', id).catch(() => {});
             if (navigator.onLine) {
                 const { error } = await supabaseClient.from('products').delete().eq('id', id);
                 if (error) throw error;
             }
         },
 
-        // ---- الأطراف (عملاء وموردين) ----
+        // ---- الأطراف ----
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -265,7 +252,7 @@
         },
         async deleteParty(id) {
             const local = getLocalDB();
-            if (local) await local.delete('parties', id).catch(()=>{});
+            if (local) await local.delete('parties', id).catch(() => {});
             if (navigator.onLine) {
                 const { error } = await supabaseClient.from('parties').delete().eq('id', id);
                 if (error) throw error;
@@ -287,14 +274,6 @@
                 if (error) throw error;
                 return data;
             });
-        },
-        async deleteRep(id) {
-            const local = getLocalDB();
-            if (local) await local.delete('reps', id).catch(()=>{});
-            if (navigator.onLine) {
-                const { error } = await supabaseClient.from('reps').delete().eq('id', id);
-                if (error) throw error;
-            }
         },
 
         // ---- الفواتير ----
@@ -368,68 +347,18 @@
             });
         },
 
-        // ---- موظفين وسلف ----
-        async getEmployees() {
-            return getWithFallback('employees', async () => {
-                const { data, error } = await supabaseClient.from('employees').select('*').order('name');
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveEmployee(emp) {
-            if (!emp.id) emp.id = crypto.randomUUID();
-            return saveWithFallback('employees', emp, async (employee) => {
-                const { data, error } = await supabaseClient.from('employees').upsert(cleanObject(employee), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-        async getLoans() {
-            return getWithFallback('loans', async () => {
-                const { data, error } = await supabaseClient.from('loans').select('*').order('date', { ascending: false });
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveLoan(l) {
-            if (!l.id) l.id = crypto.randomUUID();
-            return saveWithFallback('loans', l, async (loan) => {
-                const { data, error } = await supabaseClient.from('loans').upsert(cleanObject(loan), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-
-        // ---- المصروفات ----
-        async getExpenses() {
-            return getWithFallback('expenses', async () => {
-                const { data, error } = await supabaseClient.from('expenses').select('*').order('date', { ascending: false });
-                if (error) throw error;
-                return data;
-            });
-        },
-        async saveExpense(exp) {
-            if (!exp.id) exp.id = crypto.randomUUID();
-            return saveWithFallback('expenses', exp, async (expense) => {
-                const { data, error } = await supabaseClient.from('expenses').upsert(cleanObject(expense), { onConflict: 'id' }).select().single();
-                if (error) throw error;
-                return data;
-            });
-        },
-
         // ---- الإعدادات ----
         async getSettings() {
-            const local = getLocalDB();
-            if (local) {
-                const localSettings = await local.getById('settings', 'main');
+            if (getLocalDB()) {
+                const localSettings = await getLocalDB().getById('settings', 'main');
                 if (localSettings) return localSettings.data || localSettings;
             }
-            if (navigator.onLine) {
+            if (navigator.onLine && supabaseClient) {
                 try {
                     const { data, error } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
                     if (error && error.code !== 'PGRST116') throw error;
                     const settings = data ? data.data : {};
-                    if (local) await local.put('settings', { id: 'main', data: settings }).catch(()=>{});
+                    if (getLocalDB()) await getLocalDB().put('settings', { id: 'main', data: settings });
                     return settings;
                 } catch (e) { return {}; }
             }
@@ -437,52 +366,44 @@
         },
         async saveSettings(s) {
             const data = { id: 'main', data: s };
-            const local = getLocalDB();
-            if (local) await local.put('settings', data);
-            if (navigator.onLine) {
+            if (getLocalDB()) await getLocalDB().put('settings', data);
+            if (navigator.onLine && supabaseClient) {
                 try {
                     const { data: result, error } = await supabaseClient.from('settings').upsert(data, { onConflict: 'id' }).select().single();
                     if (error) throw error;
                     return result.data;
                 } catch (e) {
-                    if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data }).catch(()=>{});
+                    if (getLocalDB()) await getLocalDB().addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
                     return s;
                 }
             } else {
-                if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data }).catch(()=>{});
+                if (getLocalDB()) await getLocalDB().addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
                 return s;
             }
         },
 
-        // ---- صلاحيات المستخدم ----
-        async getUserRole(userId) {
-            const local = getLocalDB();
-            if (local) {
-                const profiles = await local.getAll('profiles');
-                const profile = profiles.find(p => p.id === userId);
-                if (profile) return profile.role || 'user';
-            }
-            if (navigator.onLine) {
-                try {
-                    const { data, error } = await supabaseClient.from('profiles').select('role').eq('id', userId).single();
-                    if (error) return 'user';
-                    return data?.role || 'user';
-                } catch (e) { return 'user'; }
-            }
-            return 'user';
-        },
-
-        // ========== توليد رقم الفاتورة ==========
+        // ---- توليد رقم الفاتورة (RPC) ----
         generateInvoiceNumber: async function() {
-            const now = new Date();
-            const year = now.getFullYear().toString().slice(-2);
-            const storageKey = `inv_counter_${year}`;
-            let currentNumber = parseInt(localStorage.getItem(storageKey) || '0', 10);
-            currentNumber += 1;
-            localStorage.setItem(storageKey, currentNumber.toString());
-            return year + '-' + String(currentNumber).padStart(4, '0');
+            const fallback = () => {
+                const year = new Date().getFullYear().toString().slice(-2);
+                const storageKey = `inv_counter_${year}`;
+                let num = parseInt(localStorage.getItem(storageKey) || '0', 10);
+                num += 1;
+                localStorage.setItem(storageKey, num.toString());
+                return year + '-' + String(num).padStart(4, '0');
+            };
+
+            if (navigator.onLine && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.rpc('next_invoice_number');
+                    if (!error && data) return data;
+                } catch (e) {
+                    console.warn('فشل RPC للرقم التسلسلي، استخدام محلي:', e);
+                }
+            }
+            return fallback();
         }
     };
 
-    console.log('✅ نظام حسابي مع دعم Offline متين جاهز');
+    console.log('✅ نظام حسابي مع دعم Offline كامل جاهز');
 })();
