@@ -5,53 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>حسابي · جاري التحميل</title>
     
-    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --gray-600: #475569;
         }
         
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            overscroll-behavior: none;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
         }
         
         .splash-container {
             text-align: center;
-            animation: fadeInScale 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             padding: 20px;
+            animation: fadeInScale 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
         @keyframes fadeInScale {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
         }
         
         .app-icon-wrapper {
             position: relative;
-            width: 140px;
-            height: 140px;
-            margin: 0 auto 30px;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 32px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -59,61 +66,61 @@
         
         .app-icon-bg {
             position: absolute;
-            width: 140px;
-            height: 140px;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            border-radius: 35px;
-            box-shadow: 0 25px 60px rgba(59, 130, 246, 0.35);
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary-light), #06b6d4);
+            border-radius: 30px;
+            box-shadow: 0 24px 48px rgba(59, 130, 246, 0.35);
             animation: pulse 2s infinite;
         }
         
         @keyframes pulse {
-            0%, 100% { box-shadow: 0 25px 60px rgba(59, 130, 246, 0.35); }
-            50% { box-shadow: 0 25px 80px rgba(59, 130, 246, 0.55); }
+            0%, 100% { box-shadow: 0 24px 48px rgba(59, 130, 246, 0.35); }
+            50% { box-shadow: 0 24px 64px rgba(59, 130, 246, 0.55); }
         }
         
-        .app-icon {
+        .app-icon-img {
             position: relative;
             z-index: 1;
-            width: 90px;
-            height: 90px;
+            width: 72px;
+            height: 72px;
             object-fit: contain;
-            border-radius: 20px;
+            border-radius: 16px;
         }
         
         .app-icon-fallback {
             position: relative;
             z-index: 1;
-            font-size: 65px;
+            font-size: 52px;
             color: white;
         }
         
         .app-title {
-            font-size: 40px;
+            font-size: 36px;
             font-weight: 700;
             color: #1e293b;
-            margin-bottom: 10px;
-            letter-spacing: -1px;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
         
         .app-version {
-            color: #64748b;
-            font-size: 16px;
-            margin-bottom: 30px;
+            color: var(--gray-600);
+            font-size: 15px;
+            margin-bottom: 32px;
         }
         
         .loading-bar-container {
-            width: 200px;
+            width: 180px;
             height: 4px;
             background: #e2e8f0;
             border-radius: 2px;
-            margin: 0 auto;
+            margin: 0 auto 24px;
             overflow: hidden;
         }
         
         .loading-bar {
             height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            background: linear-gradient(90deg, var(--primary-light), #06b6d4);
             border-radius: 2px;
             width: 0%;
             animation: loading 1.5s ease-in-out infinite;
@@ -125,16 +132,26 @@
             100% { width: 0%; margin-left: 100%; }
         }
         
+        .status-message {
+            color: var(--gray-600);
+            font-size: 14px;
+            min-height: 20px;
+        }
+        
         .pull-hint {
-            margin-top: 40px;
+            margin-top: 48px;
             color: #94a3b8;
-            font-size: 13px;
+            font-size: 12px;
             opacity: 0;
-            animation: fadeIn 1s ease 1.5s forwards;
+            animation: fadeIn 1s ease 2s forwards;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
         
         @keyframes fadeIn {
-            to { opacity: 0.7; }
+            to { opacity: 0.6; }
         }
         
         .pull-hint i {
@@ -142,51 +159,31 @@
         }
         
         @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-10px); }
-            60% { transform: translateY(-5px); }
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
         }
-        
-        .pull-indicator {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: white;
-            padding: 8px 20px;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            z-index: 999;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        
-        .pull-indicator.visible {
-            opacity: 1;
-        }
-        
-        .status-message {
+
+        .offline-note {
+            display: none;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 10px 16px;
+            border-radius: 12px;
             margin-top: 20px;
-            color: #64748b;
+            font-weight: 500;
             font-size: 14px;
+        }
+        
+        .offline-note.show {
+            display: inline-block;
         }
     </style>
 </head>
 <body>
-    <!-- مؤشر السحب للتحديث -->
-    <div class="pull-indicator" id="pullIndicator">
-        <i class="fas fa-sync-alt"></i>
-        <span>اسحب للتحديث</span>
-    </div>
-    
     <div class="splash-container">
         <div class="app-icon-wrapper">
             <div class="app-icon-bg"></div>
-            <img src="./icons/icon-192x192.png" alt="حسابي" class="app-icon"
+            <img src="./icons/icon-192x192.png" alt="حسابي" class="app-icon-img"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <i class="fas fa-store app-icon-fallback" style="display:none;"></i>
         </div>
@@ -199,32 +196,65 @@
         </div>
         
         <p class="status-message" id="statusMessage">جاري تجهيز البيانات...</p>
+        <div id="offlineNote" class="offline-note">📡 أنت غير متصل - سيتم استخدام البيانات المحلية</div>
         
         <div class="pull-hint">
             <i class="fas fa-arrow-down"></i> اسحب للأسفل للتحديث
         </div>
     </div>
     
-    <!-- تحميل مكتبات Offline أولاً -->
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    
     <script>
-        // ====================== تسجيل Service Worker ======================
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('SW مسجل'))
-                    .catch(err => console.warn('SW فشل', err));
-            });
+        'use strict';
+        
+        const statusEl = document.getElementById('statusMessage');
+        const offlineNote = document.getElementById('offlineNote');
+        
+        // إظهار / تحديث الرسالة
+        function setStatus(msg) {
+            statusEl.textContent = msg;
         }
         
-        // ====================== سحب للتحديث ======================
+        // التحقق من الاتصال
+        if (!navigator.onLine) {
+            offlineNote.classList.add('show');
+            setStatus('وضع غير متصل - جاري تحميل البيانات المحلية...');
+        }
+        
+        // انتظار تجهيز localDB ثم التوجيه
+        async function bootApp() {
+            // انتظار localDB إذا كانت موجودة
+            if (window.localDB && typeof window.localDB.initPromise !== 'undefined') {
+                setStatus('جاري تجهيز التخزين المحلي...');
+                try {
+                    await window.localDB.initPromise;
+                } catch (e) {
+                    console.warn('تجاوز خطأ localDB:', e);
+                }
+            }
+            
+            // تحقق من وجود جلسة سابقة
+            if (window.App && App.getCurrentUser()) {
+                setStatus('جاري تحميل حسابك...');
+                const user = App.getCurrentUser();
+                setTimeout(() => {
+                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
+                }, 800);
+            } else {
+                setStatus('جاري التوجيه لتسجيل الدخول...');
+                setTimeout(() => {
+                    window.location.href = './index.html';
+                }, 800);
+            }
+        }
+        
+        // بدء التطبيق
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(bootApp, 500);
+        });
+        
+        // سحب للتحديث
         let pullStartY = 0, pulling = false;
         const pullThreshold = 100;
-        const pullIndicator = document.getElementById('pullIndicator');
         
         document.addEventListener('touchstart', (e) => {
             if (window.scrollY === 0) {
@@ -235,50 +265,26 @@
         
         document.addEventListener('touchmove', (e) => {
             if (!pulling) return;
-            const currentY = e.touches[0].clientY;
-            if (currentY - pullStartY > 30) {
-                pullIndicator.classList.add('visible');
+            if (e.touches[0].clientY - pullStartY > 50) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        document.addEventListener('touchend', async (e) => {
+        document.addEventListener('touchend', (e) => {
             if (!pulling) return;
             pulling = false;
-            pullIndicator.classList.remove('visible');
             if (e.changedTouches[0].clientY - pullStartY > pullThreshold) {
-                window.location.reload();
+                setStatus('جاري التحديث...');
+                setTimeout(() => window.location.reload(), 300);
             }
         });
         
-        // ====================== دالة بدء التشغيل ======================
-        async function bootApp() {
-            const statusEl = document.getElementById('statusMessage');
-            
-            // انتظار تهيئة localDB إذا وجدت
-            if (window.localDB && window.localDB.initPromise) {
-                statusEl.textContent = 'تجهيز التخزين المحلي...';
-                await window.localDB.initPromise;
-            }
-            
-            // التحقق من وجود جلسة سابقة
-            if (window.App && App.getCurrentUser()) {
-                statusEl.textContent = 'جاري تحميل حسابك...';
-                const user = App.getCurrentUser();
-                setTimeout(() => {
-                    window.location.href = user.role === 'admin' ? './dashboard.html' : './pos.html';
-                }, 1000);
-            } else {
-                statusEl.textContent = 'جاري التوجيه لتسجيل الدخول...';
-                setTimeout(() => {
-                    window.location.href = './index.html';
-                }, 1000);
-            }
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js').catch(() => {});
         }
         
-        // ابدأ بعد تحميل الصفحة مباشرة
-        window.addEventListener('load', bootApp);
-        
+        // حدث التثبيت PWA
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
