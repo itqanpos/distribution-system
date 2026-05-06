@@ -1,9 +1,8 @@
 /* =============================================
-   نظام الطباعة - حسابي (النسخة النهائية)
+   print.js - نظام الطباعة (نهائي 100%)
    ============================================= */
 'use strict';
 
-// الإعدادات الافتراضية
 const defaultPrintSettings = {
     companyName: 'حسابي',
     companyPhone: '',
@@ -48,28 +47,14 @@ function separatorLine(widthChars, char = '─') {
     return line;
 }
 
-/**
- * طباعة إيصال بيع
- */
-window.printSaleReceipt = async function(invoice, customer, items, totals) {
-    const settings = await getPrintSettings();
-    
-    const win = window.open('', '_blank', `width=400,height=700`);
-    if (!win) {
-        alert('الرجاء السماح بالنوافذ المنبثقة للطباعة');
-        return;
-    }
-
-    const { companyName, companyPhone, companyAddress, footerMessage, currency, fontSize, paperWidth } = settings;
+function buildReceiptHTML(invoice, customer, items, totals, settings) {
+    const { companyName, companyPhone, companyAddress, footerMessage, currency, paperWidth } = settings;
     const width = paperWidth;
-    
-    // رقم الفاتورة
-    const invNumber = invoice.invoice_number || invoice.id?.substring(0, 8) || '------';
+    const invNumber = invoice.invoice_number || invoice.id?.substring(0, 8) || '──────';
     const customerName = customer?.name || 'نقدي';
-    
-    // بناء صفوف المنتجات
-    let itemsHtml = '';
-    let totalPieces = 0;
+    const totalPieces = items ? items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
+
+    let itemsRows = '';
     if (items && Array.isArray(items)) {
         items.forEach(item => {
             const productName = item.productName || 'صنف';
@@ -78,9 +63,7 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
             const qty = item.quantity || 0;
             const price = item.price || 0;
             const lineTotal = price * qty;
-            totalPieces += qty;
-            
-            itemsHtml += `
+            itemsRows += `
                 <tr>
                     <td class="col-name">${displayName}</td>
                     <td class="col-qty">${qty}</td>
@@ -91,7 +74,6 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
         });
     }
 
-    // رصيد العميل
     const balance = customer?.balance || 0;
     let balanceHtml = '';
     if (customer && balance !== undefined) {
@@ -106,8 +88,7 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
         `;
     }
 
-    // بناء الإيصال
-    const receiptHtml = `
+    return `
         <div class="receipt">
             <div class="header">${companyName}</div>
             ${companyPhone ? `<div class="sub">${companyPhone}</div>` : ''}
@@ -130,7 +111,7 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
                         <th class="col-total">الإجمالي</th>
                     </tr>
                 </thead>
-                <tbody>${itemsHtml}</tbody>
+                <tbody>${itemsRows}</tbody>
             </table>
             
             <div class="pieces-row">
@@ -154,8 +135,15 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
             <div class="footer">${footerMessage}</div>
         </div>
     `;
+}
 
-    // كتابة HTML
+window.printSaleReceipt = async function(invoice, customer, items, totals) {
+    const settings = await getPrintSettings();
+    const win = window.open('', '_blank', `width=400,height=700`);
+    if (!win) { alert('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
+
+    const receiptHtml = buildReceiptHTML(invoice, customer, items, totals, settings);
+
     win.document.write(`
         <!DOCTYPE html>
         <html dir="rtl">
@@ -164,29 +152,22 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
             <title>إيصال بيع</title>
             <style>
                 @page { margin: 0; size: 80mm auto; }
-                body {
-                    font-family: 'Courier New', monospace;
-                    margin: 0;
-                    padding: 8px 12px;
-                    font-size: ${fontSize}px;
-                    line-height: 1.6;
-                    color: #000;
-                }
+                body { font-family: 'Courier New', monospace; margin: 0; padding: 8px 12px; font-size: ${settings.fontSize}px; line-height: 1.6; color: #000; }
                 .receipt { width: 100%; }
-                .header { text-align: center; font-weight: bold; font-size: ${fontSize + 2}px; margin-bottom: 4px; }
-                .sub { text-align: center; font-size: ${fontSize - 1}px; color: #555; margin-bottom: 2px; }
+                .header { text-align: center; font-weight: bold; font-size: ${settings.fontSize + 2}px; margin-bottom: 4px; }
+                .sub { text-align: center; font-size: ${settings.fontSize - 1}px; color: #555; margin-bottom: 2px; }
                 .line { text-align: center; margin: 10px 0; letter-spacing: 2px; }
                 .info-row { display: flex; justify-content: space-between; margin: 6px 0; }
                 .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                .items-table th { background: #f0f0f0; padding: 6px 4px; border-bottom: 2px solid #000; text-align: center; font-size: ${fontSize - 1}px; }
-                .items-table td { padding: 5px 4px; border-bottom: 1px dashed #ccc; font-size: ${fontSize}px; }
+                .items-table th { background: #f0f0f0; padding: 6px 4px; border-bottom: 2px solid #000; text-align: center; font-size: ${settings.fontSize - 1}px; }
+                .items-table td { padding: 5px 4px; border-bottom: 1px dashed #ccc; font-size: ${settings.fontSize}px; }
                 .col-name { text-align: right; }
                 .col-qty { text-align: center; }
                 .col-price { text-align: right; }
                 .col-total { text-align: right; font-weight: bold; }
                 .pieces-row { display: flex; justify-content: space-between; margin: 6px 0; font-weight: bold; }
                 .sum-row { display: flex; justify-content: space-between; margin: 6px 0; }
-                .sum-row.big { font-weight: bold; font-size: ${fontSize + 2}px; }
+                .sum-row.big { font-weight: bold; font-size: ${settings.fontSize + 2}px; }
                 .positive { color: #16a34a; }
                 .negative { color: #dc2626; }
                 .footer { text-align: center; margin-top: 16px; padding-top: 10px; border-top: 1px dashed #000; font-style: italic; }
@@ -195,27 +176,19 @@ window.printSaleReceipt = async function(invoice, customer, items, totals) {
         </head>
         <body>
             ${receiptHtml}
-            <script>
-                window.onload = function() {
-                    window.print();
-                    setTimeout(function() { window.close(); }, 500);
-                };
-            <\/script>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };<\/script>
         </body>
         </html>
     `);
     win.document.close();
 };
 
-/**
- * طباعة أمر شراء
- */
 window.printPurchaseOrder = async function(purchase) {
     const settings = await getPrintSettings();
     const win = window.open('', '_blank', `width=400,height=700`);
     if (!win) return alert('الرجاء السماح بالنوافذ المنبثقة');
 
-    const { companyName, currency, fontSize, paperWidth } = settings;
+    const { companyName, currency, fontSize } = settings;
     const invNumber = purchase.invoice_number || purchase.id?.substring(0, 8) || '------';
 
     let itemsHtml = '';
@@ -229,7 +202,6 @@ window.printPurchaseOrder = async function(purchase) {
             const price = item.price || 0;
             const lineTotal = price * qty;
             totalPieces += qty;
-            
             itemsHtml += `
                 <tr>
                     <td class="col-name">${displayName}</td>
@@ -244,41 +216,18 @@ window.printPurchaseOrder = async function(purchase) {
     const receiptHtml = `
         <div class="receipt">
             <div class="header">${companyName} - أمر شراء</div>
-            
-            <div class="line">${separatorLine(paperWidth, '═')}</div>
-            
+            <div class="line">${separatorLine(settings.paperWidth, '═')}</div>
             <div class="info-row"><span>رقم الفاتورة:</span> <strong>${invNumber}</strong></div>
             <div class="info-row"><span>التاريخ:</span> ${purchase.date || ''}</div>
             <div class="info-row"><span>المورد:</span> ${purchase.supplier_name || 'غير معروف'}</div>
-            
-            <div class="line">${separatorLine(paperWidth, '─')}</div>
-            
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th class="col-name">الصنف</th>
-                        <th class="col-qty">الكمية</th>
-                        <th class="col-price">السعر</th>
-                        <th class="col-total">الإجمالي</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
-            
-            <div class="pieces-row">
-                <span>عدد القطع:</span>
-                <strong>${totalPieces}</strong>
-            </div>
-            
-            <div class="line">${separatorLine(paperWidth, '─')}</div>
-            
+            <div class="line">${separatorLine(settings.paperWidth, '─')}</div>
+            <table class="items-table"><thead><tr><th class="col-name">الصنف</th><th class="col-qty">الكمية</th><th class="col-price">السعر</th><th class="col-total">الإجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+            <div class="pieces-row"><span>عدد القطع:</span> <strong>${totalPieces}</strong></div>
+            <div class="line">${separatorLine(settings.paperWidth, '─')}</div>
             <div class="sum-row big"><span>الإجمالي:</span> <span>${formatMoney(purchase.total || 0, currency)}</span></div>
-            
-            <div class="line">${separatorLine(paperWidth, '─')}</div>
-            
+            <div class="line">${separatorLine(settings.paperWidth, '─')}</div>
             <div class="info-row"><span>المدفوع:</span> <span>${formatMoney(purchase.paid || 0, currency)}</span></div>
             <div class="info-row"><span>المتبقي:</span> <span>${formatMoney(purchase.remaining || 0, currency)}</span></div>
-            
             <div class="footer">تم استلام البضاعة بحالة جيدة</div>
         </div>
     `;
@@ -291,14 +240,7 @@ window.printPurchaseOrder = async function(purchase) {
             <title>أمر شراء</title>
             <style>
                 @page { margin: 0; size: 80mm auto; }
-                body {
-                    font-family: 'Courier New', monospace;
-                    margin: 0;
-                    padding: 8px 12px;
-                    font-size: ${fontSize}px;
-                    line-height: 1.6;
-                    color: #000;
-                }
+                body { font-family: 'Courier New', monospace; margin: 0; padding: 8px 12px; font-size: ${fontSize}px; line-height: 1.6; color: #000; }
                 .receipt { width: 100%; }
                 .header { text-align: center; font-weight: bold; font-size: ${fontSize + 2}px; margin-bottom: 4px; }
                 .line { text-align: center; margin: 10px 0; letter-spacing: 2px; }
@@ -319,128 +261,11 @@ window.printPurchaseOrder = async function(purchase) {
         </head>
         <body>
             ${receiptHtml}
-            <script>
-                window.onload = function() {
-                    window.print();
-                    setTimeout(function() { window.close(); }, 500);
-                };
-            <\/script>
+            <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };<\/script>
         </body>
         </html>
     `);
     win.document.close();
 };
 
-/**
- * طباعة كشف حساب عميل (اختياري)
- */
-window.printCustomerStatement = async function(customer, invoices, payments) {
-    const settings = await getPrintSettings();
-    const win = window.open('', '_blank', `width=400,height=700`);
-    if (!win) return alert('الرجاء السماح بالنوافذ المنبثقة');
-
-    const { companyName, currency, fontSize, paperWidth } = settings;
-
-    let rows = '';
-    // صفوف الفواتير
-    if (invoices && Array.isArray(invoices)) {
-        invoices.forEach(inv => {
-            rows += `
-                <tr>
-                    <td>${inv.date || ''}</td>
-                    <td>فاتورة بيع</td>
-                    <td>${inv.invoice_number || inv.id?.substring(0,8) || ''}</td>
-                    <td>${formatMoney(inv.total || 0, currency)}</td>
-                    <td>${formatMoney(inv.paid || 0, currency)}</td>
-                    <td>${formatMoney(inv.remaining || 0, currency)}</td>
-                </tr>
-            `;
-        });
-    }
-    // صفوف المدفوعات
-    if (payments && Array.isArray(payments)) {
-        payments.forEach(p => {
-            rows += `
-                <tr>
-                    <td>${p.date || ''}</td>
-                    <td>${p.type === 'income' ? 'تحصيل' : 'دفعة'}</td>
-                    <td>${p.description || ''}</td>
-                    <td colspan="2">${formatMoney(p.amount || 0, currency)}</td>
-                    <td>-</td>
-                </tr>
-            `;
-        });
-    }
-
-    const statementHtml = `
-        <div class="receipt">
-            <div class="header">${companyName}</div>
-            <div class="sub">كشف حساب</div>
-            
-            <div class="line">${separatorLine(paperWidth, '═')}</div>
-            
-            <div class="info-row"><span>العميل:</span> <strong>${customer?.name || ''}</strong></div>
-            <div class="info-row"><span>الرصيد الحالي:</span> <strong>${formatMoney(customer?.balance || 0, currency)}</strong></div>
-            
-            <div class="line">${separatorLine(paperWidth, '─')}</div>
-            
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th>التاريخ</th>
-                        <th>البيان</th>
-                        <th>المرجع</th>
-                        <th>مدين</th>
-                        <th>دائن</th>
-                        <th>الرصيد</th>
-                    </tr>
-                </thead>
-                <tbody>${rows || '<tr><td colspan="6">لا توجد حركات</td></tr>'}</tbody>
-            </table>
-            
-            <div class="footer">${settings.footerMessage}</div>
-        </div>
-    `;
-
-    win.document.write(`
-        <!DOCTYPE html>
-        <html dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>كشف حساب</title>
-            <style>
-                @page { margin: 0; size: A4 portrait; }
-                body {
-                    font-family: 'Segoe UI', Tahoma, sans-serif;
-                    margin: 20px;
-                    font-size: ${fontSize}px;
-                    line-height: 1.6;
-                    color: #000;
-                }
-                .receipt { width: 100%; }
-                .header { text-align: center; font-weight: bold; font-size: ${fontSize + 4}px; margin-bottom: 4px; }
-                .sub { text-align: center; font-size: ${fontSize + 1}px; color: #555; margin-bottom: 10px; }
-                .line { text-align: center; margin: 10px 0; letter-spacing: 2px; }
-                .info-row { display: flex; justify-content: space-between; margin: 6px 0; }
-                .items-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-                .items-table th { background: #f0f0f0; padding: 8px 6px; border: 1px solid #ddd; text-align: center; }
-                .items-table td { padding: 6px; border: 1px solid #eee; font-size: ${fontSize - 1}px; }
-                .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #000; font-style: italic; }
-                @media print { body { margin: 15mm; } }
-            </style>
-        </head>
-        <body>
-            ${statementHtml}
-            <script>
-                window.onload = function() {
-                    window.print();
-                    setTimeout(function() { window.close(); }, 500);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
-    win.document.close();
-};
-
-console.log('✅ نظام الطباعة النهائي جاهز');
+console.log('✅ نظام الطباعة جاهز');
