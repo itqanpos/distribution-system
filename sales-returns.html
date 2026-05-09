@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>مرتجعات المبيعات · حسابي</title>
     
+    <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/sales-returns.css">
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
@@ -23,6 +24,8 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -70,33 +73,137 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-undo-alt"></i> مرتجعات المبيعات</h1></div>
-            <button class="btn btn-primary" id="addReturnBtn"><i class="fas fa-plus"></i> إضافة مرتجع</button>
+            <button class="btn btn-primary" id="newReturnBtn"><i class="fas fa-plus"></i> مرتجع جديد</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div>
+                <div class="stat-content"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value" id="totalReturns">0 ج.م</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div>
+                <div class="stat-content"><div class="stat-title">عدد المرتجعات</div><div class="stat-value" id="returnCount">0</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div>
+                <div class="stat-content"><div class="stat-title">مرتجعات اليوم</div><div class="stat-value" id="todayReturns">0 ج.م</div></div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="بحث...">
+            </div>
+            <button class="btn btn-outline" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
         <div class="table-container">
             <table>
-                <thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>السبب</th><th>إجراءات</th></tr></thead>
+                <thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>الفاتورة الأصلية</th><th>العميل</th><th>عدد الأصناف</th><th>القيمة</th><th>إجراءات</th></tr></thead>
                 <tbody id="returnsBody"></tbody>
             </table>
         </div>
     </main>
 
+    <!-- مودال إضافة مرتجع -->
     <div class="modal" id="returnModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إضافة مرتجع</h2><button id="closeReturnModalBtn">&times;</button></div>
+            <div class="modal-header"><h2 id="modalTitle">مرتجع مبيعات جديد</h2><button id="closeModalBtn">&times;</button></div>
             <form id="returnForm">
-                <div class="form-group"><label>فاتورة البيع الأصلية</label><select id="originalInvoice" required></select></div>
-                <div class="form-group"><label>السبب</label><input type="text" id="returnReason"></div>
-                <div id="returnItemsContainer"></div>
-                <button type="submit" class="btn btn-primary">حفظ المرتجع</button>
+                <input type="hidden" id="returnId">
+                
+                <div class="form-section">
+                    <div class="section-title"><i class="fas fa-info-circle"></i> نوع المرتجع</div>
+                    <div class="return-type-selector">
+                        <label class="radio-card">
+                            <input type="radio" name="returnType" value="full_invoice" checked onchange="SalesReturns.onReturnTypeChange()">
+                            <div class="radio-content">
+                                <i class="fas fa-file-invoice"></i>
+                                <span>إرجاع فاتورة كاملة</span>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="returnType" value="single_item" onchange="SalesReturns.onReturnTypeChange()">
+                            <div class="radio-content">
+                                <i class="fas fa-box"></i>
+                                <span>إرجاع صنف من فاتورة</span>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="returnType" value="direct_product" onchange="SalesReturns.onReturnTypeChange()">
+                            <div class="radio-content">
+                                <i class="fas fa-boxes"></i>
+                                <span>إرجاع منتج مباشر</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- حقل اختيار الفاتورة (للنوعين: فاتورة كاملة أو صنف) -->
+                <div class="form-section" id="invoiceSelectionSection">
+                    <div class="section-title"><i class="fas fa-search"></i> اختر الفاتورة</div>
+                    <div class="form-group">
+                        <input type="text" id="invoiceSearchInput" placeholder="ابحث برقم الفاتورة أو اسم العميل..." list="invoiceList" autocomplete="off">
+                        <datalist id="invoiceList"></datalist>
+                    </div>
+                    <div id="invoiceItemsContainer"></div>
+                </div>
+
+                <!-- حقل إرجاع منتج مباشر -->
+                <div class="form-section" id="directProductSection" style="display:none;">
+                    <div class="section-title"><i class="fas fa-box"></i> بيانات المنتج</div>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label>المنتج</label>
+                            <input type="text" id="directProductInput" placeholder="ابحث عن منتج..." list="productList" autocomplete="off">
+                            <datalist id="productList"></datalist>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label>الكمية</label>
+                            <input type="number" id="directQuantity" min="0.001" step="0.001" value="1">
+                        </div>
+                    </div>
+                    <div id="directProductUnits"></div>
+                    <div class="form-group">
+                        <label>سعر الإرجاع</label>
+                        <input type="number" id="directPrice" step="0.01" value="0">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title"><i class="fas fa-coins"></i> تفاصيل الإرجاع</div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label>طريقة الإرجاع</label>
+                            <select id="returnMethod">
+                                <option value="cash">نقدي</option>
+                                <option value="credit_note">إضافة لرصيد العميل</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label>التاريخ</label>
+                            <input type="date" id="returnDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>سبب الإرجاع</label>
+                        <input type="text" id="returnReason" placeholder="سبب المرتجع...">
+                    </div>
+                    <div class="total-display"><span>قيمة المرتجع</span><span id="returnTotal">0.00 ج.م</span></div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ المرتجع</button>
+                    <button type="button" class="btn btn-cancel" id="cancelModalBtn">إلغاء</button>
+                </div>
             </form>
         </div>
     </div>
+
     <div class="toast" id="toast"></div>
 
     <script src="./js/sales-returns.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-    </script>
 </body>
 </html>
