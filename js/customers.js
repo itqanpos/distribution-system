@@ -1,5 +1,5 @@
 /* =============================================
-   العملاء والموردين - حسابي (النسخة المصححة)
+   customers.js - العملاء والموردين (إصدار مُحسَّن)
    ============================================= */
 
 'use strict';
@@ -7,19 +7,23 @@
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
+            return Number(amount).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
         },
-        getToday: () => new Date().toISOString().split('T')[0]
+        formatDate: (dateStr) => {
+            if (!dateStr) return '';
+            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
+            catch (e) { return dateStr; }
+        },
+        getToday: () => new Date().toISOString().split('T')[0],
+        isDBReady: () => !!(window.DB && window.supabase && typeof DB.getParties === 'function'),
+        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
     };
 }
 
-const Parties = {
+const Customers = {
     parties: [],
-    invoices: [],
-    purchases: [],
-    transactions: [],
-    currentTab: 'customer',   // <-- تصحيح: مفرد
-    isDBReady: false,
+    currentTab: 'customer',
+    editingId: null,
 
     init() {
         this.cacheElements();
@@ -28,23 +32,20 @@ const Parties = {
             if (!App.requireAuth()) return;
             App.initUserInterface();
         }
-        this.loadAllData();
+        this.loadData();
     },
 
     cacheElements() {
         this.el = {
             menuToggle: document.getElementById('menuToggle'),
             sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebarOverlay'),
             logoutBtn: document.getElementById('logoutBtn'),
             userProfileBtn: document.getElementById('userProfileBtn'),
             userDropdown: document.getElementById('userDropdown'),
-            addPartyBtn: document.getElementById('addPartyBtn'),
-            customerCount: document.getElementById('customerCount'),
-            supplierCount: document.getElementById('supplierCount'),
-            totalCustomerBalance: document.getElementById('totalCustomerBalance'),
-            totalSupplierBalance: document.getElementById('totalSupplierBalance'),
-            partiesBody: document.getElementById('partiesBody'),
             tabBtns: document.querySelectorAll('.tab-btn'),
+            partiesBody: document.getElementById('partiesBody'),
+            addPartyBtn: document.getElementById('addPartyBtn'),
             partyModal: document.getElementById('partyModal'),
             modalTitle: document.getElementById('modalTitle'),
             closePartyModalBtn: document.getElementById('closePartyModalBtn'),
@@ -56,276 +57,227 @@ const Parties = {
             partyPhone: document.getElementById('partyPhone'),
             partyAddress: document.getElementById('partyAddress'),
             partyBalance: document.getElementById('partyBalance'),
-            statementModal: document.getElementById('statementModal'),
-            statementTitle: document.getElementById('statementTitle'),
-            statementContent: document.getElementById('statementContent'),
-            closeStatementBtn: document.getElementById('closeStatementBtn'),
-            collectionModal: document.getElementById('collectionModal'),
-            closeCollectionBtn: document.getElementById('closeCollectionBtn'),
-            cancelCollectionBtn: document.getElementById('cancelCollectionBtn'),
-            collectionForm: document.getElementById('collectionForm'),
-            collectionPartyId: document.getElementById('collectionPartyId'),
-            collectionDate: document.getElementById('collectionDate'),
-            collectionAmount: document.getElementById('collectionAmount'),
-            collectionType: document.getElementById('collectionType'),
-            collectionMethod: document.getElementById('collectionMethod'),
-            collectionNotes: document.getElementById('collectionNotes')
+            // ⭐ عناصر التسوية
+            settlementModal: document.getElementById('settlementModal'),
+            closeSettlementBtn: document.getElementById('closeSettlementBtn'),
+            cancelSettlementBtn: document.getElementById('cancelSettlementBtn'),
+            settlementForm: document.getElementById('settlementForm'),
+            settlementPartyId: document.getElementById('settlementPartyId'),
+            settlementDate: document.getElementById('settlementDate'),
+            settlementAmount: document.getElementById('settlementAmount'),
+            settlementType: document.getElementById('settlementType'),
+            settlementMethod: document.getElementById('settlementMethod'),
+            settlementNotes: document.getElementById('settlementNotes'),
+            // إحصائيات
+            customerCount: document.getElementById('customerCount'),
+            supplierCount: document.getElementById('supplierCount'),
+            totalCustomerBalance: document.getElementById('totalCustomerBalance'),
+            totalSupplierBalance: document.getElementById('totalSupplierBalance'),
+            toast: document.getElementById('toast')
         };
     },
 
     bindEvents() {
-        this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
+        // الشريط الجانبي والمستخدم
+        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-        this.el.menuToggle.addEventListener('click', () => this.el.sidebar.classList.toggle('mobile-open'));
-        this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        this.el.addPartyBtn.addEventListener('click', () => this.openPartyModal());
-        this.el.closePartyModalBtn.addEventListener('click', () => this.closePartyModal());
-        this.el.cancelPartyModalBtn.addEventListener('click', () => this.closePartyModal());
-        this.el.partyForm.addEventListener('submit', (e) => { e.preventDefault(); this.saveParty(); });
-        this.el.closeStatementBtn.addEventListener('click', () => this.el.statementModal.style.display = 'none');
-        this.el.closeCollectionBtn.addEventListener('click', () => this.el.collectionModal.style.display = 'none');
-        this.el.cancelCollectionBtn.addEventListener('click', () => this.el.collectionModal.style.display = 'none');
-        this.el.collectionForm.addEventListener('submit', (e) => { e.preventDefault(); this.saveCollection(); });
+        this.el.menuToggle?.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        this.el.sidebarOverlay?.addEventListener('click', () => {
+            this.el.sidebar.classList.remove('open');
+            this.el.sidebarOverlay.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
 
+        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
+
+        // التبويبات
         this.el.tabBtns.forEach(btn => btn.addEventListener('click', () => {
             this.el.tabBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            this.currentTab = btn.dataset.tab; // 'customer' أو 'supplier'
+            this.currentTab = btn.dataset.tab;
             this.renderTable();
         }));
+
+        // إضافة طرف
+        this.el.addPartyBtn?.addEventListener('click', () => this.openPartyModal());
+        this.el.closePartyModalBtn?.addEventListener('click', () => this.closeModal(this.el.partyModal));
+        this.el.cancelPartyModalBtn?.addEventListener('click', () => this.closeModal(this.el.partyModal));
+        this.el.partyForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveParty(); });
+
+        // التسوية
+        this.el.closeSettlementBtn?.addEventListener('click', () => this.closeModal(this.el.settlementModal));
+        this.el.cancelSettlementBtn?.addEventListener('click', () => this.closeModal(this.el.settlementModal));
+        this.el.settlementForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveSettlement(); });
     },
 
-    async loadAllData() {
-        this.isDBReady = !!(window.DB && window.supabase);
+    async loadData() {
         try {
-            if (this.isDBReady) {
-                this.parties = await DB.getParties();
-                this.invoices = await DB.getInvoices();
-                this.purchases = await DB.getPurchases();
-                this.transactions = await DB.getTransactions();
+            if (Utils.isDBReady()) {
+                const customers = await DB.getParties('customer') || [];
+                const suppliers = await DB.getParties('supplier') || [];
+                this.parties = [...customers, ...suppliers];
+            } else if (Utils.hasLocalDB()) {
+                const allParties = await localDB.getAll('parties') || [];
+                this.parties = allParties;
             } else {
-                // بيانات اختبارية
-                this.parties = [
-                    { id: 'c1', name: 'عميل تجريبي', type: 'customer', balance: 150, phone: '0100' },
-                    { id: 's1', name: 'مورد تجريبي', type: 'supplier', balance: 300, phone: '0111' }
-                ];
-                this.invoices = [];
-                this.purchases = [];
-                this.transactions = [];
+                this.parties = [];
             }
             this.updateStats();
             this.renderTable();
         } catch (err) {
-            console.error(err);
-            this.el.partiesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">فشل تحميل البيانات</td></tr>';
+            console.error('فشل تحميل بيانات الأطراف:', err);
+            this.el.partiesBody.innerHTML = '<tr><td colspan="5" class="empty-message">فشل تحميل البيانات</td></tr>';
         }
     },
 
     updateStats() {
         const customers = this.parties.filter(p => p.type === 'customer');
         const suppliers = this.parties.filter(p => p.type === 'supplier');
-        this.el.customerCount.textContent = customers.length;
-        this.el.supplierCount.textContent = suppliers.length;
-        this.el.totalCustomerBalance.textContent = Utils.formatMoney(customers.reduce((s, c) => s + (c.balance || 0), 0));
-        this.el.totalSupplierBalance.textContent = Utils.formatMoney(suppliers.reduce((s, c) => s + (c.balance || 0), 0));
+        const totalCustBal = customers.reduce((s, c) => s + (c.balance || 0), 0);
+        const totalSuppBal = suppliers.reduce((s, s_) => s + (s_.balance || 0), 0);
+
+        if (this.el.customerCount) this.el.customerCount.textContent = customers.length;
+        if (this.el.supplierCount) this.el.supplierCount.textContent = suppliers.length;
+        if (this.el.totalCustomerBalance) this.el.totalCustomerBalance.textContent = Utils.formatMoney(totalCustBal);
+        if (this.el.totalSupplierBalance) this.el.totalSupplierBalance.textContent = Utils.formatMoney(totalSuppBal);
     },
 
     renderTable() {
-        const filtered = this.parties.filter(p => p.type === this.currentTab);
-        if (!filtered.length) {
-            this.el.partiesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;">لا توجد بيانات</td></tr>';
+        let list = this.parties.filter(p => p.type === this.currentTab);
+        if (!list.length) {
+            this.el.partiesBody.innerHTML = `<tr><td colspan="5" class="empty-message">لا يوجد ${this.currentTab === 'customer' ? 'عملاء' : 'موردين'}</td></tr>`;
             return;
         }
-        this.el.partiesBody.innerHTML = filtered.map(p => `
+
+        this.el.partiesBody.innerHTML = list.map(p => `
             <tr>
-                <td>${p.name}</td>
+                <td>${p.name || '-'}</td>
                 <td>${p.phone || '-'}</td>
                 <td>${p.address || '-'}</td>
                 <td>${Utils.formatMoney(p.balance || 0)}</td>
                 <td class="action-icons">
-                    <i class="fas fa-file-invoice" onclick="Parties.showStatement('${p.id}')" title="كشف حساب"></i>
-                    <i class="fas fa-hand-holding-usd" onclick="Parties.openCollection('${p.id}')" title="تحصيل"></i>
-                    <i class="fas fa-edit" onclick="Parties.editParty('${p.id}')"></i>
-                    <i class="fas fa-trash" onclick="Parties.deleteParty('${p.id}')"></i>
+                    <i class="fas fa-edit" onclick="Customers.openPartyModal('${p.id}')"></i>
+                    <i class="fas fa-money-bill-wave" onclick="Customers.openSettlement('${p.id}')"></i>
+                    <i class="fas fa-history" onclick="Customers.viewHistory('${p.id}')"></i>
                 </td>
             </tr>
         `).join('');
     },
 
-    openPartyModal(party = null) {
-        this.el.modalTitle.textContent = party ? 'تعديل' : 'عميل / مورد جديد';
+    openPartyModal(partyId = null) {
+        this.editingId = partyId;
+        this.el.modalTitle.textContent = partyId ? 'تعديل طرف' : 'طرف جديد';
+        const party = partyId ? this.parties.find(p => p.id === partyId) : null;
         this.el.partyId.value = party?.id || '';
         this.el.partyName.value = party?.name || '';
-        this.el.partyType.value = party?.type || this.currentTab;
+        this.el.partyType.value = party?.type || 'customer';
         this.el.partyPhone.value = party?.phone || '';
         this.el.partyAddress.value = party?.address || '';
         this.el.partyBalance.value = party?.balance || 0;
-        this.el.partyModal.style.display = 'flex';
+        this.el.partyModal.classList.add('open');
     },
 
-    closePartyModal() { this.el.partyModal.style.display = 'none'; },
+    closeModal(modal) {
+        if (modal) modal.classList.remove('open');
+    },
 
     async saveParty() {
-        const name = this.el.partyName.value.trim();
-        if (!name) { alert('الاسم مطلوب'); return; }
-        const data = {
-            id: this.el.partyId.value || crypto.randomUUID(),
+        const name = this.el.partyName?.value.trim();
+        if (!name) return alert('الاسم مطلوب');
+
+        const partyData = {
+            id: this.editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
             name,
-            type: this.el.partyType.value,
-            phone: this.el.partyPhone.value.trim() || null,
-            address: this.el.partyAddress.value.trim() || null,
-            balance: parseFloat(this.el.partyBalance.value) || 0
-        };
-        try {
-            if (this.isDBReady) await DB.saveParty(data);
-            else {
-                const arr = JSON.parse(localStorage.getItem('parties') || '[]');
-                const idx = arr.findIndex(p => p.id === data.id);
-                if (idx >= 0) arr[idx] = data;
-                else arr.push(data);
-                localStorage.setItem('parties', JSON.stringify(arr));
-            }
-            this.closePartyModal();
-            await this.loadAllData();
-        } catch (err) { alert('فشل الحفظ'); }
-    },
-
-    editParty(id) {
-        const p = this.parties.find(x => x.id === id);
-        if (p) this.openPartyModal(p);
-    },
-
-    async deleteParty(id) {
-        if (!confirm('حذف هذا الطرف؟')) return;
-        if (this.isDBReady) await DB.deleteParty(id);
-        await this.loadAllData();
-    },
-
-    showStatement(partyId) {
-        const party = this.parties.find(p => p.id === partyId);
-        if (!party) return;
-        this.el.statementTitle.textContent = `كشف حساب: ${party.name}`;
-
-        let invoices = [];
-        if (party.type === 'customer') {
-            invoices = this.invoices.filter(inv => inv.type === 'sale' && (inv.customer_id === partyId || inv.customer_name === party.name));
-        } else {
-            invoices = this.purchases.filter(p => p.supplier_id === partyId || p.supplier_name === party.name);
-        }
-
-        const relatedTransactions = this.transactions.filter(tr => 
-            (tr.description || '').includes(partyId) || (tr.description || '').includes(party.name)
-        );
-
-        let totalDebit = 0, totalCredit = 0;
-        let rows = '';
-        invoices.forEach(inv => {
-            const amount = inv.total || 0;
-            rows += `<tr>
-                <td>${inv.date}</td>
-                <td>${inv.type === 'sale' ? 'فاتورة بيع' : 'فاتورة شراء'}</td>
-                <td>${inv.id.substring(0,8)}</td>
-                <td class="debit">${party.type === 'customer' ? Utils.formatMoney(amount) : ''}</td>
-                <td class="credit">${party.type === 'supplier' ? Utils.formatMoney(amount) : ''}</td>
-                <td>${Utils.formatMoney(party.type === 'customer' ? amount : -amount)}</td>
-            </tr>`;
-            if (party.type === 'customer') totalDebit += amount;
-            else totalCredit += amount;
-        });
-
-        relatedTransactions.forEach(tr => {
-            const isPayment = tr.type === 'income';
-            rows += `<tr>
-                <td>${tr.date}</td>
-                <td>${isPayment ? 'تحصيل' : 'دفع'}</td>
-                <td>${tr.description || '-'}</td>
-                <td class="credit">${isPayment ? Utils.formatMoney(tr.amount) : ''}</td>
-                <td class="debit">${!isPayment ? Utils.formatMoney(tr.amount) : ''}</td>
-                <td>${Utils.formatMoney(isPayment ? -tr.amount : tr.amount)}</td>
-            </tr>`;
-            if (isPayment) totalCredit += tr.amount;
-            else totalDebit += tr.amount;
-        });
-
-        this.el.statementContent.innerHTML = `
-            <div class="statement-header">
-                <span><strong>الرصيد الحالي:</strong> ${Utils.formatMoney(party.balance || 0)}</span>
-                <span><strong>مدين:</strong> ${Utils.formatMoney(totalDebit)}</span>
-                <span><strong>دائن:</strong> ${Utils.formatMoney(totalCredit)}</span>
-            </div>
-            <table class="statement-table">
-                <thead><tr><th>التاريخ</th><th>البيان</th><th>المرجع</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="6">لا توجد حركات</td></tr>'}</tbody>
-            </table>
-            <button class="btn btn-primary" onclick="Parties.openCollection('${partyId}')"><i class="fas fa-plus"></i> إضافة تحصيل / دفعة</button>
-            <button class="btn" onclick="window.print()" style="margin-right:10px;"><i class="fas fa-print"></i> طباعة</button>
-        `;
-        this.el.statementModal.style.display = 'flex';
-    },
-
-    openCollection(partyId) {
-        const party = this.parties.find(p => p.id === partyId);
-        if (!party) return;
-        this.el.collectionPartyId.value = partyId;
-        this.el.collectionDate.value = Utils.getToday();
-        this.el.collectionAmount.value = '';
-        this.el.collectionNotes.value = '';
-        this.el.collectionType.value = party.type === 'customer' ? 'income' : 'expense';
-        this.el.collectionModal.style.display = 'flex';
-    },
-
-    async saveCollection() {
-        const partyId = this.el.collectionPartyId.value;
-        const party = this.parties.find(p => p.id === partyId);
-        if (!party) return;
-        const date = this.el.collectionDate.value;
-        const amount = parseFloat(this.el.collectionAmount.value);
-        const type = this.el.collectionType.value;
-        const method = this.el.collectionMethod.value;
-        const notes = this.el.collectionNotes.value.trim();
-
-        if (!amount || amount <= 0) { alert('المبلغ مطلوب'); return; }
-
-        if (type === 'income') {
-            party.balance = (party.balance || 0) - amount;
-        } else {
-            party.balance = (party.balance || 0) + amount;
-        }
-
-        const transaction = {
-            id: crypto.randomUUID(),
-            date,
-            type,
-            amount,
-            description: `${notes || (type === 'income' ? 'تحصيل من ' : 'دفع إلى ')} ${party.name}`,
-            payment_method: method
+            type: this.el.partyType?.value || 'customer',
+            phone: this.el.partyPhone?.value.trim() || null,
+            address: this.el.partyAddress?.value.trim() || null,
+            balance: parseFloat(this.el.partyBalance?.value) || 0
         };
 
         try {
-            if (this.isDBReady) {
+            if (Utils.isDBReady()) await DB.saveParty(partyData);
+            else if (Utils.hasLocalDB()) await localDB.put('parties', partyData);
+            this.closeModal(this.el.partyModal);
+            await this.loadData();
+            this.showToast('تم حفظ الطرف بنجاح');
+        } catch (err) {
+            console.error(err);
+            alert('فشل حفظ الطرف');
+        }
+    },
+
+    openSettlement(partyId) {
+        const party = this.parties.find(p => p.id === partyId);
+        if (!party) return;
+        this.el.settlementPartyId.value = party.id;
+        this.el.settlementDate.value = Utils.getToday();
+        this.el.settlementAmount.value = Math.abs(party.balance || 0);
+        this.el.settlementType.value = party.balance > 0 ? 'income' : 'expense';
+        this.el.settlementModal.classList.add('open');
+    },
+
+    async saveSettlement() {
+        const partyId = this.el.settlementPartyId?.value;
+        const amount = parseFloat(this.el.settlementAmount?.value) || 0;
+        const type = this.el.settlementType?.value;
+        const date = this.el.settlementDate?.value || Utils.getToday();
+        const method = this.el.settlementMethod?.value;
+        const notes = this.el.settlementNotes?.value.trim();
+
+        if (!partyId || amount <= 0) return alert('المبلغ مطلوب');
+
+        const party = this.parties.find(p => p.id === partyId);
+        if (!party) return;
+
+        // تحديث رصيد الطرف
+        party.balance = (party.balance || 0) + (type === 'expense' ? amount : -amount);
+
+        try {
+            // حفظ الطرف والحركة المالية
+            if (Utils.isDBReady()) {
                 await DB.saveParty(party);
-                await DB.saveTransaction(transaction);
-            } else {
-                const arr = JSON.parse(localStorage.getItem('parties') || '[]');
-                const idx = arr.findIndex(p => p.id === party.id);
-                if (idx >= 0) arr[idx] = party;
-                else arr.push(party);
-                localStorage.setItem('parties', JSON.stringify(arr));
+                await DB.saveTransaction({
+                    id: crypto.randomUUID(), date, type,
+                    amount, description: `تسوية ${party.name} - ${notes || ''}`, payment_method: method
+                });
+            } else if (Utils.hasLocalDB()) {
+                await localDB.put('parties', party);
+                const trans = { id: crypto.randomUUID(), date, type, amount, description: notes, payment_method: method };
+                await localDB.put('transactions', trans);
+            }
+            this.closeModal(this.el.settlementModal);
+            await this.loadData();
+            this.showToast('تمت التسوية بنجاح');
+        } catch (err) {
+            console.error(err);
+            alert('فشلت التسوية');
+        }
+    },
 
-                const trs = JSON.parse(localStorage.getItem('transactions') || '[]');
-                trs.push(transaction);
-                localStorage.setItem('transactions', JSON.stringify(trs));
-            }
-            this.el.collectionModal.style.display = 'none';
-            await this.loadAllData();
-            if (this.el.statementModal.style.display === 'flex') {
-                this.showStatement(partyId);
-            }
-            alert('تم حفظ التحصيل');
-        } catch (err) { console.error(err); alert('فشل الحفظ'); }
+    viewHistory(partyId) {
+        const party = this.parties.find(p => p.id === partyId);
+        if (!party) return;
+        alert(`سجل حركات ${party.name} - قيد التطوير`);
+    },
+
+    showToast(msg) {
+        const t = this.el.toast;
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     }
 };
 
-window.Parties = Parties;
-document.addEventListener('DOMContentLoaded', () => Parties.init());
+window.Customers = Customers;
+document.addEventListener('DOMContentLoaded', () => Customers.init());
