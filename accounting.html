@@ -5,33 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المحاسبة · حسابي</title>
     
+    <link rel="icon" href="./icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/accounting.css">
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/print.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <!-- شريط التنقل -->
-    <nav class="navbar">
+    <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-icon">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+                </div>
                 <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
             <div class="user-profile" id="userProfileBtn">
                 <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info">
-                    <h4 id="userName">مدير النظام</h4>
-                    <p id="loginTime">اليوم</p>
-                </div>
+                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
@@ -45,7 +57,6 @@
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span>المبيعات</span></a></li>
             <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
@@ -65,24 +76,66 @@
     <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-calculator" style="color:var(--secondary); margin-left:12px;"></i>المحاسبة</h1></div>
-            <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
+            <div class="page-title"><h1><i class="fas fa-calculator"></i> المحاسبة</h1></div>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="addJournalEntryBtn"><i class="fas fa-plus"></i> قيد جديد</button>
+            </div>
         </div>
 
-        <!-- تبويبات الأقسام المحاسبية -->
-        <div class="tabs">
-            <button class="tab active" data-tab="summary">الملخص المالي</button>
-            <button class="tab" data-tab="income">قائمة الدخل</button>
-            <button class="tab" data-tab="balance">الميزانية العمومية</button>
-            <button class="tab" data-tab="inventory">المخزون</button>
-            <button class="tab" data-tab="receivables">الأرصدة</button>
+        <!-- علامات التبويب -->
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> لوحة المعلومات</button>
+            <button class="tab-btn" data-tab="journal"><i class="fas fa-book"></i> دفتر اليومية</button>
+            <button class="tab-btn" data-tab="trial-balance"><i class="fas fa-balance-scale"></i> ميزان المراجعة</button>
+            <button class="tab-btn" data-tab="income"><i class="fas fa-file-invoice-dollar"></i> قائمة الدخل</button>
+            <button class="tab-btn" data-tab="accounts"><i class="fas fa-sitemap"></i> شجرة الحسابات</button>
         </div>
 
-        <!-- المحتوى حسب التبويب -->
-        <div id="tabContent">
-            <!-- سيتم ملؤه بواسطة JavaScript -->
+        <!-- المحتوى الديناميكي للتبويبات -->
+        <div id="tabContent" class="tab-content">
+            <!-- يتم إنشاء المحتوى ديناميكياً -->
         </div>
     </main>
+
+    <!-- مودال إضافة قيد محاسبي -->
+    <div class="modal" id="journalEntryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">قيد محاسبي جديد</h2>
+                <button id="closeModalBtn">&times;</button>
+            </div>
+            <form id="journalEntryForm">
+                <input type="hidden" id="entryId">
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label>التاريخ</label>
+                        <input type="date" id="entryDate" required>
+                    </div>
+                    <div class="form-group flex-2">
+                        <label>البيان</label>
+                        <input type="text" id="entryDescription" placeholder="وصف القيد..." required>
+                    </div>
+                </div>
+                
+                <div class="section-title"><i class="fas fa-list"></i> تفاصيل القيد</div>
+                <div id="entryLines"></div>
+                <button type="button" class="btn btn-outline btn-full" id="addEntryLineBtn"><i class="fas fa-plus-circle"></i> إضافة سطر</button>
+                
+                <div class="balance-check" id="balanceCheck">
+                    <span>مجموع مدين: <strong id="totalDebit">0.00</strong></span>
+                    <span>مجموع دائن: <strong id="totalCredit">0.00</strong></span>
+                    <span>الفرق: <strong id="balanceDiff" class="text-danger">0.00</strong></span>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ القيد</button>
+                    <button type="button" class="btn btn-cancel" id="cancelModalBtn">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
 
     <script src="./js/accounting.js"></script>
 </body>
