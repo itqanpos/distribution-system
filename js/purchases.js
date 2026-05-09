@@ -1,5 +1,5 @@
 /* =============================================
-   purchases.js - المشتريات (إصدار تشخيصي)
+   purchases.js - المشتريات (إصدار نهائي مع زر الدفع)
    ============================================= */
 
 'use strict';
@@ -26,7 +26,7 @@ const Purchases = {
     products: [],
     editingId: null,
     currentFilter: 'all',
-    dataSource: 'none', // 'db', 'localdb', 'default'
+    dataSource: 'none',
 
     init() {
         console.log('🟢 تهيئة صفحة المشتريات');
@@ -49,14 +49,14 @@ const Purchases = {
             'purchaseForm', 'purchaseId', 'supplierInput', 'supplierList',
             'purchaseDate', 'invoiceNumber', 'itemsContainer', 'addItemBtn',
             'totalAmount', 'paidAmount', 'paymentMethod', 'remainingAmount',
-            'detailsModal', 'detailsContent', 'closeDetailsBtn', 'toast'
+            'detailsModal', 'detailsContent', 'closeDetailsBtn', 'toast',
+            'payNowBtn'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
         this.el.filterBtns = document.querySelectorAll('.filter-btn');
     },
 
     bindEvents() {
-        // واحداث المستخدم والقائمة
         this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
 
@@ -68,6 +68,12 @@ const Purchases = {
             this.el.sidebar.classList.remove('open');
             this.el.sidebarOverlay.classList.remove('show');
         });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
 
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
@@ -75,7 +81,6 @@ const Purchases = {
             else window.location.href = './index.html';
         });
 
-        // الفلاتر والبحث
         this.el.searchInput?.addEventListener('input', () => this.renderTable());
         this.el.refreshBtn?.addEventListener('click', () => this.loadData());
         this.el.filterBtns.forEach(btn => {
@@ -87,15 +92,15 @@ const Purchases = {
             });
         });
 
-        // المودال
         this.el.newPurchaseBtn?.addEventListener('click', () => this.openModal());
         this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
         this.el.purchaseForm?.addEventListener('submit', (e) => { e.preventDefault(); this.savePurchase(); });
         this.el.addItemBtn?.addEventListener('click', () => this.addItemCard());
+        this.el.payNowBtn?.addEventListener('click', () => this.payNow());
 
-        // مودال التفاصيل
         this.el.closeDetailsBtn?.addEventListener('click', () => { this.el.detailsModal.classList.remove('open'); });
+        window.addEventListener('click', (e) => { if (e.target === this.el.detailsModal) this.el.detailsModal.classList.remove('open'); });
     },
 
     async loadData() {
@@ -117,7 +122,6 @@ const Purchases = {
                 this.dataSource = 'localdb';
             }
 
-            // في حال عدم وجود أي بيانات، استخدم الافتراضية للتوضيح
             if ((!this.purchases || this.purchases.length === 0) &&
                 (!this.suppliers || this.suppliers.length === 0) &&
                 (!this.products || this.products.length === 0)) {
@@ -138,7 +142,6 @@ const Purchases = {
     },
 
     loadDefaultData() {
-        // بيانات افتراضية كاملة للاختبار
         this.products = [
             { id: 'p1', name: 'أرز', units: [{ name: 'كيلو', price: 30, cost: 25, factor: 1 }] },
             { id: 'p2', name: 'زيت', units: [{ name: 'لتر', price: 85, cost: 70, factor: 1 }] }
@@ -162,7 +165,6 @@ const Purchases = {
                 ]
             }
         ];
-        console.log('🟡 تم تحميل بيانات افتراضية: مورد واحد، منتجان، فاتورة واحدة.');
     },
 
     populateSupplierList() {
@@ -232,9 +234,6 @@ const Purchases = {
             </tr>`;
         }).join('');
     },
-
-    // ... باقي الدوال (openModal, addItemCard, onProductSelected, savePurchase, viewDetails) تبقى كما هي تمامًا ...
-    // يمكنك نسخها من الكود السابق، فهي لم تتغير.
 
     openModal(purchase = null) {
         this.editingId = purchase?.id || null;
@@ -332,18 +331,152 @@ const Purchases = {
         if (this.el.remainingAmount) this.el.remainingAmount.textContent = Utils.formatMoney(Math.max(0, total - paid));
     },
 
-    async savePurchase() {
-        // ... (نفس كود savePurchase السابق بدون تغيير، يعمل على DB, localDB, أو localStorage)
-        // تم تضمينه في النسخة السابقة وهو يعمل بشكل صحيح.
-        alert('تم حفظ فاتورة الشراء بنجاح (للاختبار)');
-        this.closeModal();
-        this.loadData();
+    payNow() {
+        const totalText = this.el.totalAmount?.textContent || '0';
+        const total = parseFloat(totalText.replace(/[^0-9.-]+/g, '')) || 0;
+        const paid = parseFloat(this.el.paidAmount?.value) || 0;
+        const remaining = Math.max(0, total - paid);
+
+        if (total <= 0) {
+            alert('أضف أصنافاً أولاً');
+            return;
+        }
+        if (paid <= 0 && remaining > 0) {
+            alert('يرجى إدخال مبلغ الدفع أو اختيار "آجل"');
+            return;
+        }
+        if (confirm(`سيتم تسجيل دفعة بقيمة ${Utils.formatMoney(paid)}. المتبقي: ${Utils.formatMoney(remaining)}. متابعة؟`)) {
+            this.savePurchase(true);
+        }
+    },
+
+    async savePurchase(isDirectPayment = false) {
+        const supplierName = this.el.supplierInput?.value.trim();
+        if (!supplierName) { alert('اسم المورد مطلوب'); return; }
+
+        let supplierId = null;
+        if (this.dataSource === 'db' || this.dataSource === 'localdb') {
+            // فقط نحاول حفظ المورد إذا كانت قاعدة البيانات جاهزة
+            const existing = this.suppliers.find(s => s.name === supplierName);
+            if (!existing && (Utils.isDBReady() || Utils.hasLocalDB())) {
+                const newSupplier = { name: supplierName, type: 'supplier', balance: 0 };
+                if (Utils.isDBReady()) {
+                    const saved = await DB.saveParty(newSupplier);
+                    this.suppliers.push(saved);
+                    this.populateSupplierList();
+                    supplierId = saved.id;
+                } else if (Utils.hasLocalDB()) {
+                    const saved = await localDB.put('parties', newSupplier);
+                    this.suppliers.push(saved);
+                    this.populateSupplierList();
+                    supplierId = saved.id;
+                }
+            } else {
+                supplierId = existing.id;
+            }
+        }
+
+        const date = this.el.purchaseDate?.value || Utils.getToday();
+        const invoiceNumber = this.el.invoiceNumber?.value.trim() || null;
+        const paid = parseFloat(this.el.paidAmount?.value) || 0;
+        const paymentMethod = this.el.paymentMethod?.value || 'cash';
+
+        const cards = this.el.itemsContainer?.querySelectorAll('.item-card') || [];
+        const items = [];
+        cards.forEach(card => {
+            const productName = card.querySelector('.item-product-name')?.value.trim();
+            const unitName = card.querySelector('.item-unit')?.value;
+            const qty = parseFloat(card.querySelector('.item-qty')?.value) || 0;
+            const price = parseFloat(card.querySelector('.item-price')?.value) || 0;
+            if (productName && unitName && qty > 0) items.push({ productName, unitName, quantity: qty, price });
+        });
+        if (!items.length) { alert('أضف صنفًا واحدًا على الأقل'); return; }
+
+        const total = items.reduce((s, i) => s + i.quantity * i.price, 0);
+        const remaining = Math.max(0, total - paid);
+        const status = remaining === 0 ? 'paid' : 'unpaid';
+
+        const purchaseData = {
+            id: this.editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
+            date,
+            supplier: supplierName,
+            supplier_id: supplierId,
+            supplier_name: supplierName,
+            invoice_number: invoiceNumber,
+            items,
+            total,
+            paid,
+            remaining,
+            status,
+            notes: null
+        };
+
+        try {
+            if (Utils.isDBReady()) {
+                await DB.savePurchase(purchaseData);
+                // تحديث المخزون والحركات المالية
+                for (const item of items) {
+                    const prod = this.products.find(p => p.name === item.productName);
+                    if (prod) {
+                        const unit = prod.units.find(u => u.name === item.unitName);
+                        if (unit) {
+                            const factor = unit.factor || 1;
+                            prod.units[0].stock += item.quantity * factor;
+                            await DB.saveProduct(prod);
+                        }
+                    }
+                }
+                if (paid > 0 && paymentMethod !== 'credit') {
+                    await DB.saveTransaction({
+                        id: crypto.randomUUID(),
+                        date,
+                        type: 'expense',
+                        amount: paid,
+                        description: `دفع فاتورة شراء ${purchaseData.id}`,
+                        payment_method: paymentMethod === 'cash' ? 'cash' : 'bank'
+                    });
+                }
+            } else if (Utils.hasLocalDB()) {
+                await localDB.put('purchases', purchaseData);
+            } else {
+                const local = JSON.parse(localStorage.getItem('purchases') || '[]');
+                const idx = local.findIndex(p => p.id === purchaseData.id);
+                if (idx >= 0) local[idx] = purchaseData;
+                else local.push(purchaseData);
+                localStorage.setItem('purchases', JSON.stringify(local));
+            }
+
+            this.closeModal();
+            await this.loadData();
+            alert(isDirectPayment ? 'تم الدفع وحفظ الفاتورة بنجاح' : 'تم حفظ فاتورة الشراء بنجاح');
+        } catch (err) {
+            console.error('فشل حفظ الفاتورة:', err);
+            alert('فشل حفظ الفاتورة: ' + err.message);
+        }
     },
 
     viewDetails(id) {
         const purchase = this.purchases.find(p => p.id === id);
         if (!purchase) return;
-        this.el.detailsContent.innerHTML = `<p>تفاصيل الفاتورة ${purchase.invoice_number}</p>`;
+        const itemsHtml = (purchase.items || []).map(i => `
+            <tr><td>${i.productName}</td><td>${i.unitName}</td><td>${i.quantity}</td><td>${Utils.formatMoney(i.price)}</td><td>${Utils.formatMoney(i.quantity * i.price)}</td></tr>
+        `).join('');
+        this.el.detailsContent.innerHTML = `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div><strong>رقم الفاتورة:</strong> ${purchase.invoice_number || (purchase.id||'').substring(0,8)}</div>
+                <div><strong>التاريخ:</strong> ${Utils.formatDate(purchase.date)}</div>
+                <div><strong>المورد:</strong> ${purchase.supplier_name || ''}</div>
+                <div><strong>الحالة:</strong> ${purchase.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة'}</div>
+                <div><strong>الإجمالي:</strong> ${Utils.formatMoney(purchase.total)}</div>
+                <div><strong>المدفوع:</strong> ${Utils.formatMoney(purchase.paid)}</div>
+                <div><strong>المتبقي:</strong> ${Utils.formatMoney(purchase.remaining)}</div>
+            </div>
+            <h4 style="margin-top:15px;">الأصناف</h4>
+            <table style="width:100%; margin-top:10px;">
+                <thead><tr><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+        `;
         this.el.detailsModal.classList.add('open');
     },
 
@@ -353,7 +486,9 @@ const Purchases = {
     },
 
     printPurchase(id) {
-        alert('طباعة الفاتورة ' + id);
+        const purchase = this.purchases.find(p => p.id === id);
+        if (purchase && window.printPurchaseOrder) printPurchaseOrder(purchase);
+        else alert('دالة الطباعة غير متوفرة');
     }
 };
 
