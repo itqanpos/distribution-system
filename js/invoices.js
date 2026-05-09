@@ -218,70 +218,59 @@ const Invoices = {
 
     // ==================== عرض الإيصال (مطابق لنقطة البيع) ====================
     viewReceipt(id) {
-        const inv = this.invoices.find(i => i.id === id);
-        if (!inv) return;
+    const inv = this.invoices.find(i => i.id === id);
+    if (!inv) return;
 
-        const customer = this.customers.find(c => c.id === inv.customer_id) || { name: inv.customer_name || 'نقدي', balance: 0 };
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        const companyName = settings?.company?.name || 'حسابي';
-        const companyPhone = settings?.company?.phone || '';
-        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+    const customer = this.customers.find(c => c.id === inv.customer_id) || { name: inv.customer_name || 'نقدي', balance: 0 };
+    const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+    const companyName = settings?.company?.name || 'حسابي';
+    const companyPhone = settings?.company?.phone || '';
+    const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
 
-        const itemsRows = (inv.items || []).map(item => {
-            const lineTotal = (item.price || 0) * (item.quantity || 0);
-            return `
-                <tr>
-                    <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
-                    <td>${item.quantity}</td>
-                    <td>${Utils.formatMoney(item.price)}</td>
-                    <td>${Utils.formatMoney(lineTotal)}</td>
-                </tr>
-            `;
-        }).join('');
-
-        const balanceHTML = customer && customer.name !== 'نقدي' ? `
-            <p style="font-size:13px;"><strong>الرصيد الحالي للعميل:</strong> ${Utils.formatMoney(customer.balance)}</p>
-            <p style="font-size:13px;"><strong>المدفوع:</strong> ${Utils.formatMoney(inv.paid)}</p>
-            <p style="font-size:13px;"><strong>المتبقي:</strong> ${Utils.formatMoney(inv.remaining)}</p>
-        ` : '';
-
-        this.el.receiptPrintArea.innerHTML = `
-            <div class="company-name">${Utils.escapeHTML(companyName)}</div>
-            <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
-            <div class="divider"></div>
-            <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer.name)}</p>
-            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${inv.invoice_number || inv.id?.substring(0,8)}</p>
-            <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(inv.date)}</p>
-            <div class="divider"></div>
-            ${balanceHTML}
-            <div class="divider"></div>
-            <table>
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-                <tbody>${itemsRows}</tbody>
-            </table>
-            <div class="totals">
-                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(inv.subtotal || inv.total)}</p>
-                ${inv.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(inv.discount)}</p>` : ''}
-                <p><strong>الصافي:</strong> ${Utils.formatMoney(inv.total)}</p>
-            </div>
-            <div class="divider"></div>
-            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
+    const itemsRows = (inv.items || []).map(item => {
+        const lineTotal = (item.price || 0) * (item.quantity || 0);
+        return `
+            <tr>
+                <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
+                <td>${item.quantity}</td>
+                <td>${Utils.formatMoney(item.price)}</td>
+                <td>${Utils.formatMoney(lineTotal)}</td>
+            </tr>
         `;
-        this.showModal('receiptModal');
-    },
+    }).join('');
 
-    printReceipt() {
-        const content = this.el.receiptPrintArea.innerHTML;
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        const companyName = settings?.company?.name || 'حسابي';
+    const paymentInfoHTML = customer && customer.name !== 'نقدي' ? `
+        <div class="payment-info-box">
+            <div class="payment-row"><span>الرصيد الحالي للعميل:</span> <span>${Utils.formatMoney(customer.balance)}</span></div>
+            <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(inv.paid)}</span></div>
+            <div class="payment-row"><span>المتبقي:</span> <span>${Utils.formatMoney(inv.remaining)}</span></div>
+        </div>
+    ` : '';
 
-        const pw = window.open('', '_blank', 'width=400,height=600');
-        if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma,sans-serif;direction:rtl;text-align:right;padding:20px;color:#000;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;text-align:right;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
-        pw.document.close();
-        pw.focus();
-        setTimeout(() => { pw.print(); pw.close(); }, 500);
-    },
+    this.el.receiptPrintArea.innerHTML = `
+        <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+        <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
+        <div class="divider"></div>
+        <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer.name)}</p>
+        <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${inv.invoice_number || inv.id?.substring(0,8)}</p>
+        <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(inv.date)}</p>
+        <div class="divider"></div>
+        <table>
+            <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+            <tbody>${itemsRows}</tbody>
+        </table>
+        <div class="totals">
+            <p><strong>الإجمالي:</strong> ${Utils.formatMoney(inv.subtotal || inv.total)}</p>
+            ${inv.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(inv.discount)}</p>` : ''}
+            <p><strong>الصافي:</strong> ${Utils.formatMoney(inv.total)}</p>
+        </div>
+        ${paymentInfoHTML}
+        <div class="divider"></div>
+        <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
+    `;
+    this.showModal('receiptModal');
+}
+    
 
     // ==================== تعديل الفاتورة ====================
     editInvoice(id) {
