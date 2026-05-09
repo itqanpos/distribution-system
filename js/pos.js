@@ -1046,59 +1046,64 @@ const POS = {
 
     // ==================== عرض الإيصال في المودال ====================
     showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
-        let settings = {};
-        try {
-            settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        } catch(e) {}
+    let settings = {};
+    try {
+        settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+    } catch(e) {}
 
-        const companyName = settings?.company?.name || 'حسابي';
-        const companyPhone = settings?.company?.phone || '';
-        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+    const companyName = settings?.company?.name || 'حسابي';
+    const companyPhone = settings?.company?.phone || '';
+    const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
 
-        const itemsRows = items.map(item => {
-            const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
-            return `
-                <tr>
-                    <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
-                    <td>${item.quantity}</td>
-                    <td>${Utils.formatMoney(item.price)}</td>
-                    <td>${Utils.formatMoney(lineTotal)}</td>
-                </tr>
-            `;
-        }).join('');
-
-        const newBalance = customer?.balance || 0;
-        const balanceHTML = customer && customer.name !== 'نقدي' ? `
-            <p style="font-size:13px;"><strong>الرصيد السابق:</strong> ${Utils.formatMoney(oldBalance)}</p>
-            <p style="font-size:13px;"><strong>المدفوع:</strong> ${Utils.formatMoney(invoice.paid)}</p>
-            <p style="font-size:13px;"><strong>الرصيد الحالي:</strong> ${Utils.formatMoney(newBalance)}</p>
-        ` : '';
-
-        const receiptHTML = `
-            <div class="company-name">${Utils.escapeHTML(companyName)}</div>
-            <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
-            <div class="divider"></div>
-            <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p>
-            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${invoice.invoice_number || invoice.id?.substring(0,8)}</p>
-            <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p>
-            ${balanceHTML ? `<div class="divider"></div>${balanceHTML}` : ''}
-            <div class="divider"></div>
-            <table>
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-                <tbody>${itemsRows}</tbody>
-            </table>
-            <div class="totals">
-                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>
-                ${totals.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>` : ''}
-                <p><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p>
-            </div>
-            <div class="divider"></div>
-            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
+    const itemsRows = items.map(item => {
+        const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
+        return `
+            <tr>
+                <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
+                <td>${item.quantity}</td>
+                <td>${Utils.formatMoney(item.price)}</td>
+                <td>${Utils.formatMoney(lineTotal)}</td>
+            </tr>
         `;
+    }).join('');
 
-        this.el.receiptPrintArea.innerHTML = receiptHTML;
-        this.showModal('receiptModal');
-    },
+    const newBalance = customer?.balance || 0;
+    
+    // تجميع معلومات الدفع معاً لتكون في الأسفل
+    const paymentInfoHTML = customer && customer.name !== 'نقدي' ? `
+        <div class="payment-info-box">
+            <div class="payment-row"><span>الرصيد السابق:</span> <span>${Utils.formatMoney(oldBalance)}</span></div>
+            <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(invoice.paid)}</span></div>
+            <div class="payment-row"><span>الرصيد الحالي:</span> <span>${Utils.formatMoney(newBalance)}</span></div>
+        </div>
+    ` : '';
+
+    const receiptHTML = `
+        <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+        <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
+        <div class="divider"></div>
+        <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p>
+        <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${invoice.invoice_number || invoice.id?.substring(0,8)}</p>
+        <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p>
+        <div class="divider"></div>
+        <table>
+            <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+            <tbody>${itemsRows}</tbody>
+        </table>
+        <div class="totals">
+            <p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>
+            ${totals.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>` : ''}
+            <p><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p>
+        </div>
+        ${paymentInfoHTML}
+        <div class="divider"></div>
+        <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
+    `;
+
+    this.el.receiptPrintArea.innerHTML = receiptHTML;
+    this.showModal('receiptModal');
+}
+    
 
     // ==================== طباعة الإيصال من المودال ====================
     printReceiptFromModal() {
