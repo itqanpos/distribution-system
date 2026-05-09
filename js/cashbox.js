@@ -1,5 +1,5 @@
 /* =============================================
-   الصندوق - حسابي
+   cashbox.js - الصندوق (إصدار مُحسَّن)
    ============================================= */
 
 'use strict';
@@ -7,9 +7,16 @@
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
+            return Number(amount).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
         },
-        getToday: () => new Date().toISOString().split('T')[0]
+        formatDate: (dateStr) => {
+            if (!dateStr) return '';
+            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
+            catch (e) { return dateStr; }
+        },
+        getToday: () => new Date().toISOString().split('T')[0],
+        isDBReady: () => !!(window.DB && window.supabase),
+        hasLocalDB: () => !!(window.localDB)
     };
 }
 
@@ -32,6 +39,7 @@ const Cashbox = {
         this.el = {
             menuToggle: document.getElementById('menuToggle'),
             sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebarOverlay'),
             logoutBtn: document.getElementById('logoutBtn'),
             userProfileBtn: document.getElementById('userProfileBtn'),
             userDropdown: document.getElementById('userDropdown'),
@@ -57,35 +65,56 @@ const Cashbox = {
             transDate: document.getElementById('transDate'),
             transAmount: document.getElementById('transAmount'),
             transMethod: document.getElementById('transMethod'),
-            transDescription: document.getElementById('transDescription')
+            transDescription: document.getElementById('transDescription'),
+            toast: document.getElementById('toast')
         };
     },
 
     bindEvents() {
-        this.el.userProfileBtn.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
+        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-        this.el.menuToggle.addEventListener('click', () => this.el.sidebar.classList.toggle('mobile-open'));
-        this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        this.el.searchInput.addEventListener('input', () => this.renderTable());
-        this.el.typeFilter.addEventListener('change', () => this.renderTable());
-        this.el.methodFilter.addEventListener('change', () => this.renderTable());
-        this.el.dateFrom.addEventListener('change', () => this.renderTable());
-        this.el.dateTo.addEventListener('change', () => this.renderTable());
-        this.el.refreshBtn.addEventListener('click', () => this.loadData());
+        // القائمة مع الطبقة الداكنة
+        this.el.menuToggle?.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        this.el.sidebarOverlay?.addEventListener('click', () => {
+            this.el.sidebar.classList.remove('open');
+            this.el.sidebarOverlay.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
 
-        this.el.addTransactionBtn.addEventListener('click', () => this.openModal());
-        this.el.closeModalBtn.addEventListener('click', () => this.closeModal());
-        this.el.cancelModalBtn.addEventListener('click', () => this.closeModal());
-        this.el.transactionForm.addEventListener('submit', (e) => { e.preventDefault(); this.saveTransaction(); });
+        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
+
+        this.el.searchInput?.addEventListener('input', () => this.renderTable());
+        this.el.typeFilter?.addEventListener('change', () => this.renderTable());
+        this.el.methodFilter?.addEventListener('change', () => this.renderTable());
+        this.el.dateFrom?.addEventListener('change', () => this.renderTable());
+        this.el.dateTo?.addEventListener('change', () => this.renderTable());
+        this.el.refreshBtn?.addEventListener('click', () => this.loadData());
+
+        this.el.addTransactionBtn?.addEventListener('click', () => this.openModal());
+        this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
+        this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
+        this.el.transactionForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveTransaction(); });
     },
 
     async loadData() {
-        this.isDBReady = !!(window.DB && window.supabase);
+        this.isDBReady = Utils.isDBReady();
         try {
             if (this.isDBReady) {
-                this.transactions = await DB.getTransactions();
+                this.transactions = await DB.getTransactions() || [];
                 this.settings = await DB.getSettings().catch(() => ({}));
+            } else if (Utils.hasLocalDB()) {
+                this.transactions = await localDB.getAll('transactions') || [];
+                const s = await localDB.getById('settings', 'main').catch(() => null);
+                this.settings = s?.data || {};
             } else {
                 this.transactions = [];
                 this.settings = { financial: { opening_cash_balance: 0 } };
@@ -93,7 +122,7 @@ const Cashbox = {
             this.updateStats();
             this.renderTable();
         } catch (err) {
-            console.error(err);
+            console.error('فشل تحميل بيانات الصندوق:', err);
             this.el.transactionsBody.innerHTML = '<tr><td colspan="6" class="empty-message">فشل تحميل البيانات</td></tr>';
         }
     },
@@ -114,18 +143,18 @@ const Cashbox = {
             if (tr.type === 'income') totalInc += tr.amount;
             else totalExp += tr.amount;
         });
-        this.el.currentBalance.textContent = Utils.formatMoney(this.calculateBalance());
-        this.el.totalIncome.textContent = Utils.formatMoney(totalInc);
-        this.el.totalExpense.textContent = Utils.formatMoney(totalExp);
-        this.el.transactionCount.textContent = this.transactions.length;
+        if (this.el.currentBalance) this.el.currentBalance.textContent = Utils.formatMoney(this.calculateBalance());
+        if (this.el.totalIncome) this.el.totalIncome.textContent = Utils.formatMoney(totalInc);
+        if (this.el.totalExpense) this.el.totalExpense.textContent = Utils.formatMoney(totalExp);
+        if (this.el.transactionCount) this.el.transactionCount.textContent = this.transactions.length;
     },
 
     renderTable() {
-        const term = this.el.searchInput.value.trim().toLowerCase();
-        const type = this.el.typeFilter.value;
-        const method = this.el.methodFilter.value;
-        const from = this.el.dateFrom.value;
-        const to = this.el.dateTo.value;
+        const term = this.el.searchInput?.value.trim().toLowerCase() || '';
+        const type = this.el.typeFilter?.value || 'all';
+        const method = this.el.methodFilter?.value || 'all';
+        const from = this.el.dateFrom?.value || '';
+        const to = this.el.dateTo?.value || '';
 
         let filtered = this.transactions.filter(tr => {
             const matchSearch = !term || (tr.description || '').toLowerCase().includes(term);
@@ -136,7 +165,6 @@ const Cashbox = {
             return matchSearch && matchType && matchMethod && matchDateFrom && matchDateTo;
         });
 
-        // ترتيب تنازلي حسب التاريخ والوقت (إن وجد timestamp)
         filtered.sort((a, b) => {
             if (b.date !== a.date) return (b.date || '').localeCompare(a.date || '');
             return (b.timestamp || b.created_at || '').localeCompare(a.timestamp || a.created_at || '');
@@ -147,16 +175,7 @@ const Cashbox = {
             return;
         }
 
-        // حساب الرصيد التراكمي للعرض
-        let runningBalance = this.calculateBalance();
-        // نقوم بإنشاء مصفوفة عكسية لإظهار الرصيد بعد كل معاملة من الأحدث للأقدم
-        const sortedAsc = [...filtered].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.timestamp || '').localeCompare(b.timestamp || ''));
-        const balanceAfterMap = new Map();
-        let bal = this.settings?.financial?.opening_cash_balance || 0;
-        // يجب إعادة ترتيب كل المعاملات من البداية لحساب الرصيد الصحيح قبل كل معاملة في القائمة المصفاة
-        // للتبسيط نعرض الرصيد بعد المعاملة حسب ترتيب تنازلي، لذا نعكس الحساب.
-        // سنقوم بحساب الرصيد بعد كل معاملة في الترتيب التنازلي عن طريق البدء من الرصيد الحالي ثم التراجع.
-        // الطريقة الأدق: ترتيب تصاعدي لكل المعاملات، حساب الرصيد التراكمي، ثم عكس القائمة.
+        // حساب الرصيد التراكمي
         const allSortedAsc = [...this.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.timestamp || '').localeCompare(b.timestamp || ''));
         const balanceMap = new Map();
         let b = this.settings?.financial?.opening_cash_balance || 0;
@@ -173,7 +192,7 @@ const Cashbox = {
             const sign = tr.type === 'income' ? '+' : '-';
             const balanceAfter = balanceMap.get(tr.id) || 0;
             return `<tr>
-                <td>${tr.date}</td>
+                <td>${Utils.formatDate(tr.date)}</td>
                 <td class="${typeClass}">${typeText}</td>
                 <td>${tr.description || '-'}</td>
                 <td class="${typeClass}">${sign} ${Utils.formatMoney(tr.amount)}</td>
@@ -183,7 +202,6 @@ const Cashbox = {
         }).join('');
     },
 
-    // ========== إدارة المودال ==========
     openModal(transaction = null) {
         this.el.modalTitle.textContent = transaction ? 'تعديل معاملة' : 'معاملة جديدة';
         this.el.transactionId.value = transaction?.id || '';
@@ -192,23 +210,31 @@ const Cashbox = {
         this.el.transAmount.value = transaction?.amount || '';
         this.el.transMethod.value = transaction?.payment_method || 'cash';
         this.el.transDescription.value = transaction?.description || '';
-        this.el.transactionModal.style.display = 'flex';
+        this.el.transactionModal.classList.add('open');
     },
 
     closeModal() {
-        this.el.transactionModal.style.display = 'none';
+        this.el.transactionModal.classList.remove('open');
+    },
+
+    showToast(msg) {
+        const t = this.el.toast;
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
     async saveTransaction() {
-        const type = this.el.transType.value;
-        const date = this.el.transDate.value;
-        const amount = parseFloat(this.el.transAmount.value);
-        const method = this.el.transMethod.value;
-        const description = this.el.transDescription.value.trim();
+        const type = this.el.transType?.value || 'income';
+        const date = this.el.transDate?.value || Utils.getToday();
+        const amount = parseFloat(this.el.transAmount?.value) || 0;
+        const method = this.el.transMethod?.value || 'cash';
+        const description = this.el.transDescription?.value.trim() || null;
 
         if (!amount || amount <= 0) { alert('المبلغ مطلوب'); return; }
 
-        // التحقق من الرصيد في حالة السحب
         if (type === 'expense') {
             const currentBalance = this.calculateBalance();
             if (amount > currentBalance) {
@@ -218,17 +244,19 @@ const Cashbox = {
         }
 
         const transaction = {
-            id: this.el.transactionId.value || crypto.randomUUID(),
+            id: this.el.transactionId?.value || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
             date,
             type,
             amount,
-            description: description || null,
+            description,
             payment_method: method
         };
 
         try {
             if (this.isDBReady) {
                 await DB.saveTransaction(transaction);
+            } else if (Utils.hasLocalDB()) {
+                await localDB.put('transactions', transaction);
             } else {
                 const local = JSON.parse(localStorage.getItem('transactions') || '[]');
                 const idx = local.findIndex(t => t.id === transaction.id);
@@ -238,8 +266,9 @@ const Cashbox = {
             }
             this.closeModal();
             await this.loadData();
+            this.showToast('تم حفظ المعاملة بنجاح');
         } catch (err) {
-            console.error(err);
+            console.error('فشل حفظ المعاملة:', err);
             alert('فشل حفظ المعاملة: ' + err.message);
         }
     }
