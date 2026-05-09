@@ -5,34 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الإعدادات · حسابي</title>
     
-    <!-- iOS Meta Tags -->
+    <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <!-- PWA -->
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/settings.css">
     
-    <!-- Supabase -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
 </head>
 <body>
-    <!-- شريط التنقل -->
-    <nav class="navbar">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width: 38px; height: 38px; object-fit: contain; border-radius: 10px;"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <i class="fas fa-store" style="display:none; font-size:20px; color:white;"></i>
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
                 </div>
                 <div class="logo-text"><h2>حسابي</h2></div>
             </div>
@@ -40,10 +40,7 @@
         <div class="navbar-right">
             <div class="user-profile" id="userProfileBtn">
                 <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info">
-                    <h4 id="userName">مدير النظام</h4>
-                    <p id="loginTime">اليوم</p>
-                </div>
+                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
@@ -51,7 +48,6 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -72,120 +68,57 @@
         </ul>
     </aside>
 
-    <!-- المحتوى الرئيسي -->
     <main class="main-content">
         <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-cog" style="color:var(--secondary); margin-left:12px;"></i>الإعدادات</h1></div>
+            <div class="page-title"><h1><i class="fas fa-cog"></i> الإعدادات</h1></div>
+            <button class="btn btn-primary" id="saveAllSettingsBtn"><i class="fas fa-save"></i> حفظ الكل</button>
         </div>
 
         <div class="settings-grid">
-            <!-- بطاقة إعدادات الشركة -->
+            <!-- بيانات الشركة -->
             <div class="settings-card">
-                <div class="card-header">
-                    <i class="fas fa-building"></i>
-                    <h3>بيانات الشركة</h3>
-                </div>
-                <div class="form-group">
-                    <label>اسم الشركة</label>
-                    <input type="text" id="companyName" placeholder="اسم الشركة">
-                </div>
-                <div class="form-group">
-                    <label>رقم الهاتف</label>
-                    <input type="text" id="companyPhone" placeholder="رقم الهاتف">
-                </div>
-                <div class="form-group">
-                    <label>العنوان</label>
-                    <input type="text" id="companyAddress" placeholder="العنوان">
-                </div>
+                <div class="card-header"><i class="fas fa-building"></i><h3>بيانات الشركة</h3></div>
+                <div class="form-group"><label>اسم الشركة</label><input type="text" id="companyName"></div>
+                <div class="form-group"><label>رقم الهاتف</label><input type="text" id="companyPhone"></div>
+                <div class="form-group"><label>العنوان</label><input type="text" id="companyAddress"></div>
             </div>
 
-            <!-- بطاقة الإعدادات المالية -->
+            <!-- الإعدادات المالية -->
             <div class="settings-card">
-                <div class="card-header">
-                    <i class="fas fa-coins"></i>
-                    <h3>الإعدادات المالية</h3>
-                </div>
-                <div class="form-group">
-                    <label>العملة</label>
-                    <input type="text" id="currency" placeholder="ج.م" value="ج.م">
-                </div>
-                <div class="form-group">
-                    <label>الرصيد الافتتاحي للصندوق</label>
-                    <input type="number" id="openingBalance" step="0.01" min="0" value="0">
-                </div>
-                <div class="form-group">
-                    <label>الحد الأدنى للمخزون (تنبيه)</label>
-                    <input type="number" id="minStock" min="0" value="5">
-                </div>
+                <div class="card-header"><i class="fas fa-coins"></i><h3>الإعدادات المالية</h3></div>
+                <div class="form-group"><label>العملة</label><input type="text" id="currency" value="ج.م"></div>
+                <div class="form-group"><label>الرصيد الافتتاحي للصندوق</label><input type="number" id="openingBalance" step="0.01" min="0" value="0"></div>
+                <div class="form-group"><label>الحد الأدنى للمخزون (تنبيه)</label><input type="number" id="minStock" min="0" value="5"></div>
             </div>
 
-            <!-- بطاقة إعدادات الطباعة الأساسية -->
+            <!-- الطباعة الأساسية -->
             <div class="settings-card">
-                <div class="card-header">
-                    <i class="fas fa-print"></i>
-                    <h3>إعدادات الطباعة الأساسية</h3>
-                </div>
-                <div class="form-group">
-                    <label>رسالة أسفل الإيصال</label>
-                    <input type="text" id="footerMessage" placeholder="شكراً لتعاملكم معنا">
-                </div>
-                <div class="form-group">
-                    <label>عدد النسخ الافتراضي</label>
-                    <input type="number" id="printCopies" min="1" max="5" value="1">
-                </div>
-                <div class="form-group">
-                    <label>قالب الفاتورة</label>
-                    <select id="receiptTemplate">
-                        <option value="default">افتراضي</option>
-                        <option value="compact">مضغوط</option>
-                        <option value="detailed">تفصيلي (مع حدود)</option>
-                        <option value="bordered">مخطط (بحدود كاملة)</option>
-                    </select>
-                </div>
+                <div class="card-header"><i class="fas fa-print"></i><h3>إعدادات الطباعة</h3></div>
+                <div class="form-group"><label>رسالة أسفل الإيصال</label><input type="text" id="footerMessage" value="شكراً لتعاملكم معنا"></div>
+                <div class="form-group"><label>عدد النسخ الافتراضي</label><input type="number" id="printCopies" min="1" max="5" value="1"></div>
+                <div class="form-group"><label>قالب الفاتورة</label><select id="receiptTemplate"><option value="default">افتراضي</option><option value="compact">مضغوط</option><option value="detailed">تفصيلي</option></select></div>
             </div>
 
-            <!-- بطاقة إعدادات الطباعة المتقدمة -->
+            <!-- الطباعة المتقدمة -->
             <div class="settings-card">
-                <div class="card-header">
-                    <i class="fas fa-cogs"></i>
-                    <h3>إعدادات الطباعة المتقدمة</h3>
-                </div>
+                <div class="card-header"><i class="fas fa-cogs"></i><h3>الطابعة</h3></div>
                 <div class="form-row">
-                    <div class="form-group flex-1">
-                        <label>حجم الخط (px)</label>
-                        <input type="number" id="fontSize" min="10" max="20" value="13" step="1">
-                    </div>
-                    <div class="form-group flex-1">
-                        <label>عرض الورق (حرف)</label>
-                        <input type="number" id="paperWidth" min="32" max="80" value="42" step="1">
-                    </div>
+                    <div class="form-group flex-1"><label>حجم الخط (px)</label><input type="number" id="fontSize" value="13" min="10" max="20"></div>
+                    <div class="form-group flex-1"><label>عرض الورق</label><input type="number" id="paperWidth" value="42" min="32" max="80"></div>
                 </div>
-                <div class="form-group">
-                    <label>نوع الطابعة المفضلة</label>
-                    <select id="printerType">
-                        <option value="bluetooth">بلوتوث</option>
-                        <option value="usb">USB</option>
-                        <option value="network">شبكة</option>
-                    </select>
-                </div>
+                <div class="form-group"><label>نوع الطابعة</label><select id="printerType"><option value="bluetooth">بلوتوث</option><option value="usb">USB</option><option value="network">شبكة</option></select></div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-outline" id="connectPrinterBtn">
-                        <i class="fas fa-bluetooth"></i> ربط طابعة بلوتوث
-                    </button>
-                    <button type="button" class="btn btn-outline" id="connectUsbPrinterBtn">
-                        <i class="fas fa-usb"></i> ربط طابعة USB
-                    </button>
+                    <button type="button" class="btn btn-outline" id="connectPrinterBtn"><i class="fas fa-bluetooth"></i> ربط بلوتوث</button>
+                    <button type="button" class="btn btn-outline" id="connectUsbBtn"><i class="fas fa-usb"></i> ربط USB</button>
                 </div>
-                <div id="printerStatus" class="printer-status"></div>
-                <small class="help-text">تأكد من تفعيل البلوتوث أو توصيل الطابعة واختيارها من القائمة المنبثقة.</small>
+                <div id="printerStatus" style="margin-top:8px; font-size:0.8rem;"></div>
             </div>
 
-            <!-- بطاقة إدارة المستخدمين -->
+            <!-- المستخدمين -->
             <div class="settings-card full-width">
                 <div class="card-header">
-                    <i class="fas fa-users-cog"></i>
-                    <h3>إدارة المستخدمين</h3>
-                    <button class="btn btn-primary btn-sm" id="addUserBtn"><i class="fas fa-user-plus"></i> إضافة مستخدم</button>
+                    <i class="fas fa-users-cog"></i><h3>إدارة المستخدمين</h3>
+                    <button class="btn btn-primary" id="addUserBtn"><i class="fas fa-user-plus"></i> إضافة</button>
                 </div>
                 <div class="table-container">
                     <table>
@@ -195,48 +128,27 @@
                 </div>
             </div>
         </div>
-
-        <div class="save-bar">
-            <button class="btn btn-primary btn-lg" id="saveSettingsBtn"><i class="fas fa-save"></i> حفظ جميع الإعدادات</button>
-        </div>
     </main>
 
-    <!-- مودال إضافة مستخدم -->
+    <!-- مودال مستخدم -->
     <div class="modal" id="userModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إضافة مستخدم جديد</h2><button id="closeUserModalBtn">&times;</button></div>
+            <div class="modal-header"><h2 id="userModalTitle">إضافة مستخدم</h2><button id="closeUserModalBtn">&times;</button></div>
             <form id="userForm">
-                <div class="form-group"><label>الاسم الكامل <span class="required">*</span></label><input type="text" id="userFullName" required></div>
+                <input type="hidden" id="userId">
+                <div class="form-group"><label>الاسم <span class="required">*</span></label><input type="text" id="userFullName" required></div>
                 <div class="form-group"><label>البريد الإلكتروني <span class="required">*</span></label><input type="email" id="userEmail" required></div>
-                <div class="form-group"><label>كلمة المرور <span class="required">*</span></label><input type="password" id="userPassword" required minlength="6"></div>
+                <div class="form-group"><label>كلمة المرور <span class="required">*</span></label><input type="password" id="userPassword" minlength="6"></div>
                 <div class="form-group"><label>الدور</label><select id="userRole"><option value="admin">مدير</option><option value="rep">مندوب</option></select></div>
                 <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus"></i> إضافة</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ</button>
                     <button type="button" class="btn btn-cancel" id="cancelUserModalBtn">إلغاء</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <div class="toast" id="toast"></div>
     <script src="./js/settings.js"></script>
-    
-    <!-- Service Worker + سحب للتحديث -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-        }
-        
-        let pullStartY = 0, pulling = false;
-        const pullThreshold = 80;
-        const pullIndicator = document.createElement('div');
-        pullIndicator.className = 'pull-indicator';
-        pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
-        pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
-        document.body.appendChild(pullIndicator);
-        
-        document.addEventListener('touchstart', (e) => { if(window.scrollY===0){ pullStartY=e.touches[0].clientY; pulling=true; } }, {passive:false});
-        document.addEventListener('touchmove', (e) => { if(!pulling) return; if(e.touches[0].clientY-pullStartY>30){ pullIndicator.style.opacity='1'; e.preventDefault(); } }, {passive:false});
-        document.addEventListener('touchend', (e) => { if(!pulling) return; pulling=false; pullIndicator.style.opacity='0'; if(e.changedTouches[0].clientY-pullStartY>pullThreshold) window.location.reload(); });
-    </script>
 </body>
 </html>
