@@ -1,5 +1,5 @@
 /* =============================================
-   الفواتير - حسابي
+   الفواتير - حسابي (v1.1 مُحسَّن)
    ============================================= */
 
 'use strict';
@@ -7,7 +7,13 @@
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
+            return Number(amount).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
+        },
+        formatDate: (dateStr) => {
+            if (!dateStr) return '';
+            try {
+                return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+            } catch (e) { return dateStr; }
         },
         getToday: () => new Date().toISOString().split('T')[0]
     };
@@ -33,11 +39,11 @@ const Invoices = {
             userDropdown: document.getElementById('userDropdown'),
             menuToggle: document.getElementById('menuToggle'),
             sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebarOverlay'),
             logoutBtn: document.getElementById('logoutBtn'),
             searchInput: document.getElementById('searchInput'),
             typeFilter: document.getElementById('typeFilter'),
             statusFilter: document.getElementById('statusFilter'),
-            refreshBtn: document.getElementById('refreshBtn'),
             invoicesBody: document.getElementById('invoicesBody'),
             totalSales: document.getElementById('totalSales'),
             totalReturns: document.getElementById('totalReturns'),
@@ -56,7 +62,23 @@ const Invoices = {
             this.el.userDropdown.classList.toggle('show');
         });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-        this.el.menuToggle.addEventListener('click', () => this.el.sidebar.classList.toggle('mobile-open'));
+
+        // ✅ القائمة الجانبية مع الطبقة الداكنة
+        this.el.menuToggle.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        this.el.sidebarOverlay?.addEventListener('click', () => {
+            this.el.sidebar.classList.remove('open');
+            this.el.sidebarOverlay.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
+
         this.el.logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.App) App.logout();
@@ -67,7 +89,6 @@ const Invoices = {
         this.el.searchInput.addEventListener('input', () => this.renderTable());
         this.el.typeFilter.addEventListener('change', () => this.renderTable());
         this.el.statusFilter.addEventListener('change', () => this.renderTable());
-        this.el.refreshBtn.addEventListener('click', () => this.loadData());
 
         // مودال التفاصيل
         this.el.closeDetailsBtn.addEventListener('click', () => this.closeModal());
@@ -78,9 +99,15 @@ const Invoices = {
 
     async loadData() {
         try {
+            // ✅ دعم Offline مع localDB
             if (window.DB) {
-                this.invoices = await DB.getInvoices(); // جميع الفواتير من جدول invoices
+                this.invoices = await DB.getInvoices();
                 this.customers = await DB.getParties('customer');
+            } else if (window.localDB) {
+                const allInvoices = await localDB.getAll('invoices') || [];
+                this.invoices = allInvoices.filter(inv => inv.type === 'sale' || inv.type === 'return');
+                const allParties = await localDB.getAll('parties') || [];
+                this.customers = allParties.filter(p => p.type === 'customer');
             } else {
                 this.invoices = [];
                 this.customers = [];
@@ -113,15 +140,14 @@ const Invoices = {
         const statusFilter = this.el.statusFilter.value;
 
         let filtered = this.invoices.filter(inv => {
-            const matchSearch = !term ||
-                (inv.id || '').toLowerCase().includes(term) ||
-                (inv.customer_name || '').toLowerCase().includes(term);
+            const idMatch = (inv.id || '').toLowerCase().includes(term);
+            const nameMatch = (inv.customer_name || '').toLowerCase().includes(term);
+            const matchSearch = !term || idMatch || nameMatch;
             const matchType = typeFilter === 'all' || inv.type === typeFilter;
             const matchStatus = statusFilter === 'all' || inv.status === statusFilter;
             return matchSearch && matchType && matchStatus;
         });
 
-        // ترتيب تنازلي حسب التاريخ
         filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         if (!filtered.length) {
@@ -135,10 +161,11 @@ const Invoices = {
                               inv.type === 'return' ? '<span class="type-badge type-return">مرتجع</span>' :
                               `<span class="type-badge">${inv.type}</span>`;
             const customerName = inv.customer_name || this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي';
+            const displayDate = Utils.formatDate(inv.date); // ✅ تاريخ عربي
             return `
                 <tr>
-                    <td>${inv.id.substring(0, 8)}</td>
-                    <td>${inv.date}</td>
+                    <td>${(inv.id || '').substring(0, 8)}</td>
+                    <td>${displayDate}</td>
                     <td>${typeBadge}</td>
                     <td>${customerName}</td>
                     <td>${Utils.formatMoney(inv.total)}</td>
@@ -184,7 +211,7 @@ const Invoices = {
         this.el.detailsContent.innerHTML = `
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
                 <div><strong>رقم الفاتورة:</strong> ${inv.id}</div>
-                <div><strong>التاريخ:</strong> ${inv.date}</div>
+                <div><strong>التاريخ:</strong> ${Utils.formatDate(inv.date)}</div>
                 <div><strong>النوع:</strong> ${typeText}</div>
                 <div><strong>العميل:</strong> ${customerName}</div>
                 <div><strong>الحالة:</strong> ${this.getStatusBadge(inv.status)}</div>
@@ -201,7 +228,7 @@ const Invoices = {
             </table>
             ${inv.notes ? `<p style="margin-top:15px;"><strong>ملاحظات:</strong> ${inv.notes}</p>` : ''}
         `;
-        this.el.detailsModal.style.display = 'flex';
+        this.el.detailsModal.classList.add('open'); // ✅ استخدام open بدلاً من تعديل style مباشرة
     },
 
     printInvoice(id) {
@@ -221,7 +248,7 @@ const Invoices = {
     },
 
     closeModal() {
-        this.el.detailsModal.style.display = 'none';
+        this.el.detailsModal.classList.remove('open');
     }
 };
 
