@@ -1,12 +1,13 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (بدون رسم بياني)
+   dashboard.js - لوحة التحكم (أرقام إنجليزية، بطاقات ثابتة)
    ============================================= */
 'use strict';
 
 console.log('✅ لوحة التحكم – بدء التحميل');
 
 const U = {
-    formatMoney: (v) => Number(v || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
+    // تنسيق الأرقام بالإنجليزية مع رمز العملة ج.م
+    formatMoney: (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
     escapeHTML: (s) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; },
     today: () => new Date().toISOString().split('T')[0],
     round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d),
@@ -39,6 +40,8 @@ const Dashboard = {
             App.initUserInterface();
         }
 
+        // عرض البطاقات فوراً بقيم افتراضية (بالفعل موجودة في HTML)
+        // وسيتم تحديثها بعد تحميل البيانات
         this.renderStats();
         this.renderTables();
         this.loadAllData();
@@ -145,16 +148,10 @@ const Dashboard = {
         });
     },
 
-    toggleLoading(show) {
-        const indicator = document.getElementById('loadingIndicator');
-        if (indicator) indicator.style.display = show ? 'block' : 'none';
-        this.state.loading = show;
-    },
-
     async loadAllData() {
         if (this.state.loading) return;
         console.log('3️⃣ بدء تحميل البيانات');
-        this.toggleLoading(true);
+        this.state.loading = true;
         try {
             await Promise.all([
                 this.loadStats(),
@@ -166,21 +163,89 @@ const Dashboard = {
             console.error('خطأ عام:', e);
             this.toast('تعذر تحميل بعض البيانات');
         } finally {
-            this.toggleLoading(false);
+            this.state.loading = false;
             this.renderStats();
             this.renderTables();
             console.log('4️⃣ تم عرض كل البيانات');
         }
     },
 
-    // دوال loadStats, loadRecentInvoices, loadRecentPurchases كما هي من السابق (بدون تغيير)
+    // ---- دوال تحميل البيانات (كما هي، مع تحسين بسيط) ----
+    async loadStats() {
+        try {
+            const today = U.today();
+            let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
 
-    // دالة renderStats لعرض البطاقات والإحصائيات السريعة
+            if (this.state.ready === true && window.App && window.App.DB) {
+                const DB = window.App.DB;
+                [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                    DB.getInvoices().catch(()=>[]),
+                    DB.getPurchases().catch(()=>[]),
+                    DB.getParties('customer').catch(()=>[]),
+                    DB.getProducts().catch(()=>[]),
+                    DB.getTransactions().catch(()=>[]),
+                    DB.getSettings().catch(()=>({}))
+                ]);
+            } else if (window.localDB) {
+                invoices = await localDB.getAll('invoices') || [];
+                purchases = await localDB.getAll('purchases') || [];
+                const allParties = await localDB.getAll('parties') || [];
+                parties = allParties.filter(p => p.type === 'customer');
+                products = await localDB.getAll('products') || [];
+                transactions = await localDB.getAll('transactions') || [];
+                const s = await localDB.getById('settings', 'main');
+                settings = s?.data || {};
+            }
+
+            const todayInvoices = invoices.filter(inv => inv.date === today && inv.type === 'sale');
+            this.state.stats.salesToday = U.round(todayInvoices.reduce((s, inv) => s + (inv.total || 0), 0));
+
+            const todayPurchases = purchases.filter(p => p.date === today);
+            this.state.stats.purchasesToday = U.round(todayPurchases.reduce((s, p) => s + (p.total || 0), 0));
+
+            this.state.stats.customers = parties.length;
+            this.state.stats.products = products.length;
+
+            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
+            const openingBalance = settings?.financial?.opening_cash_balance || 0;
+            this.state.stats.cash = U.round(openingBalance + income - expense);
+
+        } catch (e) {
+            console.error('فشل loadStats:', e);
+        }
+    },
+
+    async loadRecentInvoices() {
+        try {
+            let invs = [];
+            if (this.state.ready === true && window.App && window.App.DB) {
+                invs = await window.App.DB.getInvoices().catch(()=>[]);
+            } else if (window.localDB) {
+                invs = await localDB.getAll('invoices') || [];
+            }
+            this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+        } catch (e) {}
+    },
+
+    async loadRecentPurchases() {
+        try {
+            let pur = [];
+            if (this.state.ready === true && window.App && window.App.DB) {
+                pur = await window.App.DB.getPurchases().catch(()=>[]);
+            } else if (window.localDB) {
+                pur = await localDB.getAll('purchases') || [];
+            }
+            this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+        } catch (e) {}
+    },
+
+    // ---- عرض البيانات (تحديث البطاقات والجداول) ----
     renderStats() {
         console.log('5️⃣ renderStats');
         const s = this.state.stats;
 
-        // بطاقات سريعة (quick stats)
+        // بطاقات سريعة
         if (this.el.quickStatsRow) {
             this.el.quickStatsRow.innerHTML = `
                 <div class="quick-stat">
@@ -202,29 +267,71 @@ const Dashboard = {
             `;
         }
 
-        // بطاقات التفاصيل (stats grid)
+        // بطاقات الإحصائيات
         if (this.el.statsGrid) {
-            const cards = [
-                { title: 'مبيعات اليوم', value: U.formatMoney(s.salesToday), icon: 'fa-chart-line', color: '#16a34a' },
-                { title: 'مشتريات اليوم', value: U.formatMoney(s.purchasesToday), icon: 'fa-shopping-cart', color: '#dc2626' },
-                { title: 'العملاء', value: s.customers, icon: 'fa-users', color: '#3b82f6' },
-                { title: 'المنتجات', value: s.products, icon: 'fa-boxes', color: '#f59e0b' },
-                { title: 'رصيد الصندوق', value: U.formatMoney(s.cash), icon: 'fa-cash-register', color: '#8b5cf6' }
-            ];
-            this.el.statsGrid.innerHTML = cards.map(c => `
-                <div class="stat-card" style="border-right-color: ${c.color};">
-                    <div class="stat-icon" style="color:${c.color};"><i class="fas ${c.icon}"></i></div>
-                    <div class="stat-content">
-                        <div class="stat-title">${U.escapeHTML(c.title)}</div>
-                        <div class="stat-value">${U.escapeHTML(String(c.value))}</div>
-                    </div>
+            this.el.statsGrid.innerHTML = `
+                <div class="stat-card" style="border-right-color: #16a34a;">
+                    <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-content"><div class="stat-title">مبيعات اليوم</div><div class="stat-value">${U.formatMoney(s.salesToday)}</div></div>
                 </div>
-            `).join('');
+                <div class="stat-card" style="border-right-color: #dc2626;">
+                    <div class="stat-icon" style="color:#dc2626;"><i class="fas fa-shopping-cart"></i></div>
+                    <div class="stat-content"><div class="stat-title">مشتريات اليوم</div><div class="stat-value">${U.formatMoney(s.purchasesToday)}</div></div>
+                </div>
+                <div class="stat-card" style="border-right-color: #3b82f6;">
+                    <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-users"></i></div>
+                    <div class="stat-content"><div class="stat-title">العملاء</div><div class="stat-value">${s.customers}</div></div>
+                </div>
+                <div class="stat-card" style="border-right-color: #f59e0b;">
+                    <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-boxes"></i></div>
+                    <div class="stat-content"><div class="stat-title">المنتجات</div><div class="stat-value">${s.products}</div></div>
+                </div>
+                <div class="stat-card" style="border-right-color: #8b5cf6;">
+                    <div class="stat-icon" style="color:#8b5cf6;"><i class="fas fa-cash-register"></i></div>
+                    <div class="stat-content"><div class="stat-title">رصيد الصندوق</div><div class="stat-value">${U.formatMoney(s.cash)}</div></div>
+                </div>
+            `;
         }
     },
 
     renderTables() {
-        // ... نفس الكود السابق لعرض جداول الفواتير والمشتريات دون تغيير ...
+        console.log('6️⃣ renderTables');
+        // فواتير
+        if (this.el.recentInvoices) {
+            const invs = this.state.recentInvoices;
+            if (!invs.length) {
+                this.el.recentInvoices.innerHTML = '<div class="empty">لا توجد فواتير حديثة</div>';
+            } else {
+                let rows = invs.map(inv => `
+                    <tr>
+                        <td>${U.escapeHTML(inv.invoice_number || '')}</td>
+                        <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
+                        <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
+                        <td>${U.formatMoney(inv.total)}</td>
+                        <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
+                    </tr>
+                `).join('');
+                this.el.recentInvoices.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
+            }
+        }
+
+        // مشتريات
+        if (this.el.recentPurchases) {
+            const pur = this.state.recentPurchases;
+            if (!pur.length) {
+                this.el.recentPurchases.innerHTML = '<div class="empty">لا توجد مشتريات حديثة</div>';
+            } else {
+                let rows = pur.map(p => `
+                    <tr>
+                        <td>${U.escapeHTML(p.supplier_name || 'غير معروف')}</td>
+                        <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
+                        <td>${U.formatMoney(p.total)}</td>
+                        <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
+                    </tr>
+                `).join('');
+                this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
+            }
+        }
     }
 };
 
