@@ -21,7 +21,6 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -50,6 +49,7 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية (بدون المندوبين وقسم الإدارة) -->
     <aside class="sidebar" id="sidebar">
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
@@ -61,10 +61,7 @@
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
         </ul>
     </aside>
 
@@ -74,34 +71,11 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
-        <div class="quick-stats-row" id="quickStatsRow">
-            <!-- بطاقات الملخص السريع تملؤ هنا ديناميكياً -->
-        </div>
+        <!-- بطاقات الملخص السريع -->
+        <div class="quick-stats-row" id="quickStatsRow"></div>
 
-        <!-- صف الإحصائيات الرئيسية -->
+        <!-- بطاقات الإحصائيات الرئيسية -->
         <div class="stats-grid" id="statsGrid"></div>
-
-        <!-- صف المخططات والجداول -->
-        <div class="dashboard-grid">
-            <div class="chart-container">
-                <div class="card-header">
-                    <h3><i class="fas fa-chart-line"></i> اتجاه المبيعات (آخر 30 يوم)</h3>
-                    <div class="chart-period">
-                        <button class="period-btn active" data-period="30">30 يوم</button>
-                        <button class="period-btn" data-period="7">7 أيام</button>
-                    </div>
-                </div>
-                <div class="chart-wrapper"><canvas id="salesChart"></canvas></div>
-                <div id="chartError" style="display:none; color:#ef4444; text-align:center; padding:20px;"></div>
-            </div>
-
-            <div class="top-products-container">
-                <div class="card-header">
-                    <h3><i class="fas fa-crown"></i> أفضل المنتجات مبيعاً</h3>
-                </div>
-                <div class="top-products-list" id="topProductsList"></div>
-            </div>
-        </div>
 
         <!-- جداول النشاط الأخير -->
         <div class="dashboard-grid">
@@ -113,14 +87,6 @@
                 <div class="card-header"><h3><i class="fas fa-shopping-cart"></i> آخر 5 مشتريات</h3></div>
                 <div class="table-responsive" id="recentPurchases"></div>
             </div>
-        </div>
-
-        <!-- روابط سريعة -->
-        <div class="quick-actions">
-            <a href="./pos.html" class="btn btn-primary"><i class="fas fa-cash-register"></i> فتح نقطة البيع</a>
-            <a href="./purchases.html" class="btn btn-outline"><i class="fas fa-shopping-cart"></i> فاتورة شراء</a>
-            <a href="./products.html" class="btn btn-outline"><i class="fas fa-box"></i> إدارة المنتجات</a>
-            <a href="./customers.html" class="btn btn-outline"><i class="fas fa-user-tie"></i> العملاء</a>
         </div>
     </main>
 
