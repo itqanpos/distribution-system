@@ -4,20 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نقطة البيع · حسابي</title>
-    <link rel="icon" href="./icons/icon-192x192.png">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/pos.css">
+    
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/pos.css">
+    
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    <script src="./js/print.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -38,7 +40,10 @@
         <div class="navbar-right">
             <div class="user-profile" id="userProfileBtn">
                 <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
+                <div class="user-info">
+                    <h4 id="userName">مدير النظام</h4>
+                    <p id="loginTime">اليوم</p>
+                </div>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
@@ -119,7 +124,7 @@
         </div>
     </div>
 
-    <!-- المودالات -->
+    <!-- مودال إضافة منتج -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -131,6 +136,7 @@
         </div>
     </div>
 
+    <!-- مودال الدفع -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -163,6 +169,7 @@
         </div>
     </div>
 
+    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -170,15 +177,32 @@
         </div>
     </div>
 
+    <!-- ✅ مودال الإيصال الحراري الجديد -->
+    <div class="modal" id="receiptModal">
+        <div class="modal-content receipt-modal-content">
+            <div class="receipt-header">
+                <button id="closeReceiptModalBtn" class="close-btn">&times;</button>
+            </div>
+            <div id="receiptPrintArea">
+                <!-- سيتم ملؤه من JavaScript -->
+            </div>
+            <div class="receipt-actions">
+                <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-cancel" id="cancelReceiptModalBtn">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast"></div>
 
     <script src="./js/pos.js"></script>
 
-    <!-- Service Worker + سحب للتحديث -->
+    <!-- Service Worker + السحب للتحديث -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
         }
+
         (function() {
             let pullStartY = 0, pulling = false;
             const pullThreshold = 80;
@@ -188,9 +212,31 @@
             pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
             pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
             body.appendChild(pullIndicator);
-            document.addEventListener('touchstart', (e) => { if(e.target.closest('.cart-items, .search-dropdown, .modal')) return; if(window.scrollY===0){ pullStartY=e.touches[0].clientY; pulling=true; } }, {passive:false});
-            document.addEventListener('touchmove', (e) => { if(!pulling) return; if(e.touches[0].clientY-pullStartY>30){ pullIndicator.style.opacity='1'; e.preventDefault(); } }, {passive:false});
-            document.addEventListener('touchend', (e) => { if(!pulling) return; pulling=false; pullIndicator.style.opacity='0'; if(e.changedTouches[0].clientY-pullStartY>pullThreshold) window.location.reload(); });
+
+            document.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.cart-items, .search-dropdown, .modal')) return;
+                if (window.scrollY === 0) {
+                    pullStartY = e.touches[0].clientY;
+                    pulling = true;
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!pulling) return;
+                if (e.touches[0].clientY - pullStartY > 30) {
+                    pullIndicator.style.opacity = '1';
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', (e) => {
+                if (!pulling) return;
+                pulling = false;
+                pullIndicator.style.opacity = '0';
+                if (e.changedTouches[0].clientY - pullStartY > pullThreshold) {
+                    window.location.reload();
+                }
+            });
         })();
     </script>
 </body>
