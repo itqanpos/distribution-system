@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة التحكم · حسابي</title>
     
+    <!-- أيقونة المتصفح (Favicon) -->
+    <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
@@ -23,12 +25,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- طبقة داكنة تظهر عند فتح القائمة في الجوال -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:36px;height:36px;object-fit:contain;border-radius:8px;"
                          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                     <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
                 </div>
