@@ -1,5 +1,5 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار نهائي مع طباعة آمنة)
+   pos.js - نقطة البيع (إصدار نهائي كامل)
    ============================================= */
 'use strict';
 
@@ -784,6 +784,7 @@ const POS = {
 
             // تحديث رصيد العميل
             const customer = this.getSelectedCustomer();
+            const oldCustomerBalance = customer ? customer.balance : 0;
             if (customer) {
                 customer.balance = Utils.round((customer.balance || 0) + diff, 2);
                 if (this.state.isDBReady) {
@@ -823,7 +824,7 @@ const POS = {
             this.closeModal('paymentModal');
             await this.loadProductsAndCustomers();
             this.buildCache();
-            this.showReceiptModal(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals);
+            this.showReceiptModal(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals, oldCustomerBalance);
             this.resetCart();
             this.showToast('تم البيع بنجاح');
 
@@ -1044,8 +1045,7 @@ const POS = {
     },
 
     // ==================== عرض الإيصال في المودال ====================
-    showReceiptModal(invoice, customer, items, totals) {
-        // جلب إعدادات الشركة من localStorage
+    showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
         let settings = {};
         try {
             settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
@@ -1067,6 +1067,13 @@ const POS = {
             `;
         }).join('');
 
+        const newBalance = customer?.balance || 0;
+        const balanceHTML = customer && customer.name !== 'نقدي' ? `
+            <p style="font-size:13px;"><strong>الرصيد السابق:</strong> ${Utils.formatMoney(oldBalance)}</p>
+            <p style="font-size:13px;"><strong>المدفوع:</strong> ${Utils.formatMoney(invoice.paid)}</p>
+            <p style="font-size:13px;"><strong>الرصيد الحالي:</strong> ${Utils.formatMoney(newBalance)}</p>
+        ` : '';
+
         const receiptHTML = `
             <div class="company-name">${Utils.escapeHTML(companyName)}</div>
             <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
@@ -1074,6 +1081,7 @@ const POS = {
             <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p>
             <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${invoice.invoice_number || invoice.id?.substring(0,8)}</p>
             <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p>
+            ${balanceHTML ? `<div class="divider"></div>${balanceHTML}` : ''}
             <div class="divider"></div>
             <table>
                 <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
