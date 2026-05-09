@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الفواتير · حسابي</title>
     
+    <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
@@ -23,6 +24,8 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -76,10 +79,34 @@
         </div>
 
         <div class="stats-grid" id="statsGrid">
-            <div class="stat-card"><div class="stat-icon" style="color:#16a34a;"><i class="fas fa-shopping-cart"></i></div><div class="stat-content"><div class="stat-title">إجمالي المبيعات</div><div class="stat-value" id="totalSales">0 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div><div class="stat-content"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value" id="totalReturns">0 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div><div class="stat-content"><div class="stat-title">عدد الفواتير</div><div class="stat-value" id="invoiceCount">0</div></div></div>
-            <div class="stat-card"><div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div><div class="stat-content"><div class="stat-title">غير مدفوعة</div><div class="stat-value" id="totalUnpaid">0 ج.م</div></div></div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-shopping-cart"></i></div>
+                <div class="stat-content">
+                    <div class="stat-title">إجمالي المبيعات</div>
+                    <div class="stat-value" id="totalSales">0 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div>
+                <div class="stat-content">
+                    <div class="stat-title">إجمالي المرتجعات</div>
+                    <div class="stat-value" id="totalReturns">0 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div>
+                <div class="stat-content">
+                    <div class="stat-title">عدد الفواتير</div>
+                    <div class="stat-value" id="invoiceCount">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div>
+                <div class="stat-content">
+                    <div class="stat-title">غير مدفوعة</div>
+                    <div class="stat-value" id="totalUnpaid">0 ج.م</div>
+                </div>
+            </div>
         </div>
 
         <div class="filter-bar">
