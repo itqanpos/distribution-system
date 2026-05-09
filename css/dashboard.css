@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.css - لوحة التحكم (إصدار محسّن)
+   dashboard.css - لوحة التحكم (بدون رسم بياني)
    ============================================= */
 
 :root {
@@ -138,7 +138,7 @@ body {
     font-weight: 500; display: flex; align-items: center; gap: 6px;
 }
 
-/* ======== ملخص سريع (بطاقات أفقية) ======== */
+/* ======== ملخص سريع ======== */
 .quick-stats-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -177,54 +177,18 @@ body {
 .stat-title { font-size: 0.7rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); }
 
-/* ======== المخطط والمنتجات ======== */
+/* ======== جداول ======== */
 .dashboard-grid {
-    display: grid; grid-template-columns: 2fr 1fr; gap: 16px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px;
     margin-bottom: 20px;
 }
-.chart-container, .top-products-container {
-    background: white; border-radius: var(--radius-lg); padding: 18px;
-    box-shadow: var(--shadow-sm);
-}
-.card-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 14px; flex-wrap: wrap; gap: 6px;
-}
-.card-header h3 { font-size: 0.95rem; font-weight: 700; color: var(--gray-800); display: flex; align-items: center; gap: 6px; }
-.chart-period { display: flex; gap: 4px; }
-.period-btn {
-    padding: 4px 12px; border: 1px solid var(--gray-300); background: white;
-    border-radius: 20px; font-size: 0.7rem; cursor: pointer; transition: all var(--transition);
-}
-.period-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-.chart-wrapper { height: 280px; position: relative; }
-
-/* أفضل المنتجات */
-.top-products-list {
-    max-height: 300px; overflow-y: auto;
-}
-.top-product-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 0; border-bottom: 1px solid var(--gray-100);
-}
-.top-product-rank {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: var(--gray-100); display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 0.8rem; color: var(--gray-600);
-}
-.top-product-item:nth-child(1) .top-product-rank { background: #ffd700; color: white; }
-.top-product-item:nth-child(2) .top-product-rank { background: #c0c0c0; color: white; }
-.top-product-item:nth-child(3) .top-product-rank { background: #cd7f32; color: white; }
-.top-product-info { flex: 1; }
-.top-product-name { font-weight: 600; font-size: 0.85rem; }
-.top-product-sales { font-size: 0.7rem; color: var(--gray-500); }
-.top-product-total { font-weight: 700; font-size: 0.85rem; }
-
-/* ======== جداول ======== */
 .table-box {
     background: white; border-radius: var(--radius-lg); padding: 18px;
     box-shadow: var(--shadow-sm);
 }
+.card-header { margin-bottom: 14px; }
+.card-header h3 { font-size: 0.95rem; font-weight: 700; color: var(--gray-800); display: flex; align-items: center; gap: 6px; }
 .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; min-width: 300px; }
 th { text-align: right; padding: 10px 12px; color: var(--gray-600); border-bottom: 1px solid var(--gray-200); background: var(--gray-50); font-weight: 700; font-size: 0.75rem; }
@@ -237,21 +201,6 @@ tr:active td { background: #f5f7fa; }
 .badge-danger { background: #fef2f2; color: #991b1b; }
 .badge-warning { background: #fffbeb; color: #92400e; }
 .empty { text-align: center; padding: 20px; color: var(--gray-400); font-size: 0.8rem; }
-
-/* ======== أزرار سريعة ======== */
-.quick-actions {
-    display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;
-}
-.btn {
-    padding: 10px 18px; border: none; border-radius: var(--radius-sm);
-    font-weight: 600; cursor: pointer; display: inline-flex; align-items: center;
-    gap: 6px; font-size: 0.85rem; transition: all var(--transition);
-    text-decoration: none; white-space: nowrap;
-}
-.btn-primary { background: var(--primary); color: white; }
-.btn-primary:active { background: #1d4ed8; transform: scale(0.97); }
-.btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
-.btn-outline:active { background: var(--primary); color: white; }
 
 /* ======== Toast ======== */
 .toast {
