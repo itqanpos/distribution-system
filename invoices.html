@@ -134,17 +134,37 @@
         </div>
     </div>
 
-    <!-- مودال تعديل الفاتورة -->
+    <!-- مودال تعديل الفاتورة الكامل -->
     <div class="modal" id="editInvoiceModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header"><h2>تعديل الفاتورة</h2><button id="closeEditModalBtn">&times;</button></div>
             <form id="editInvoiceForm">
                 <input type="hidden" id="editInvoiceId">
-                <div class="form-row">
-                    <div class="form-group flex-1"><label>التاريخ</label><input type="date" id="editInvoiceDate" required></div>
-                    <div class="form-group flex-1"><label>الحالة</label><select id="editInvoiceStatus"><option value="paid">مدفوعة</option><option value="partial">جزئية</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select></div>
+                <div class="form-section">
+                    <div class="section-title"><i class="fas fa-info-circle"></i> بيانات الفاتورة</div>
+                    <div class="form-row">
+                        <div class="form-group flex-1"><label>التاريخ</label><input type="date" id="editInvoiceDate" required></div>
+                        <div class="form-group flex-1"><label>الحالة</label><select id="editInvoiceStatus"><option value="paid">مدفوعة</option><option value="partial">مدفوعة جزئيا</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select></div>
+                    </div>
+                    <div class="form-group"><label>ملاحظات</label><textarea id="editInvoiceNotes" rows="2"></textarea></div>
                 </div>
-                <div class="form-group"><label>ملاحظات</label><textarea id="editInvoiceNotes" rows="2"></textarea></div>
+
+                <div class="form-section">
+                    <div class="section-title"><i class="fas fa-boxes"></i> الأصناف</div>
+                    <div id="editItemsContainer"></div>
+                    <button type="button" class="btn btn-outline btn-full" id="addEditItemBtn"><i class="fas fa-plus-circle"></i> إضافة صنف</button>
+                    <div class="total-display"><span>الإجمالي</span><span id="editTotalAmount">0.00 ج.م</span></div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title"><i class="fas fa-money-bill-wave"></i> تفاصيل الدفع</div>
+                    <div class="form-row">
+                        <div class="form-group flex-1"><label>المبلغ المدفوع</label><input type="number" id="editPaidAmount" min="0" step="0.01" value="0" oninput="Invoices.updateEditRemaining()"></div>
+                        <div class="form-group flex-1"><label>طريقة الدفع</label><select id="editPaymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="credit">آجل</option></select></div>
+                    </div>
+                    <div class="remaining-display"><span>المتبقي</span><span id="editRemainingAmount">0.00 ج.م</span></div>
+                </div>
+
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التعديلات</button>
                     <button type="button" class="btn btn-cancel" id="cancelEditModalBtn">إلغاء</button>
