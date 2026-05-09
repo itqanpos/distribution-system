@@ -1,97 +1,95 @@
-/* =============================================
-   service-worker.js - الإصدار النهائي
-   ============================================= */
-const CACHE_NAME = 'hesaby-v2';
+const CACHE_NAME = 'hesaby-app-v3';
 const ASSETS_TO_CACHE = [
-    '/distribution-system/',
-    '/distribution-system/index.html',
-    '/distribution-system/splash.html',
-    '/distribution-system/dashboard.html',
-    '/distribution-system/pos.html',
-    '/distribution-system/invoices.html',
-    '/distribution-system/purchases.html',
-    '/distribution-system/customers.html',
-    '/distribution-system/products.html',
-    '/distribution-system/cashbox.html',
-    '/distribution-system/settings.html',
-    '/distribution-system/reports.html',
-    '/distribution-system/sales-returns.html',
-    '/distribution-system/purchase-returns.html',
-    '/distribution-system/css/dashboard.css',
-    '/distribution-system/css/pos.css',
-    '/distribution-system/css/invoices.css',
-    '/distribution-system/css/purchases.css',
-    '/distribution-system/css/customers.css',
-    '/distribution-system/css/products.css',
-    '/distribution-system/css/cashbox.css',
-    '/distribution-system/css/settings.css',
-    '/distribution-system/css/reports.css',
-    '/distribution-system/css/sales-returns.css',
-    '/distribution-system/css/purchase-returns.css',
-    '/distribution-system/js/db-local.js',
-    '/distribution-system/js/sync.js',
-    '/distribution-system/js/supabase.js',
-    '/distribution-system/js/print.js',
-    '/distribution-system/js/dashboard.js',
-    '/distribution-system/js/pos.js',
-    '/distribution-system/js/invoices.js',
-    '/distribution-system/js/purchases.js',
-    '/distribution-system/js/customers.js',
-    '/distribution-system/js/products.js',
-    '/distribution-system/js/cashbox.js',
-    '/distribution-system/js/settings.js',
-    '/distribution-system/js/reports.js',
-    '/distribution-system/js/sales-returns.js',
-    '/distribution-system/js/purchase-returns.js',
-    '/distribution-system/icons/icon-192x192.png',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://cdn.jsdelivr.net/npm/chart.js'
+  '/',
+  '/index.html',
+  '/dashboard.html',
+  '/pos.html',
+  '/invoices.html',
+  '/purchases.html',
+  '/cashbox.html',
+  '/accounting.html',
+  '/reports.html',
+  '/sales-returns.html',
+  '/purchase-returns.html',
+  '/orders.html',
+  '/payments.html',
+  '/inventory.html',
+  '/notifications.html',
+  '/customers.html',
+  '/products.html',
+  '/settings.html',
+  '/css/dashboard.css',
+  '/css/pos.css',
+  '/css/invoices.css',
+  '/css/purchases.css',
+  '/css/cashbox.css',
+  '/css/accounting.css',
+  '/css/reports.css',
+  '/css/sales-returns.css',
+  '/css/purchase-returns.css',
+  '/css/orders.css',
+  '/css/payments.css',
+  '/css/inventory.css',
+  '/css/notifications.css',
+  '/css/customers.css',
+  '/css/products.css',
+  '/css/settings.css',
+  '/js/supabase.js',
+  '/js/db-local.js',
+  '/js/sync.js',
+  '/js/print.js',
+  '/js/dashboard.js',
+  '/js/pos.js',
+  '/js/invoices.js',
+  '/js/purchases.js',
+  '/js/cashbox.js',
+  '/js/accounting.js',
+  '/js/reports.js',
+  '/js/sales-returns.js',
+  '/js/purchase-returns.js',
+  '/js/orders.js',
+  '/js/payments.js',
+  '/js/inventory.js',
+  '/js/notifications.js',
+  '/js/customers.js',
+  '/js/products.js',
+  '/js/settings.js',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/manifest.json'
 ];
 
-// التثبيت
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Service Worker: تخزين الأصول');
-                return cache.addAll(ASSETS_TO_CACHE).catch(err => {
-                    console.warn('فشل تخزين بعض الأصول:', err);
-                });
-            })
-            .then(() => self.skipWaiting())
-    );
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
 });
 
-// التفعيل
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then(keys => {
-            return Promise.all(
-                keys.filter(key => key !== CACHE_NAME)
-                    .map(key => caches.delete(key))
-            );
-        }).then(() => self.clients.claim())
-    );
-});
-
-// استراتيجية Network First
 self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET') return;
-    
-    event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                const cloned = response.clone();
-                caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, cloned);
-                });
-                return response;
-            })
-            .catch(() => {
-                return caches.match(event.request).then(cached => {
-                    return cached || new Response('', { status: 503 });
-                });
-            })
-    );
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      // Return cached response if available, otherwise fetch from network
+      return cachedResponse || fetch(event.request).then((response) => {
+        // Cache the fetched response for future offline use
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      });
+    })
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((cacheName) => cacheName !== CACHE_NAME)
+          .map((cacheName) => caches.delete(cacheName))
+      );
+    })
+  );
 });
