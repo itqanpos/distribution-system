@@ -1,7 +1,18 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار نهائي كامل)
+   pos.js - نقطة البيع (إصدار محسّن)
    ============================================= */
 'use strict';
+
+// ==================== الثوابت ====================
+const CONFIG = {
+    MODAL_OPEN_CLASS: 'open',
+    TOAST_TIMEOUT: 3000,
+    DEBOUNCE_DELAY: 150,
+    PAYMENT_METHODS: ['cash', 'transfer', 'mixed'],
+    DEFAULT_QUANTITY: 1,
+    PRINT_WINDOW_WIDTH: 400,
+    PRINT_WINDOW_HEIGHT: 600
+};
 
 // ==================== الأدوات المساعدة ====================
 const Utils = {
@@ -24,6 +35,7 @@ const Utils = {
     getToday: () => new Date().toISOString().split('T')[0],
 
     escapeHTML: (str) => {
+        if (typeof str !== 'string') return '';
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
@@ -80,6 +92,9 @@ const POS = {
     },
 
     el: {},
+    
+    _cachedSettings: null,
+    _toastTimer: null,
 
     // ==================== التهيئة ====================
     init() {
@@ -90,7 +105,6 @@ const POS = {
         window.addEventListener('online', () => this.updateOnlineStatus());
         window.addEventListener('offline', () => this.updateOnlineStatus());
 
-        // حفظ السلة عند إخفاء التطبيق (لأجهزة الجوال)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 this.saveCartToStorage();
@@ -122,7 +136,6 @@ const POS = {
             'closeHeldModalBtn', 'heldInvoicesList',
             'paySubtotal', 'payDiscount', 'payNet', 'currentBalance',
             'currentBalanceLabel',
-            // عناصر الإيصال الجديدة
             'receiptModal', 'receiptPrintArea', 'printReceiptBtn',
             'cancelReceiptModalBtn', 'closeReceiptModalBtn'
         ];
@@ -133,24 +146,24 @@ const POS = {
         // زر المستخدم
         this.el.userProfileBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.el.userDropdown.classList.toggle('show');
+            this.el.userDropdown?.classList.toggle('show');
         });
         document.addEventListener('click', () => {
             this.el.userDropdown?.classList.remove('show');
         });
 
-        // القائمة الجانبية مع الطبقة الداكنة
+        // القائمة الجانبية
         this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
+            this.el.sidebar?.classList.toggle('open');
             this.el.sidebarOverlay?.classList.toggle('show');
         });
         this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
+            this.el.sidebar?.classList.remove('open');
             this.el.sidebarOverlay.classList.remove('show');
         });
         document.querySelectorAll('.menu-item').forEach(link => {
             link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
+                this.el.sidebar?.classList.remove('open');
                 this.el.sidebarOverlay?.classList.remove('show');
             });
         });
@@ -163,7 +176,7 @@ const POS = {
         });
 
         // البحث عن المنتج
-        const debouncedSearch = Utils.debounce(() => this.filterProducts(), 150);
+        const debouncedSearch = Utils.debounce(() => this.filterProducts(), CONFIG.DEBOUNCE_DELAY);
         this.el.productSearchInput?.addEventListener('input', debouncedSearch);
 
         // النقر على عنصر في القائمة المنسدلة
@@ -172,11 +185,11 @@ const POS = {
             if (item && item.dataset.id) {
                 this.openUnitModal(item.dataset.id);
                 this.hideProductDropdown();
-                this.el.productSearchInput.value = '';
+                if (this.el.productSearchInput) this.el.productSearchInput.value = '';
             }
         });
 
-        // إغلاق القائمة المنسدلة عند النقر خارجها
+        // إغلاق القائمة المنسدلة
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.search-header')) {
                 this.hideProductDropdown();
@@ -201,7 +214,7 @@ const POS = {
         this.el.holdBtn?.addEventListener('click', () => this.holdInvoice());
         this.el.heldInvoicesBtn?.addEventListener('click', () => this.loadHeldInvoices());
 
-        // مودال إضافة المنتج
+        // مودال المنتج
         this.el.addToCartBtn?.addEventListener('click', () => this.addToCartFromModal());
         this.el.closeUnitModalBtn?.addEventListener('click', () => this.closeModal('unitQuantityModal'));
 
@@ -225,11 +238,31 @@ const POS = {
     },
 
     // ==================== حالة الاتصال ====================
-    handleConnectionStatus() { this.updateOnlineStatus(); },
+    handleConnectionStatus() { 
+        this.updateOnlineStatus(); 
+    },
+    
     updateOnlineStatus() {
         const navbar = document.getElementById('mainNavbar');
         if (!navbar) return;
         navbar.classList.toggle('offline', !navigator.onLine);
+    },
+
+    // ==================== الإعدادات ====================
+    getAppSettings() {
+        if (!this._cachedSettings) {
+            try {
+                this._cachedSettings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+            } catch(e) {
+                console.warn('فشل تحليل إعدادات التطبيق:', e);
+                this._cachedSettings = {};
+            }
+        }
+        return this._cachedSettings;
+    },
+
+    clearSettingsCache() {
+        this._cachedSettings = null;
     },
 
     // ==================== تحميل البيانات ====================
@@ -326,7 +359,7 @@ const POS = {
         return product.units[0].stock || 0;
     },
 
-    formatStockDisplay(product) {
+    calculateStockDisplay(product) {
         const baseUnit = product?.units?.[0];
         if (!baseUnit) return '0';
         const stock = baseUnit.stock || 0;
@@ -340,6 +373,10 @@ const POS = {
         if (remainder === 0) return `${wholeUnits} ${Utils.escapeHTML(baseUnit.name)}`;
         if (wholeUnits === 0) return `${remainder} ${Utils.escapeHTML(subUnit.name)}`;
         return `${wholeUnits} ${Utils.escapeHTML(baseUnit.name)} و ${remainder} ${Utils.escapeHTML(subUnit.name)}`;
+    },
+
+    formatStockDisplay(product) {
+        return this.calculateStockDisplay(product);
     },
 
     filterProducts() {
@@ -489,9 +526,9 @@ const POS = {
             container.appendChild(row);
         });
 
-        // أحداث الكمية والسعر والحذف
-        container.querySelectorAll('.cart-qty-input').forEach(input => {
-            input.addEventListener('change', (e) => {
+        // Event Delegation - يحل مشكلة memory leak
+        container.addEventListener('change', (e) => {
+            if (e.target.classList.contains('cart-qty-input')) {
                 const idx = parseInt(e.target.dataset.idx);
                 const qty = parseFloat(e.target.value);
                 if (isNaN(qty) || qty <= 0) {
@@ -500,26 +537,24 @@ const POS = {
                     this.state.cart[idx].quantity = qty;
                 }
                 this.renderCart();
-            });
-        });
-
-        container.querySelectorAll('.cart-price-input').forEach(input => {
-            input.addEventListener('change', (e) => {
+            } else if (e.target.classList.contains('cart-price-input')) {
                 const idx = parseInt(e.target.dataset.idx);
                 const price = parseFloat(e.target.value);
                 if (!isNaN(price) && price >= 0) {
                     this.state.cart[idx].price = price;
+                } else {
+                    this.showToast('السعر غير صحيح');
                 }
                 this.renderCart();
-            });
+            }
         });
 
-        container.querySelectorAll('.fa-trash').forEach(icon => {
-            icon.addEventListener('click', (e) => {
+        container.addEventListener('click', (e) => {
+            if (e.target.classList.contains('fa-trash')) {
                 const idx = parseInt(e.target.dataset.idx);
                 this.state.cart.splice(idx, 1);
                 this.renderCart();
-            });
+            }
         });
 
         this.updateTotalsAndUI();
@@ -540,19 +575,24 @@ const POS = {
         }
 
         this.state.selectedProduct = product;
-        this.el.modalProductName.textContent = Utils.escapeHTML(product.name);
+        if (this.el.modalProductName) {
+            this.el.modalProductName.textContent = Utils.escapeHTML(product.name);
+        }
 
         const container = this.el.unitButtons;
+        if (!container) return;
+        
         container.innerHTML = product.units.map((u, idx) => {
             const unitName = Utils.escapeHTML(u.name);
             return `<button class="unit-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}">${unitName}</button>`;
         }).join('');
 
-        container.querySelectorAll('.unit-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const index = parseInt(btn.dataset.index);
+        // Event Delegation - single listener instead of forEach
+        container.addEventListener('click', (e) => {
+            if (e.target.classList.contains('unit-btn')) {
+                const index = parseInt(e.target.dataset.index);
                 this.selectUnit(index);
-            });
+            }
         });
 
         this.state.selectedUnit = product.units[0];
@@ -565,6 +605,8 @@ const POS = {
         this.state.selectedUnit = this.state.selectedProduct.units[index];
 
         const container = this.el.unitButtons;
+        if (!container) return;
+        
         container.querySelectorAll('.unit-btn').forEach((btn, i) => {
             btn.classList.toggle('active', i === index);
         });
@@ -590,19 +632,23 @@ const POS = {
         }
 
         const maxAvailable = Math.max(0, availableStock);
-        this.el.selectedPrice.value = unit.price || 0;
-        this.el.selectedQuantity.max = maxAvailable;
-        this.el.selectedQuantity.value = maxAvailable > 0 ? 1 : 0;
+        if (this.el.selectedPrice) this.el.selectedPrice.value = unit.price || 0;
+        if (this.el.selectedQuantity) {
+            this.el.selectedQuantity.max = maxAvailable;
+            this.el.selectedQuantity.value = maxAvailable > 0 ? CONFIG.DEFAULT_QUANTITY : 0;
+        }
 
-        if (unit === baseUnit) {
-            this.el.stockInfo.textContent = `المخزون المتاح: ${maxAvailable} ${baseUnit.name}`;
-        } else {
-            const wholeBase = Math.floor(baseStock);
-            const remainderPieces = Math.round((baseStock - wholeBase) * factor);
-            let detail = `(${wholeBase} ${baseUnit.name}`;
-            if (remainderPieces > 0) detail += ` و ${remainderPieces} ${unit.name}`;
-            detail += ')';
-            this.el.stockInfo.textContent = `المخزون المتاح: ${maxAvailable} ${unit.name} ${detail}`;
+        if (this.el.stockInfo) {
+            if (unit === baseUnit) {
+                this.el.stockInfo.textContent = `المخزون المتاح: ${maxAvailable} ${baseUnit.name}`;
+            } else {
+                const wholeBase = Math.floor(baseStock);
+                const remainderPieces = Math.round((baseStock - wholeBase) * factor);
+                let detail = `(${wholeBase} ${baseUnit.name}`;
+                if (remainderPieces > 0) detail += ` و ${remainderPieces} ${unit.name}`;
+                detail += ')';
+                this.el.stockInfo.textContent = `المخزون المتاح: ${maxAvailable} ${unit.name} ${detail}`;
+            }
         }
     },
 
@@ -611,12 +657,12 @@ const POS = {
         const maxAvailable = parseFloat(this.el.selectedQuantity?.max) || 0;
 
         if (qty <= 0 || qty > maxAvailable) {
-            alert(`الكمية غير متاحة. الحد الأقصى: ${maxAvailable} ${this.state.selectedUnit?.name || ''}`);
+            this.showToast(`الكمية غير متاحة. الحد الأقصى: ${maxAvailable} ${this.state.selectedUnit?.name || ''}`);
             return;
         }
         const price = parseFloat(this.el.selectedPrice?.value) || 0;
         if (price < 0) {
-            alert('السعر لا يمكن أن يكون سالبًا');
+            this.showToast('السعر لا يمكن أن يكون سالبًا');
             return;
         }
 
@@ -644,33 +690,37 @@ const POS = {
     // ==================== المودالات العامة ====================
     showModal(id) {
         const modal = this.el[id];
-        if (modal) modal.classList.add('open');
+        if (modal) modal.classList.add(CONFIG.MODAL_OPEN_CLASS);
     },
+    
     closeModal(id) {
         const modal = this.el[id];
-        if (modal) modal.classList.remove('open');
+        if (modal) modal.classList.remove(CONFIG.MODAL_OPEN_CLASS);
     },
 
     // ==================== الدفع ====================
     openPaymentModal() {
         if (!this.state.cart.length) {
-            alert('السلة فارغة');
+            this.showToast('السلة فارغة');
             return;
         }
         const totals = this.calculateTotals();
-        this.el.paySubtotal.textContent = Utils.formatMoney(totals.subtotal);
-        this.el.payDiscount.textContent = Utils.formatMoney(totals.discount);
-        this.el.payNet.textContent = Utils.formatMoney(totals.net);
+        if (this.el.paySubtotal) this.el.paySubtotal.textContent = Utils.formatMoney(totals.subtotal);
+        if (this.el.payDiscount) this.el.payDiscount.textContent = Utils.formatMoney(totals.discount);
+        if (this.el.payNet) this.el.payNet.textContent = Utils.formatMoney(totals.net);
 
         const customer = this.getSelectedCustomer();
         const bal = customer?.balance || 0;
-        this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
-        this.el.currentBalance.classList.toggle('text-success', bal >= 0);
-        this.el.currentBalance.classList.toggle('text-danger', bal < 0);
+        if (this.el.currentBalance) {
+            this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
+            this.el.currentBalance.classList.toggle('text-success', bal >= 0);
+            this.el.currentBalance.classList.toggle('text-danger', bal < 0);
+        }
 
-        this.el.cashAmount.value = '';
-        this.el.transferAmount.value = '';
-        this.el.paymentMethod.value = 'cash';
+        if (this.el.cashAmount) this.el.cashAmount.value = '';
+        if (this.el.transferAmount) this.el.transferAmount.value = '';
+        if (this.el.paymentMethod) this.el.paymentMethod.value = 'cash';
+        
         this.togglePaymentFields();
         this.updatePaymentPreview();
         this.showModal('paymentModal');
@@ -678,9 +728,22 @@ const POS = {
 
     togglePaymentFields() {
         const method = this.el.paymentMethod?.value || 'cash';
-        this.el.cashField.style.display = (method === 'cash' || method === 'mixed') ? 'block' : 'none';
-        this.el.transferField.style.display = (method === 'transfer' || method === 'mixed') ? 'block' : 'none';
+        if (this.el.cashField) {
+            this.el.cashField.style.display = (method === 'cash' || method === 'mixed') ? 'block' : 'none';
+        }
+        if (this.el.transferField) {
+            this.el.transferField.style.display = (method === 'transfer' || method === 'mixed') ? 'block' : 'none';
+        }
         this.updatePaymentPreview();
+    },
+
+    calculatePaymentDifference(paid) {
+        const net = this.state.netTotal;
+        const customer = this.getSelectedCustomer();
+        const currentBal = customer?.balance || 0;
+        const diff = Utils.round(paid - net, 2);
+        const newBalance = Utils.round(currentBal + diff, 2);
+        return { diff, newBalance, currentBal };
     },
 
     updatePaymentPreview() {
@@ -692,16 +755,19 @@ const POS = {
         else if (method === 'transfer') paid = parseFloat(this.el.transferAmount?.value) || 0;
         else if (method === 'mixed') paid = (parseFloat(this.el.cashAmount?.value) || 0) + (parseFloat(this.el.transferAmount?.value) || 0);
 
-        const diff = Utils.round(paid - net, 2);
-        const customer = this.getSelectedCustomer();
-        const currentBal = customer?.balance || 0;
-        const newBal = Utils.round(currentBal + diff, 2);
+        const { diff, newBalance } = this.calculatePaymentDifference(paid);
 
-        this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
-        this.el.balanceAfterLabel.textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
-        this.el.balanceAfter.textContent = Utils.formatMoney(Math.abs(newBal));
-        this.el.balanceAfter.classList.toggle('text-success', newBal >= 0);
-        this.el.balanceAfter.classList.toggle('text-danger', newBal < 0);
+        if (this.el.remainingDisplay) {
+            this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
+        }
+        if (this.el.balanceAfterLabel) {
+            this.el.balanceAfterLabel.textContent = newBalance >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
+        }
+        if (this.el.balanceAfter) {
+            this.el.balanceAfter.textContent = Utils.formatMoney(Math.abs(newBalance));
+            this.el.balanceAfter.classList.toggle('text-success', newBalance >= 0);
+            this.el.balanceAfter.classList.toggle('text-danger', newBalance < 0);
+        }
     },
 
     getBaseQuantityReduction(item) {
@@ -714,14 +780,40 @@ const POS = {
         return item.quantity / factor;
     },
 
-    // ==================== إتمام الدفع وعرض الإيصال ====================
+    // ==================== إنشاء فاتورة ====================
+    async createInvoice(status = 'paid', totalPaid = 0, notes = '') {
+        const totals = this.calculateTotals();
+        
+        const invoiceNumber = this.state.isDBReady
+            ? await DB.generateInvoiceNumber()
+            : this.generateLocalInvoiceNumber();
+
+        return {
+            id: Utils.generateUUID(),
+            invoice_number: invoiceNumber,
+            type: 'sale',
+            date: Utils.getToday(),
+            customer_id: this.state.selectedCustomerId || null,
+            customer_name: this.getSelectedCustomer()?.name || 'نقدي',
+            items: JSON.parse(JSON.stringify(this.state.cart)),
+            subtotal: totals.subtotal,
+            discount: totals.discount,
+            total: totals.net,
+            paid: totalPaid,
+            remaining: status === 'paid' || totalPaid >= totals.net ? 0 : Utils.round(totals.net - totalPaid, 2),
+            status: status,
+            notes: notes
+        };
+    },
+
+    // ==================== إتمام الدفع ====================
     async completePayment() {
         if (this.state.isProcessing) {
             this.showToast('جاري معالجة الدفع...');
             return;
         }
         this.state.isProcessing = true;
-        this.el.confirmAndPrintBtn.disabled = true;
+        if (this.el.confirmAndPrintBtn) this.el.confirmAndPrintBtn.disabled = true;
         this.showToast('جاري حفظ الفاتورة...');
 
         try {
@@ -737,29 +829,12 @@ const POS = {
             }
 
             const totalPaid = Utils.round(cashPaid + transferPaid, 2);
-            const diff = Utils.round(totalPaid - totals.net, 2);
+            const { diff } = this.calculatePaymentDifference(totalPaid);
             const notes = this.el.paymentNotes?.value || '';
 
-            const invoiceNumber = this.state.isDBReady
-                ? await DB.generateInvoiceNumber()
-                : this.generateLocalInvoiceNumber();
-
-            const invoice = {
-                id: Utils.generateUUID(),
-                invoice_number: invoiceNumber,
-                type: 'sale',
-                date: Utils.getToday(),
-                customer_id: this.state.selectedCustomerId || null,
-                customer_name: this.getSelectedCustomer()?.name || 'نقدي',
-                items: JSON.parse(JSON.stringify(this.state.cart)),
-                subtotal: totals.subtotal,
-                discount: totals.discount,
-                total: totals.net,
-                paid: totalPaid,
-                remaining: diff >= 0 ? 0 : -diff,
-                status: diff >= 0 ? 'paid' : 'partial',
-                notes: notes
-            };
+            // إنشاء الفاتورة
+            const status = diff >= 0 ? 'paid' : 'partial';
+            const invoice = await this.createInvoice(status, totalPaid, notes);
 
             // حفظ الفاتورة
             if (this.state.isDBReady) {
@@ -768,72 +843,82 @@ const POS = {
                 await localDB.put('invoices', invoice);
             }
 
-            // تحديث المخزون
-            for (const item of this.state.cart) {
-                const prod = this.cache.productMap.get(String(item.productId));
-                if (prod) {
-                    const reduction = this.getBaseQuantityReduction(item);
-                    prod.units[0].stock = Utils.round(Math.max(0, prod.units[0].stock - reduction), 3);
-                    if (this.state.isDBReady) {
-                        await DB.saveProduct(prod);
-                    } else if (Utils.hasLocalDB()) {
-                        await localDB.put('products', prod);
-                    }
-                }
-            }
+            // تحديث المخزون والعميل والمعاملات
+            await this.updateInventoryAndCustomer(invoice, totalPaid, cashPaid, transferPaid);
 
-            // تحديث رصيد العميل
-            const customer = this.getSelectedCustomer();
-            const oldCustomerBalance = customer ? customer.balance : 0;
-            if (customer) {
-                customer.balance = Utils.round((customer.balance || 0) + diff, 2);
-                if (this.state.isDBReady) {
-                    await DB.saveParty(customer);
-                } else if (Utils.hasLocalDB()) {
-                    await localDB.put('parties', customer);
-                }
-            }
-
-            // حفظ المعاملات المالية
-            if (cashPaid > 0) {
-                const trans = {
-                    id: Utils.generateUUID(),
-                    date: Utils.getToday(),
-                    type: 'income',
-                    amount: cashPaid,
-                    description: `فاتورة ${invoiceNumber}`,
-                    payment_method: 'cash'
-                };
-                if (this.state.isDBReady) await DB.saveTransaction(trans);
-                else if (Utils.hasLocalDB()) await localDB.put('transactions', trans);
-            }
-            if (transferPaid > 0) {
-                const trans = {
-                    id: Utils.generateUUID(),
-                    date: Utils.getToday(),
-                    type: 'income',
-                    amount: transferPaid,
-                    description: `فاتورة ${invoiceNumber}`,
-                    payment_method: 'bank'
-                };
-                if (this.state.isDBReady) await DB.saveTransaction(trans);
-                else if (Utils.hasLocalDB()) await localDB.put('transactions', trans);
-            }
-
-            // عرض الإيصال في المودال
+            // إعادة تحميل البيانات وعرض الإيصال
             this.closeModal('paymentModal');
             await this.loadProductsAndCustomers();
             this.buildCache();
-            this.showReceiptModal(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals, oldCustomerBalance);
+
+            const customer = this.getSelectedCustomer();
+            const oldBalance = customer?.balance || 0;
+            this.showReceiptModal(invoice, customer || { name: 'نقدي', balance: oldBalance }, this.state.cart, totals, oldBalance);
+            
             this.resetCart();
             this.showToast('تم البيع بنجاح');
 
         } catch (error) {
             console.error('خطأ في الدفع:', error);
-            alert('حدث خطأ أثناء الدفع: ' + (error.message || ''));
+            this.showToast('حدث خطأ أثناء الدفع: ' + (error.message || ''));
         } finally {
             this.state.isProcessing = false;
-            this.el.confirmAndPrintBtn.disabled = false;
+            if (this.el.confirmAndPrintBtn) this.el.confirmAndPrintBtn.disabled = false;
+        }
+    },
+
+    async updateInventoryAndCustomer(invoice, totalPaid, cashPaid, transferPaid) {
+        const { diff } = this.calculatePaymentDifference(totalPaid);
+
+        // تحديث المخزون
+        for (const item of this.state.cart) {
+            const prod = this.cache.productMap.get(String(item.productId));
+            if (prod) {
+                const reduction = this.getBaseQuantityReduction(item);
+                prod.units[0].stock = Utils.round(Math.max(0, prod.units[0].stock - reduction), 3);
+                if (this.state.isDBReady) {
+                    await DB.saveProduct(prod);
+                } else if (Utils.hasLocalDB()) {
+                    await localDB.put('products', prod);
+                }
+            }
+        }
+
+        // تحديث رصيد العميل
+        const customer = this.getSelectedCustomer();
+        if (customer) {
+            customer.balance = Utils.round((customer.balance || 0) + diff, 2);
+            if (this.state.isDBReady) {
+                await DB.saveParty(customer);
+            } else if (Utils.hasLocalDB()) {
+                await localDB.put('parties', customer);
+            }
+        }
+
+        // حفظ المعاملات
+        if (cashPaid > 0) {
+            const trans = {
+                id: Utils.generateUUID(),
+                date: Utils.getToday(),
+                type: 'income',
+                amount: cashPaid,
+                description: `فاتورة ${invoice.invoice_number}`,
+                payment_method: 'cash'
+            };
+            if (this.state.isDBReady) await DB.saveTransaction(trans);
+            else if (Utils.hasLocalDB()) await localDB.put('transactions', trans);
+        }
+        if (transferPaid > 0) {
+            const trans = {
+                id: Utils.generateUUID(),
+                date: Utils.getToday(),
+                type: 'income',
+                amount: transferPaid,
+                description: `فاتورة ${invoice.invoice_number}`,
+                payment_method: 'bank'
+            };
+            if (this.state.isDBReady) await DB.saveTransaction(trans);
+            else if (Utils.hasLocalDB()) await localDB.put('transactions', trans);
         }
     },
 
@@ -863,31 +948,11 @@ const POS = {
     // ==================== تعليق الفاتورة ====================
     async holdInvoice() {
         if (!this.state.cart.length) {
-            alert('السلة فارغة');
+            this.showToast('السلة فارغة');
             return;
         }
         try {
-            const totals = this.calculateTotals();
-            const invoiceNumber = this.state.isDBReady
-                ? await DB.generateInvoiceNumber()
-                : this.generateLocalInvoiceNumber();
-
-            const invoice = {
-                id: Utils.generateUUID(),
-                invoice_number: invoiceNumber,
-                type: 'sale',
-                date: Utils.getToday(),
-                customer_id: this.state.selectedCustomerId || null,
-                customer_name: this.getSelectedCustomer()?.name || 'نقدي',
-                items: JSON.parse(JSON.stringify(this.state.cart)),
-                subtotal: totals.subtotal,
-                discount: totals.discount,
-                total: totals.net,
-                paid: 0,
-                remaining: totals.net,
-                status: 'held',
-                notes: 'فاتورة معلقة'
-            };
+            const invoice = await this.createInvoice('held', 0, 'فاتورة معلقة');
 
             if (this.state.isDBReady) {
                 await DB.saveInvoice(invoice);
@@ -895,15 +960,14 @@ const POS = {
                 await localDB.put('invoices', invoice);
             }
 
-            alert(`تم تعليق الفاتورة ${invoiceNumber}`);
+            this.showToast(`تم تعليق الفاتورة ${invoice.invoice_number}`);
             this.resetCart();
             await this.loadProductsAndCustomers();
             this.buildCache();
-            this.showToast('تم تعليق الفاتورة');
 
         } catch (error) {
             console.error('خطأ في التعليق:', error);
-            alert('فشل تعليق الفاتورة');
+            this.showToast('فشل تعليق الفاتورة');
         }
     },
 
@@ -918,7 +982,7 @@ const POS = {
                 invoices = all.filter(i => i.type === 'sale' && i.status === 'held');
             }
         } catch (e) {
-            console.error('خطأ تحميل المعلقة:', e);
+            console.error('خطأ تحميل الفواتير المعلقة:', e);
         }
 
         const container = this.el.heldInvoicesList;
@@ -932,14 +996,18 @@ const POS = {
                 const name = customer?.name || 'نقدي';
                 const invNumber = Utils.escapeHTML(inv.invoice_number || inv.id?.substring(0, 8) || '');
                 const total = Utils.formatMoney(inv.total);
-                return `<div class="held-invoice-item" data-id="${Utils.escapeHTML(String(inv.id))}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
+                return `<div class="held-invoice-item" data-id="${Utils.escapeHTML(String(inv.id))}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer;">
                     <div><strong>${invNumber}</strong><br>${Utils.escapeHTML(name)} - ${total}</div>
                     <div><i class="fas fa-play"></i></div>
                 </div>`;
             }).join('');
 
-            container.querySelectorAll('.held-invoice-item').forEach(item => {
-                item.addEventListener('click', () => this.resumeInvoice(item.dataset.id));
+            // Event Delegation - single listener
+            container.addEventListener('click', (e) => {
+                const item = e.target.closest('.held-invoice-item');
+                if (item && item.dataset.id) {
+                    this.resumeInvoice(item.dataset.id);
+                }
             });
         }
         this.showModal('heldInvoicesModal');
@@ -963,7 +1031,7 @@ const POS = {
             }
 
             if (!inv) {
-                alert('الفاتورة غير موجودة');
+                this.showToast('الفاتورة غير موجودة');
                 return;
             }
 
@@ -972,10 +1040,10 @@ const POS = {
 
             if (inv.customer_id) {
                 const customer = this.cache.customerMap.get(String(inv.customer_id));
-                if (customer) {
+                if (customer && this.el.customerSearchInput) {
                     this.el.customerSearchInput.value = customer.name || '';
                 }
-            } else {
+            } else if (this.el.customerSearchInput) {
                 this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
             }
             this.onCustomerSearch();
@@ -985,7 +1053,7 @@ const POS = {
 
         } catch (err) {
             console.error('خطأ في استرجاع الفاتورة:', err);
-            alert('فشل استرجاع الفاتورة المعلقة');
+            this.showToast('فشل استرجاع الفاتورة المعلقة');
         }
     },
 
@@ -1041,79 +1109,75 @@ const POS = {
         t.textContent = msg;
         t.classList.add('show');
         clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), CONFIG.TOAST_TIMEOUT);
     },
 
     // ==================== عرض الإيصال في المودال ====================
     showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
-    let settings = {};
-    try {
-        settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-    } catch(e) {}
+        const settings = this.getAppSettings();
+        const companyName = settings?.company?.name || 'حسابي';
+        const companyPhone = settings?.company?.phone || '';
+        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
 
-    const companyName = settings?.company?.name || 'حسابي';
-    const companyPhone = settings?.company?.phone || '';
-    const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+        const itemsRows = items.map(item => {
+            const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
+            return `
+                <tr>
+                    <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
+                    <td>${item.quantity}</td>
+                    <td>${Utils.formatMoney(item.price)}</td>
+                    <td>${Utils.formatMoney(lineTotal)}</td>
+                </tr>
+            `;
+        }).join('');
 
-    const itemsRows = items.map(item => {
-        const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
-        return `
-            <tr>
-                <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
-                <td>${item.quantity}</td>
-                <td>${Utils.formatMoney(item.price)}</td>
-                <td>${Utils.formatMoney(lineTotal)}</td>
-            </tr>
+        const newBalance = customer?.balance || 0;
+        
+        const paymentInfoHTML = customer && customer.name !== 'نقدي' ? `
+            <div class="payment-info-box">
+                <div class="payment-row"><span>الرصيد السابق:</span> <span>${Utils.formatMoney(oldBalance)}</span></div>
+                <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(invoice.paid)}</span></div>
+                <div class="payment-row"><span>الرصيد الحالي:</span> <span>${Utils.formatMoney(newBalance)}</span></div>
+            </div>
+        ` : '';
+
+        const receiptHTML = `
+            <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+            <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
+            <div class="divider"></div>
+            <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p>
+            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${Utils.escapeHTML(invoice.invoice_number || invoice.id?.substring(0,8) || '')}</p>
+            <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p>
+            <div class="divider"></div>
+            <table>
+                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <tbody>${itemsRows}</tbody>
+            </table>
+            <div class="totals">
+                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>
+                ${totals.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>` : ''}
+                <p><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p>
+            </div>
+            ${paymentInfoHTML}
+            <div class="divider"></div>
+            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
         `;
-    }).join('');
 
-    const newBalance = customer?.balance || 0;
-    
-    // تجميع معلومات الدفع معاً لتكون في الأسفل
-    const paymentInfoHTML = customer && customer.name !== 'نقدي' ? `
-        <div class="payment-info-box">
-            <div class="payment-row"><span>الرصيد السابق:</span> <span>${Utils.formatMoney(oldBalance)}</span></div>
-            <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(invoice.paid)}</span></div>
-            <div class="payment-row"><span>الرصيد الحالي:</span> <span>${Utils.formatMoney(newBalance)}</span></div>
-        </div>
-    ` : '';
-
-    const receiptHTML = `
-        <div class="company-name">${Utils.escapeHTML(companyName)}</div>
-        <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
-        <div class="divider"></div>
-        <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p>
-        <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${invoice.invoice_number || invoice.id?.substring(0,8)}</p>
-        <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p>
-        <div class="divider"></div>
-        <table>
-            <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-            <tbody>${itemsRows}</tbody>
-        </table>
-        <div class="totals">
-            <p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>
-            ${totals.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>` : ''}
-            <p><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p>
-        </div>
-        ${paymentInfoHTML}
-        <div class="divider"></div>
-        <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
-    `;
-
-    this.el.receiptPrintArea.innerHTML = receiptHTML;
-    this.showModal('receiptModal');
-}
-    
+        if (this.el.receiptPrintArea) {
+            this.el.receiptPrintArea.innerHTML = receiptHTML;
+        }
+        this.showModal('receiptModal');
+    },
 
     // ==================== طباعة الإيصال من المودال ====================
     printReceiptFromModal() {
-        const printContent = this.el.receiptPrintArea.innerHTML;
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        const printContent = this.el.receiptPrintArea?.innerHTML || '';
+        const settings = this.getAppSettings();
         const companyName = settings?.company?.name || 'حسابي';
         
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        const printWindow = window.open('', '_blank', `width=${CONFIG.PRINT_WINDOW_WIDTH},height=${CONFIG.PRINT_WINDOW_HEIGHT}`);
         if (!printWindow) {
-            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة');
+            this.showToast('الرجاء السماح بالنوافذ المنبثقة للطباعة');
             return;
         }
 
