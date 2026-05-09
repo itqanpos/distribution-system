@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المشتريات · حسابي</title>
     
+    <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
@@ -23,6 +24,8 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -74,10 +77,22 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-icon"><i class="fas fa-shopping-cart"></i></div><div class="stat-content"><div class="stat-title">إجمالي المشتريات</div><div class="stat-value" id="totalPurchases">0 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-content"><div class="stat-title">المدفوع</div><div class="stat-value" id="paidPurchases">0 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-content"><div class="stat-title">المتبقي</div><div class="stat-value" id="unpaidPurchases">0 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon"><i class="fas fa-receipt"></i></div><div class="stat-content"><div class="stat-title">عدد الفواتير</div><div class="stat-value" id="purchaseCount">0</div></div></div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+                <div class="stat-content"><div class="stat-title">إجمالي المشتريات</div><div class="stat-value" id="totalPurchases">0 ج.م</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-content"><div class="stat-title">المدفوع</div><div class="stat-value" id="paidPurchases">0 ج.م</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-content"><div class="stat-title">المتبقي</div><div class="stat-value" id="unpaidPurchases">0 ج.م</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-receipt"></i></div>
+                <div class="stat-content"><div class="stat-title">عدد الفواتير</div><div class="stat-value" id="purchaseCount">0</div></div>
+            </div>
         </div>
 
         <div class="filter-bar">
@@ -90,7 +105,7 @@
                 <button class="filter-btn" data-filter="paid">مدفوعة</button>
                 <button class="filter-btn" data-filter="unpaid">غير مدفوعة</button>
             </div>
-            <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
+            <button class="btn btn-outline" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
         <div class="table-container">
@@ -109,11 +124,7 @@
                 <div class="form-section">
                     <div class="section-title"><i class="fas fa-user-tie"></i> بيانات المورد</div>
                     <div class="form-row">
-                        <div class="form-group flex-2">
-                            <label>المورد <span class="required">*</span></label>
-                            <input type="text" id="supplierInput" placeholder="ابحث أو اكتب اسم المورد..." list="supplierList" autocomplete="off" required>
-                            <datalist id="supplierList"></datalist>
-                        </div>
+                        <div class="form-group flex-2"><label>المورد <span class="required">*</span></label><input type="text" id="supplierInput" placeholder="ابحث أو اكتب اسم المورد..." list="supplierList" autocomplete="off" required><datalist id="supplierList"></datalist></div>
                         <div class="form-group flex-1"><label>التاريخ</label><input type="date" id="purchaseDate" required></div>
                     </div>
                     <div class="form-group"><label>رقم فاتورة المورد (اختياري)</label><input type="text" id="invoiceNumber" placeholder="مثال: INV-2024-001"></div>
