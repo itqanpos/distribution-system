@@ -1,12 +1,11 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (أرقام إنجليزية، بطاقات ثابتة)
+   dashboard.js - لوحة التحكم (سرعة فائقة + ترتيب الفواتير)
    ============================================= */
 'use strict';
 
 console.log('✅ لوحة التحكم – بدء التحميل');
 
 const U = {
-    // تنسيق الأرقام بالإنجليزية مع رمز العملة ج.م
     formatMoney: (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
     escapeHTML: (s) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; },
     today: () => new Date().toISOString().split('T')[0],
@@ -40,10 +39,7 @@ const Dashboard = {
             App.initUserInterface();
         }
 
-        // عرض البطاقات فوراً بقيم افتراضية (بالفعل موجودة في HTML)
-        // وسيتم تحديثها بعد تحميل البيانات
-        this.renderStats();
-        this.renderTables();
+        // تحميل البيانات مباشرة (البطاقات ظهرت بالفعل في HTML)
         this.loadAllData();
     },
 
@@ -164,13 +160,13 @@ const Dashboard = {
             this.toast('تعذر تحميل بعض البيانات');
         } finally {
             this.state.loading = false;
-            this.renderStats();
-            this.renderTables();
-            console.log('4️⃣ تم عرض كل البيانات');
+            // تحديث البطاقات بشكل سلس (تحديث القيم فقط دون مسح البطاقات)
+            this.updateStatsDisplay();
+            this.updateTablesDisplay();
+            console.log('4️⃣ تم تحديث العرض');
         }
     },
 
-    // ---- دوال تحميل البيانات (كما هي، مع تحسين بسيط) ----
     async loadStats() {
         try {
             const today = U.today();
@@ -224,7 +220,15 @@ const Dashboard = {
             } else if (window.localDB) {
                 invs = await localDB.getAll('invoices') || [];
             }
-            this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            // ✅ ترتيب الفواتير: الأحدث أولاً حسب رقم الفاتورة (تنازلي)
+            this.state.recentInvoices = invs
+                .filter(i => i.type === 'sale')
+                .sort((a, b) => {
+                    const aNum = parseInt(a.invoice_number?.split('-').pop()) || 0;
+                    const bNum = parseInt(b.invoice_number?.split('-').pop()) || 0;
+                    return bNum - aNum; // تنازلي (الأكبر أولاً)
+                })
+                .slice(0, 5);
         } catch (e) {}
     },
 
@@ -236,81 +240,62 @@ const Dashboard = {
             } else if (window.localDB) {
                 pur = await localDB.getAll('purchases') || [];
             }
-            this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            this.state.recentPurchases = pur
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                .slice(0, 5);
         } catch (e) {}
     },
 
-    // ---- عرض البيانات (تحديث البطاقات والجداول) ----
-    renderStats() {
-        console.log('5️⃣ renderStats');
+    // ========== تحديث البطاقات (تحديث القيم فقط) ==========
+    updateStatsDisplay() {
+        console.log('5️⃣ تحديث بطاقات الإحصائيات');
         const s = this.state.stats;
 
-        // بطاقات سريعة
+        // تحديث البطاقات السريعة (quick stats)
         if (this.el.quickStatsRow) {
-            this.el.quickStatsRow.innerHTML = `
-                <div class="quick-stat">
-                    <div class="stat-icon" style="background:#dbeafe; color:#2563eb;"><i class="fas fa-money-bill-wave"></i></div>
-                    <div class="stat-info"><div class="stat-value">${U.formatMoney(s.salesToday)}</div><div class="stat-label">مبيعات اليوم</div></div>
-                </div>
-                <div class="quick-stat">
-                    <div class="stat-icon" style="background:#fee2e2; color:#ef4444;"><i class="fas fa-shopping-cart"></i></div>
-                    <div class="stat-info"><div class="stat-value">${U.formatMoney(s.purchasesToday)}</div><div class="stat-label">مشتريات اليوم</div></div>
-                </div>
-                <div class="quick-stat">
-                    <div class="stat-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fas fa-wallet"></i></div>
-                    <div class="stat-info"><div class="stat-value">${U.formatMoney(s.cash)}</div><div class="stat-label">رصيد الصندوق</div></div>
-                </div>
-                <div class="quick-stat">
-                    <div class="stat-icon" style="background:#d1fae5; color:#10b981;"><i class="fas fa-users"></i></div>
-                    <div class="stat-info"><div class="stat-value">${s.customers}</div><div class="stat-label">العملاء</div></div>
-                </div>
-            `;
+            const quickValues = this.el.quickStatsRow.querySelectorAll('.stat-value');
+            if (quickValues.length >= 4) {
+                quickValues[0].textContent = U.formatMoney(s.salesToday);
+                quickValues[1].textContent = U.formatMoney(s.purchasesToday);
+                quickValues[2].textContent = U.formatMoney(s.cash);
+                quickValues[3].textContent = s.customers;
+            }
         }
 
-        // بطاقات الإحصائيات
+        // تحديث بطاقات الإحصائيات الرئيسية
         if (this.el.statsGrid) {
-            this.el.statsGrid.innerHTML = `
-                <div class="stat-card" style="border-right-color: #16a34a;">
-                    <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-chart-line"></i></div>
-                    <div class="stat-content"><div class="stat-title">مبيعات اليوم</div><div class="stat-value">${U.formatMoney(s.salesToday)}</div></div>
-                </div>
-                <div class="stat-card" style="border-right-color: #dc2626;">
-                    <div class="stat-icon" style="color:#dc2626;"><i class="fas fa-shopping-cart"></i></div>
-                    <div class="stat-content"><div class="stat-title">مشتريات اليوم</div><div class="stat-value">${U.formatMoney(s.purchasesToday)}</div></div>
-                </div>
-                <div class="stat-card" style="border-right-color: #3b82f6;">
-                    <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-users"></i></div>
-                    <div class="stat-content"><div class="stat-title">العملاء</div><div class="stat-value">${s.customers}</div></div>
-                </div>
-                <div class="stat-card" style="border-right-color: #f59e0b;">
-                    <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-boxes"></i></div>
-                    <div class="stat-content"><div class="stat-title">المنتجات</div><div class="stat-value">${s.products}</div></div>
-                </div>
-                <div class="stat-card" style="border-right-color: #8b5cf6;">
-                    <div class="stat-icon" style="color:#8b5cf6;"><i class="fas fa-cash-register"></i></div>
-                    <div class="stat-content"><div class="stat-title">رصيد الصندوق</div><div class="stat-value">${U.formatMoney(s.cash)}</div></div>
-                </div>
-            `;
+            const statCards = this.el.statsGrid.querySelectorAll('.stat-card .stat-value');
+            if (statCards.length >= 5) {
+                statCards[0].textContent = U.formatMoney(s.salesToday);
+                statCards[1].textContent = U.formatMoney(s.purchasesToday);
+                statCards[2].textContent = s.customers;
+                statCards[3].textContent = s.products;
+                statCards[4].textContent = U.formatMoney(s.cash);
+            }
         }
     },
 
-    renderTables() {
-        console.log('6️⃣ renderTables');
+    updateTablesDisplay() {
+        console.log('6️⃣ تحديث جداول النشاط الأخير');
         // فواتير
         if (this.el.recentInvoices) {
             const invs = this.state.recentInvoices;
             if (!invs.length) {
                 this.el.recentInvoices.innerHTML = '<div class="empty">لا توجد فواتير حديثة</div>';
             } else {
-                let rows = invs.map(inv => `
-                    <tr>
-                        <td>${U.escapeHTML(inv.invoice_number || '')}</td>
-                        <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
-                        <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
-                        <td>${U.formatMoney(inv.total)}</td>
-                        <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
-                    </tr>
-                `).join('');
+                let rows = invs.map(inv => {
+                    // ✅ إظهار رقم الفاتورة كاملاً
+                    const invNumber = inv.invoice_number || inv.id?.substring(0, 8) || '—';
+                    return `
+                        <tr>
+                            <td>${U.escapeHTML(invNumber)}</td>
+                            <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
+                            <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
+                            <td>${U.formatMoney(inv.total)}</td>
+                            <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
+                        </tr>
+                    `;
+                }).join('');
                 this.el.recentInvoices.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
