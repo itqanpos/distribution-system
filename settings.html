@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الإعدادات · حسابي</title>
-    
     <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/settings.css">
-    
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -24,16 +20,11 @@
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
-                </div>
+                <div class="logo-icon"><img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i></div>
                 <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
@@ -42,6 +33,7 @@
                 <div class="user-avatar" id="userAvatar">U</div>
                 <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
                 <div class="user-dropdown" id="userDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
@@ -60,9 +52,11 @@
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <div class="menu-section">الإدارة</div>
+            <li><a class="menu-item" href="./orders.html"><i class="fas fa-clipboard-list"></i><span>الطلبات</span></a></li>
+            <li><a class="menu-item" href="./payments.html"><i class="fas fa-money-bill-wave"></i><span>المدفوعات</span></a></li>
+            <li><a class="menu-item" href="./inventory.html"><i class="fas fa-warehouse"></i><span>حركات المخزون</span></a></li>
+            <li><a class="menu-item" href="./notifications.html"><i class="fas fa-bell"></i><span>الإشعارات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./reps.html"><i class="fas fa-users"></i><span>المندوبين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item active" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
@@ -88,28 +82,27 @@
                 <div class="card-header"><i class="fas fa-coins"></i><h3>الإعدادات المالية</h3></div>
                 <div class="form-group"><label>العملة</label><input type="text" id="currency" value="ج.م"></div>
                 <div class="form-group"><label>الرصيد الافتتاحي للصندوق</label><input type="number" id="openingBalance" step="0.01" min="0" value="0"></div>
-                <div class="form-group"><label>الحد الأدنى للمخزون (تنبيه)</label><input type="number" id="minStock" min="0" value="5"></div>
+                <div class="form-group"><label>الحد الأدنى للمخزون</label><input type="number" id="minStock" min="0" value="5"></div>
             </div>
 
-            <!-- الطباعة الأساسية -->
+            <!-- الطباعة -->
             <div class="settings-card">
                 <div class="card-header"><i class="fas fa-print"></i><h3>إعدادات الطباعة</h3></div>
                 <div class="form-group"><label>رسالة أسفل الإيصال</label><input type="text" id="footerMessage" value="شكراً لتعاملكم معنا"></div>
-                <div class="form-group"><label>عدد النسخ الافتراضي</label><input type="number" id="printCopies" min="1" max="5" value="1"></div>
+                <div class="form-group"><label>عدد النسخ</label><input type="number" id="printCopies" min="1" max="5" value="1"></div>
                 <div class="form-group"><label>قالب الفاتورة</label><select id="receiptTemplate"><option value="default">افتراضي</option><option value="compact">مضغوط</option><option value="detailed">تفصيلي</option></select></div>
             </div>
 
-            <!-- الطباعة المتقدمة -->
+            <!-- ربط الطابعة المباشر -->
             <div class="settings-card">
-                <div class="card-header"><i class="fas fa-cogs"></i><h3>الطابعة</h3></div>
-                <div class="form-row">
-                    <div class="form-group flex-1"><label>حجم الخط (px)</label><input type="number" id="fontSize" value="13" min="10" max="20"></div>
-                    <div class="form-group flex-1"><label>عرض الورق</label><input type="number" id="paperWidth" value="42" min="32" max="80"></div>
+                <div class="card-header"><i class="fas fa-bluetooth"></i><h3>ربط طابعة بلوتوث</h3></div>
+                <div class="form-group">
+                    <label>الطابعة المتصلة</label>
+                    <input type="text" id="connectedPrinter" readonly placeholder="لم يتم ربط طابعة بعد">
                 </div>
-                <div class="form-group"><label>نوع الطابعة</label><select id="printerType"><option value="bluetooth">بلوتوث</option><option value="usb">USB</option><option value="network">شبكة</option></select></div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-outline" id="connectPrinterBtn"><i class="fas fa-bluetooth"></i> ربط بلوتوث</button>
-                    <button type="button" class="btn btn-outline" id="connectUsbBtn"><i class="fas fa-usb"></i> ربط USB</button>
+                    <button type="button" class="btn btn-primary" id="connectBluetoothBtn"><i class="fas fa-search"></i> بحث عن طابعة</button>
+                    <button type="button" class="btn btn-outline" id="disconnectPrinterBtn"><i class="fas fa-unlink"></i> قطع الاتصال</button>
                 </div>
                 <div id="printerStatus" style="margin-top:8px; font-size:0.8rem;"></div>
             </div>
@@ -137,7 +130,7 @@
             <form id="userForm">
                 <input type="hidden" id="userId">
                 <div class="form-group"><label>الاسم <span class="required">*</span></label><input type="text" id="userFullName" required></div>
-                <div class="form-group"><label>البريد الإلكتروني <span class="required">*</span></label><input type="email" id="userEmail" required></div>
+                <div class="form-group"><label>البريد <span class="required">*</span></label><input type="email" id="userEmail" required></div>
                 <div class="form-group"><label>كلمة المرور <span class="required">*</span></label><input type="password" id="userPassword" minlength="6"></div>
                 <div class="form-group"><label>الدور</label><select id="userRole"><option value="admin">مدير</option><option value="rep">مندوب</option></select></div>
                 <div class="modal-actions">
