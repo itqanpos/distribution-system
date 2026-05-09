@@ -27,10 +27,12 @@
     <script src="./js/print.js"></script>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <!-- شريط التنقل -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle" id="menuToggle" aria-label="القائمة"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
                     <img src="./icons/icon-192x192.png" alt="حسابي" style="width: 38px; height: 38px; object-fit: contain; border-radius: 10px;"
@@ -81,12 +83,12 @@
         <!-- منطقة العميل والبحث -->
         <div class="top-search-area">
             <div class="customer-box">
-                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
+                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off" aria-label="بحث عن عميل">
                 <datalist id="customerList"></datalist>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
             <div class="search-header">
-                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
+                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off" aria-label="بحث عن منتج">
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
@@ -108,8 +110,8 @@
                     <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
                     <div class="summary-row discount-row">
                         <span>الخصم:</span>
-                        <input type="number" id="discountValue" value="0" min="0" step="0.01">
-                        <select id="discountType">
+                        <input type="number" id="discountValue" value="0" min="0" step="0.01" aria-label="قيمة الخصم">
+                        <select id="discountType" aria-label="نوع الخصم">
                             <option value="amount">ج.م</option>
                             <option value="percent">%</option>
                         </select>
@@ -128,10 +130,10 @@
     <!-- المودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
+            <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn" aria-label="إغلاق">&times;</button></div>
             <div class="form-group"><label>اختر الوحدة</label><div id="unitButtons" class="unit-selector"></div></div>
-            <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
-            <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
+            <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1" aria-label="الكمية"></div>
+            <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01" aria-label="السعر"></div>
             <small id="stockInfo"></small>
             <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
         </div>
@@ -139,7 +141,7 @@
 
     <div class="modal" id="paymentModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
+            <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn" aria-label="إغلاق">&times;</button></div>
             <div id="paymentDetails">
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
@@ -150,28 +152,28 @@
                 </div>
             </div>
             <div class="form-group"><label>طريقة الدفع</label>
-                <select id="paymentMethod">
+                <select id="paymentMethod" aria-label="طريقة الدفع">
                     <option value="cash">نقدي</option>
                     <option value="transfer">تحويل</option>
                     <option value="mixed">مختلط</option>
                     <option value="credit">آجل</option>
                 </select>
             </div>
-            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
-            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
+            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0" aria-label="المبلغ النقدي"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0" aria-label="المبلغ المحول"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
             <div class="summary-row">
                 <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
                 <span id="balanceAfter">0.00 ج.م</span>
             </div>
-            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
+            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes" aria-label="ملاحظات"></div>
             <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
         </div>
     </div>
 
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
+            <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn" aria-label="إغلاق">&times;</button></div>
             <div id="heldInvoicesList"></div>
         </div>
     </div>
@@ -180,23 +182,48 @@
 
     <script src="./js/pos.js"></script>
 
-    <!-- Service Worker + سحب للتحديث -->
+    <!-- Service Worker + سحب للتحديث (مُحسَّن) -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
         }
 
-        let pullStartY = 0, pulling = false;
-        const pullThreshold = 80;
-        const pullIndicator = document.createElement('div');
-        pullIndicator.className = 'pull-indicator';
-        pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
-        pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
-        document.body.appendChild(pullIndicator);
+        (function() {
+            let pullStartY = 0, pulling = false;
+            const pullThreshold = 80;
+            const body = document.body;
+            const pullIndicator = document.createElement('div');
+            pullIndicator.className = 'pull-indicator';
+            pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
+            pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
+            body.appendChild(pullIndicator);
 
-        document.addEventListener('touchstart', (e) => { if(window.scrollY===0){ pullStartY=e.touches[0].clientY; pulling=true; } }, {passive:false});
-        document.addEventListener('touchmove', (e) => { if(!pulling) return; if(e.touches[0].clientY-pullStartY>30){ pullIndicator.style.opacity='1'; e.preventDefault(); } }, {passive:false});
-        document.addEventListener('touchend', (e) => { if(!pulling) return; pulling=false; pullIndicator.style.opacity='0'; if(e.changedTouches[0].clientY-pullStartY>pullThreshold) window.location.reload(); });
+            document.addEventListener('touchstart', (e) => {
+                // لا تفعّل السحب إذا كان المستخدم داخل السلة أو قائمة منسدلة
+                if (e.target.closest('.cart-items, .search-dropdown, .modal')) return;
+                if (window.scrollY === 0) {
+                    pullStartY = e.touches[0].clientY;
+                    pulling = true;
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!pulling) return;
+                if (e.touches[0].clientY - pullStartY > 30) {
+                    pullIndicator.style.opacity = '1';
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', (e) => {
+                if (!pulling) return;
+                pulling = false;
+                pullIndicator.style.opacity = '0';
+                if (e.changedTouches[0].clientY - pullStartY > pullThreshold) {
+                    window.location.reload();
+                }
+            });
+        })();
     </script>
 </body>
 </html>
