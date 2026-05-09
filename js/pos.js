@@ -1,12 +1,12 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار موحد ومُحسَّن)
+   pos.js - نقطة البيع (إصدار نهائي مع طباعة آمنة)
    ============================================= */
 'use strict';
 
 // ==================== الأدوات المساعدة ====================
 const Utils = {
     formatMoney: (amount, currency = 'ج.م') => {
-        return Number(amount).toLocaleString('ar-EG', {
+        return Number(amount).toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }) + ' ' + currency;
@@ -121,7 +121,10 @@ const POS = {
             'confirmAndPrintBtn', 'closeUnitModalBtn', 'closePaymentModalBtn',
             'closeHeldModalBtn', 'heldInvoicesList',
             'paySubtotal', 'payDiscount', 'payNet', 'currentBalance',
-            'currentBalanceLabel'
+            'currentBalanceLabel',
+            // عناصر الإيصال الجديدة
+            'receiptModal', 'receiptPrintArea', 'printReceiptBtn',
+            'cancelReceiptModalBtn', 'closeReceiptModalBtn'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
@@ -214,6 +217,11 @@ const POS = {
 
         // مودال الفواتير المعلقة
         this.el.closeHeldModalBtn?.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
+
+        // مودال الإيصال
+        this.el.closeReceiptModalBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
+        this.el.cancelReceiptModalBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
+        this.el.printReceiptBtn?.addEventListener('click', () => this.printReceiptFromModal());
     },
 
     // ==================== حالة الاتصال ====================
@@ -706,6 +714,7 @@ const POS = {
         return item.quantity / factor;
     },
 
+    // ==================== إتمام الدفع وعرض الإيصال ====================
     async completePayment() {
         if (this.state.isProcessing) {
             this.showToast('جاري معالجة الدفع...');
@@ -810,18 +819,12 @@ const POS = {
                 else if (Utils.hasLocalDB()) await localDB.put('transactions', trans);
             }
 
-            // طباعة
-            if (window.printSaleReceipt) {
-                printSaleReceipt(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals);
-            } else {
-                alert(`تم البيع بنجاح. رقم الفاتورة: ${invoiceNumber}`);
-            }
-
-            // إعادة تعيين السلة
-            this.resetCart();
+            // عرض الإيصال في المودال
             this.closeModal('paymentModal');
             await this.loadProductsAndCustomers();
             this.buildCache();
+            this.showReceiptModal(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals);
+            this.resetCart();
             this.showToast('تم البيع بنجاح');
 
         } catch (error) {
@@ -1038,6 +1041,108 @@ const POS = {
         t.classList.add('show');
         clearTimeout(this._toastTimer);
         this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    },
+
+    // ==================== عرض الإيصال في المودال ====================
+    showReceiptModal(invoice, customer, items, totals) {
+        // جلب إعدادات الشركة من localStorage
+        let settings = {};
+        try {
+            settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        } catch(e) {}
+
+        const companyName = settings?.company?.name || 'حسابي';
+        const companyPhone = settings?.company?.phone || '';
+        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+
+        const itemsRows = items.map(item => {
+            const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
+            return `
+                <tr>
+                    <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
+                    <td>${item.quantity}</td>
+                    <td>${Utils.formatMoney(item.price)}</td>
+                    <td>${Utils.formatMoney(lineTotal)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const receiptHTML = `
+            <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+            <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
+            <div class="divider"></div>
+            <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p>
+            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${invoice.invoice_number || invoice.id?.substring(0,8)}</p>
+            <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p>
+            <div class="divider"></div>
+            <table>
+                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <tbody>${itemsRows}</tbody>
+            </table>
+            <div class="totals">
+                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>
+                ${totals.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>` : ''}
+                <p><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p>
+            </div>
+            <div class="divider"></div>
+            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
+        `;
+
+        this.el.receiptPrintArea.innerHTML = receiptHTML;
+        this.showModal('receiptModal');
+    },
+
+    // ==================== طباعة الإيصال من المودال ====================
+    printReceiptFromModal() {
+        const printContent = this.el.receiptPrintArea.innerHTML;
+        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        const companyName = settings?.company?.name || 'حسابي';
+        
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!printWindow) {
+            alert('الرجاء السماح بالنوافذ المنبثقة للطباعة');
+            return;
+        }
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {
+                        font-family: 'Segoe UI', Tahoma, sans-serif;
+                        direction: rtl;
+                        text-align: right;
+                        padding: 20px;
+                        color: #000;
+                        background: white;
+                        width: 80mm;
+                        margin: 0 auto;
+                    }
+                    .company-name { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+                    .company-info { text-align: center; font-size: 12px; color: #444; margin-bottom: 12px; }
+                    .divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                    th, td { padding: 3px 4px; border-bottom: 1px dotted #ddd; text-align: right; }
+                    th { background: #f5f5f5; font-size: 11px; }
+                    .totals { font-size: 14px; margin-top: 8px; }
+                    .totals p { margin: 3px 0; }
+                    .footer { text-align: center; margin-top: 12px; font-size: 13px; font-weight: bold; color: #333; }
+                </style>
+            </head>
+            <body>
+                <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+                <div class="divider"></div>
+                ${printContent}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
     }
 };
 
