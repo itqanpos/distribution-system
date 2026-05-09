@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.css - لوحة التحكم (إصدار أنيق)
+   dashboard.css - لوحة التحكم (إصدار مُحسَّن للأجهزة)
    ============================================= */
 
 /* === متغيرات المسافات الآمنة للآيفون === */
@@ -9,6 +9,7 @@
     --safe-left: env(safe-area-inset-left, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
     --primary: #2563eb;
+    --primary-dark: #1d4ed8;
     --secondary: #10b981;
     --danger: #ef4444;
     --warning: #f59e0b;
@@ -42,6 +43,7 @@ body {
     font-family: 'Segoe UI', Tahoma, sans-serif;
     background: var(--gray-50);
     color: var(--gray-800);
+    padding: 0;
     padding-top: var(--safe-top);
     padding-bottom: var(--safe-bottom);
     padding-left: var(--safe-left);
@@ -58,18 +60,18 @@ body {
     align-items: center;
     background: white;
     border-bottom: 1px solid var(--gray-200);
-    padding: 12px 24px;
-    padding-top: calc(12px + var(--safe-top));
+    padding: 10px 16px;
+    padding-top: calc(10px + var(--safe-top));
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 110;
     box-shadow: var(--shadow-sm);
 }
 
 .navbar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .navbar-right {
@@ -81,49 +83,55 @@ body {
     background: none;
     border: none;
     color: var(--gray-700);
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: var(--radius-sm);
     transition: background var(--transition);
+    display: flex;
 }
 
-.menu-toggle:hover {
-    background: var(--gray-100);
+.menu-toggle:active {
+    background: var(--gray-200);
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+}
+
+.logo-icon {
+    display: flex;
 }
 
 .logo-text h2 {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--gray-900);
     margin: 0;
+    white-space: nowrap;
 }
 
 /* المستخدم */
 .user-profile {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     position: relative;
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: var(--radius-md);
     transition: background var(--transition);
 }
 
-.user-profile:hover {
+.user-profile:active {
     background: var(--gray-100);
 }
 
 .user-avatar {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     background: var(--primary);
     color: white;
     border-radius: 50%;
@@ -131,31 +139,31 @@ body {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
 .user-info h4 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
 }
 
 .user-info p {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--gray-500);
 }
 
 .user-dropdown {
     position: absolute;
-    top: 55px;
+    top: 50px;
     left: 0;
     background: white;
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     display: none;
     flex-direction: column;
-    min-width: 180px;
+    min-width: 170px;
     z-index: 200;
     overflow: hidden;
 }
@@ -165,31 +173,52 @@ body {
 }
 
 .user-dropdown a {
-    padding: 12px 18px;
+    padding: 10px 16px;
     color: var(--gray-700);
     text-decoration: none;
     display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 500;
+    font-size: 0.85rem;
     transition: background var(--transition);
 }
 
-.user-dropdown a:hover {
+.user-dropdown a:active {
     background: var(--gray-50);
     color: var(--primary);
 }
 
-/* ========== القائمة الجانبية (فاتحة وأنيقة) ========== */
+/* ========== طبقة داكنة للقائمة الجانبية ========== */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 149;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.sidebar-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ========== القائمة الجانبية ========== */
 .sidebar {
     position: fixed;
     top: 0;
-    right: -300px;
-    width: 300px;
+    right: -320px;
+    width: 280px;
+    max-width: 85vw;
     height: 100%;
     background: white;
     border-left: 1px solid var(--gray-200);
-    padding: 24px 16px;
+    padding: 20px 12px;
     z-index: 150;
     transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
@@ -203,45 +232,42 @@ body {
 .menu {
     list-style: none;
     padding: 0;
+    margin-top: 8px;
 }
 
 .menu-section {
     color: var(--gray-400);
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    margin: 24px 0 8px;
+    margin: 18px 0 4px;
     padding: 0 12px;
 }
 
 .menu-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    padding: 11px 14px;
     color: var(--gray-700);
     text-decoration: none;
     border-radius: var(--radius-sm);
     margin-bottom: 2px;
     font-weight: 500;
+    font-size: 0.85rem;
     transition: all var(--transition);
 }
 
 .menu-item i {
     width: 22px;
-    margin-left: 12px;
+    margin-left: 10px;
     text-align: center;
     color: var(--gray-500);
     font-size: 1rem;
 }
 
-.menu-item:hover {
-    background: var(--gray-50);
-    color: var(--gray-900);
-}
-
-.menu-item:hover i {
-    color: var(--primary);
+.menu-item:active {
+    background: var(--gray-100);
 }
 
 .menu-item.active {
@@ -256,34 +282,36 @@ body {
 
 /* ========== المحتوى الرئيسي ========== */
 .main-content {
-    max-width: 1100px;
+    width: 100%;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 24px 20px;
+    padding: 18px 14px;
 }
 
 .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
 }
 
 .page-title h1 {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--gray-900);
     margin: 0;
     display: flex;
     align-items: center;
+    gap: 6px;
 }
 
 .date-display {
     background: white;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 20px;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--gray-600);
     box-shadow: var(--shadow-sm);
     font-weight: 500;
@@ -292,31 +320,30 @@ body {
 /* ========== بطاقات الإحصائيات ========== */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-    margin-bottom: 28px;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
 }
 
 .stat-card {
     background: white;
     border-radius: var(--radius-lg);
-    padding: 20px;
+    padding: 16px 14px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     box-shadow: var(--shadow-sm);
     transition: all var(--transition);
     cursor: default;
 }
 
-.stat-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+.stat-card:active {
+    background: #f8fafc;
 }
 
 .stat-icon {
-    font-size: 2rem;
-    width: 45px;
+    font-size: 1.7rem;
+    width: 38px;
     text-align: center;
 }
 
@@ -325,16 +352,16 @@ body {
 }
 
 .stat-title {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .stat-value {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: var(--gray-900);
 }
@@ -343,20 +370,20 @@ body {
 .chart-container {
     background: white;
     border-radius: var(--radius-lg);
-    padding: 24px;
-    margin-bottom: 28px;
+    padding: 18px;
+    margin-bottom: 22px;
     box-shadow: var(--shadow-sm);
 }
 
 .chart-container h2 {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     color: var(--gray-800);
 }
 
 .chart-wrapper {
-    height: 280px;
+    height: 250px;
     position: relative;
 }
 
@@ -364,41 +391,45 @@ body {
 .tables-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 28px;
+    gap: 16px;
+    margin-bottom: 22px;
 }
 
 .table-box {
     background: white;
     border-radius: var(--radius-lg);
-    padding: 20px;
+    padding: 16px;
     box-shadow: var(--shadow-sm);
 }
 
 .table-box h3 {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     color: var(--gray-700);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .table-responsive {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -4px;
+    padding: 0 4px;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 380px;
 }
 
 th, td {
-    padding: 10px 14px;
+    padding: 8px 10px;
     text-align: right;
     border-bottom: 1px solid var(--gray-100);
-    font-size: 0.85rem;
+    font-size: 0.78rem;
 }
 
 th {
@@ -408,14 +439,14 @@ th {
     white-space: nowrap;
 }
 
-tr:hover td {
-    background: #fcfcfc;
+tr:active td {
+    background: #f5f7fa;
 }
 
 .badge {
-    padding: 3px 10px;
+    padding: 2px 8px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     font-weight: 600;
 }
 
@@ -438,22 +469,23 @@ tr:hover td {
 .quick-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 16px;
 }
 
 .btn {
-    padding: 12px 24px;
+    padding: 10px 18px;
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
+    gap: 6px;
+    font-size: 0.8rem;
     font-weight: 600;
     transition: all var(--transition);
+    white-space: nowrap;
 }
 
 .btn-primary {
@@ -461,10 +493,9 @@ tr:hover td {
     color: white;
 }
 
-.btn-primary:hover {
-    background: #1d4ed8;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+.btn-primary:active {
+    background: var(--primary-dark);
+    transform: scale(0.96);
 }
 
 .btn-outline {
@@ -473,7 +504,7 @@ tr:hover td {
     color: var(--primary);
 }
 
-.btn-outline:hover {
+.btn-outline:active {
     background: var(--primary);
     color: white;
 }
@@ -486,10 +517,10 @@ tr:hover td {
     transform: translateX(-50%);
     background: var(--gray-900);
     color: white;
-    padding: 12px 28px;
+    padding: 10px 24px;
     border-radius: 30px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     z-index: 3000;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -504,7 +535,7 @@ tr:hover td {
 /* ========== تحميل ========== */
 .loading-indicator {
     color: var(--gray-500);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .loading {
@@ -518,7 +549,7 @@ tr:hover td {
     text-align: center;
     padding: 30px;
     color: var(--gray-400);
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 /* ========== تجاوب الشاشات الصغيرة ========== */
@@ -538,19 +569,50 @@ tr:hover td {
     
     .sidebar {
         width: 280px;
+        max-width: 80vw;
+    }
+
+    .main-content {
+        padding: 16px 12px;
     }
 }
 
 @media (max-width: 480px) {
     .stats-grid {
         grid-template-columns: 1fr;
+        gap: 8px;
     }
     
     .navbar {
-        padding: 10px 16px;
+        padding: 8px 12px;
     }
     
-    .main-content {
-        padding: 16px 12px;
+    .logo-text h2 {
+        font-size: 1rem;
+    }
+    
+    .user-info {
+        display: none;
+    }
+    
+    .chart-wrapper {
+        height: 200px;
+    }
+    
+    .quick-actions .btn {
+        flex: 1 1 calc(50% - 6px);
+        justify-content: center;
+        font-size: 0.75rem;
+        padding: 10px 6px;
+    }
+}
+
+/* تحسين وضع التابلت الأفقي */
+@media (min-width: 768px) and (max-height: 700px) {
+    .stats-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+    .chart-wrapper {
+        height: 180px;
     }
 }
