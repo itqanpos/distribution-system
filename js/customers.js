@@ -7,7 +7,7 @@
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
+            return Number(amount).toLocaleString('en-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
         },
         formatDate: (dateStr) => {
             if (!dateStr) return '';
