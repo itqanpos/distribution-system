@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (مستقل)
+   dashboard.js - لوحة التحكم (مستقل) - مُحسَّن
    ============================================= */
 'use strict';
 
@@ -7,10 +7,11 @@ console.log('✅ لوحة التحكم – بدء التحميل');
 
 // الأدوات المساعدة
 const U = {
-    formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
+    formatMoney: (v) => Number(v || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 }) + ' ج.م',
     escapeHTML: (s) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; },
     today: () => new Date().toISOString().split('T')[0],
-    round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d)
+    round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d),
+    dbReady: () => window.App && window.App.DB // التحقق من وجود واجهة DB موحدة
 };
 
 const Dashboard = {
@@ -29,8 +30,9 @@ const Dashboard = {
         this.cacheDOM();
         this.bindEvents();
         this.setDate();
+        this.startDateUpdater(); // تحديث التاريخ تلقائياً
 
-        // انتظار تجهيز DB (Supabase + Offline)
+        // انتظار تجهيز DB (باستخدام الواجهة الموحدة)
         await this.waitForDB();
         console.log('هل DB جاهز؟', this.state.ready);
 
@@ -39,8 +41,10 @@ const Dashboard = {
             App.initUserInterface();
         }
 
+        // عرض الهياكل الأساسية فوراً
         this.renderStats();
         this.renderTables();
+        // تحميل البيانات
         this.loadAllData();
     },
 
@@ -53,16 +57,25 @@ const Dashboard = {
     },
 
     bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => this.el.sidebar.classList.toggle('open'));
+        // زر القائمة الجانبية
+        this.el.menuToggle?.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+        });
+
+        // قائمة المستخدم المنسدلة
         this.el.userProfileBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.el.userDropdown?.classList.toggle('show');
         });
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
+
+        // تسجيل الخروج مع تأكيد
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            if (window.App) App.logout();
-            else location.href = './index.html';
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                if (window.App) App.logout();
+                else location.href = './index.html';
+            }
         });
 
         // إغلاق القائمة الجانبية عند النقر على أي رابط
@@ -72,16 +85,25 @@ const Dashboard = {
             });
         });
 
-        // تحديث تلقائي عند استعادة الاتصال
+        // تحديث تلقائي عند استعادة الاتصال (مع منع التكرار)
         window.addEventListener('online', () => {
             this.toast('تم استعادة الاتصال – جاري التحديث...');
             this.loadAllData();
         });
 
-        // تحديث عند العودة للصفحة
+        // تحديث عند العودة للصفحة (إذا لم تكن في حالة تحميل)
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && !this.state.loading) {
                 this.loadAllData();
+            }
+        });
+
+        // إغلاق القائمة الجانبية عند النقر خارجها على الجوال
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                if (!this.el.sidebar.contains(e.target) && e.target !== this.el.menuToggle) {
+                    this.el.sidebar.classList.remove('open');
+                }
             }
         });
     },
@@ -92,6 +114,20 @@ const Dashboard = {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             });
         }
+    },
+
+    // تحديث التاريخ تلقائياً كل دقيقة (ليظهر اليوم الجديد تلقائياً)
+    startDateUpdater() {
+        setInterval(() => {
+            const newDate = new Date().toLocaleDateString('ar-EG', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+            if (this.el.currentDate && this.el.currentDate.textContent !== newDate) {
+                this.el.currentDate.textContent = newDate;
+                // إعادة تحميل البيانات عند تغير اليوم تلقائياً
+                this.loadAllData();
+            }
+        }, 60000);
     },
 
     toggleLoading(show) {
@@ -108,24 +144,30 @@ const Dashboard = {
         this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    // انتظار تحميل DB (Supabase) أو الاستسلام بعد 5 ثوانٍ
+    // انتظار واجهة DB موحدة (App.DB) أو الاعتماد على localDB كبديل أخير
     waitForDB() {
         return new Promise(resolve => {
-            if (window.DB && window.supabase) {
+            if (U.dbReady()) {
                 this.state.ready = true;
                 return resolve();
             }
             let attempts = 0;
             const check = setInterval(() => {
-                if (window.DB && window.supabase) {
+                if (U.dbReady()) {
                     this.state.ready = true;
                     clearInterval(check);
                     resolve();
                 }
                 if (++attempts > 50) {
                     clearInterval(check);
-                    console.warn('لم يتم تحميل DB، سيتم استخدام IndexedDB');
-                    if (window.localDB) this.state.ready = 'local';
+                    console.warn('لم يتم تحميل DB الأساسي، جاري محاولة استخدام IndexedDB المحلي...');
+                    // محاولة استخدام localDB إذا كان معرفاً
+                    if (window.localDB) {
+                        this.state.ready = 'local';
+                    } else {
+                        console.error('لا يوجد نظام تخزين متاح!');
+                        this.toast('خطأ: نظام التخزين غير متوفر');
+                    }
                     resolve();
                 }
             }, 100);
@@ -133,6 +175,10 @@ const Dashboard = {
     },
 
     async loadAllData() {
+        if (this.state.loading) {
+            console.log('تحميل بالفعل قيد التنفيذ، تم التجاهل.');
+            return;
+        }
         console.log('3️⃣ بدء تحميل البيانات');
         this.toggleLoading(true);
         try {
@@ -144,7 +190,7 @@ const Dashboard = {
             console.log('✅ كل البيانات تم تحميلها');
         } catch (e) {
             console.error('خطأ عام:', e);
-            this.toast('تعذر تحميل بعض البيانات');
+            this.toast('تعذر تحميل بعض البيانات. يرجى المحاولة لاحقاً.');
         } finally {
             this.toggleLoading(false);
             this.renderStats();
@@ -159,24 +205,31 @@ const Dashboard = {
             const today = U.today();
             let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
 
-            if (this.state.ready === true) {
-                [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                    DB.getInvoices().catch(()=>[]),
-                    DB.getPurchases().catch(()=>[]),
-                    DB.getParties('customer').catch(()=>[]),
-                    DB.getProducts().catch(()=>[]),
-                    DB.getTransactions().catch(()=>[]),
-                    DB.getSettings().catch(()=>({}))
-                ]);
-            } else if (window.localDB) {
-                invoices = await localDB.getAll('invoices') || [];
-                purchases = await localDB.getAll('purchases') || [];
-                const allParties = await localDB.getAll('parties') || [];
-                parties = allParties.filter(p => p.type === 'customer');
-                products = await localDB.getAll('products') || [];
-                transactions = await localDB.getAll('transactions') || [];
-                const s = await localDB.getById('settings', 'main');
-                settings = s?.data || {};
+            try {
+                if (this.state.ready === true && window.App && window.App.DB) {
+                    const DB = window.App.DB;
+                    [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                        DB.getInvoices().catch(err => { console.warn('فشل جلب الفواتير', err); return []; }),
+                        DB.getPurchases().catch(err => { console.warn('فشل جلب المشتريات', err); return []; }),
+                        DB.getParties('customer').catch(err => { console.warn('فشل جلب العملاء', err); return []; }),
+                        DB.getProducts().catch(err => { console.warn('فشل جلب المنتجات', err); return []; }),
+                        DB.getTransactions().catch(err => { console.warn('فشل جلب المعاملات', err); return []; }),
+                        DB.getSettings().catch(err => { console.warn('فشل جلب الإعدادات', err); return {}; })
+                    ]);
+                } else if (window.localDB) {
+                    invoices = await localDB.getAll('invoices').catch(() => []) || [];
+                    purchases = await localDB.getAll('purchases').catch(() => []) || [];
+                    const allParties = await localDB.getAll('parties').catch(() => []) || [];
+                    parties = allParties.filter(p => p.type === 'customer');
+                    products = await localDB.getAll('products').catch(() => []) || [];
+                    transactions = await localDB.getAll('transactions').catch(() => []) || [];
+                    const s = await localDB.getById('settings', 'main').catch(() => null);
+                    settings = s?.data || {};
+                } else {
+                    throw new Error('لا يوجد نظام تخزين متاح');
+                }
+            } catch (fetchError) {
+                console.error('فشل جلب البيانات من التخزين:', fetchError);
             }
 
             console.log('📦 الفواتير:', invoices.length, 'المشتريات:', purchases.length, 'العملاء:', parties.length, 'المنتجات:', products.length);
@@ -198,31 +251,38 @@ const Dashboard = {
             this.state.chartData = this._prepareChart(invoices);
         } catch (e) {
             console.error('فشل loadStats:', e);
+            this.toast('تعذر تحميل الإحصائيات');
         }
     },
 
     async loadRecentInvoices() {
         try {
-            if (this.state.ready === true) {
-                const invs = await DB.getInvoices().catch(()=>[]);
-                this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            const maxItems = 5;
+            if (this.state.ready === true && window.App && window.App.DB) {
+                const invs = await window.App.DB.getInvoices().catch(() => []);
+                this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0, maxItems);
             } else if (window.localDB) {
-                const invs = await localDB.getAll('invoices') || [];
-                this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+                const invs = await localDB.getAll('invoices').catch(() => []) || [];
+                this.state.recentInvoices = invs.filter(i=>i.type==='sale').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0, maxItems);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn('فشل تحميل الفواتير الحديثة:', e);
+        }
     },
 
     async loadRecentPurchases() {
         try {
-            if (this.state.ready === true) {
-                const pur = await DB.getPurchases().catch(()=>[]);
-                this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+            const maxItems = 5;
+            if (this.state.ready === true && window.App && window.App.DB) {
+                const pur = await window.App.DB.getPurchases().catch(() => []);
+                this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0, maxItems);
             } else if (window.localDB) {
-                const pur = await localDB.getAll('purchases') || [];
-                this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+                const pur = await localDB.getAll('purchases').catch(() => []) || [];
+                this.state.recentPurchases = pur.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0, maxItems);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn('فشل تحميل المشتريات الحديثة:', e);
+        }
     },
 
     renderStats() {
@@ -252,12 +312,12 @@ const Dashboard = {
         console.log('6️⃣ renderTables');
         if (this.el.recentInvoices) {
             const invs = this.state.recentInvoices;
-            if (!invs.length) {
+            if (!invs || !invs.length) {
                 this.el.recentInvoices.innerHTML = '<div class="empty">لا توجد فواتير حديثة</div>';
             } else {
                 let rows = invs.map(inv => `
                     <tr>
-                        <td>${U.escapeHTML(inv.invoice_number || '')}</td>
+                        <td>${U.escapeHTML(inv.invoice_number || '—')}</td>
                         <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
                         <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(inv.total)}</td>
@@ -270,7 +330,7 @@ const Dashboard = {
 
         if (this.el.recentPurchases) {
             const pur = this.state.recentPurchases;
-            if (!pur.length) {
+            if (!pur || !pur.length) {
                 this.el.recentPurchases.innerHTML = '<div class="empty">لا توجد مشتريات حديثة</div>';
             } else {
                 let rows = pur.map(p => `
@@ -290,7 +350,12 @@ const Dashboard = {
     renderChart() {
         console.log('7️⃣ renderChart');
         if (!this.el.salesChart) return;
-        if (!this.state.chartData.length) {
+        // التأكد من أن الكانفاس موجود ولم يتم تدميره
+        if (!document.body.contains(this.el.salesChart)) {
+            console.warn('عنصر canvas غير موجود في DOM');
+            return;
+        }
+        if (!this.state.chartData || !this.state.chartData.length) {
             if (this.el.chartError) {
                 this.el.chartError.style.display = 'block';
                 this.el.chartError.textContent = 'لا توجد بيانات كافية للرسم البياني';
@@ -298,29 +363,40 @@ const Dashboard = {
             return;
         }
         if (this.el.chartError) this.el.chartError.style.display = 'none';
-        if (this._chart) this._chart.destroy();
-        const ctx = this.el.salesChart.getContext('2d');
-        this._chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: this.state.chartData.map(d => d.label),
-                datasets: [{
-                    label: 'المبيعات',
-                    data: this.state.chartData.map(d => d.total),
-                    backgroundColor: 'rgba(59,130,246,0.6)',
-                    borderColor: '#3b82f6',
-                    borderWidth: 1,
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
+        try {
+            if (this._chart) {
+                this._chart.destroy();
+                this._chart = null;
             }
-        });
-        console.log('✔️ الرسم البياني تم');
+            const ctx = this.el.salesChart.getContext('2d');
+            this._chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: this.state.chartData.map(d => d.label),
+                    datasets: [{
+                        label: 'المبيعات',
+                        data: this.state.chartData.map(d => d.total),
+                        backgroundColor: 'rgba(59,130,246,0.6)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => U.formatMoney(v) } } }
+                }
+            });
+            console.log('✔️ الرسم البياني تم');
+        } catch (chartError) {
+            console.error('فشل رسم البيان:', chartError);
+            if (this.el.chartError) {
+                this.el.chartError.style.display = 'block';
+                this.el.chartError.textContent = 'خطأ في إنشاء الرسم البياني';
+            }
+        }
     },
 
     _prepareChart(invoices) {
