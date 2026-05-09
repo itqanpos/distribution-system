@@ -418,3 +418,28 @@ tr:active td { background: #f5f7fa; }
     cursor: pointer;
     font-size: 1.2rem;
 }
+/* صندوق معلومات الدفع */
+.payment-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    margin: 12px 0;
+}
+.payment-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 13px;
+    border-bottom: 1px dotted #eee;
+}
+.payment-row:last-child {
+    border-bottom: none;
+}
+.payment-row span:first-child {
+    color: #555;
+}
+.payment-row span:last-child {
+    font-weight: 600;
+    color: #000;
+}
