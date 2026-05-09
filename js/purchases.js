@@ -439,83 +439,54 @@ const Purchases = {
     },
 
     // ========== عرض الإيصال (مطابق لنقطة البيع) ==========
-    viewReceipt(id) {
-        const purchase = this.purchases.find(p => p.id === id);
-        if (!purchase) return;
-        const supplier = this.suppliers.find(s => s.name === purchase.supplier_name) || { name: purchase.supplier_name || 'غير معروف', balance: 0 };
-        this.showReceiptModal(purchase, supplier);
-    },
-
     showReceiptModal(purchase, supplier) {
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        const companyName = settings?.company?.name || 'حسابي';
-        const companyPhone = settings?.company?.phone || '';
-        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+    const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+    const companyName = settings?.company?.name || 'حسابي';
+    const companyPhone = settings?.company?.phone || '';
+    const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
 
-        const itemsRows = (purchase.items || []).map(item => {
-            const lineTotal = (item.price || 0) * (item.quantity || 0);
-            return `
-                <tr>
-                    <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
-                    <td>${item.quantity}</td>
-                    <td>${Utils.formatMoney(item.price)}</td>
-                    <td>${Utils.formatMoney(lineTotal)}</td>
-                </tr>
-            `;
-        }).join('');
-
-        const balanceHTML = `
-            <p style="font-size:13px;"><strong>رصيد المورد الحالي:</strong> ${Utils.formatMoney(supplier.balance || 0)}</p>
-            <p style="font-size:13px;"><strong>المدفوع:</strong> ${Utils.formatMoney(purchase.paid)}</p>
-            <p style="font-size:13px;"><strong>المتبقي:</strong> ${Utils.formatMoney(purchase.remaining)}</p>
+    const itemsRows = (purchase.items || []).map(item => {
+        const lineTotal = (item.price || 0) * (item.quantity || 0);
+        return `
+            <tr>
+                <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
+                <td>${item.quantity}</td>
+                <td>${Utils.formatMoney(item.price)}</td>
+                <td>${Utils.formatMoney(lineTotal)}</td>
+            </tr>
         `;
+    }).join('');
 
-        this.el.receiptPrintArea.innerHTML = `
-            <div class="company-name">${Utils.escapeHTML(companyName)}</div>
-            <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
-            <div class="divider"></div>
-            <p style="font-size:13px;"><strong>المورد:</strong> ${Utils.escapeHTML(supplier.name)}</p>
-            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${purchase.invoice_number || purchase.id?.substring(0,8)}</p>
-            <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(purchase.date)}</p>
-            <div class="divider"></div>
-            ${balanceHTML}
-            <div class="divider"></div>
-            <table>
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-                <tbody>${itemsRows}</tbody>
-            </table>
-            <div class="totals">
-                <p><strong>الإجمالي:</strong> ${Utils.formatMoney(purchase.total)}</p>
-                <p><strong>الصافي:</strong> ${Utils.formatMoney(purchase.total)}</p>
-            </div>
-            <div class="divider"></div>
-            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
-        `;
-        this.el.receiptModal?.classList.add('open');
-    },
+    const paymentInfoHTML = `
+        <div class="payment-info-box">
+            <div class="payment-row"><span>رصيد المورد:</span> <span>${Utils.formatMoney(supplier.balance || 0)}</span></div>
+            <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(purchase.paid)}</span></div>
+            <div class="payment-row"><span>المتبقي:</span> <span>${Utils.formatMoney(purchase.remaining)}</span></div>
+        </div>
+    `;
 
-    printReceiptFromModal() {
-        const content = this.el.receiptPrintArea.innerHTML;
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        const companyName = settings?.company?.name || 'حسابي';
-
-        const pw = window.open('', '_blank', 'width=400,height=600');
-        if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma,sans-serif;direction:rtl;text-align:right;padding:20px;color:#000;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;text-align:right;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
-        pw.document.close();
-        pw.focus();
-        setTimeout(() => { pw.print(); pw.close(); }, 500);
-    },
-
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._t);
-        this._t = setTimeout(() => t.classList.remove('show'), 3000);
-    }
-};
+    this.el.receiptPrintArea.innerHTML = `
+        <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+        <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
+        <div class="divider"></div>
+        <p style="font-size:13px;"><strong>المورد:</strong> ${Utils.escapeHTML(supplier.name)}</p>
+        <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${purchase.invoice_number || purchase.id?.substring(0,8)}</p>
+        <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(purchase.date)}</p>
+        <div class="divider"></div>
+        <table>
+            <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+            <tbody>${itemsRows}</tbody>
+        </table>
+        <div class="totals">
+            <p><strong>الإجمالي:</strong> ${Utils.formatMoney(purchase.total)}</p>
+            <p><strong>الصافي:</strong> ${Utils.formatMoney(purchase.total)}</p>
+        </div>
+        ${paymentInfoHTML}
+        <div class="divider"></div>
+        <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
+    `;
+    this.el.receiptModal?.classList.add('open');
+}
 
 window.Purchases = Purchases;
 document.addEventListener('DOMContentLoaded', () => Purchases.init());
