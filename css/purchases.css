@@ -1,5 +1,5 @@
 /* =============================================
-   purchases.css - المشتريات (إصدار موحَّد)
+   purchases.css - المشتريات (إصدار متجاوب تماماً)
    ============================================= */
 
 :root {
@@ -147,12 +147,11 @@ body {
 .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
 .btn-outline:active { background: var(--primary); color: white; }
 .btn-full { width: 100%; padding: 14px; justify-content: center; font-size: 1rem; }
+.btn-success { background: var(--secondary); color: white; }
+.btn-success:active { background: #059669; transform: scale(0.97); }
 
 /* بطاقات الإحصائيات */
-.stats-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: 12px; margin-bottom: 22px;
-}
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin-bottom: 22px; }
 .stat-card {
     background: white; border-radius: var(--radius-lg); padding: 16px 14px;
     display: flex; align-items: center; gap: 12px;
@@ -161,10 +160,7 @@ body {
 .stat-card:active { background: #f8fafc; }
 .stat-icon { font-size: 1.7rem; width: 38px; text-align: center; }
 .stat-content { flex: 1; }
-.stat-title {
-    font-size: 0.7rem; font-weight: 600; color: var(--gray-500);
-    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;
-}
+.stat-title { font-size: 0.7rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
 .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--gray-900); }
 
 /* شريط البحث والتصفية */
@@ -227,8 +223,8 @@ tr:active td { background: #f5f7fa; }
 .modal.open { display: flex; }
 .modal-content {
     background: white; border-radius: var(--radius-lg); padding: 20px;
-    width: 95%; max-width: 850px; max-height: 90vh; display: flex;
-    flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg);
+    width: 95%; max-width: 800px; max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
 }
 .modal-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -241,18 +237,19 @@ tr:active td { background: #f5f7fa; }
 }
 .modal-header button:active { background: var(--gray-100); color: var(--gray-800); }
 .modal-actions {
-    flex-shrink: 0; padding-top: 12px; border-top: 1px solid var(--gray-200);
-    display: flex; gap: 10px; justify-content: flex-end;
+    flex-shrink: 0;
+    display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;
 }
 
+/* أقسام النموذج */
 .form-section { margin-bottom: 16px; }
 .section-title {
     font-size: 1rem; font-weight: 700; margin-bottom: 12px;
     display: flex; align-items: center; gap: 8px; color: var(--gray-800);
 }
 .section-title i { color: var(--primary); font-size: 1.1rem; }
-.form-row { display: flex; gap: 12px; margin-bottom: 10px; }
-.form-group { margin-bottom: 10px; }
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.form-group { margin-bottom: 12px; }
 .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.8rem; color: var(--gray-700); }
 .form-group input, .form-group select {
     width: 100%; padding: 10px 12px; border: 1px solid var(--gray-300);
@@ -266,13 +263,13 @@ tr:active td { background: #f5f7fa; }
 /* بطاقات الأصناف */
 .item-card {
     background: white; border: 1px solid var(--gray-200); border-radius: var(--radius-md);
-    padding: 10px; margin-bottom: 8px; display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 8px; align-items: center;
+    padding: 12px; margin-bottom: 8px; display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: center;
     transition: box-shadow var(--transition);
 }
 .item-card:hover { box-shadow: var(--shadow-sm); }
 .item-card input, .item-card select {
-    padding: 8px; border: 1px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 13px;
+    padding: 10px; border: 1px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px;
 }
 .item-card .remove-btn {
     background: none; border: none; color: var(--danger); cursor: pointer;
@@ -281,12 +278,75 @@ tr:active td { background: #f5f7fa; }
 }
 .item-card .remove-btn:active { background: #fee2e2; }
 
+/* صفوف الأصناف في مودال التعديل */
+.edit-item-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px;
+    background: white; border-radius: var(--radius-sm); margin-bottom: 6px;
+    border: 1px solid var(--gray-200);
+}
+.edit-item-row input, .edit-item-row select {
+    padding: 6px 8px; border: 1px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 0.8rem;
+}
+.edit-item-row .item-product { flex: 2; }
+.edit-item-row .item-unit { flex: 1; }
+.edit-item-row .item-qty { width: 80px; }
+.edit-item-row .item-price { width: 100px; }
+.edit-item-row .remove-btn { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.2rem; }
+
 .total-display, .remaining-display {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 0; margin-top: 10px; border-top: 2px dashed var(--gray-300);
     font-size: 1rem; font-weight: 700;
 }
 .total-display span:last-child, .remaining-display span:last-child { color: var(--gray-900); }
+
+/* ========== مودال الإيصال (مطابق لنقطة البيع) ========== */
+.receipt-modal-content {
+    max-width: 380px !important;
+    padding: 0 !important;
+    background: #fffef7;
+    border-radius: 12px;
+}
+.receipt-header {
+    display: flex; justify-content: flex-end; padding: 8px 10px;
+}
+.close-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #666; }
+#receiptPrintArea {
+    padding: 8px 16px; font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #000; background: white;
+    border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc;
+}
+#receiptPrintArea .company-name { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+#receiptPrintArea .company-info { text-align: center; font-size: 12px; color: #444; margin-bottom: 12px; }
+#receiptPrintArea .divider { border-top: 1px dashed #000; margin: 10px 0; }
+#receiptPrintArea table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#receiptPrintArea th, #receiptPrintArea td {
+    padding: 3px 4px; border-bottom: 1px dotted #ddd; text-align: right;
+}
+#receiptPrintArea th { background: #f5f5f5; font-size: 11px; }
+#receiptPrintArea .totals { font-size: 14px; margin-top: 8px; }
+#receiptPrintArea .totals p { margin: 3px 0; }
+#receiptPrintArea .footer { text-align: center; margin-top: 12px; font-size: 13px; font-weight: bold; color: #333; }
+.receipt-actions {
+    display: flex; gap: 10px; justify-content: center; padding: 12px;
+    background: #fffef7; border-radius: 0 0 12px 12px;
+}
+
+/* صندوق معلومات الدفع */
+.payment-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    margin: 12px 0;
+}
+.payment-row {
+    display: flex; justify-content: space-between; padding: 3px 0;
+    font-size: 13px; border-bottom: 1px dotted #eee;
+}
+.payment-row:last-child { border-bottom: none; }
+.payment-row span:first-child { color: #555; }
+.payment-row span:last-child { font-weight: 600; color: #000; }
 
 /* Toast */
 .toast {
@@ -297,149 +357,56 @@ tr:active td { background: #f5f7fa; }
 }
 .toast.show { opacity: 1; }
 
-/* تجاوب */
-@media (max-width: 768px) {
+/* ========== تجاوب الهاتف ========== */
+@media (max-width: 600px) {
     .main-content { padding: 16px 12px; }
     .user-info { display: none; }
     .filter-bar { flex-direction: column; align-items: stretch; }
     .search-wrapper { min-width: auto; }
     .form-row { flex-direction: column; }
-    .item-card { grid-template-columns: 1fr 1fr; gap: 6px; }
-}
-@media (max-width: 480px) {
+    
+    /* مودال يأخذ العرض كامل */
+    .modal {
+        align-items: flex-end;
+    }
+    .modal-content {
+        width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 16px;
+        max-height: 100vh;
+    }
+    
+    /* صف الأصناف عمودياً */
+    .item-card {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .item-card input, .item-card select {
+        padding: 12px;
+        font-size: 16px;
+    }
+    .item-card .remove-btn {
+        align-self: flex-end;
+        margin-top: 4px;
+    }
+    
+    /* أزرار الإجراءات في الأسفل */
+    .modal-actions {
+        flex-direction: column;
+    }
+    .modal-actions .btn {
+        width: 100%;
+    }
+    
+    .btn {
+        padding: 12px 18px;
+        font-size: 16px;
+        white-space: normal;
+    }
+    
     .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .modal-content { width: 100%; border-radius: 0; padding: 16px; }
-}
-/* ========== مودال الإيصال (مطابق لنقطة البيع) ========== */
-.receipt-modal-content {
-    max-width: 380px !important;
-    padding: 0 !important;
-    background: #fffef7;
-    border-radius: 12px;
-}
-.receipt-header {
-    display: flex;
-    justify-content: flex-end;
-    padding: 8px 10px;
-}
-.close-btn {
-    background: none;
-    border: none;
-    font-size: 22px;
-    cursor: pointer;
-    color: #666;
-}
-#receiptPrintArea {
-    padding: 8px 16px;
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    color: #000;
-    background: white;
-    border-top: 1px dashed #ccc;
-    border-bottom: 1px dashed #ccc;
-}
-#receiptPrintArea .company-name {
-    text-align: center;
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-#receiptPrintArea .company-info {
-    text-align: center;
-    font-size: 12px;
-    color: #444;
-    margin-bottom: 12px;
-}
-#receiptPrintArea .divider {
-    border-top: 1px dashed #000;
-    margin: 10px 0;
-}
-#receiptPrintArea table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-}
-#receiptPrintArea th, #receiptPrintArea td {
-    padding: 3px 4px;
-    border-bottom: 1px dotted #ddd;
-    text-align: right;
-}
-#receiptPrintArea th {
-    background: #f5f5f5;
-    font-size: 11px;
-}
-#receiptPrintArea .totals {
-    font-size: 14px;
-    margin-top: 8px;
-}
-#receiptPrintArea .totals p {
-    margin: 3px 0;
-}
-#receiptPrintArea .footer {
-    text-align: center;
-    margin-top: 12px;
-    font-size: 13px;
-    font-weight: bold;
-    color: #333;
-}
-.receipt-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    padding: 12px;
-    background: #fffef7;
-    border-radius: 0 0 12px 12px;
 }
 
-/* تنسيق صفوف الأصناف داخل المودال */
-.edit-item-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px;
-    background: white;
-    border-radius: var(--radius-sm);
-    margin-bottom: 6px;
-    border: 1px solid var(--gray-200);
-}
-.edit-item-row input, .edit-item-row select {
-    padding: 6px 8px;
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
-}
-.edit-item-row .item-product { flex: 2; }
-.edit-item-row .item-unit { flex: 1; }
-.edit-item-row .item-qty { width: 80px; }
-.edit-item-row .item-price { width: 100px; }
-.edit-item-row .remove-btn {
-    background: none;
-    border: none;
-    color: var(--danger);
-    cursor: pointer;
-    font-size: 1.2rem;
-}
-/* صندوق معلومات الدفع */
-.payment-info-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: var(--radius-sm);
-    padding: 10px;
-    margin: 12px 0;
-}
-.payment-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 3px 0;
-    font-size: 13px;
-    border-bottom: 1px dotted #eee;
-}
-.payment-row:last-child {
-    border-bottom: none;
-}
-.payment-row span:first-child {
-    color: #555;
-}
-.payment-row span:last-child {
-    font-weight: 600;
-    color: #000;
+@media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr; }
 }
