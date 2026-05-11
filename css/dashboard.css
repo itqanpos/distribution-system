@@ -1,5 +1,5 @@
-/* =============================================
-   dashboard.css - لوحة التحكم (بدون رسم بياني)
+ /* =============================================
+   dashboard.css - لوحة التحكم (إصدار نهائي)
    ============================================= */
 
 :root {
@@ -47,23 +47,25 @@ body {
     line-height: 1.6;
 }
 
-/* ======== طبقة داكنة ======== */
+/* ======== طبقة داكنة للقائمة ======== */
 .sidebar-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.35); z-index: 149;
-    opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+    background: rgba(0, 0, 0, 0.35); z-index: 149;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 .sidebar-overlay.show { opacity: 1; visibility: visible; }
 
-/* ======== الشريط العلوي ======== */
+/* ======== الشريط العلوي (نظيف - بدون صورة المستخدم) ======== */
 .navbar {
     display: flex; justify-content: space-between; align-items: center;
     background: white; border-bottom: 1px solid var(--gray-200);
     padding: 8px 16px; padding-top: calc(8px + var(--safe-top));
     position: sticky; top: 0; z-index: 110; box-shadow: var(--shadow-sm);
+    height: 56px;
 }
 .navbar-left { display: flex; align-items: center; gap: 10px; }
-.navbar-right { display: flex; align-items: center; }
+.navbar-right { display: flex; align-items: center; gap: 8px; }
 .menu-toggle {
     background: none; border: none; color: var(--gray-700);
     font-size: 1.4rem; cursor: pointer; padding: 6px;
@@ -73,31 +75,15 @@ body {
 .menu-toggle:active { background: var(--gray-200); }
 .logo { display: flex; align-items: center; gap: 8px; }
 .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--gray-900); }
-.user-profile {
-    display: flex; align-items: center; gap: 8px; cursor: pointer;
-    position: relative; padding: 4px 8px; border-radius: var(--radius-md);
-    transition: background var(--transition);
+
+/* أزرار أيقونات الشريط العلوي */
+.navbar-icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gray-600); text-decoration: none;
+    transition: background var(--transition); font-size: 1.1rem;
 }
-.user-profile:active { background: var(--gray-100); }
-.user-avatar {
-    width: 36px; height: 36px; background: var(--primary); color: white;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 0.9rem;
-}
-.user-info h4 { margin: 0; font-size: 0.8rem; font-weight: 600; }
-.user-info p { margin: 0; font-size: 0.65rem; color: var(--gray-500); }
-.user-dropdown {
-    position: absolute; top: 50px; left: 0; background: white;
-    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
-    display: none; flex-direction: column; min-width: 160px; z-index: 200; overflow: hidden;
-}
-.user-dropdown.show { display: flex; }
-.user-dropdown a {
-    padding: 10px 14px; color: var(--gray-700); text-decoration: none;
-    display: flex; align-items: center; gap: 8px; font-weight: 500;
-    font-size: 0.85rem; transition: background var(--transition);
-}
-.user-dropdown a:active { background: var(--gray-50); color: var(--primary); }
+.navbar-icon-btn:hover { background: var(--gray-100); color: var(--primary); }
 
 /* ======== القائمة الجانبية ======== */
 .sidebar {
@@ -108,6 +94,27 @@ body {
     overflow-y: auto; box-shadow: var(--shadow-lg);
 }
 .sidebar.open { right: 0; }
+
+/* صورة المستخدم في أعلى السايد بار */
+.sidebar-user {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 12px; margin-bottom: 10px;
+    background: var(--gray-50); border-radius: var(--radius-md);
+    border-bottom: 1px solid var(--gray-200);
+}
+.sidebar-avatar {
+    width: 48px; height: 48px; min-width: 48px;
+    background: var(--primary); color: white;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 1.2rem;
+}
+.sidebar-user-info h4 {
+    margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--gray-900);
+}
+.sidebar-user-info p {
+    margin: 0; font-size: 0.7rem; color: var(--gray-500);
+}
+
 .menu { list-style: none; margin-top: 8px; }
 .menu-section {
     color: var(--gray-400); font-size: 0.6rem; font-weight: 700;
@@ -138,32 +145,10 @@ body {
     font-weight: 500; display: flex; align-items: center; gap: 6px;
 }
 
-/* ======== ملخص سريع ======== */
-.quick-stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-}
-.quick-stat {
-    background: white; border-radius: var(--radius-lg); padding: 14px 18px;
-    display: flex; align-items: center; gap: 14px;
-    box-shadow: var(--shadow-sm); transition: all var(--transition);
-}
-.quick-stat:active { background: #fafafa; }
-.quick-stat .stat-icon {
-    width: 48px; height: 48px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.4rem;
-}
-.quick-stat .stat-info { flex: 1; }
-.quick-stat .stat-value { font-size: 1.3rem; font-weight: 700; }
-.quick-stat .stat-label { font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase; }
-
-/* ======== بطاقات الإحصائيات ======== */
+/* ======== بطاقات الإحصائيات الأساسية ======== */
 .stats-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: 12px; margin-bottom: 20px;
+    gap: 12px; margin-bottom: 16px;
 }
 .stat-card {
     background: white; border-radius: var(--radius-lg); padding: 18px 16px;
@@ -177,11 +162,35 @@ body {
 .stat-title { font-size: 0.7rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); }
 
-/* ======== جداول ======== */
+/* ======== بطاقات مقارنة المبيعات (أسبوعي / شهري / الفرق) ======== */
+.sales-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.comparison-card {
+    background: white; border-radius: var(--radius-lg); padding: 18px 16px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: var(--shadow-sm); transition: all var(--transition);
+}
+.comparison-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.comparison-icon {
+    width: 50px; height: 50px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+.comparison-content { flex: 1; }
+.comparison-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--gray-500);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+}
+.comparison-value { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); }
+
+/* ======== جداول النشاط الأخير ======== */
 .dashboard-grid {
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 16px; margin-bottom: 20px;
 }
 .table-box {
     background: white; border-radius: var(--radius-lg); padding: 18px;
@@ -217,10 +226,8 @@ tr:active td { background: #f5f7fa; }
     .dashboard-grid { grid-template-columns: 1fr; }
     .main-content { padding: 16px 12px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
-    .quick-stats-row { grid-template-columns: 1fr 1fr; }
-    .user-info { display: none; }
+    .sales-comparison-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
     .stats-grid { grid-template-columns: 1fr; }
-    .quick-stats-row { grid-template-columns: 1fr; }
 }
