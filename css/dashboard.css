@@ -125,24 +125,38 @@ body {
 }
 .sidebar.open { right: 0; }
 
-/* صورة المستخدم في أعلى السايد بار */
+/* صورة المستخدم في أعلى السايد بار (عمودي) */
 .sidebar-user {
-    display: flex; align-items: center; gap: 12px;
-    padding: 16px 12px; margin-bottom: 10px;
-    background: var(--gray-50); border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 12px;
+    margin-bottom: 10px;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
     border-bottom: 1px solid var(--gray-200);
 }
 .sidebar-avatar {
-    width: 48px; height: 48px; min-width: 48px;
-    background: var(--primary); color: white;
-    border-radius: 50%; display: flex; align-items: center;
-    justify-content: center; font-weight: 700; font-size: 1.2rem;
+    width: 64px;
+    height: 64px;
+    min-width: auto;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
 }
-.sidebar-user-info h4 {
-    margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--gray-900);
-}
-.sidebar-user-info p {
-    margin: 0; font-size: 0.7rem; color: var(--gray-500);
+.sidebar-user h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    word-break: break-word;
 }
 
 .menu { list-style: none; margin-top: 8px; }
@@ -192,7 +206,7 @@ body {
 .stat-title { font-size: 0.7rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); }
 
-/* ======== بطاقات مقارنة المبيعات (أسبوعي / شهري / الفرق) ======== */
+/* ======== بطاقات مقارنة المبيعات ======== */
 .sales-comparison-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
