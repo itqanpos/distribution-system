@@ -25,6 +25,7 @@
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- شريط علوي بسيط بدون صورة المستخدم -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -38,33 +39,31 @@
             </div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
-                <div class="user-dropdown" id="userDropdown">
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
-                </div>
-            </div>
+            <a href="./settings.html" class="navbar-icon-btn" title="الإعدادات"><i class="fas fa-cog"></i></a>
+            <a href="#" class="navbar-icon-btn" id="logoutBtn" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i></a>
         </div>
     </nav>
 
+    <!-- القائمة الجانبية مع صورة المستخدم في الأعلى -->
     <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <div class="sidebar-user-info">
+                <h4 id="sidebarUserName">مدير النظام</h4>
+                <p id="sidebarLoginTime">اليوم</p>
+            </div>
+        </div>
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item active" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
             <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <li><a class="menu-item" href="./orders.html"><i class="fas fa-clipboard-list"></i><span>الطلبات</span></a></li>
-            <li><a class="menu-item" href="./payments.html"><i class="fas fa-money-bill-wave"></i><span>المدفوعات</span></a></li>
-            <li><a class="menu-item" href="./inventory.html"><i class="fas fa-warehouse"></i><span>حركات المخزون</span></a></li>
-            <li><a class="menu-item" href="./notifications.html"><i class="fas fa-bell"></i><span>الإشعارات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
@@ -77,27 +76,7 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
-        <!-- بطاقات الملخص السريع تظهر فوراً -->
-        <div class="quick-stats-row" id="quickStatsRow">
-            <div class="quick-stat">
-                <div class="stat-icon" style="background:#dbeafe; color:#2563eb;"><i class="fas fa-money-bill-wave"></i></div>
-                <div class="stat-info"><div class="stat-value">0.00 ج.م</div><div class="stat-label">مبيعات اليوم</div></div>
-            </div>
-            <div class="quick-stat">
-                <div class="stat-icon" style="background:#fee2e2; color:#ef4444;"><i class="fas fa-shopping-cart"></i></div>
-                <div class="stat-info"><div class="stat-value">0.00 ج.م</div><div class="stat-label">مشتريات اليوم</div></div>
-            </div>
-            <div class="quick-stat">
-                <div class="stat-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fas fa-wallet"></i></div>
-                <div class="stat-info"><div class="stat-value">0.00 ج.م</div><div class="stat-label">رصيد الصندوق</div></div>
-            </div>
-            <div class="quick-stat">
-                <div class="stat-icon" style="background:#d1fae5; color:#10b981;"><i class="fas fa-users"></i></div>
-                <div class="stat-info"><div class="stat-value">0</div><div class="stat-label">العملاء</div></div>
-            </div>
-        </div>
-
-        <!-- بطاقات الإحصائيات الرئيسية -->
+        <!-- بطاقات الإحصائيات الأساسية (بدون تكرار) -->
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card" style="border-right-color: #16a34a;">
                 <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-chart-line"></i></div>
@@ -111,13 +90,34 @@
                 <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-users"></i></div>
                 <div class="stat-content"><div class="stat-title">العملاء</div><div class="stat-value">0</div></div>
             </div>
-            <div class="stat-card" style="border-right-color: #f59e0b;">
-                <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-boxes"></i></div>
-                <div class="stat-content"><div class="stat-title">المنتجات</div><div class="stat-value">0</div></div>
-            </div>
             <div class="stat-card" style="border-right-color: #8b5cf6;">
                 <div class="stat-icon" style="color:#8b5cf6;"><i class="fas fa-cash-register"></i></div>
                 <div class="stat-content"><div class="stat-title">رصيد الصندوق</div><div class="stat-value">0.00 ج.م</div></div>
+            </div>
+        </div>
+
+        <!-- بطاقات المبيعات الأسبوعية والشهرية والفرق -->
+        <div class="sales-comparison-grid" id="salesComparisonGrid">
+            <div class="comparison-card">
+                <div class="comparison-icon" style="background:#dbeafe; color:#2563eb;"><i class="fas fa-calendar-week"></i></div>
+                <div class="comparison-content">
+                    <div class="comparison-title">المبيعات الأسبوعية</div>
+                    <div class="comparison-value">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="comparison-card">
+                <div class="comparison-icon" style="background:#d1fae5; color:#059669;"><i class="fas fa-calendar-alt"></i></div>
+                <div class="comparison-content">
+                    <div class="comparison-title">المبيعات الشهرية</div>
+                    <div class="comparison-value">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="comparison-card">
+                <div class="comparison-icon" style="background:#fef3c7; color:#d97706;"><i class="fas fa-exchange-alt"></i></div>
+                <div class="comparison-content">
+                    <div class="comparison-title">الفرق (شهري - أسبوعي)</div>
+                    <div class="comparison-value">0.00 ج.م</div>
+                </div>
             </div>
         </div>
 
