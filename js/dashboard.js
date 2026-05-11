@@ -57,13 +57,15 @@ const Dashboard = {
             'menuToggle', 'sidebar', 'sidebarOverlay',
             'currentDate', 'statsGrid', 'recentInvoices', 'recentPurchases',
             'salesComparisonGrid', 'toast', 'logoutBtn',
-            'sidebarAvatar', 'sidebarUserName', 'sidebarLoginTime'
+            'sidebarAvatar', 'sidebarUserName', 'sidebarLoginTime',
+            'moreMenuBtn', 'moreDropdown', 'refreshDataBtn'
         ];
         ids.forEach(id => this.el[id] = document.getElementById(id));
         console.log('2️⃣ DOM تم تخزينه');
     },
 
     bindEvents() {
+        // القائمة الجانبية
         this.el.menuToggle?.addEventListener('click', () => {
             this.el.sidebar.classList.toggle('open');
             this.el.sidebarOverlay?.classList.toggle('show');
@@ -71,13 +73,6 @@ const Dashboard = {
         this.el.sidebarOverlay?.addEventListener('click', () => {
             this.el.sidebar.classList.remove('open');
             this.el.sidebarOverlay.classList.remove('show');
-        });
-        this.el.logoutBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                if (window.App) App.logout();
-                else location.href = './index.html';
-            }
         });
 
         document.querySelectorAll('.menu-item').forEach(link => {
@@ -87,6 +82,35 @@ const Dashboard = {
             });
         });
 
+        // زر النقاط الثلاث والقائمة المنسدلة
+        this.el.moreMenuBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.el.moreDropdown?.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-actions')) {
+                this.el.moreDropdown?.classList.remove('show');
+            }
+        });
+
+        // زر تحديث البيانات
+        this.el.refreshDataBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.loadAllData();
+            this.toast('تم تحديث البيانات');
+            this.el.moreDropdown?.classList.remove('show');
+        });
+
+        // زر تسجيل الخروج
+        this.el.logoutBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                if (window.App) App.logout();
+                else location.href = './index.html';
+            }
+        });
+
+        // أحداث الاتصال بالإنترنت
         window.addEventListener('online', () => {
             this.toast('تم استعادة الاتصال – جاري التحديث...');
             this.loadAllData();
@@ -321,7 +345,7 @@ const Dashboard = {
                 comparisonValues[0].textContent = U.formatMoney(weeklySales);
                 comparisonValues[1].textContent = U.formatMoney(monthlySales);
                 comparisonValues[2].textContent = U.formatMoney(diff);
-                comparisonValues[2].style.color = diff >= 0 ? 'var(--secondary)' : 'var(--danger)';
+                comparisonValues[2].style.color = diff >= 0 ? 'var(--success)' : 'var(--danger)';
             }
         }
     },
