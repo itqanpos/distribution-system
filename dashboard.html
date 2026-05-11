@@ -25,7 +25,7 @@
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- شريط علوي بسيط بدون صورة المستخدم -->
+    <!-- شريط علوي بسيط مع زر النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -39,8 +39,17 @@
             </div>
         </div>
         <div class="navbar-right">
-            <a href="./settings.html" class="navbar-icon-btn" title="الإعدادات"><i class="fas fa-cog"></i></a>
-            <a href="#" class="navbar-icon-btn" id="logoutBtn" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i></a>
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث البيانات</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -76,7 +85,7 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
-        <!-- بطاقات الإحصائيات الأساسية (بدون تكرار) -->
+        <!-- بطاقات الإحصائيات الأساسية -->
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card" style="border-right-color: #16a34a;">
                 <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-chart-line"></i></div>
