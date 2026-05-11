@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (إصدار نهائي كامل)
+   dashboard.js - لوحة التحكم (إصدار نهائي مع زر النقاط الثلاث)
    ============================================= */
 'use strict';
 
@@ -53,6 +53,7 @@ const Dashboard = {
     },
 
     cacheDOM() {
+        // تأكد من إضافة جميع المعرفات التي تحتاجها
         const ids = [
             'menuToggle', 'sidebar', 'sidebarOverlay',
             'currentDate', 'statsGrid', 'recentInvoices', 'recentPurchases',
@@ -60,20 +61,24 @@ const Dashboard = {
             'sidebarAvatar', 'sidebarUserName', 'sidebarLoginTime',
             'moreMenuBtn', 'moreDropdown', 'refreshDataBtn'
         ];
-        ids.forEach(id => this.el[id] = document.getElementById(id));
-        console.log('2️⃣ DOM تم تخزينه');
+        ids.forEach(id => { this.el[id] = document.getElementById(id); });
+        console.log('2️⃣ DOM تم تخزينه', this.el);
     },
 
     bindEvents() {
         // القائمة الجانبية
-        this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay?.classList.toggle('show');
-        });
-        this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
-        });
+        if (this.el.menuToggle) {
+            this.el.menuToggle.addEventListener('click', () => {
+                this.el.sidebar.classList.toggle('open');
+                this.el.sidebarOverlay?.classList.toggle('show');
+            });
+        }
+        if (this.el.sidebarOverlay) {
+            this.el.sidebarOverlay.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay.classList.remove('show');
+            });
+        }
 
         document.querySelectorAll('.menu-item').forEach(link => {
             link.addEventListener('click', () => {
@@ -82,33 +87,41 @@ const Dashboard = {
             });
         });
 
-        // زر النقاط الثلاث والقائمة المنسدلة
-        this.el.moreMenuBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.el.moreDropdown?.classList.toggle('show');
-        });
+        // ✅ زر النقاط الثلاث والقائمة المنسدلة
+        if (this.el.moreMenuBtn) {
+            this.el.moreMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.el.moreDropdown.classList.toggle('show');
+            });
+        }
+
+        // إغلاق القائمة المنسدلة عند النقر خارجها
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.nav-actions')) {
+            if (this.el.moreDropdown && !e.target.closest('.nav-actions')) {
+                this.el.moreDropdown.classList.remove('show');
+            }
+        });
+
+        // ✅ زر تحديث البيانات
+        if (this.el.refreshDataBtn) {
+            this.el.refreshDataBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.loadAllData();
+                this.toast('تم تحديث البيانات');
                 this.el.moreDropdown?.classList.remove('show');
-            }
-        });
+            });
+        }
 
-        // زر تحديث البيانات
-        this.el.refreshDataBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.loadAllData();
-            this.toast('تم تحديث البيانات');
-            this.el.moreDropdown?.classList.remove('show');
-        });
-
-        // زر تسجيل الخروج
-        this.el.logoutBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                if (window.App) App.logout();
-                else location.href = './index.html';
-            }
-        });
+        // ✅ زر تسجيل الخروج
+        if (this.el.logoutBtn) {
+            this.el.logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                    if (window.App) App.logout();
+                    else location.href = './index.html';
+                }
+            });
+        }
 
         // أحداث الاتصال بالإنترنت
         window.addEventListener('online', () => {
@@ -218,17 +231,17 @@ const Dashboard = {
     async loadStats() {
         try {
             const today = U.today();
-            let invoices = [], purchases = [], parties = [], products = [], transactions = [], settings = {};
+            let invoices=[], purchases=[], parties=[], products=[], transactions=[], settings={};
 
             if (this.state.ready === true && window.App && window.App.DB) {
                 const DB = window.App.DB;
                 [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                    DB.getInvoices().catch(() => []),
-                    DB.getPurchases().catch(() => []),
-                    DB.getParties('customer').catch(() => []),
-                    DB.getProducts().catch(() => []),
-                    DB.getTransactions().catch(() => []),
-                    DB.getSettings().catch(() => ({}))
+                    DB.getInvoices().catch(()=>[]),
+                    DB.getPurchases().catch(()=>[]),
+                    DB.getParties('customer').catch(()=>[]),
+                    DB.getProducts().catch(()=>[]),
+                    DB.getTransactions().catch(()=>[]),
+                    DB.getSettings().catch(()=>({}))
                 ]);
             } else if (window.localDB) {
                 invoices = await localDB.getAll('invoices') || [];
@@ -270,8 +283,7 @@ const Dashboard = {
         const weekAgoStr = weekAgo.toISOString().split('T')[0];
         const todayStr = U.today();
         return U.round(
-            invoices
-                .filter(inv => inv.type === 'sale' && inv.date >= weekAgoStr && inv.date <= todayStr)
+            invoices.filter(inv => inv.type === 'sale' && inv.date >= weekAgoStr && inv.date <= todayStr)
                 .reduce((s, inv) => s + (inv.total || 0), 0)
         );
     },
@@ -283,8 +295,7 @@ const Dashboard = {
         const monthAgoStr = monthAgo.toISOString().split('T')[0];
         const todayStr = U.today();
         return U.round(
-            invoices
-                .filter(inv => inv.type === 'sale' && inv.date >= monthAgoStr && inv.date <= todayStr)
+            invoices.filter(inv => inv.type === 'sale' && inv.date >= monthAgoStr && inv.date <= todayStr)
                 .reduce((s, inv) => s + (inv.total || 0), 0)
         );
     },
@@ -293,7 +304,7 @@ const Dashboard = {
         try {
             let invs = [];
             if (this.state.ready === true && window.App && window.App.DB) {
-                invs = await window.App.DB.getInvoices().catch(() => []);
+                invs = await window.App.DB.getInvoices().catch(()=>[]);
             } else if (window.localDB) {
                 invs = await localDB.getAll('invoices') || [];
             }
@@ -312,7 +323,7 @@ const Dashboard = {
         try {
             let pur = [];
             if (this.state.ready === true && window.App && window.App.DB) {
-                pur = await window.App.DB.getPurchases().catch(() => []);
+                pur = await window.App.DB.getPurchases().catch(()=>[]);
             } else if (window.localDB) {
                 pur = await localDB.getAll('purchases') || [];
             }
@@ -366,7 +377,7 @@ const Dashboard = {
                             <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
                             <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
                             <td>${U.formatMoney(inv.total)}</td>
-                            <td><span class="badge ${inv.status === 'paid' ? 'badge-success' : (inv.status === 'held' ? 'badge-warning' : 'badge-danger')}">${inv.status === 'paid' ? 'مدفوعة' : (inv.status === 'held' ? 'معلقة' : 'غير مدفوعة')}</span></td>
+                            <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
                         </tr>
                     `;
                 }).join('');
@@ -384,7 +395,7 @@ const Dashboard = {
                         <td>${U.escapeHTML(p.supplier_name || 'غير معروف')}</td>
                         <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(p.total)}</td>
-                        <td><span class="badge ${p.status === 'paid' ? 'badge-success' : 'badge-danger'}">${p.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة'}</span></td>
+                        <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
                     </tr>
                 `).join('');
                 this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
