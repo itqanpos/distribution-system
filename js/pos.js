@@ -521,17 +521,50 @@ const POS = {
     closeModal(id) { const m = this.el[id]; if (m) m.classList.remove('open'); },
 
     // ==================== الدفع ====================
-    openPaymentModal() {
-        if (!this.state.cart.length) { alert('السلة فارغة'); return; }
-        const totals = this.calculateTotals();
-        this.el.paySubtotal.textContent = Utils.formatMoney(totals.subtotal);
-        this.el.payDiscount.textContent = Utils.formatMoney(totals.discount);
-        this.el.payNet.textContent = Utils.formatMoney(totals.net);
-        const customer = this.getSelectedCustomer();
-        const bal = customer?.balance || 0;
+    // استبدل دالة openPaymentModal في pos.js بهذا الكود الآمن:
+openPaymentModal() {
+    if (!this.state.cart.length) {
+        alert('السلة فارغة');
+        return;
+    }
+
+    const totals = this.calculateTotals();
+    if (this.el.paySubtotal) this.el.paySubtotal.textContent = Utils.formatMoney(totals.subtotal);
+    if (this.el.payDiscount) this.el.payDiscount.textContent = Utils.formatMoney(totals.discount);
+    if (this.el.payNet) this.el.payNet.textContent = Utils.formatMoney(totals.net);
+
+    const customer = this.getSelectedCustomer();
+    const bal = customer?.balance || 0;
+    if (this.el.currentBalance) {
         this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
         this.el.currentBalance.classList.toggle('text-success', bal >= 0);
         this.el.currentBalance.classList.toggle('text-danger', bal < 0);
+    }
+
+    // التعامل الآمن مع عنصر استخدام الرصيد (قد لا يكون موجودًا)
+    const useBalanceCheckbox = this.el.useCustomerBalanceCheckbox;
+    const balanceAmountEl = this.el.customerBalanceAmount;
+    
+    if (useBalanceCheckbox) {
+        if (customer && bal > 0) {
+            useBalanceCheckbox.style.display = 'block';
+            if (balanceAmountEl) balanceAmountEl.textContent = `الرصيد المتاح: ${Utils.formatMoney(bal)}`;
+            useBalanceCheckbox.checked = true;
+        } else {
+            useBalanceCheckbox.style.display = 'none';
+            useBalanceCheckbox.checked = false;
+        }
+    }
+
+    // إعادة تعيين الحقول
+    if (this.el.cashAmount) this.el.cashAmount.value = '';
+    if (this.el.transferAmount) this.el.transferAmount.value = '';
+    if (this.el.paymentMethod) this.el.paymentMethod.value = 'cash';
+    
+    this.togglePaymentFields();
+    this.updatePaymentPreview();
+    this.showModal('paymentModal');
+}
         // إظهار خيار استخدام الرصيد إذا كان العميل دائناً
         if (customer && bal > 0) {
             this.el.useCustomerBalanceCheckbox.style.display = 'block';
