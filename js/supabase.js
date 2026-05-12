@@ -31,13 +31,11 @@
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
         
-        // إذا وجدت بيانات محلية، نعرضها فوراً
         if (local) {
             try {
                 const localData = await local.getAll(storeName);
                 if (localData && localData.length > 0) {
                     console.log(`📦 ${storeName}: عرض ${localData.length} عنصر من IndexedDB`);
-                    // تحديث من السحابة في الخلفية
                     if (navigator.onLine && supabaseClient) {
                         cloudFetcher().then(cloudData => {
                             if (cloudData && Array.isArray(cloudData)) {
@@ -50,11 +48,9 @@
             } catch (e) { /* تجاهل */ }
         }
 
-        // جلب من السحابة
         if (navigator.onLine && supabaseClient) {
             try {
                 const data = await cloudFetcher();
-                // تحديث المحلي
                 if (local && data && Array.isArray(data)) {
                     for (const item of data) {
                         await local.put(storeName, cleanObject(item)).catch(() => {});
@@ -67,19 +63,16 @@
             }
         }
         
-        // لا إنترنت ولا LocalDB
         return [];
     }
 
     async function saveWithFallback(storeName, data, cloudSaver) {
         const local = getLocalDB();
         
-        // حفظ محلي دائماً
         if (local) {
             await local.put(storeName, cleanObject(data)).catch(() => {});
         }
         
-        // محاولة الحفظ في السحابة
         if (navigator.onLine && supabaseClient) {
             try {
                 const result = await cloudSaver(data);
@@ -93,10 +86,9 @@
                         data: cleanObject(data)
                     }).catch(() => {});
                 }
-                return data; // نُرجع البيانات المحفوظة محلياً
+                return data;
             }
         } else {
-            // غير متصل، أضف إلى طابور المزامنة
             if (local) {
                 await local.addToSyncQueue?.({
                     type: data.id ? 'UPDATE' : 'INSERT',
