@@ -24,6 +24,7 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -56,7 +57,7 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
+    <!-- القائمة الجانبية مع صورة المستخدم في الأعلى -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -146,15 +147,23 @@
         <!-- MAIN GRID -->
         <section class="main-grid">
             <div class="glass-card large-card">
-                <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select"><option>آخر 7 أيام</option><option>آخر 30 يوم</option></select></div>
-                <div class="chart-placeholder"><i class="fas fa-chart-area"></i><span>مكان الرسم البياني</span></div>
+                <div class="section-header">
+                    <h3>تحليل المبيعات</h3>
+                    <select class="modern-select">
+                        <option value="7">آخر 7 أيام</option>
+                        <option value="30">آخر 30 يوم</option>
+                    </select>
+                </div>
+                <div class="chart-placeholder">
+                    <canvas id="salesChart"></canvas>
+                </div>
             </div>
             <div class="glass-card">
                 <div class="section-header"><h3>تنبيهات ذكية</h3></div>
                 <div class="insights-list">
-                    <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>5 منتجات قاربت النفاد</strong><p>قم بتحديث المخزون</p></div></div>
-                    <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو 18% هذا الأسبوع</p></div></div>
-                    <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p>يوجد 12 فاتورة غير مدفوعة</p></div></div>
+                    <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p>0 منتجات قاربت النفاد</p></div></div>
+                    <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو ملحوظ</p></div></div>
+                    <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p>0 فاتورة غير مدفوعة</p></div></div>
                 </div>
             </div>
         </section>
@@ -164,9 +173,7 @@
             <div class="glass-card">
                 <div class="section-header"><h3>النشاط الأخير</h3></div>
                 <div class="timeline" id="activityTimeline">
-                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>تم إنشاء فاتورة جديدة</strong><p>منذ 5 دقائق</p></div></div>
-                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>إضافة عميل جديد</strong><p>منذ 20 دقيقة</p></div></div>
-                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>تحديث المخزون</strong><p>منذ ساعة</p></div></div>
+                    <p class="empty">جاري تحميل النشاطات...</p>
                 </div>
             </div>
         </section>
