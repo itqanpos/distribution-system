@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (Premium UI)
+   dashboard.js - لوحة التحكم (Premium UI + تحسينات)
    ============================================= */
 'use strict';
 
@@ -17,7 +17,8 @@ const Dashboard = {
         loading: false,
         stats: { salesToday: 0, purchasesToday: 0, customers: 0, cash: 0 },
         recentInvoices: [],
-        recentPurchases: []
+        recentPurchases: [],
+        products: []
     },
 
     async init() {
@@ -41,6 +42,7 @@ const Dashboard = {
             'sidebarAvatar', 'sidebarUserName',
             'salesToday', 'purchasesToday', 'customersCount', 'cashBalance',
             'heroGreeting', 'heroSubtitle',
+            'activityTimeline', 'chartPeriodSelect',
             'toast'
         ];
         this.el = {};
@@ -85,6 +87,12 @@ const Dashboard = {
                 else location.href = './index.html';
             }
         });
+
+        // حدث تغيير الفترة الزمنية للرسم البياني
+        const periodSelect = document.querySelector('.modern-select');
+        if (periodSelect) {
+            periodSelect.addEventListener('change', () => this.renderChart());
+        }
 
         window.addEventListener('online', () => {
             this.toast('تم استعادة الاتصال – جاري التحديث...');
@@ -136,7 +144,11 @@ const Dashboard = {
         if (this.state.loading) return;
         this.state.loading = true;
         try {
-            await Promise.all([this.loadStats(), this.loadRecentInvoices(), this.loadRecentPurchases()]);
+            await Promise.all([
+                this.loadStats(),
+                this.loadRecentInvoices(),
+                this.loadRecentPurchases()
+            ]);
         } catch (e) {
             console.error(e);
             this.toast('تعذر تحميل بعض البيانات');
@@ -153,16 +165,18 @@ const Dashboard = {
 
             if (this.state.ready === true && window.App && window.App.DB) {
                 const DB = window.App.DB;
-                [invoices, purchases, parties, transactions, settings] = await Promise.all([
+                [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
                     DB.getInvoices().catch(()=>[]), DB.getPurchases().catch(()=>[]),
-                    DB.getParties('customer').catch(()=>[]), DB.getTransactions().catch(()=>[]),
-                    DB.getSettings().catch(()=>({}))
+                    DB.getParties('customer').catch(()=>[]), DB.getProducts().catch(()=>[]),
+                    DB.getTransactions().catch(()=>[]), DB.getSettings().catch(()=>({}))
                 ]);
+                this.state.products = products || [];
             } else if (window.localDB) {
                 invoices = await localDB.getAll('invoices') || [];
                 purchases = await localDB.getAll('purchases') || [];
                 const allParties = await localDB.getAll('parties') || [];
                 parties = allParties.filter(p => p.type === 'customer');
+                this.state.products = await localDB.getAll('products') || [];
                 transactions = await localDB.getAll('transactions') || [];
                 const s = await localDB.getById('settings', 'main');
                 settings = s?.data || {};
@@ -175,27 +189,33 @@ const Dashboard = {
             const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
             this.state.stats.cash = U.round((settings?.financial?.opening_cash_balance || 0) + income - expense);
 
+            // حفظ الفواتير للرسم البياني
+            this.state.allInvoices = invoices.filter(inv => inv.type === 'sale');
+
         } catch (e) { console.error(e); }
     },
 
     async loadRecentInvoices() {
         try {
             let invs = [];
-            if (this.state.ready === true && window.App && window.App.DB) invs = await window.App.DB.getInvoices().catch(()=>[]);
+            if (this.state.ready && window.App?.DB) invs = await window.App.DB.getInvoices().catch(()=>[]);
             else if (window.localDB) invs = await localDB.getAll('invoices') || [];
-            this.state.recentInvoices = invs.filter(i => i.type === 'sale').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+            this.state.recentInvoices = invs.filter(i => i.type === 'sale')
+                .sort((a, b) => (b.invoice_number || '').localeCompare(a.invoice_number || ''))
+                .slice(0, 5);
         } catch (e) {}
     },
 
     async loadRecentPurchases() {
         try {
             let pur = [];
-            if (this.state.ready === true && window.App && window.App.DB) pur = await window.App.DB.getPurchases().catch(()=>[]);
+            if (this.state.ready && window.App?.DB) pur = await window.App.DB.getPurchases().catch(()=>[]);
             else if (window.localDB) pur = await localDB.getAll('purchases') || [];
             this.state.recentPurchases = pur.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
         } catch (e) {}
     },
 
+    // ========== تحديث الواجهة ==========
     updateUI() {
         const s = this.state.stats;
         if (this.el.salesToday) this.el.salesToday.textContent = U.formatMoney(s.salesToday);
@@ -208,6 +228,137 @@ const Dashboard = {
         if (this.el.purchasesTrend) this.el.purchasesTrend.textContent = '↑ حتى اللحظة';
         if (this.el.customersTrend) this.el.customersTrend.textContent = '+ إجمالي';
         if (this.el.cashTrend) this.el.cashTrend.textContent = '↓ الرصيد الحالي';
+
+        // تحديث الأقسام التفاعلية
+        this.updateInsights();
+        this.updateActivityTimeline();
+        this.renderChart();
+    },
+
+    // ========== تحديث التنبيهات الذكية ==========
+    updateInsights() {
+        try {
+            const products = this.state.products || [];
+            // المنتجات المنخفضة المخزون
+            const lowStock = products.filter(p => {
+                const stock = p.units?.[0]?.stock || 0;
+                const min = p.min_stock || 5;
+                return stock > 0 && stock <= min;
+            }).length;
+            const lowStockText = document.querySelector('.insight-item.warning p');
+            if (lowStockText) lowStockText.textContent = `${lowStock > 0 ? lowStock : 'لا توجد'} منتجات قاربت النفاد`;
+
+            // الفواتير غير المدفوعة
+            const unpaidInvoices = this.state.recentInvoices.filter(inv => inv.remaining > 0).length;
+            const unpaidText = document.querySelector('.insight-item.danger p');
+            if (unpaidText) unpaidText.textContent = `يوجد ${unpaidInvoices} فاتورة غير مدفوعة`;
+
+            // نمو المبيعات (مقارنة بأمس يمكن إضافتها هنا)
+        } catch(e) { console.warn('تحديث التنبيهات:', e); }
+    },
+
+    // ========== تحديث النشاط الأخير ==========
+    updateActivityTimeline() {
+        const container = this.el.activityTimeline;
+        if (!container) return;
+        
+        const activities = [];
+        // آخر فاتورة
+        if (this.state.recentInvoices.length) {
+            const inv = this.state.recentInvoices[0];
+            activities.push({
+                text: `فاتورة جديدة للعميل ${inv.customer_name || 'نقدي'}`,
+                time: this.timeAgo(inv.date),
+                amount: U.formatMoney(inv.total)
+            });
+        }
+        // آخر مشتريات
+        if (this.state.recentPurchases.length) {
+            const pur = this.state.recentPurchases[0];
+            activities.push({
+                text: `فاتورة شراء من ${pur.supplier_name || 'مورد'}`,
+                time: this.timeAgo(pur.date),
+                amount: U.formatMoney(pur.total)
+            });
+        }
+        // آخر معاملة مالية (اختياري)
+
+        container.innerHTML = activities.length ? activities.map(a => `
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <strong>${a.text}</strong>
+                    <p>${a.time} - ${a.amount || ''}</p>
+                </div>
+            </div>
+        `).join('') : '<p class="empty">لا توجد نشاطات حديثة</p>';
+    },
+
+    // ========== مساعد الوقت ==========
+    timeAgo(dateStr) {
+        const now = new Date();
+        const date = new Date(dateStr);
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'الآن';
+        if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+        const diffDays = Math.floor(diffHours / 24);
+        return `منذ ${diffDays} يوم`;
+    },
+
+    // ========== الرسم البياني ==========
+    renderChart() {
+        const canvas = document.getElementById('salesChart');
+        const container = document.querySelector('.chart-placeholder');
+        if (!canvas) {
+            // يمكن إنشاء canvas ديناميكياً أو استخدام placeholder فقط
+            return;
+        }
+        const ctx = canvas.getContext('2d');
+        const period = document.querySelector('.modern-select')?.value || '7';
+
+        const days = parseInt(period) || 7;
+        const today = new Date();
+        const labels = [];
+        const data = [];
+
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const total = (this.state.allInvoices || [])
+                .filter(inv => inv.date === dateStr)
+                .reduce((s, inv) => s + (inv.total || 0), 0);
+            labels.push(d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }));
+            data.push(total);
+        }
+
+        if (window.salesChartInstance) window.salesChartInstance.destroy();
+
+        window.salesChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'المبيعات',
+                    data: data,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
     }
 };
 
