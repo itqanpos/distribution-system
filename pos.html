@@ -159,6 +159,13 @@
                     <option value="mixed">مختلط</option>
                     <option value="credit">آجل</option>
                 </select>
+                <div id="useCustomerBalanceSection" style="display:none; margin-top:10px;">
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="useCustomerBalanceCheckbox" onchange="POS.updatePaymentPreview()">
+        <span>استخدام رصيد العميل للدفع</span>
+    </label>
+    <small id="customerBalanceAmount" style="color:var(--gray-500);"></small>
+</div>
             </div>
             <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
             <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
