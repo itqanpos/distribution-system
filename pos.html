@@ -10,11 +10,14 @@
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
@@ -24,7 +27,7 @@
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- شريط التنقل -->
+    <!-- شريط علوي محسّن مع قائمة النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -38,13 +41,14 @@
             </div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info">
-                    <h4 id="userName">مدير النظام</h4>
-                    <p id="loginTime">اليوم</p>
-                </div>
-                <div class="user-dropdown" id="userDropdown">
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة الحالية</a>
+                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> استرجاع فاتورة معلقة</a>
+                    <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
@@ -54,21 +58,21 @@
 
     <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
+        </div>
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
             <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <li><a class="menu-item" href="./orders.html"><i class="fas fa-clipboard-list"></i><span>الطلبات</span></a></li>
-            <li><a class="menu-item" href="./payments.html"><i class="fas fa-money-bill-wave"></i><span>المدفوعات</span></a></li>
-            <li><a class="menu-item" href="./inventory.html"><i class="fas fa-warehouse"></i><span>حركات المخزون</span></a></li>
-            <li><a class="menu-item" href="./notifications.html"><i class="fas fa-bell"></i><span>الإشعارات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
@@ -98,6 +102,8 @@
                 </div>
                 <div class="empty-cart-message">السلة فارغة</div>
             </div>
+            
+            <!-- تذييل السلة (محسّن بمسافة آمنة سفلية) -->
             <div class="cart-footer">
                 <div class="cart-summary">
                     <div class="summary-stats">
@@ -116,15 +122,13 @@
                     <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
                 </div>
                 <div class="action-buttons">
-                    <button class="btn btn-success" id="payBtn"><i class="fas fa-check"></i> دفع</button>
-                    <button class="btn btn-warning" id="holdBtn"><i class="fas fa-pause"></i> تعليق</button>
-                    <button class="btn btn-primary" id="heldInvoicesBtn"><i class="fas fa-list"></i> معلقة</button>
+                    <button class="btn btn-success btn-lg" id="payBtn"><i class="fas fa-check"></i> دفع</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- مودال إضافة منتج -->
+    <!-- المودالات: إضافة منتج، الدفع، الفواتير المعلقة، الإيصال -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -136,7 +140,6 @@
         </div>
     </div>
 
-    <!-- مودال الدفع -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -169,7 +172,6 @@
         </div>
     </div>
 
-    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -177,15 +179,11 @@
         </div>
     </div>
 
-    <!-- ✅ مودال الإيصال الحراري الجديد -->
+    <!-- مودال الإيصال -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
-            <div class="receipt-header">
-                <button id="closeReceiptModalBtn" class="close-btn">&times;</button>
-            </div>
-            <div id="receiptPrintArea">
-                <!-- سيتم ملؤه من JavaScript -->
-            </div>
+            <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
+            <div id="receiptPrintArea"></div>
             <div class="receipt-actions">
                 <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
                 <button class="btn btn-cancel" id="cancelReceiptModalBtn">إغلاق</button>
@@ -196,48 +194,5 @@
     <div class="toast" id="toast"></div>
 
     <script src="./js/pos.js"></script>
-
-    <!-- Service Worker + السحب للتحديث -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-        }
-
-        (function() {
-            let pullStartY = 0, pulling = false;
-            const pullThreshold = 80;
-            const body = document.body;
-            const pullIndicator = document.createElement('div');
-            pullIndicator.className = 'pull-indicator';
-            pullIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> <span>اسحب للتحديث</span>';
-            pullIndicator.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:white;padding:8px 20px;border-radius:30px;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;';
-            body.appendChild(pullIndicator);
-
-            document.addEventListener('touchstart', (e) => {
-                if (e.target.closest('.cart-items, .search-dropdown, .modal')) return;
-                if (window.scrollY === 0) {
-                    pullStartY = e.touches[0].clientY;
-                    pulling = true;
-                }
-            }, { passive: false });
-
-            document.addEventListener('touchmove', (e) => {
-                if (!pulling) return;
-                if (e.touches[0].clientY - pullStartY > 30) {
-                    pullIndicator.style.opacity = '1';
-                    e.preventDefault();
-                }
-            }, { passive: false });
-
-            document.addEventListener('touchend', (e) => {
-                if (!pulling) return;
-                pulling = false;
-                pullIndicator.style.opacity = '0';
-                if (e.changedTouches[0].clientY - pullStartY > pullThreshold) {
-                    window.location.reload();
-                }
-            });
-        })();
-    </script>
 </body>
 </html>
