@@ -11,6 +11,9 @@
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/dashboard.css">
     
@@ -25,7 +28,7 @@
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- شريط علوي مع زر النقاط الثلاث -->
+    <!-- الشريط العلوي مع زر النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -53,7 +56,7 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية مع صورة المستخدم في المنتصف أعلى -->
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -76,72 +79,98 @@
         </ul>
     </aside>
 
-    <main class="main-content">
-        <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1></div>
-            <div class="date-display" id="currentDate"></div>
-        </div>
+    <!-- المحتوى الرئيسي (Premium Dashboard) -->
+    <main class="dashboard-container">
 
-        <!-- بطاقات الإحصائيات الأساسية -->
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card" style="border-right-color: #16a34a;">
-                <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-chart-line"></i></div>
-                <div class="stat-content"><div class="stat-title">مبيعات اليوم</div><div class="stat-value">0.00 ج.م</div></div>
+        <!-- HERO SECTION -->
+        <section class="hero-section">
+            <div class="hero-content">
+                <div>
+                    <h1 id="heroGreeting">مرحباً، محمد 👋</h1>
+                    <p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p>
+                </div>
+                <div class="hero-actions">
+                    <button class="primary-btn" onclick="window.location.href='./pos.html'">
+                        <i class="fas fa-plus"></i> فاتورة جديدة
+                    </button>
+                    <button class="secondary-btn" onclick="window.location.href='./reports.html'">
+                        <i class="fas fa-chart-line"></i> التقارير
+                    </button>
+                </div>
             </div>
-            <div class="stat-card" style="border-right-color: #dc2626;">
-                <div class="stat-icon" style="color:#dc2626;"><i class="fas fa-shopping-cart"></i></div>
-                <div class="stat-content"><div class="stat-title">مشتريات اليوم</div><div class="stat-value">0.00 ج.م</div></div>
-            </div>
-            <div class="stat-card" style="border-right-color: #3b82f6;">
-                <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-users"></i></div>
-                <div class="stat-content"><div class="stat-title">العملاء</div><div class="stat-value">0</div></div>
-            </div>
-            <div class="stat-card" style="border-right-color: #8b5cf6;">
-                <div class="stat-icon" style="color:#8b5cf6;"><i class="fas fa-cash-register"></i></div>
-                <div class="stat-content"><div class="stat-title">رصيد الصندوق</div><div class="stat-value">0.00 ج.م</div></div>
-            </div>
-        </div>
+        </section>
 
-        <!-- بطاقات المبيعات الأسبوعية والشهرية والفرق -->
-        <div class="sales-comparison-grid" id="salesComparisonGrid">
-            <div class="comparison-card">
-                <div class="comparison-icon" style="background:#dbeafe; color:#2563eb;"><i class="fas fa-calendar-week"></i></div>
-                <div class="comparison-content">
-                    <div class="comparison-title">المبيعات الأسبوعية</div>
-                    <div class="comparison-value">0.00 ج.م</div>
+        <!-- STATS -->
+        <section class="stats-grid">
+            <div class="premium-card sales">
+                <div class="card-top">
+                    <div><span>مبيعات اليوم</span><h2 id="salesToday">0.00 ج.م</h2></div>
+                    <div class="icon-box"><i class="fas fa-chart-line"></i></div>
                 </div>
+                <div class="card-bottom"><span class="success-text" id="salesTrend">↑ جاري التحميل...</span></div>
             </div>
-            <div class="comparison-card">
-                <div class="comparison-icon" style="background:#d1fae5; color:#059669;"><i class="fas fa-calendar-alt"></i></div>
-                <div class="comparison-content">
-                    <div class="comparison-title">المبيعات الشهرية</div>
-                    <div class="comparison-value">0.00 ج.م</div>
+            <div class="premium-card purchases">
+                <div class="card-top">
+                    <div><span>المشتريات</span><h2 id="purchasesToday">0.00 ج.م</h2></div>
+                    <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
                 </div>
+                <div class="card-bottom"><span class="warning-text" id="purchasesTrend">↑ جاري التحميل...</span></div>
             </div>
-            <div class="comparison-card">
-                <div class="comparison-icon" style="background:#fef3c7; color:#d97706;"><i class="fas fa-exchange-alt"></i></div>
-                <div class="comparison-content">
-                    <div class="comparison-title">الفرق (شهري - أسبوعي)</div>
-                    <div class="comparison-value">0.00 ج.م</div>
+            <div class="premium-card customers">
+                <div class="card-top">
+                    <div><span>العملاء</span><h2 id="customersCount">0</h2></div>
+                    <div class="icon-box"><i class="fas fa-users"></i></div>
                 </div>
+                <div class="card-bottom"><span class="success-text" id="customersTrend">+ جاري التحميل...</span></div>
             </div>
-        </div>
+            <div class="premium-card cash">
+                <div class="card-top">
+                    <div><span>رصيد الصندوق</span><h2 id="cashBalance">0.00 ج.م</h2></div>
+                    <div class="icon-box"><i class="fas fa-wallet"></i></div>
+                </div>
+                <div class="card-bottom"><span class="danger-text" id="cashTrend">↓ جاري التحميل...</span></div>
+            </div>
+        </section>
 
-        <!-- جداول النشاط الأخير -->
-        <div class="dashboard-grid">
-            <div class="table-box">
-                <div class="card-header"><h3><i class="fas fa-file-invoice"></i> آخر 5 فواتير</h3></div>
-                <div class="table-responsive" id="recentInvoices">
-                    <div class="empty">لا توجد فواتير حديثة</div>
+        <!-- QUICK ACTIONS -->
+        <section class="quick-actions">
+            <div class="section-header"><h3>إجراءات سريعة</h3></div>
+            <div class="actions-grid">
+                <button class="action-card" onclick="window.location.href='./pos.html'"><i class="fas fa-file-invoice"></i><span>فاتورة جديدة</span></button>
+                <button class="action-card" onclick="window.location.href='./customers.html'"><i class="fas fa-user-plus"></i><span>إضافة عميل</span></button>
+                <button class="action-card" onclick="window.location.href='./products.html'"><i class="fas fa-box"></i><span>إضافة منتج</span></button>
+                <button class="action-card" onclick="window.location.href='./reports.html'"><i class="fas fa-print"></i><span>طباعة تقرير</span></button>
+            </div>
+        </section>
+
+        <!-- MAIN GRID -->
+        <section class="main-grid">
+            <div class="glass-card large-card">
+                <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select"><option>آخر 7 أيام</option><option>آخر 30 يوم</option></select></div>
+                <div class="chart-placeholder"><i class="fas fa-chart-area"></i><span>مكان الرسم البياني</span></div>
+            </div>
+            <div class="glass-card">
+                <div class="section-header"><h3>تنبيهات ذكية</h3></div>
+                <div class="insights-list">
+                    <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>5 منتجات قاربت النفاد</strong><p>قم بتحديث المخزون</p></div></div>
+                    <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو 18% هذا الأسبوع</p></div></div>
+                    <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p>يوجد 12 فاتورة غير مدفوعة</p></div></div>
                 </div>
             </div>
-            <div class="table-box">
-                <div class="card-header"><h3><i class="fas fa-shopping-cart"></i> آخر 5 مشتريات</h3></div>
-                <div class="table-responsive" id="recentPurchases">
-                    <div class="empty">لا توجد مشتريات حديثة</div>
+        </section>
+
+        <!-- RECENT ACTIVITY -->
+        <section class="activity-section">
+            <div class="glass-card">
+                <div class="section-header"><h3>النشاط الأخير</h3></div>
+                <div class="timeline" id="activityTimeline">
+                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>تم إنشاء فاتورة جديدة</strong><p>منذ 5 دقائق</p></div></div>
+                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>إضافة عميل جديد</strong><p>منذ 20 دقيقة</p></div></div>
+                    <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>تحديث المخزون</strong><p>منذ ساعة</p></div></div>
                 </div>
             </div>
-        </div>
+        </section>
+
     </main>
 
     <div class="toast" id="toast"></div>
