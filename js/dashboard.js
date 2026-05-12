@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (Premium UI + أداء فائق)
+   dashboard.js - لوحة التحكم (Premium UI + بيانات فورية)
    ============================================= */
 'use strict';
 
@@ -26,8 +26,11 @@ const Dashboard = {
         this.bindEvents();
         this.initSidebarUser();
 
-        // بدء التحميل مباشرة دون انتظار طويل
-        this.loadDataInBackground();
+        // تعيين الشفافية الافتراضية للبطاقات حتى اكتمال التحميل
+        document.querySelectorAll('.premium-card').forEach(card => card.style.opacity = '0');
+
+        // بدء التحميل السريع
+        await this.loadDataInBackground();
     },
 
     cacheDOM() {
@@ -101,7 +104,6 @@ const Dashboard = {
             if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
             if (this.el.heroGreeting) this.el.heroGreeting.textContent = `مرحباً، ${user.fullName?.split(' ')[0] || 'المدير'} 👋`;
         }
-        // إذا لم يوجد مستخدم، البطاقات لا تزال ظاهرة بقيم 0
     },
 
     toast(msg) {
@@ -113,32 +115,32 @@ const Dashboard = {
         this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    // ✅ تحميل سريع في الخلفية دون حظر الواجهة
+    // ✅ تحميل جميع البيانات دفعة واحدة وإظهارها فوراً
     async loadDataInBackground() {
-        // التحقق من الاتصال بسرعة (أقصى 300ms)
-        this.state.ready = !!(window.App && window.App.DB);
+        // فحص سريع للقاعدة
+        this.state.ready = U.dbReady();
         if (!this.state.ready) {
-            const quickCheck = await this.quickDBReady();
-            this.state.ready = quickCheck;
+            this.state.ready = await this.quickDBReady();
         }
         
-        // بدء التحميل فوراً – كل نوع بيانات يحدث الواجهة فور وصوله
-        this.loadStats().then(() => {
-            this.updateStatsUI();
-            this.renderChart();
-        });
+        // تحميل كل البيانات بالتوازي
+        await Promise.all([
+            this.loadStats(),
+            this.loadRecentInvoices(),
+            this.loadRecentPurchases(),
+            this.loadProducts()
+        ]);
         
-        this.loadRecentInvoices().then(() => {
-            this.updateActivityTimeline();
-        });
+        // بعد تحميل كل شيء، نُحدّث الواجهة دفعة واحدة
+        this.updateStatsUI();
+        this.updateInsights();
+        this.updateActivityTimeline();
+        this.renderChart();
         
-        this.loadRecentPurchases().then(() => {
-            this.updateActivityTimeline();
-        });
-        
-        // التنبيهات تعتمد على المنتجات والفواتير
-        Promise.all([this.loadProducts(), this.loadRecentInvoices()]).then(() => {
-            this.updateInsights();
+        // إظهار البطاقات
+        document.querySelectorAll('.premium-card').forEach(card => {
+            card.style.opacity = '1';
+            card.style.transition = 'opacity 0.2s ease';
         });
     },
 
@@ -213,7 +215,7 @@ const Dashboard = {
         } catch(e) {}
     },
 
-    // ========== تحديث واجهة البطاقات (فوري) ==========
+    // ========== تحديث واجهة البطاقات (دفعة واحدة) ==========
     updateStatsUI() {
         const s = this.state.stats;
         if (this.el.salesToday) this.el.salesToday.textContent = U.formatMoney(s.salesToday);
