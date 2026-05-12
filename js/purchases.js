@@ -1,22 +1,36 @@
 /* =============================================
-   purchases.js - المشتريات (إصدار نهائي كامل)
+   purchases.js - المشتريات (فائق السرعة)
    ============================================= */
 'use strict';
 
 if (!window.Utils) {
     window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
-        },
+        formatMoney: (amount, currency = 'ج.م') =>
+            Number(amount).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) + ' ' + currency,
         formatDate: (dateStr) => {
             if (!dateStr) return '';
-            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-            catch (e) { return dateStr; }
+            try {
+                return new Date(dateStr).toLocaleDateString('ar-EG', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            } catch (e) {
+                return dateStr;
+            }
         },
-        escapeHTML: (str) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; },
+        escapeHTML: (str) => {
+            const d = document.createElement('div');
+            d.appendChild(document.createTextNode(str));
+            return d.innerHTML;
+        },
         getToday: () => new Date().toISOString().split('T')[0],
         isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
+        hasLocalDB: () =>
+            !!(window.localDB && typeof localDB.getAll === 'function')
     };
 }
 
@@ -83,10 +97,10 @@ const Purchases = {
             this.el.moreDropdown?.classList.toggle('show');
         });
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
+            if (!e.target.closest('.nav-actions'))
+                this.el.moreDropdown?.classList.remove('show');
         });
 
-        // أزرار القائمة المنسدلة
         this.el.refreshDataBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             this.loadData();
@@ -129,7 +143,8 @@ const Purchases = {
         const user = window.App?.getCurrentUser?.();
         if (user) {
             if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
-            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
+            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent =
+                user.fullName || user.email || 'مدير النظام';
         }
     },
 
@@ -138,25 +153,24 @@ const Purchases = {
         this.dataSource = 'none';
         try {
             if (Utils.isDBReady()) {
-                this.purchases = await DB.getPurchases() || [];
-                this.suppliers = await DB.getParties('supplier') || [];
-                this.products = await DB.getProducts() || [];
+                this.purchases = (await DB.getPurchases()) || [];
+                this.suppliers = (await DB.getParties('supplier')) || [];
+                this.products = (await DB.getProducts()) || [];
                 this.dataSource = 'db';
             } else if (Utils.hasLocalDB()) {
-                this.purchases = await localDB.getAll('purchases') || [];
-                const allParties = await localDB.getAll('parties') || [];
+                this.purchases = (await localDB.getAll('purchases')) || [];
+                const allParties = (await localDB.getAll('parties')) || [];
                 this.suppliers = allParties.filter(p => p.type === 'supplier');
-                this.products = await localDB.getAll('products') || [];
+                this.products = (await localDB.getAll('products')) || [];
                 this.dataSource = 'localdb';
             }
 
             // معالجة وحدات المنتجات (إذا كانت نصية)
-            this.products = this.products.map(p => {
+            for (const p of this.products) {
                 if (typeof p.units === 'string') {
                     try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
                 }
-                return p;
-            });
+            }
 
             // بيانات افتراضية للاختبار
             if (!this.products.length && !Utils.isDBReady() && !Utils.hasLocalDB()) {
@@ -174,20 +188,24 @@ const Purchases = {
             console.log(`📊 تم تحميل ${this.purchases.length} فاتورة شراء من ${this.dataSource}`);
         } catch (err) {
             console.error('❌ خطأ في تحميل بيانات المشتريات:', err);
-            this.el.purchasesBody.innerHTML = '<tr><td colspan="8" class="empty-message">فشل تحميل البيانات</td></tr>';
+            this.el.purchasesBody.innerHTML =
+                '<tr><td colspan="8" class="empty-message">فشل تحميل البيانات</td></tr>';
         }
     },
 
     populateSupplierList() {
         if (!this.el.supplierList) return;
-        this.el.supplierList.innerHTML = this.suppliers.map(
-            s => `<option value="${Utils.escapeHTML(s.name)}" data-id="${s.id}">${Utils.escapeHTML(s.name)}</option>`
-        ).join('');
+        this.el.supplierList.innerHTML = this.suppliers
+            .map(s => `<option value="${Utils.escapeHTML(s.name)}" data-id="${s.id}">${Utils.escapeHTML(s.name)}</option>`)
+            .join('');
     },
 
     updateStats() {
-        const total = this.purchases.reduce((s, p) => s + (p.total || 0), 0);
-        const paid = this.purchases.reduce((s, p) => s + (p.paid || 0), 0);
+        let total = 0, paid = 0;
+        for (const p of this.purchases) {
+            total += p.total || 0;
+            paid += p.paid || 0;
+        }
         if (this.el.totalPurchases) this.el.totalPurchases.textContent = Utils.formatMoney(total);
         if (this.el.paidPurchases) this.el.paidPurchases.textContent = Utils.formatMoney(paid);
         if (this.el.unpaidPurchases) this.el.unpaidPurchases.textContent = Utils.formatMoney(total - paid);
@@ -197,44 +215,57 @@ const Purchases = {
     renderTable() {
         const term = this.el.searchInput?.value.trim().toLowerCase() || '';
         let filtered = this.purchases.filter(p => {
-            const matchSearch = !term || (p.id || '').includes(term) || (p.supplier_name || '').includes(term) || (p.invoice_number || '').includes(term);
+            const matchSearch =
+                !term ||
+                (p.id || '').includes(term) ||
+                (p.supplier_name || '').includes(term) ||
+                (p.invoice_number || '').includes(term);
             return matchSearch;
         });
 
-        if (this.currentFilter === 'paid') filtered = filtered.filter(p => p.status === 'paid' || p.remaining === 0);
-        else if (this.currentFilter === 'unpaid') filtered = filtered.filter(p => p.status !== 'paid' && p.remaining > 0);
+        if (this.currentFilter === 'paid')
+            filtered = filtered.filter(p => p.status === 'paid' || p.remaining === 0);
+        else if (this.currentFilter === 'unpaid')
+            filtered = filtered.filter(p => p.status !== 'paid' && p.remaining > 0);
 
         filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         if (!filtered.length) {
-            this.el.purchasesBody.innerHTML = '<tr><td colspan="8" class="empty-message">لا توجد فواتير شراء</td></tr>';
+            this.el.purchasesBody.innerHTML =
+                '<tr><td colspan="8" class="empty-message">لا توجد فواتير شراء</td></tr>';
             return;
         }
 
-        this.el.purchasesBody.innerHTML = filtered.map(p => {
-            const statusBadge = (p.status === 'paid' || p.remaining === 0)
-                ? '<span class="badge badge-success">مدفوعة</span>'
-                : '<span class="badge badge-danger">غير مدفوعة</span>';
-            return `<tr>
-                <td>${p.invoice_number || (p.id || '').substring(0, 8)}</td>
-                <td>${Utils.formatDate(p.date)}</td>
-                <td>${Utils.escapeHTML(p.supplier_name || '')}</td>
-                <td>${Utils.formatMoney(p.total)}</td>
-                <td>${Utils.formatMoney(p.paid)}</td>
-                <td>${Utils.formatMoney(p.remaining)}</td>
-                <td>${statusBadge}</td>
-                <td class="action-icons">
-                    <i class="fas fa-eye" title="عرض الإيصال" onclick="Purchases.viewReceipt('${p.id}')"></i>
-                    <i class="fas fa-edit" title="تعديل" onclick="Purchases.editPurchase('${p.id}')"></i>
-                </td>
-            </tr>`;
-        }).join('');
+        // تجميع الصفوف دفعة واحدة
+        let rowsHTML = '';
+        for (const p of filtered) {
+            const statusBadge =
+                p.status === 'paid' || p.remaining === 0
+                    ? '<span class="badge badge-success">مدفوعة</span>'
+                    : '<span class="badge badge-danger">غير مدفوعة</span>';
+            rowsHTML += `
+                <tr>
+                    <td>${p.invoice_number || (p.id || '').substring(0, 8)}</td>
+                    <td>${Utils.formatDate(p.date)}</td>
+                    <td>${Utils.escapeHTML(p.supplier_name || '')}</td>
+                    <td>${Utils.formatMoney(p.total)}</td>
+                    <td>${Utils.formatMoney(p.paid)}</td>
+                    <td>${Utils.formatMoney(p.remaining)}</td>
+                    <td>${statusBadge}</td>
+                    <td class="action-icons">
+                        <i class="fas fa-eye" title="عرض الإيصال" onclick="Purchases.viewReceipt('${p.id}')"></i>
+                        <i class="fas fa-edit" title="تعديل" onclick="Purchases.editPurchase('${p.id}')"></i>
+                    </td>
+                </tr>`;
+        }
+        this.el.purchasesBody.innerHTML = rowsHTML;
     },
 
     // ========== فتح/إغلاق المودال ==========
     openModal(purchase = null) {
         this.editingId = purchase?.id || null;
-        if (this.el.modalTitle) this.el.modalTitle.textContent = purchase ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة';
+        if (this.el.modalTitle)
+            this.el.modalTitle.textContent = purchase ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة';
         if (this.el.purchaseId) this.el.purchaseId.value = purchase?.id || '';
         if (this.el.supplierInput) this.el.supplierInput.value = purchase?.supplier_name || '';
         if (this.el.purchaseDate) this.el.purchaseDate.value = purchase?.date || Utils.getToday();
@@ -244,7 +275,7 @@ const Purchases = {
         if (this.el.itemsContainer) this.el.itemsContainer.innerHTML = '';
 
         if (purchase?.items?.length) {
-            purchase.items.forEach(item => this.addItemCard(item));
+            for (const item of purchase.items) this.addItemCard(item);
         } else {
             this.addItemCard();
         }
@@ -283,7 +314,9 @@ const Purchases = {
     getUnitOptions(productName, selectedUnit) {
         const product = this.products.find(p => p.name === productName);
         if (!product) return `<option value="${selectedUnit || ''}">${selectedUnit || 'اختر المنتج'}</option>`;
-        return product.units.map(u => `<option value="${u.name}" data-cost="${u.cost || 0}" data-factor="${u.factor || 1}" ${u.name === selectedUnit ? 'selected' : ''}>${u.name}</option>`).join('');
+        return product.units
+            .map(u => `<option value="${u.name}" data-cost="${u.cost || 0}" data-factor="${u.factor || 1}" ${u.name === selectedUnit ? 'selected' : ''}>${u.name}</option>`)
+            .join('');
     },
 
     onProductSelected(input) {
@@ -317,11 +350,12 @@ const Purchases = {
 
     updateTotalAndRemaining() {
         let total = 0;
-        this.el.itemsContainer.querySelectorAll('.item-card').forEach(card => {
+        const cards = this.el.itemsContainer.querySelectorAll('.item-card');
+        for (const card of cards) {
             const qty = parseFloat(card.querySelector('.item-qty')?.value) || 0;
             const price = parseFloat(card.querySelector('.item-price')?.value) || 0;
             total += qty * price;
-        });
+        }
         if (this.el.totalAmount) this.el.totalAmount.textContent = Utils.formatMoney(total);
         this.updateRemaining();
     },
@@ -330,7 +364,8 @@ const Purchases = {
         const totalText = this.el.totalAmount?.textContent || '0';
         const total = parseFloat(totalText.replace(/[^0-9.-]+/g, '')) || 0;
         const paid = parseFloat(this.el.paidAmount?.value) || 0;
-        if (this.el.remainingAmount) this.el.remainingAmount.textContent = Utils.formatMoney(Math.max(0, total - paid));
+        if (this.el.remainingAmount)
+            this.el.remainingAmount.textContent = Utils.formatMoney(Math.max(0, total - paid));
     },
 
     payNow() {
@@ -340,8 +375,15 @@ const Purchases = {
         const remaining = Math.max(0, total - paid);
 
         if (total <= 0) { alert('أضف أصنافاً أولاً'); return; }
-        if (paid <= 0 && remaining > 0) { alert('يرجى إدخال مبلغ الدفع أو اختيار "آجل"'); return; }
-        if (confirm(`سيتم تسجيل دفعة بقيمة ${Utils.formatMoney(paid)}. المتبقي: ${Utils.formatMoney(remaining)}. متابعة؟`)) {
+        if (paid <= 0 && remaining > 0) {
+            alert('يرجى إدخال مبلغ الدفع أو اختيار "آجل"');
+            return;
+        }
+        if (
+            confirm(
+                `سيتم تسجيل دفعة بقيمة ${Utils.formatMoney(paid)}. المتبقي: ${Utils.formatMoney(remaining)}. متابعة؟`
+            )
+        ) {
             this.savePurchase(true);
         }
     },
@@ -359,14 +401,13 @@ const Purchases = {
                 if (Utils.isDBReady()) {
                     const saved = await DB.saveParty(newSupplier);
                     this.suppliers.push(saved);
-                    this.populateSupplierList();
                     supplierId = saved.id;
                 } else if (Utils.hasLocalDB()) {
                     const saved = await localDB.put('parties', newSupplier);
                     this.suppliers.push(saved);
-                    this.populateSupplierList();
                     supplierId = saved.id;
                 }
+                this.populateSupplierList();
             } else {
                 supplierId = existing.id;
             }
@@ -379,13 +420,13 @@ const Purchases = {
 
         const cards = this.el.itemsContainer?.querySelectorAll('.item-card') || [];
         const items = [];
-        cards.forEach(card => {
+        for (const card of cards) {
             const productName = card.querySelector('.item-product-name')?.value.trim();
             const unitName = card.querySelector('.item-unit')?.value;
             const qty = parseFloat(card.querySelector('.item-qty')?.value) || 0;
             const price = parseFloat(card.querySelector('.item-price')?.value) || 0;
             if (productName && unitName && qty > 0) items.push({ productName, unitName, quantity: qty, price });
-        });
+        }
         if (!items.length) { alert('أضف صنفًا واحدًا على الأقل'); return; }
 
         const total = items.reduce((s, i) => s + i.quantity * i.price, 0);
@@ -393,7 +434,11 @@ const Purchases = {
         const status = remaining === 0 ? 'paid' : 'unpaid';
 
         const purchaseData = {
-            id: this.editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
+            id:
+                this.editingId ||
+                (typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : 'id-' + Date.now()),
             date,
             supplier: supplierName,
             supplier_id: supplierId,
@@ -443,11 +488,17 @@ const Purchases = {
 
             this.closeModal('purchaseModal');
             await this.loadData();
-            
-            const supplier = this.suppliers.find(s => s.name === supplierName) || { name: supplierName, balance: 0 };
+
+            const supplier =
+                this.suppliers.find(s => s.name === supplierName) ||
+                { name: supplierName, balance: 0 };
             this.showReceiptModal(purchaseData, supplier);
-            
-            alert(isDirectPayment ? 'تم الدفع وحفظ الفاتورة بنجاح' : 'تم حفظ فاتورة الشراء بنجاح');
+
+            alert(
+                isDirectPayment
+                    ? 'تم الدفع وحفظ الفاتورة بنجاح'
+                    : 'تم حفظ فاتورة الشراء بنجاح'
+            );
         } catch (err) {
             console.error('فشل حفظ الفاتورة:', err);
             alert('فشل حفظ الفاتورة: ' + err.message);
@@ -463,7 +514,9 @@ const Purchases = {
     viewReceipt(id) {
         const purchase = this.purchases.find(p => p.id === id);
         if (!purchase) return;
-        const supplier = this.suppliers.find(s => s.name === purchase.supplier_name) || { name: purchase.supplier_name || 'غير معروف', balance: 0 };
+        const supplier =
+            this.suppliers.find(s => s.name === purchase.supplier_name) ||
+            { name: purchase.supplier_name || 'غير معروف', balance: 0 };
         this.showReceiptModal(purchase, supplier);
     },
 
@@ -473,37 +526,36 @@ const Purchases = {
         const companyPhone = settings?.company?.phone || '';
         const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
 
-        const itemsRows = (purchase.items || []).map(item => {
+        let itemsRowsHTML = '';
+        for (const item of purchase.items || []) {
             const lineTotal = (item.price || 0) * (item.quantity || 0);
-            return `
+            itemsRowsHTML += `
                 <tr>
                     <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
                     <td>${item.quantity}</td>
                     <td>${Utils.formatMoney(item.price)}</td>
                     <td>${Utils.formatMoney(lineTotal)}</td>
-                </tr>
-            `;
-        }).join('');
+                </tr>`;
+        }
 
         const paymentInfoHTML = `
             <div class="payment-info-box">
                 <div class="payment-row"><span>رصيد المورد:</span> <span>${Utils.formatMoney(supplier.balance || 0)}</span></div>
                 <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(purchase.paid)}</span></div>
                 <div class="payment-row"><span>المتبقي:</span> <span>${Utils.formatMoney(purchase.remaining)}</span></div>
-            </div>
-        `;
+            </div>`;
 
         this.el.receiptPrintArea.innerHTML = `
             <div class="company-name">${Utils.escapeHTML(companyName)}</div>
             <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
             <div class="divider"></div>
             <p style="font-size:13px;"><strong>المورد:</strong> ${Utils.escapeHTML(supplier.name)}</p>
-            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${purchase.invoice_number || purchase.id?.substring(0,8)}</p>
+            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${purchase.invoice_number || purchase.id?.substring(0, 8)}</p>
             <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(purchase.date)}</p>
             <div class="divider"></div>
             <table>
                 <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
-                <tbody>${itemsRows}</tbody>
+                <tbody>${itemsRowsHTML}</tbody>
             </table>
             <div class="totals">
                 <p><strong>الإجمالي:</strong> ${Utils.formatMoney(purchase.total)}</p>
@@ -511,8 +563,7 @@ const Purchases = {
             </div>
             ${paymentInfoHTML}
             <div class="divider"></div>
-            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>
-        `;
+            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>`;
         this.el.receiptModal?.classList.add('open');
     },
 
@@ -523,7 +574,9 @@ const Purchases = {
 
         const pw = window.open('', '_blank', 'width=400,height=600');
         if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma,sans-serif;direction:rtl;text-align:right;padding:20px;color:#000;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;text-align:right;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
+        pw.document.write(
+            `<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma;direction:rtl;text-align:right;padding:20px;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`
+        );
         pw.document.close();
         pw.focus();
         setTimeout(() => { pw.print(); pw.close(); }, 500);
