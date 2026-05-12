@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (Premium UI + تحسينات)
+   dashboard.js - لوحة التحكم (Premium UI + أداء فائق)
    ============================================= */
 'use strict';
 
@@ -14,25 +14,20 @@ const U = {
 const Dashboard = {
     state: {
         ready: false,
-        loading: false,
         stats: { salesToday: 0, purchasesToday: 0, customers: 0, cash: 0 },
         recentInvoices: [],
         recentPurchases: [],
-        products: []
+        products: [],
+        allInvoices: []
     },
 
     async init() {
         this.cacheDOM();
         this.bindEvents();
         this.initSidebarUser();
-        await this.waitForDB();
 
-        if (window.App) {
-            App.requireAuth();
-            App.initUserInterface();
-            this.updateSidebarUser();
-        }
-        this.loadAllData();
+        // بدء التحميل مباشرة دون انتظار طويل
+        this.loadDataInBackground();
     },
 
     cacheDOM() {
@@ -42,7 +37,7 @@ const Dashboard = {
             'sidebarAvatar', 'sidebarUserName',
             'salesToday', 'purchasesToday', 'customersCount', 'cashBalance',
             'heroGreeting', 'heroSubtitle',
-            'activityTimeline', 'chartPeriodSelect',
+            'activityTimeline',
             'toast'
         ];
         this.el = {};
@@ -75,7 +70,7 @@ const Dashboard = {
 
         this.el.refreshDataBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            this.loadAllData();
+            this.loadDataInBackground();
             this.toast('تم تحديث البيانات');
             this.el.moreDropdown?.classList.remove('show');
         });
@@ -88,7 +83,6 @@ const Dashboard = {
             }
         });
 
-        // حدث تغيير الفترة الزمنية للرسم البياني
         const periodSelect = document.querySelector('.modern-select');
         if (periodSelect) {
             periodSelect.addEventListener('change', () => this.renderChart());
@@ -96,10 +90,7 @@ const Dashboard = {
 
         window.addEventListener('online', () => {
             this.toast('تم استعادة الاتصال – جاري التحديث...');
-            this.loadAllData();
-        });
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && !this.state.loading) this.loadAllData();
+            this.loadDataInBackground();
         });
     },
 
@@ -108,16 +99,9 @@ const Dashboard = {
         if (user) {
             if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
             if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
-        }
-    },
-
-    updateSidebarUser() {
-        const user = window.App?.getCurrentUser?.();
-        if (user) {
-            if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
-            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
             if (this.el.heroGreeting) this.el.heroGreeting.textContent = `مرحباً، ${user.fullName?.split(' ')[0] || 'المدير'} 👋`;
         }
+        // إذا لم يوجد مستخدم، البطاقات لا تزال ظاهرة بقيم 0
     },
 
     toast(msg) {
@@ -129,33 +113,44 @@ const Dashboard = {
         this._t = setTimeout(() => t.classList.remove('show'), 3000);
     },
 
-    waitForDB() {
-        return new Promise(resolve => {
-            if (U.dbReady()) { this.state.ready = true; return resolve(); }
-            let attempts = 0;
-            const check = setInterval(() => {
-                if (U.dbReady()) { this.state.ready = true; clearInterval(check); resolve(); }
-                if (++attempts > 50) { clearInterval(check); if (window.localDB) this.state.ready = 'local'; resolve(); }
-            }, 100);
+    // ✅ تحميل سريع في الخلفية دون حظر الواجهة
+    async loadDataInBackground() {
+        // التحقق من الاتصال بسرعة (أقصى 300ms)
+        this.state.ready = !!(window.App && window.App.DB);
+        if (!this.state.ready) {
+            const quickCheck = await this.quickDBReady();
+            this.state.ready = quickCheck;
+        }
+        
+        // بدء التحميل فوراً – كل نوع بيانات يحدث الواجهة فور وصوله
+        this.loadStats().then(() => {
+            this.updateStatsUI();
+            this.renderChart();
+        });
+        
+        this.loadRecentInvoices().then(() => {
+            this.updateActivityTimeline();
+        });
+        
+        this.loadRecentPurchases().then(() => {
+            this.updateActivityTimeline();
+        });
+        
+        // التنبيهات تعتمد على المنتجات والفواتير
+        Promise.all([this.loadProducts(), this.loadRecentInvoices()]).then(() => {
+            this.updateInsights();
         });
     },
 
-    async loadAllData() {
-        if (this.state.loading) return;
-        this.state.loading = true;
-        try {
-            await Promise.all([
-                this.loadStats(),
-                this.loadRecentInvoices(),
-                this.loadRecentPurchases()
-            ]);
-        } catch (e) {
-            console.error(e);
-            this.toast('تعذر تحميل بعض البيانات');
-        } finally {
-            this.state.loading = false;
-            this.updateUI();
-        }
+    // ✅ فحص سريع للقاعدة (أقصى 300ms)
+    quickDBReady() {
+        return new Promise(resolve => {
+            let attempts = 0;
+            const check = setInterval(() => {
+                if (U.dbReady()) { clearInterval(check); return resolve(true); }
+                if (++attempts > 3) { clearInterval(check); return resolve(U.hasLocalDB()); }
+            }, 100);
+        });
     },
 
     async loadStats() {
@@ -163,20 +158,18 @@ const Dashboard = {
             const today = U.today();
             let invoices=[], purchases=[], parties=[], transactions=[], settings={};
 
-            if (this.state.ready === true && window.App && window.App.DB) {
+            if (this.state.ready && window.App?.DB) {
                 const DB = window.App.DB;
-                [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
+                [invoices, purchases, parties, transactions, settings] = await Promise.all([
                     DB.getInvoices().catch(()=>[]), DB.getPurchases().catch(()=>[]),
-                    DB.getParties('customer').catch(()=>[]), DB.getProducts().catch(()=>[]),
-                    DB.getTransactions().catch(()=>[]), DB.getSettings().catch(()=>({}))
+                    DB.getParties('customer').catch(()=>[]), DB.getTransactions().catch(()=>[]),
+                    DB.getSettings().catch(()=>({}))
                 ]);
-                this.state.products = products || [];
-            } else if (window.localDB) {
+            } else if (U.hasLocalDB()) {
                 invoices = await localDB.getAll('invoices') || [];
                 purchases = await localDB.getAll('purchases') || [];
                 const allParties = await localDB.getAll('parties') || [];
                 parties = allParties.filter(p => p.type === 'customer');
-                this.state.products = await localDB.getAll('products') || [];
                 transactions = await localDB.getAll('transactions') || [];
                 const s = await localDB.getById('settings', 'main');
                 settings = s?.data || {};
@@ -189,9 +182,7 @@ const Dashboard = {
             const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
             this.state.stats.cash = U.round((settings?.financial?.opening_cash_balance || 0) + income - expense);
 
-            // حفظ الفواتير للرسم البياني
             this.state.allInvoices = invoices.filter(inv => inv.type === 'sale');
-
         } catch (e) { console.error(e); }
     },
 
@@ -199,7 +190,7 @@ const Dashboard = {
         try {
             let invs = [];
             if (this.state.ready && window.App?.DB) invs = await window.App.DB.getInvoices().catch(()=>[]);
-            else if (window.localDB) invs = await localDB.getAll('invoices') || [];
+            else if (U.hasLocalDB()) invs = await localDB.getAll('invoices') || [];
             this.state.recentInvoices = invs.filter(i => i.type === 'sale')
                 .sort((a, b) => (b.invoice_number || '').localeCompare(a.invoice_number || ''))
                 .slice(0, 5);
@@ -210,36 +201,36 @@ const Dashboard = {
         try {
             let pur = [];
             if (this.state.ready && window.App?.DB) pur = await window.App.DB.getPurchases().catch(()=>[]);
-            else if (window.localDB) pur = await localDB.getAll('purchases') || [];
+            else if (U.hasLocalDB()) pur = await localDB.getAll('purchases') || [];
             this.state.recentPurchases = pur.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
         } catch (e) {}
     },
 
-    // ========== تحديث الواجهة ==========
-    updateUI() {
+    async loadProducts() {
+        try {
+            if (this.state.ready && window.App?.DB) this.state.products = await DB.getProducts().catch(()=>[]) || [];
+            else if (U.hasLocalDB()) this.state.products = await localDB.getAll('products') || [];
+        } catch(e) {}
+    },
+
+    // ========== تحديث واجهة البطاقات (فوري) ==========
+    updateStatsUI() {
         const s = this.state.stats;
         if (this.el.salesToday) this.el.salesToday.textContent = U.formatMoney(s.salesToday);
         if (this.el.purchasesToday) this.el.purchasesToday.textContent = U.formatMoney(s.purchasesToday);
         if (this.el.customersCount) this.el.customersCount.textContent = s.customers;
         if (this.el.cashBalance) this.el.cashBalance.textContent = U.formatMoney(s.cash);
-
-        // التحديثات النصية للاتجاهات (يمكن تطويرها لاحقاً)
+        
         if (this.el.salesTrend) this.el.salesTrend.textContent = '↑ حتى اللحظة';
         if (this.el.purchasesTrend) this.el.purchasesTrend.textContent = '↑ حتى اللحظة';
         if (this.el.customersTrend) this.el.customersTrend.textContent = '+ إجمالي';
         if (this.el.cashTrend) this.el.cashTrend.textContent = '↓ الرصيد الحالي';
-
-        // تحديث الأقسام التفاعلية
-        this.updateInsights();
-        this.updateActivityTimeline();
-        this.renderChart();
     },
 
-    // ========== تحديث التنبيهات الذكية ==========
+    // ========== التنبيهات الذكية ==========
     updateInsights() {
         try {
             const products = this.state.products || [];
-            // المنتجات المنخفضة المخزون
             const lowStock = products.filter(p => {
                 const stock = p.units?.[0]?.stock || 0;
                 const min = p.min_stock || 5;
@@ -248,22 +239,18 @@ const Dashboard = {
             const lowStockText = document.querySelector('.insight-item.warning p');
             if (lowStockText) lowStockText.textContent = `${lowStock > 0 ? lowStock : 'لا توجد'} منتجات قاربت النفاد`;
 
-            // الفواتير غير المدفوعة
-            const unpaidInvoices = this.state.recentInvoices.filter(inv => inv.remaining > 0).length;
+            const unpaidInvoices = (this.state.recentInvoices || []).filter(inv => inv.remaining > 0).length;
             const unpaidText = document.querySelector('.insight-item.danger p');
             if (unpaidText) unpaidText.textContent = `يوجد ${unpaidInvoices} فاتورة غير مدفوعة`;
-
-            // نمو المبيعات (مقارنة بأمس يمكن إضافتها هنا)
-        } catch(e) { console.warn('تحديث التنبيهات:', e); }
+        } catch(e) {}
     },
 
-    // ========== تحديث النشاط الأخير ==========
+    // ========== النشاط الأخير ==========
     updateActivityTimeline() {
         const container = this.el.activityTimeline;
         if (!container) return;
         
         const activities = [];
-        // آخر فاتورة
         if (this.state.recentInvoices.length) {
             const inv = this.state.recentInvoices[0];
             activities.push({
@@ -272,7 +259,6 @@ const Dashboard = {
                 amount: U.formatMoney(inv.total)
             });
         }
-        // آخر مشتريات
         if (this.state.recentPurchases.length) {
             const pur = this.state.recentPurchases[0];
             activities.push({
@@ -281,7 +267,6 @@ const Dashboard = {
                 amount: U.formatMoney(pur.total)
             });
         }
-        // آخر معاملة مالية (اختياري)
 
         container.innerHTML = activities.length ? activities.map(a => `
             <div class="timeline-item">
@@ -294,12 +279,10 @@ const Dashboard = {
         `).join('') : '<p class="empty">لا توجد نشاطات حديثة</p>';
     },
 
-    // ========== مساعد الوقت ==========
     timeAgo(dateStr) {
         const now = new Date();
         const date = new Date(dateStr);
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
+        const diffMins = Math.floor((now - date) / 60000);
         if (diffMins < 1) return 'الآن';
         if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
         const diffHours = Math.floor(diffMins / 60);
@@ -311,18 +294,12 @@ const Dashboard = {
     // ========== الرسم البياني ==========
     renderChart() {
         const canvas = document.getElementById('salesChart');
-        const container = document.querySelector('.chart-placeholder');
-        if (!canvas) {
-            // يمكن إنشاء canvas ديناميكياً أو استخدام placeholder فقط
-            return;
-        }
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const period = document.querySelector('.modern-select')?.value || '7';
-
         const days = parseInt(period) || 7;
         const today = new Date();
-        const labels = [];
-        const data = [];
+        const labels = [], data = [];
 
         for (let i = days - 1; i >= 0; i--) {
             const d = new Date(today);
@@ -336,27 +313,19 @@ const Dashboard = {
         }
 
         if (window.salesChartInstance) window.salesChartInstance.destroy();
-
         window.salesChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
-                datasets: [{
-                    label: 'المبيعات',
-                    data: data,
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37,99,235,0.1)',
-                    fill: true,
-                    tension: 0.3
+                labels, datasets: [{
+                    label: 'المبيعات', data,
+                    borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)',
+                    fill: true, tension: 0.3
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true }
-                }
+                scales: { y: { beginAtZero: true } }
             }
         });
     }
