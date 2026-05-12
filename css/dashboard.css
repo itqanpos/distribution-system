@@ -1,7 +1,8 @@
 /* =============================================
-   dashboard.css - لوحة التحكم (إصدار نهائي)
+   dashboard.css - لوحة التحكم (Premium UI)
    ============================================= */
 
+/* ========== متغيرات وتنسيقات أساسية ========== */
 :root {
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -9,15 +10,9 @@
     --safe-right: env(safe-area-inset-right, 0px);
     --primary: #2563eb;
     --primary-light: #eff6ff;
-    --success: #10b981;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --dark: #0f172a;
     --gray-50: #f8fafc;
     --gray-100: #f1f5f9;
     --gray-200: #e2e8f0;
-    --gray-300: #cbd5e1;
-    --gray-400: #94a3b8;
     --gray-500: #64748b;
     --gray-600: #475569;
     --gray-700: #334155;
@@ -34,8 +29,8 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: var(--gray-50);
+    font-family: 'Cairo', sans-serif;
+    background: radial-gradient(circle at top right, #dbeafe 0%, #f8fafc 40%);
     color: var(--gray-800);
     padding: 0;
     padding-top: var(--safe-top);
@@ -47,7 +42,7 @@ body {
     line-height: 1.6;
 }
 
-/* ======== طبقة داكنة للقائمة ======== */
+/* ========== طبقة داكنة ========== */
 .sidebar-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.35); z-index: 149;
@@ -56,10 +51,11 @@ body {
 }
 .sidebar-overlay.show { opacity: 1; visibility: visible; }
 
-/* ======== الشريط العلوي (نظيف - بدون صورة المستخدم) ======== */
+/* ========== الشريط العلوي ========== */
 .navbar {
     display: flex; justify-content: space-between; align-items: center;
-    background: white; border-bottom: 1px solid var(--gray-200);
+    background: rgba(255,255,255,0.8); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--gray-200);
     padding: 8px 16px; padding-top: calc(8px + var(--safe-top));
     position: sticky; top: 0; z-index: 110; box-shadow: var(--shadow-sm);
     height: 56px;
@@ -72,16 +68,11 @@ body {
     border-radius: var(--radius-sm); transition: background var(--transition);
     display: flex;
 }
-.menu-toggle:active { background: var(--gray-200); }
+.menu-toggle:active { background: var(--gray-100); }
 .logo { display: flex; align-items: center; gap: 8px; }
 .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--gray-900); }
 
-/* حاوية زر النقاط الثلاث */
-.nav-actions {
-    position: relative;
-}
-
-/* زر النقاط الثلاث */
+.nav-actions { position: relative; }
 .navbar-icon-btn {
     width: 40px; height: 40px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -89,11 +80,8 @@ body {
     color: var(--gray-600); cursor: pointer;
     font-size: 1.2rem; transition: background var(--transition);
 }
-.navbar-icon-btn:hover {
-    background: var(--gray-100); color: var(--primary);
-}
+.navbar-icon-btn:hover { background: var(--gray-100); color: var(--primary); }
 
-/* القائمة المنسدلة */
 .more-dropdown {
     position: absolute; top: 48px; left: 0;
     background: white; border-radius: var(--radius-md);
@@ -108,14 +96,10 @@ body {
     gap: 10px; font-weight: 500; font-size: 0.85rem;
     transition: background var(--transition);
 }
-.more-dropdown a:hover {
-    background: var(--gray-50); color: var(--primary);
-}
-.dropdown-divider {
-    height: 1px; background: var(--gray-200); margin: 4px 0;
-}
+.more-dropdown a:hover { background: var(--gray-50); color: var(--primary); }
+.dropdown-divider { height: 1px; background: var(--gray-200); margin: 4px 0; }
 
-/* ======== القائمة الجانبية ======== */
+/* ========== القائمة الجانبية ========== */
 .sidebar {
     position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
     height: 100%; background: white; border-left: 1px solid var(--gray-200);
@@ -125,43 +109,24 @@ body {
 }
 .sidebar.open { right: 0; }
 
-/* صورة المستخدم في أعلى السايد بار (عمودي) */
 .sidebar-user {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 20px 12px;
-    margin-bottom: 10px;
-    background: var(--gray-50);
-    border-radius: var(--radius-md);
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; padding: 20px 12px; margin-bottom: 10px;
+    background: var(--gray-50); border-radius: var(--radius-md);
     border-bottom: 1px solid var(--gray-200);
 }
 .sidebar-avatar {
-    width: 64px;
-    height: 64px;
-    min-width: auto;
-    background: var(--primary);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 1.5rem;
+    width: 64px; height: 64px; min-width: auto;
+    background: var(--primary); color: white;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 1.5rem;
     margin-bottom: 10px;
 }
-.sidebar-user h4 {
-    margin: 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--gray-900);
-    word-break: break-word;
-}
+.sidebar-user h4 { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--gray-900); }
 
 .menu { list-style: none; margin-top: 8px; }
 .menu-section {
-    color: var(--gray-400); font-size: 0.6rem; font-weight: 700;
+    color: #94a3b8; font-size: 0.6rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 1.5px;
     margin: 18px 0 4px; padding: 0 10px;
 }
@@ -176,86 +141,89 @@ body {
 .menu-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
 .menu-item.active i { color: var(--primary); }
 
-/* ======== المحتوى الرئيسي ======== */
-.main-content { max-width: 1200px; margin: 0 auto; padding: 18px 14px; }
-.page-header {
+/* ========== محتوى Premium ========== */
+.dashboard-container { padding: 24px; max-width: 1400px; margin: auto; }
+.hero-section { margin-bottom: 24px; }
+.hero-content {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border-radius: 24px; padding: 28px; color: white;
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+    box-shadow: 0 10px 40px rgba(37,99,235,.18);
 }
-.page-title h1 { font-size: 1.5rem; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; gap: 8px; }
-.date-display {
-    background: white; padding: 8px 16px; border-radius: 20px;
-    font-size: 0.85rem; color: var(--gray-600); box-shadow: var(--shadow-sm);
-    font-weight: 500; display: flex; align-items: center; gap: 6px;
+.hero-content h1 { font-size: 2rem; font-weight: 800; margin-bottom: 6px; }
+.hero-content p { opacity: .9; }
+.hero-actions { display: flex; gap: 12px; }
+.primary-btn, .secondary-btn {
+    border: none; padding: 12px 18px; border-radius: 14px;
+    font-family: inherit; font-weight: 700; cursor: pointer; transition: .25s;
 }
+.primary-btn { background: white; color: #2563eb; }
+.secondary-btn { background: rgba(255,255,255,.14); color: white; backdrop-filter: blur(10px); }
+.primary-btn:hover, .secondary-btn:hover { transform: translateY(-2px); }
 
-/* ======== بطاقات الإحصائيات الأساسية ======== */
 .stats-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: 12px; margin-bottom: 16px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px; margin-bottom: 24px;
 }
-.stat-card {
-    background: white; border-radius: var(--radius-lg); padding: 18px 16px;
-    display: flex; align-items: center; gap: 14px;
-    box-shadow: var(--shadow-sm); transition: all var(--transition);
-    border-right: 4px solid transparent;
+.premium-card {
+    background: rgba(255,255,255,.75); backdrop-filter: blur(16px);
+    border-radius: 22px; padding: 22px;
+    border: 1px solid rgba(255,255,255,.5);
+    box-shadow: 0 10px 30px rgba(15,23,42,.05); transition: .25s;
 }
-.stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.stat-icon { font-size: 2rem; width: 42px; text-align: center; }
-.stat-content { flex: 1; }
-.stat-title { font-size: 0.7rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.stat-value { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); }
+.premium-card:hover { transform: translateY(-4px); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.card-top span { color: #64748b; font-size: .9rem; }
+.card-top h2 { margin-top: 8px; font-size: 1.8rem; }
+.icon-box {
+    width: 54px; height: 54px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+}
+.sales .icon-box { background: #dbeafe; color: #2563eb; }
+.purchases .icon-box { background: #fef3c7; color: #d97706; }
+.customers .icon-box { background: #dcfce7; color: #16a34a; }
+.cash .icon-box { background: #ede9fe; color: #7c3aed; }
+.card-bottom { margin-top: 18px; }
+.success-text { color: #16a34a; font-weight: 700; }
+.warning-text { color: #d97706; font-weight: 700; }
+.danger-text { color: #dc2626; font-weight: 700; }
 
-/* ======== بطاقات مقارنة المبيعات ======== */
-.sales-comparison-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
+.glass-card {
+    background: rgba(255,255,255,.72); backdrop-filter: blur(16px);
+    border-radius: 24px; padding: 22px;
+    border: 1px solid rgba(255,255,255,.4);
+    box-shadow: 0 10px 40px rgba(15,23,42,.05);
 }
-.comparison-card {
-    background: white; border-radius: var(--radius-lg); padding: 18px 16px;
-    display: flex; align-items: center; gap: 14px;
-    box-shadow: var(--shadow-sm); transition: all var(--transition);
+.main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px; }
+.large-card { min-height: 420px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.section-header h3 { font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+.quick-actions { margin-bottom: 24px; }
+.actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.action-card {
+    background: white; border: none; border-radius: 20px; padding: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; cursor: pointer; transition: .25s;
+    box-shadow: 0 8px 24px rgba(15,23,42,.04);
 }
-.comparison-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.comparison-icon {
-    width: 50px; height: 50px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem;
+.action-card:hover { transform: translateY(-3px); }
+.action-card i { font-size: 1.4rem; color: #2563eb; }
+.chart-placeholder {
+    height: 320px; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; color: #94a3b8; gap: 12px;
 }
-.comparison-content { flex: 1; }
-.comparison-title {
-    font-size: 0.75rem; font-weight: 600; color: var(--gray-500);
-    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
-}
-.comparison-value { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); }
+.chart-placeholder i { font-size: 4rem; }
+.insights-list { display: flex; flex-direction: column; gap: 14px; }
+.insight-item { display: flex; gap: 14px; padding: 16px; border-radius: 18px; }
+.insight-item.warning { background: #fffbeb; }
+.insight-item.success { background: #ecfdf5; }
+.insight-item.danger { background: #fef2f2; }
+.timeline { display: flex; flex-direction: column; gap: 18px; }
+.timeline-item { display: flex; gap: 14px; }
+.timeline-dot { width: 14px; height: 14px; border-radius: 50%; background: #2563eb; margin-top: 6px; }
+.modern-select { border: none; background: #f1f5f9; padding: 10px 14px; border-radius: 12px; font-family: inherit; }
 
-/* ======== جداول النشاط الأخير ======== */
-.dashboard-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 16px; margin-bottom: 20px;
-}
-.table-box {
-    background: white; border-radius: var(--radius-lg); padding: 18px;
-    box-shadow: var(--shadow-sm);
-}
-.card-header { margin-bottom: 14px; }
-.card-header h3 { font-size: 0.95rem; font-weight: 700; color: var(--gray-800); display: flex; align-items: center; gap: 6px; }
-.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-table { width: 100%; border-collapse: collapse; min-width: 300px; }
-th { text-align: right; padding: 10px 12px; color: var(--gray-600); border-bottom: 1px solid var(--gray-200); background: var(--gray-50); font-weight: 700; font-size: 0.75rem; }
-td { padding: 10px 12px; border-bottom: 1px solid var(--gray-100); font-size: 0.8rem; }
-tr:active td { background: #f5f7fa; }
-.badge {
-    padding: 2px 8px; border-radius: 20px; font-size: 0.65rem; font-weight: 600;
-}
-.badge-success { background: #ecfdf5; color: #065f46; }
-.badge-danger { background: #fef2f2; color: #991b1b; }
-.badge-warning { background: #fffbeb; color: #92400e; }
-.empty { text-align: center; padding: 20px; color: var(--gray-400); font-size: 0.8rem; }
-
-/* ======== Toast ======== */
+/* ========== Toast ========== */
 .toast {
     position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
     background: var(--gray-900); color: white; padding: 10px 24px;
@@ -265,13 +233,13 @@ tr:active td { background: #f5f7fa; }
 }
 .toast.show { opacity: 1; }
 
-/* ======== تجاوب ======== */
-@media (max-width: 768px) {
-    .dashboard-grid { grid-template-columns: 1fr; }
-    .main-content { padding: 16px 12px; }
+/* ========== تجاوب ========== */
+@media(max-width:900px) { .main-grid { grid-template-columns: 1fr; } .hero-content { flex-direction: column; gap: 20px; align-items: flex-start; } }
+@media(max-width:600px) {
+    .dashboard-container { padding: 14px; }
+    .hero-content h1 { font-size: 1.5rem; }
+    .card-top h2 { font-size: 1.4rem; }
+    .actions-grid { grid-template-columns: 1fr 1fr; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
-    .sales-comparison-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 480px) {
-    .stats-grid { grid-template-columns: 1fr; }
-}
+@media(max-width:480px) { .stats-grid { grid-template-columns: 1fr; } }
