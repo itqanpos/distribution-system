@@ -11,6 +11,9 @@
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/invoices.css">
     
@@ -25,6 +28,7 @@
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- الشريط العلوي مع زر النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -38,10 +42,15 @@
             </div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info"><h4 id="userName">مدير النظام</h4><p id="loginTime">اليوم</p></div>
-                <div class="user-dropdown" id="userDropdown">
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="./pos.html"><i class="fas fa-plus"></i> فاتورة بيع جديدة</a>
+                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث البيانات</a>
+                    <a href="#" id="printReportBtn"><i class="fas fa-print"></i> طباعة التقرير الحالي</a>
+                    <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
@@ -49,22 +58,23 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
+        </div>
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
             <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
             <li><a class="menu-item active" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
             <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
             <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <li><a class="menu-item" href="./orders.html"><i class="fas fa-clipboard-list"></i><span>الطلبات</span></a></li>
-            <li><a class="menu-item" href="./payments.html"><i class="fas fa-money-bill-wave"></i><span>المدفوعات</span></a></li>
-            <li><a class="menu-item" href="./inventory.html"><i class="fas fa-warehouse"></i><span>حركات المخزون</span></a></li>
-            <li><a class="menu-item" href="./notifications.html"><i class="fas fa-bell"></i><span>الإشعارات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
@@ -79,27 +89,14 @@
             </div>
         </div>
 
-        <!-- بطاقات الإحصائيات (ثابتة) -->
+        <!-- بطاقات الإحصائيات -->
         <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
-                <div class="stat-icon" style="color:#16a34a;"><i class="fas fa-shopping-cart"></i></div>
-                <div class="stat-content"><div class="stat-title">إجمالي المبيعات</div><div class="stat-value">0.00 ج.م</div></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div>
-                <div class="stat-content"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value">0.00 ج.م</div></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div>
-                <div class="stat-content"><div class="stat-title">عدد الفواتير</div><div class="stat-value">0</div></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div>
-                <div class="stat-content"><div class="stat-title">غير مدفوعة</div><div class="stat-value">0.00 ج.م</div></div>
-            </div>
+            <div class="stat-card"><div class="stat-icon" style="color:#16a34a;"><i class="fas fa-shopping-cart"></i></div><div class="stat-content"><div class="stat-title">إجمالي المبيعات</div><div class="stat-value" id="totalSales">0.00 ج.م</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div><div class="stat-content"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value" id="totalReturns">0.00 ج.م</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div><div class="stat-content"><div class="stat-title">عدد الفواتير</div><div class="stat-value" id="invoiceCount">0</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div><div class="stat-content"><div class="stat-title">غير مدفوعة</div><div class="stat-value" id="totalUnpaid">0.00 ج.م</div></div></div>
         </div>
 
-        <!-- شريط الفلاتر -->
         <div class="filter-bar">
             <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل..."></div>
             <div class="filter-group">
@@ -113,7 +110,6 @@
             <button class="btn btn-outline" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
-        <!-- جدول الفواتير -->
         <div class="table-container">
             <table>
                 <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>النوع</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
@@ -122,7 +118,7 @@
         </div>
     </main>
 
-    <!-- مودال عرض الإيصال (مطابق لنقطة البيع) -->
+    <!-- مودال عرض الإيصال -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
             <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
@@ -134,37 +130,31 @@
         </div>
     </div>
 
-    <!-- مودال تعديل الفاتورة الكامل -->
+    <!-- مودال تعديل الفاتورة -->
     <div class="modal" id="editInvoiceModal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header"><h2>تعديل الفاتورة</h2><button id="closeEditModalBtn">&times;</button></div>
             <form id="editInvoiceForm">
                 <input type="hidden" id="editInvoiceId">
-                <div class="form-section">
-                    <div class="section-title"><i class="fas fa-info-circle"></i> بيانات الفاتورة</div>
+                <div class="form-section"><div class="section-title"><i class="fas fa-info-circle"></i> بيانات الفاتورة</div>
                     <div class="form-row">
                         <div class="form-group flex-1"><label>التاريخ</label><input type="date" id="editInvoiceDate" required></div>
                         <div class="form-group flex-1"><label>الحالة</label><select id="editInvoiceStatus"><option value="paid">مدفوعة</option><option value="partial">مدفوعة جزئيا</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select></div>
                     </div>
                     <div class="form-group"><label>ملاحظات</label><textarea id="editInvoiceNotes" rows="2"></textarea></div>
                 </div>
-
-                <div class="form-section">
-                    <div class="section-title"><i class="fas fa-boxes"></i> الأصناف</div>
+                <div class="form-section"><div class="section-title"><i class="fas fa-boxes"></i> الأصناف</div>
                     <div id="editItemsContainer"></div>
                     <button type="button" class="btn btn-outline btn-full" id="addEditItemBtn"><i class="fas fa-plus-circle"></i> إضافة صنف</button>
                     <div class="total-display"><span>الإجمالي</span><span id="editTotalAmount">0.00 ج.م</span></div>
                 </div>
-
-                <div class="form-section">
-                    <div class="section-title"><i class="fas fa-money-bill-wave"></i> تفاصيل الدفع</div>
+                <div class="form-section"><div class="section-title"><i class="fas fa-money-bill-wave"></i> تفاصيل الدفع</div>
                     <div class="form-row">
                         <div class="form-group flex-1"><label>المبلغ المدفوع</label><input type="number" id="editPaidAmount" min="0" step="0.01" value="0" oninput="Invoices.updateEditRemaining()"></div>
                         <div class="form-group flex-1"><label>طريقة الدفع</label><select id="editPaymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="credit">آجل</option></select></div>
                     </div>
                     <div class="remaining-display"><span>المتبقي</span><span id="editRemainingAmount">0.00 ج.م</span></div>
                 </div>
-
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التعديلات</button>
                     <button type="button" class="btn btn-cancel" id="cancelEditModalBtn">إلغاء</button>
