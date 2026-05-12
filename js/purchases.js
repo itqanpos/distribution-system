@@ -36,13 +36,14 @@ const Purchases = {
             if (!App.requireAuth()) return;
             App.initUserInterface();
         }
+        this.initSidebarUser();
         this.loadData();
     },
 
     cacheElements() {
         this.el = {};
         const ids = [
-            'menuToggle', 'sidebar', 'sidebarOverlay', 'logoutBtn', 'userProfileBtn', 'userDropdown',
+            'menuToggle', 'sidebar', 'sidebarOverlay', 'logoutBtn',
             'searchInput', 'refreshBtn', 'purchasesBody', 'newPurchaseBtn',
             'totalPurchases', 'paidPurchases', 'unpaidPurchases', 'purchaseCount',
             'purchaseModal', 'modalTitle', 'closeModalBtn', 'cancelModalBtn',
@@ -51,16 +52,16 @@ const Purchases = {
             'totalAmount', 'paidAmount', 'paymentMethod', 'remainingAmount',
             'receiptModal', 'receiptPrintArea', 'printReceiptBtn',
             'closeReceiptModalBtn', 'cancelReceiptModalBtn',
-            'payNowBtn', 'toast'
+            'payNowBtn', 'toast',
+            'moreMenuBtn', 'moreDropdown', 'refreshDataBtn',
+            'sidebarAvatar', 'sidebarUserName'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
         this.el.filterBtns = document.querySelectorAll('.filter-btn');
     },
 
     bindEvents() {
-        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-
+        // القائمة الجانبية
         this.el.menuToggle?.addEventListener('click', () => {
             this.el.sidebar.classList.toggle('open');
             this.el.sidebarOverlay?.classList.toggle('show');
@@ -76,12 +77,29 @@ const Purchases = {
             });
         });
 
+        // زر النقاط الثلاث والقائمة المنسدلة
+        this.el.moreMenuBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.el.moreDropdown?.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
+        });
+
+        // أزرار القائمة المنسدلة
+        this.el.refreshDataBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.loadData();
+            this.toast('تم تحديث البيانات');
+            this.el.moreDropdown?.classList.remove('show');
+        });
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.App) App.logout();
             else window.location.href = './index.html';
         });
 
+        // الفلاتر والبحث
         this.el.searchInput?.addEventListener('input', () => this.renderTable());
         this.el.refreshBtn?.addEventListener('click', () => this.loadData());
         this.el.filterBtns.forEach(btn => {
@@ -93,6 +111,7 @@ const Purchases = {
             });
         });
 
+        // المودال الرئيسي
         this.el.newPurchaseBtn?.addEventListener('click', () => this.openModal());
         this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
@@ -104,6 +123,14 @@ const Purchases = {
         this.el.closeReceiptModalBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
         this.el.cancelReceiptModalBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
         this.el.printReceiptBtn?.addEventListener('click', () => this.printReceiptFromModal());
+    },
+
+    initSidebarUser() {
+        const user = window.App?.getCurrentUser?.();
+        if (user) {
+            if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
+            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
+        }
     },
 
     async loadData() {
@@ -245,7 +272,6 @@ const Purchases = {
         `;
         this.el.itemsContainer.appendChild(card);
 
-        // إنشاء قائمة المنتجات للـ datalist إذا لم تكن موجودة
         if (!document.getElementById('productDatalist')) {
             const datalist = document.createElement('datalist');
             datalist.id = 'productDatalist';
@@ -272,7 +298,7 @@ const Purchases = {
             unitSelect.disabled = false;
             if (product.units.length > 0) {
                 unitSelect.value = product.units[0].name;
-                priceInput.value = product.units[0].cost || 0; // تكلفة الوحدة الأساسية تلقائياً
+                priceInput.value = product.units[0].cost || 0;
             }
         } else {
             unitSelect.innerHTML = '<option>اختر المنتج أولاً</option>';
@@ -384,7 +410,6 @@ const Purchases = {
         try {
             if (Utils.isDBReady()) {
                 await DB.savePurchase(purchaseData);
-                // تحديث المخزون والحركات المالية
                 for (const item of items) {
                     const prod = this.products.find(p => p.name === item.productName);
                     if (prod) {
@@ -419,7 +444,6 @@ const Purchases = {
             this.closeModal('purchaseModal');
             await this.loadData();
             
-            // عرض الإيصال مباشرة
             const supplier = this.suppliers.find(s => s.name === supplierName) || { name: supplierName, balance: 0 };
             this.showReceiptModal(purchaseData, supplier);
             
@@ -435,7 +459,7 @@ const Purchases = {
         if (purchase) this.openModal(purchase);
     },
 
-    // ========== عرض الإيصال (مطابق لنقطة البيع مع معلومات الدفع في الأسفل) ==========
+    // ========== عرض الإيصال ==========
     viewReceipt(id) {
         const purchase = this.purchases.find(p => p.id === id);
         if (!purchase) return;
