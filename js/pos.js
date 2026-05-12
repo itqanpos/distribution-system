@@ -1,5 +1,5 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار نهائي كامل وآمن)
+   pos.js - نقطة البيع (إصدار نهائي - دفع جزئي وخصم تلقائي)
    ============================================= */
 'use strict';
 
@@ -287,7 +287,7 @@ const POS = {
             if (customer) {
                 this.state.selectedCustomerId = customer.id;
                 const bal = customer.balance || 0;
-                if (bal > 0) { balanceDiv.innerHTML = `العميل دائن بـ ${Utils.formatMoney(bal)} (يمكن استخدامه للدفع)`; balanceDiv.className = 'customer-balance positive'; }
+                if (bal > 0) { balanceDiv.innerHTML = `العميل دائن بـ ${Utils.formatMoney(bal)} (سيتم خصمه تلقائياً)`; balanceDiv.className = 'customer-balance positive'; }
                 else if (bal < 0) { balanceDiv.innerHTML = `العميل مدين بـ ${Utils.formatMoney(-bal)}`; balanceDiv.className = 'customer-balance negative'; }
                 else { balanceDiv.innerHTML = 'لا يوجد رصيد'; balanceDiv.className = 'customer-balance'; }
                 return;
@@ -405,23 +405,11 @@ const POS = {
         this.el.currentBalance.classList.toggle('text-success', bal >= 0);
         this.el.currentBalance.classList.toggle('text-danger', bal < 0);
 
-        // التعامل الآمن مع عنصر استخدام الرصيد (قد لا يكون موجودًا)
-        const useBalanceCheckbox = document.getElementById('useCustomerBalanceCheckbox');
-        const balanceAmountEl = document.getElementById('customerBalanceAmount');
-        if (useBalanceCheckbox) {
-            if (customer && bal > 0) {
-                useBalanceCheckbox.style.display = 'block';
-                if (balanceAmountEl) balanceAmountEl.textContent = `الرصيد المتاح: ${Utils.formatMoney(bal)}`;
-                useBalanceCheckbox.checked = true;
-            } else {
-                useBalanceCheckbox.style.display = 'none';
-                useBalanceCheckbox.checked = false;
-            }
-        }
-
+        // إعادة تعيين الحقول
         this.el.cashAmount.value = '';
         this.el.transferAmount.value = '';
         this.el.paymentMethod.value = 'cash';
+        this.state.usedCustomerBalance = 0; // سيتم حسابه تلقائياً
         this.togglePaymentFields();
         this.updatePaymentPreview();
         this.showModal('paymentModal');
@@ -444,17 +432,21 @@ const POS = {
             cashPaid = parseFloat(this.el.cashAmount?.value) || 0;
             transferPaid = parseFloat(this.el.transferAmount?.value) || 0;
         }
+
         const customer = this.getSelectedCustomer();
+        // ✅ خصم تلقائي من الرصيد إذا كان العميل دائناً
         let usedBalance = 0;
-        const useBalanceCheckbox = document.getElementById('useCustomerBalanceCheckbox');
-        if (customer && useBalanceCheckbox?.checked && customer.balance > 0) {
-            usedBalance = Math.min(customer.balance, net);
+        if (customer && customer.balance > 0) {
+            const remainingAfterCash = Math.max(0, net - cashPaid - transferPaid);
+            usedBalance = Math.min(customer.balance, remainingAfterCash);
         }
         this.state.usedCustomerBalance = usedBalance;
+
         const totalPaid = Utils.round(cashPaid + transferPaid + usedBalance, 2);
         const diff = Utils.round(totalPaid - net, 2);
         const currentBal = customer?.balance || 0;
         const newBal = Utils.round(currentBal - usedBalance + diff, 2);
+
         this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${Utils.formatMoney(diff)}` : `متبقي ${Utils.formatMoney(-diff)}`;
         this.el.balanceAfterLabel.textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
         this.el.balanceAfter.textContent = Utils.formatMoney(Math.abs(newBal));
@@ -472,7 +464,7 @@ const POS = {
         return item.quantity / factor;
     },
 
-    // ✅ إتمام الدفع مع خصم رصيد العميل تلقائياً
+    // ✅ إتمام الدفع مع خصم تلقائي والسماح بالدفع الجزئي
     async completePayment() {
         if (this.state.isProcessing) { this.showToast('جاري معالجة الدفع...'); return; }
         this.state.isProcessing = true;
@@ -492,25 +484,26 @@ const POS = {
             const usedBalance = this.state.usedCustomerBalance || 0;
             const totalPaid = Utils.round(cashPaid + transferPaid + usedBalance, 2);
 
-            if (totalPaid < totals.net && method !== 'credit') {
-                alert('المبلغ المدفوع غير كافٍ لتغطية الفاتورة');
-                this.state.isProcessing = false;
-                this.el.confirmAndPrintBtn.disabled = false;
-                return;
-            }
-
+            // ✅ السماح بالدفع الجزئي دائماً
             const diff = Utils.round(totalPaid - totals.net, 2);
             const notes = this.el.paymentNotes?.value || '';
             const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
 
             const invoice = {
-                id: Utils.generateUUID(), invoice_number: invoiceNumber, type: 'sale', date: Utils.getToday(),
+                id: Utils.generateUUID(),
+                invoice_number: invoiceNumber,
+                type: 'sale',
+                date: Utils.getToday(),
                 customer_id: this.state.selectedCustomerId || null,
                 customer_name: this.getSelectedCustomer()?.name || 'نقدي',
                 items: JSON.parse(JSON.stringify(this.state.cart)),
-                subtotal: totals.subtotal, discount: totals.discount, total: totals.net,
-                paid: totalPaid, remaining: diff >= 0 ? 0 : -diff,
-                status: diff >= 0 ? 'paid' : 'partial', notes: notes,
+                subtotal: totals.subtotal,
+                discount: totals.discount,
+                total: totals.net,
+                paid: totalPaid,
+                remaining: diff >= 0 ? 0 : -diff,
+                status: diff >= 0 ? 'paid' : 'partial',
+                notes: notes,
                 used_customer_balance: usedBalance
             };
 
@@ -528,11 +521,18 @@ const POS = {
                     }
                 }
                 if (customer) {
+                    // ✅ خصم الرصيد المستخدم وتحديث الرصيد
                     customer.balance = Utils.round((customer.balance || 0) - usedBalance + diff, 2);
                     await DB.saveParty(customer);
                 }
-                if (cashPaid > 0) await DB.saveTransaction({ id: Utils.generateUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'cash' });
-                if (transferPaid > 0) await DB.saveTransaction({ id: Utils.generateUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'bank' });
+                if (cashPaid > 0) await DB.saveTransaction({
+                    id: Utils.generateUUID(), date: Utils.getToday(), type: 'income',
+                    amount: cashPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'cash'
+                });
+                if (transferPaid > 0) await DB.saveTransaction({
+                    id: Utils.generateUUID(), date: Utils.getToday(), type: 'income',
+                    amount: transferPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'bank'
+                });
             } else if (Utils.hasLocalDB()) {
                 await localDB.put('invoices', invoice);
                 if (customer) {
