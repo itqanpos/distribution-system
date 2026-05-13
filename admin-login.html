@@ -6,6 +6,11 @@
     <title>دخول المشرف · حسابي</title>
     
     <link rel="icon" href="./icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -220,6 +225,22 @@
             font-size: 12px;
         }
 
+        .back-link {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .back-link a {
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.2s;
+        }
+
+        .back-link a:hover {
+            color: #94a3b8;
+        }
+
         @media (max-width: 480px) {
             .login-card {
                 padding: 28px 20px;
@@ -266,6 +287,9 @@
                 </button>
             </form>
             
+            <p class="back-link">
+                <a href="./index.html">العودة لتسجيل الدخول</a>
+            </p>
             <p class="footer-text">© 2025 حسابي · لوحة المشرف العام</p>
         </div>
     </div>
@@ -321,25 +345,45 @@
             try {
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('❌ خطأ المصادقة:', error);
+                    showError('بيانات الدخول غير صحيحة');
+                    setLoading(false);
+                    return;
+                }
                 
-                const { data: profile } = await supabase
+                console.log('✅ تم تسجيل الدخول، معرف المستخدم:', data.user.id);
+                
+                const { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('role')
                     .eq('id', data.user.id)
                     .single();
                 
+                if (profileError) {
+                    console.error('❌ خطأ جلب البروفايل:', profileError);
+                    await supabase.auth.signOut();
+                    showError('حساب غير مكتمل. تأكد من تنفيذ كود SQL.');
+                    setLoading(false);
+                    return;
+                }
+                
+                console.log('📋 البروفايل:', profile);
+                
                 if (profile?.role !== 'super_admin') {
+                    console.warn('⚠️ الدور ليس super_admin:', profile?.role);
                     await supabase.auth.signOut();
                     showError('غير مصرح لك بالدخول إلى هذه اللوحة');
                     setLoading(false);
                     return;
                 }
                 
+                console.log('✅ توجيه إلى admin.html');
                 window.location.href = './admin.html';
+                
             } catch (err) {
-                console.error('Login error:', err);
-                showError('بيانات الدخول غير صحيحة');
+                console.error('❌ خطأ عام:', err);
+                showError('حدث خطأ غير متوقع');
                 setLoading(false);
             }
         });
