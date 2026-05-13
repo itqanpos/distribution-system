@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - إصدار SaaS النهائي
+   supabase.js - إصدار SaaS النهائي المُصحَّح
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -27,7 +27,6 @@
         return (window.localDB && window.localDB.ready) ? window.localDB : null;
     }
 
-    // ✅ دالة الحصول على tenant_id من الجلسة
     function getCurrentTenantId() {
         const session = localStorage.getItem('app_session');
         if (session) {
@@ -86,7 +85,7 @@
                 const result = await cloudSaver(data);
                 return result;
             } catch (error) {
-                console.warn(`فشل حفظ ${storeName} في السحابة، إضافة لطابور المزامنة:`, error);
+                console.warn(`فشل حفظ ${storeName} في السحابة:`, error);
                 if (local) {
                     await local.addToSyncQueue?.({
                         type: data.id ? 'UPDATE' : 'INSERT',
@@ -115,28 +114,70 @@
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
 
-                const { data: profile } = await supabaseClient
+                // ✅ محاولة جلب البروفايل، وإن لم يوجد ننشئه تلقائياً
+                let profile = null;
+                const { data: existingProfile } = await supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', data.user.id)
                     .single();
 
+                if (existingProfile) {
+                    profile = existingProfile;
+                } else {
+                    // إنشاء tenant و profile تلقائياً للمستخدم
+                    const { data: tenant } = await supabaseClient
+                        .from('tenants')
+                        .insert({ name: `متجر ${data.user.email}`, plan: 'trial' })
+                        .select()
+                        .single();
+
+                    const { data: newProfile } = await supabaseClient
+                        .from('profiles')
+                        .upsert({
+                            id: data.user.id,
+                            full_name: data.user.user_metadata?.full_name || data.user.email,
+                            role: 'admin',
+                            tenant_id: tenant.id
+                        }, { onConflict: 'id' })
+                        .select()
+                        .single();
+
+                    profile = newProfile;
+                }
+
+                // ✅ التأكد من وجود tenant_id (حتى للمشرف العام)
                 if (!profile.tenant_id && profile.role !== 'super_admin') {
-                    throw new Error('لا يوجد متجر مرتبط بهذا الحساب');
+                    // إنشاء tenant تلقائي للمستخدمين العاديين
+                    const { data: tenant } = await supabaseClient
+                        .from('tenants')
+                        .insert({ name: `متجر ${profile.full_name || data.user.email}`, plan: 'trial' })
+                        .select()
+                        .single();
+
+                    await supabaseClient
+                        .from('profiles')
+                        .update({ tenant_id: tenant.id })
+                        .eq('id', data.user.id);
+
+                    profile.tenant_id = tenant.id;
                 }
 
                 const session = {
                     id: data.user.id,
                     email: data.user.email,
                     fullName: profile.full_name || data.user.email,
-                    role: profile.role || 'rep',
-                    avatar: profile.full_name?.charAt(0).toUpperCase() || 'U',
+                    role: profile.role || 'admin',
+                    avatar: (profile.full_name || data.user.email).charAt(0).toUpperCase(),
                     tenant_id: profile.tenant_id || null,
                     loginTime: new Date().toLocaleString('ar-EG')
                 };
                 localStorage.setItem('app_session', JSON.stringify(session));
 
-                const redirectUrl = session.role === 'admin' ? './dashboard.html' : './pos.html';
+                let redirectUrl = './dashboard.html';
+                if (profile.role === 'rep') redirectUrl = './pos.html';
+                else if (profile.role === 'super_admin') redirectUrl = './admin.html';
+
                 return { success: true, redirectUrl, user: session };
             } catch (err) {
                 console.error('Login error:', err);
@@ -226,7 +267,6 @@
 
     // ==================== دوال قاعدة البيانات (SaaS) ====================
     window.DB = {
-        // ---------- المنتجات ----------
         async getProducts() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -265,7 +305,6 @@
             }
         },
 
-        // ---------- الأطراف (عملاء وموردين) ----------
         async getParties(type = null) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -301,7 +340,6 @@
             }
         },
 
-        // ---------- المندوبين ----------
         async getReps() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -331,7 +369,6 @@
             });
         },
 
-        // ---------- الفواتير (كاملة + خفيفة) ----------
         async getInvoices() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -375,7 +412,6 @@
             });
         },
 
-        // ---------- المشتريات (كاملة + خفيفة) ----------
         async getPurchases() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -418,7 +454,6 @@
             });
         },
 
-        // ---------- المعاملات المالية ----------
         async getTransactions() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -448,7 +483,6 @@
             });
         },
 
-        // ---------- المرتجعات ----------
         async getReturns(type = null) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -476,7 +510,6 @@
             });
         },
 
-        // ---------- الإعدادات ----------
         async getSettings() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return {};
@@ -524,7 +557,6 @@
             return s;
         },
 
-        // ---------- القيود المحاسبية ----------
         async getJournalEntries() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -554,7 +586,6 @@
             });
         },
 
-        // ---------- الحسابات ----------
         async getAccounts() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -569,11 +600,9 @@
             });
         },
 
-        // ---------- دوال المشرف العام ----------
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) {
-                // fallback: جلب مباشر من جدول tenants مع محاولة جلب الإحصائيات
                 const { data: tenants } = await supabaseClient
                     .from('tenants')
                     .select('*')
@@ -590,7 +619,6 @@
             await supabaseClient.from('tenants').delete().eq('id', tenantId);
         },
 
-        // ---------- توليد رقم الفاتورة (معزول) ----------
         generateInvoiceNumber: async function() {
             const tenantId = getCurrentTenantId();
             const fallback = () => {
@@ -604,9 +632,7 @@
                 try {
                     const { data, error } = await supabaseClient.rpc('next_invoice_number', { p_tenant_id: tenantId });
                     if (!error && data) return data;
-                } catch (e) {
-                    console.warn('فشل RPC للرقم التسلسلي، استخدام محلي:', e);
-                }
+                } catch (e) { console.warn('فشل RPC للرقم التسلسلي:', e); }
             }
             return fallback();
         }
