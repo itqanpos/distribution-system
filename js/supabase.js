@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - الإصدار النهائي المُحسَّن
+   supabase.js - إصدار SaaS النهائي
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -27,10 +27,19 @@
         return (window.localDB && window.localDB.ready) ? window.localDB : null;
     }
 
+    // ✅ دالة الحصول على tenant_id من الجلسة
+    function getCurrentTenantId() {
+        const session = localStorage.getItem('app_session');
+        if (session) {
+            const user = JSON.parse(session);
+            return user.tenant_id || null;
+        }
+        return null;
+    }
+
     // ==================== طبقة Offline ====================
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
-        
         if (local) {
             try {
                 const localData = await local.getAll(storeName);
@@ -64,17 +73,14 @@
                 return local ? await local.getAll(storeName) : [];
             }
         }
-        
         return [];
     }
 
     async function saveWithFallback(storeName, data, cloudSaver) {
         const local = getLocalDB();
-        
         if (local) {
             await local.put(storeName, cleanObject(data)).catch(() => {});
         }
-        
         if (navigator.onLine && supabaseClient) {
             try {
                 const result = await cloudSaver(data);
@@ -115,12 +121,15 @@
                     .eq('id', data.user.id)
                     .single();
 
+                if (!profile.tenant_id) throw new Error('لا يوجد متجر مرتبط بهذا الحساب');
+
                 const session = {
                     id: data.user.id,
                     email: data.user.email,
-                    fullName: profile?.full_name || data.user.email,
-                    role: profile?.role || 'rep',
-                    avatar: profile?.full_name?.charAt(0).toUpperCase() || 'U',
+                    fullName: profile.full_name || data.user.email,
+                    role: profile.role || 'rep',
+                    avatar: profile.full_name?.charAt(0).toUpperCase() || 'U',
+                    tenant_id: profile.tenant_id,
                     loginTime: new Date().toLocaleString('ar-EG')
                 };
                 localStorage.setItem('app_session', JSON.stringify(session));
@@ -135,6 +144,15 @@
 
         async signup(email, password, fullName, role = 'rep') {
             try {
+                // 1. إنشاء Tenant جديد
+                const { data: tenant, error: tenantError } = await supabaseClient
+                    .from('tenants')
+                    .insert({ name: `متجر ${fullName}`, plan: 'trial' })
+                    .select()
+                    .single();
+                if (tenantError) throw tenantError;
+
+                // 2. إنشاء حساب المستخدم
                 const { data, error } = await supabaseClient.auth.signUp({
                     email,
                     password,
@@ -142,16 +160,19 @@
                 });
                 if (error) throw error;
 
+                // 3. إنشاء بروفايل مرتبط بالـ Tenant
                 if (data.user) {
                     await supabaseClient.from('profiles').upsert({
                         id: data.user.id,
                         full_name: fullName,
-                        role: role
+                        role: role,
+                        tenant_id: tenant.id
                     }, { onConflict: 'id' });
                 }
 
-                return { success: true, message: 'تم إنشاء الحساب.' };
+                return { success: true, message: 'تم إنشاء الحساب بنجاح.' };
             } catch (err) {
+                console.error('Signup error:', err);
                 return { success: false, message: err.message };
             }
         },
@@ -204,21 +225,34 @@
         }
     };
 
-    // ==================== دوال قاعدة البيانات ====================
+    // ==================== دوال قاعدة البيانات (SaaS) ====================
     window.DB = {
-        // ---- المنتجات ----
+        // ---------- المنتجات ----------
         async getProducts() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('products', async () => {
-                const { data, error } = await supabaseClient.from('products').select('*').order('name');
+                const { data, error } = await supabaseClient
+                    .from('products')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('name');
                 if (error) throw error;
                 return data;
             });
         },
         async saveProduct(p) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            p.tenant_id = tenantId;
             if (p.units && typeof p.units === 'string') { try { p.units = JSON.parse(p.units); } catch { p.units = []; } }
             if (!p.id) p.id = crypto.randomUUID();
             return saveWithFallback('products', p, async (product) => {
-                const { data, error } = await supabaseClient.from('products').upsert(cleanObject(product), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('products')
+                    .upsert(cleanObject(product), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
@@ -232,10 +266,12 @@
             }
         },
 
-        // ---- الأطراف (عملاء وموردين) ----
+        // ---------- الأطراف (عملاء وموردين) ----------
         async getParties(type = null) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('parties', async () => {
-                let q = supabaseClient.from('parties').select('*').order('name');
+                let q = supabaseClient.from('parties').select('*').eq('tenant_id', tenantId).order('name');
                 if (type) q = q.eq('type', type);
                 const { data, error } = await q;
                 if (error) throw error;
@@ -243,9 +279,16 @@
             });
         },
         async saveParty(p) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            p.tenant_id = tenantId;
             if (!p.id) p.id = crypto.randomUUID();
             return saveWithFallback('parties', p, async (party) => {
-                const { data, error } = await supabaseClient.from('parties').upsert(cleanObject(party), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('parties')
+                    .upsert(cleanObject(party), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
@@ -259,101 +302,159 @@
             }
         },
 
-        // ---- المندوبين ----
+        // ---------- المندوبين ----------
         async getReps() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('reps', async () => {
-                const { data, error } = await supabaseClient.from('reps').select('*').order('name');
+                const { data, error } = await supabaseClient
+                    .from('reps')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('name');
                 if (error) throw error;
                 return data;
             });
         },
         async saveRep(r) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            r.tenant_id = tenantId;
             if (!r.id) r.id = crypto.randomUUID();
             return saveWithFallback('reps', r, async (rep) => {
-                const { data, error } = await supabaseClient.from('reps').upsert(cleanObject(rep), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('reps')
+                    .upsert(cleanObject(rep), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
         },
 
-        // ---- الفواتير (كاملة) ----
+        // ---------- الفواتير ----------
         async getInvoices() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('invoices', async () => {
-                const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
+                const { data, error } = await supabaseClient
+                    .from('invoices')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
-        // ✅ نسخة خفيفة للوحة التحكم والفواتير
         async getInvoicesLight() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
                     .from('invoices')
                     .select('id, date, type, customer_id, customer_name, total, paid, remaining, status, invoice_number, items, subtotal, discount, used_customer_balance')
+                    .eq('tenant_id', tenantId)
                     .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
         async saveInvoice(inv) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            inv.tenant_id = tenantId;
             if (!inv.id) inv.id = crypto.randomUUID();
             inv.type = inv.type || 'sale';
             return saveWithFallback('invoices', inv, async (invoice) => {
-                const { data, error } = await supabaseClient.from('invoices').upsert(cleanObject(invoice), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('invoices')
+                    .upsert(cleanObject(invoice), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
         },
 
-        // ---- المشتريات (كاملة) ----
+        // ---------- المشتريات ----------
         async getPurchases() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('purchases', async () => {
-                const { data, error } = await supabaseClient.from('purchases').select('*').order('date', { ascending: false });
+                const { data, error } = await supabaseClient
+                    .from('purchases')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
-        // ✅ نسخة خفيفة للوحة التحكم وصفحة المشتريات
         async getPurchasesLight() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
                     .from('purchases')
                     .select('id, date, supplier_name, supplier_id, total, paid, remaining, status, invoice_number, items')
+                    .eq('tenant_id', tenantId)
                     .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
         async savePurchase(p) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            p.tenant_id = tenantId;
             if (!p.id) p.id = crypto.randomUUID();
             return saveWithFallback('purchases', p, async (purchase) => {
-                const { data, error } = await supabaseClient.from('purchases').upsert(cleanObject(purchase), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('purchases')
+                    .upsert(cleanObject(purchase), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
         },
 
-        // ---- المعاملات المالية ----
+        // ---------- المعاملات المالية ----------
         async getTransactions() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('transactions', async () => {
-                const { data, error } = await supabaseClient.from('transactions').select('id, date, type, amount, payment_method, description, timestamp').order('timestamp', { ascending: false });
+                const { data, error } = await supabaseClient
+                    .from('transactions')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('timestamp', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
         async saveTransaction(t) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            t.tenant_id = tenantId;
             if (!t.id) t.id = crypto.randomUUID();
             return saveWithFallback('transactions', t, async (trans) => {
-                const { data, error } = await supabaseClient.from('transactions').upsert(cleanObject(trans), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('transactions')
+                    .upsert(cleanObject(trans), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
         },
 
-        // ---- المرتجعات ----
+        // ---------- المرتجعات ----------
         async getReturns(type = null) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
             return getWithFallback('returns', async () => {
-                let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
+                let q = supabaseClient.from('returns').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
                 if (type) q = q.eq('type', type);
                 const { data, error } = await q;
                 if (error) throw error;
@@ -361,64 +462,127 @@
             });
         },
         async saveReturn(r) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            r.tenant_id = tenantId;
             if (!r.id) r.id = crypto.randomUUID();
             return saveWithFallback('returns', r, async (ret) => {
-                const { data, error } = await supabaseClient.from('returns').upsert(cleanObject(ret), { onConflict: 'id' }).select().single();
+                const { data, error } = await supabaseClient
+                    .from('returns')
+                    .upsert(cleanObject(ret), { onConflict: 'id' })
+                    .select()
+                    .single();
                 if (error) throw error;
                 return data;
             });
         },
 
-        // ---- الإعدادات ----
+        // ---------- الإعدادات ----------
         async getSettings() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return {};
             const local = getLocalDB();
             if (local) {
-                const localSettings = await local.getById('settings', 'main');
-                if (localSettings) return localSettings.data || localSettings;
+                const s = await local.getById('settings', 'main').catch(() => null);
+                if (s) return s.data || s;
             }
             if (navigator.onLine && supabaseClient) {
                 try {
-                    const { data, error } = await supabaseClient.from('settings').select('data').eq('id', 'main').single();
+                    const { data, error } = await supabaseClient
+                        .from('settings')
+                        .select('data')
+                        .eq('tenant_id', tenantId)
+                        .eq('id', 'main')
+                        .single();
                     if (error && error.code !== 'PGRST116') throw error;
                     const settings = data ? data.data : {};
-                    if (local) await local.put('settings', { id: 'main', data: settings });
+                    if (local) await local.put('settings', { id: 'main', data: settings, tenant_id: tenantId });
                     return settings;
                 } catch (e) { return {}; }
             }
             return {};
         },
         async saveSettings(s) {
-            const data = { id: 'main', data: s };
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            const data = { id: 'main', data: s, tenant_id: tenantId };
             const local = getLocalDB();
             if (local) await local.put('settings', data);
             if (navigator.onLine && supabaseClient) {
                 try {
-                    const { data: result, error } = await supabaseClient.from('settings').upsert(data, { onConflict: 'id' }).select().single();
+                    const { data: result, error } = await supabaseClient
+                        .from('settings')
+                        .upsert(data, { onConflict: 'id' })
+                        .select()
+                        .single();
                     if (error) throw error;
                     return result.data;
                 } catch (e) {
                     if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
                     return s;
                 }
-            } else {
-                if (local) await local.addToSyncQueue?.({ type: 'UPDATE', table: 'settings', data: data }).catch(() => {});
-                return s;
             }
+            return s;
         },
 
-        // ---- توليد رقم الفاتورة (مركزي) ----
+        // ---------- القيود المحاسبية ----------
+        async getJournalEntries() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
+            return getWithFallback('journal_entries', async () => {
+                const { data, error } = await supabaseClient
+                    .from('journal_entries')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveJournalEntry(entry) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            entry.tenant_id = tenantId;
+            if (!entry.id) entry.id = crypto.randomUUID();
+            return saveWithFallback('journal_entries', entry, async (e) => {
+                const { data, error } = await supabaseClient
+                    .from('journal_entries')
+                    .upsert(cleanObject(e), { onConflict: 'id' })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            });
+        },
+
+        // ---------- الحسابات ----------
+        async getAccounts() {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) return [];
+            return getWithFallback('accounts', async () => {
+                const { data, error } = await supabaseClient
+                    .from('accounts')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .order('name');
+                if (error) throw error;
+                return data;
+            });
+        },
+
+        // ---------- توليد رقم الفاتورة (معزول) ----------
         generateInvoiceNumber: async function() {
+            const tenantId = getCurrentTenantId();
             const fallback = () => {
                 const year = new Date().getFullYear().toString().slice(-2);
-                const storageKey = `inv_counter_${year}`;
+                const storageKey = `inv_counter_${tenantId}_${year}`;
                 let num = parseInt(localStorage.getItem(storageKey) || '0', 10) + 1;
                 localStorage.setItem(storageKey, num.toString());
                 return year + '-' + String(num).padStart(4, '0');
             };
-
-            if (navigator.onLine && supabaseClient) {
+            if (navigator.onLine && supabaseClient && tenantId) {
                 try {
-                    const { data, error } = await supabaseClient.rpc('next_invoice_number');
+                    const { data, error } = await supabaseClient.rpc('next_invoice_number', { p_tenant_id: tenantId });
                     if (!error && data) return data;
                 } catch (e) {
                     console.warn('فشل RPC للرقم التسلسلي، استخدام محلي:', e);
@@ -428,5 +592,5 @@
         }
     };
 
-    console.log('✅ نظام حسابي مع دعم Offline كامل جاهز');
+    console.log('✅ نظام حسابي SaaS مع دعم Offline كامل جاهز');
 })();
