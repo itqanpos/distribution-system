@@ -255,23 +255,6 @@
             text-decoration: underline;
         }
 
-        .admin-link {
-            text-align: center;
-            margin-top: 12px;
-            font-size: 13px;
-            color: #475569;
-        }
-
-        .admin-link a {
-            color: #f59e0b;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .admin-link a:hover {
-            text-decoration: underline;
-        }
-
         .footer-text {
             text-align: center;
             margin-top: 20px;
@@ -332,10 +315,6 @@
             
             <p class="signup-link">
                 ليس لديك حساب؟ <a href="./signup.html">أنشئ متجرك الآن</a>
-            </p>
-
-            <p class="admin-link">
-                <a href="./admin-login.html"><i class="fas fa-shield-halved"></i> دخول المشرف</a>
             </p>
             
             <p class="footer-text">© 2025 حسابي · جميع الحقوق محفوظة</p>
@@ -431,7 +410,7 @@
                         localStorage.removeItem('remember_me');
                     }
                     
-                    // ✅ توجيه المشرف العام إلى لوحته الخاصة
+                    // توجيه المشرف العام إلى لوحته، والعملاء إلى صفحاتهم
                     const user = result.user || App.getCurrentUser();
                     if (user && user.role === 'super_admin') {
                         window.location.href = './admin.html';
