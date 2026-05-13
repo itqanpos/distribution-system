@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - الإصدار النهائي الكامل 100%
+   supabase.js - الإصدار النهائي المُحسَّن
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -39,7 +39,9 @@
                     if (navigator.onLine && supabaseClient) {
                         cloudFetcher().then(cloudData => {
                             if (cloudData && Array.isArray(cloudData)) {
-                                cloudData.forEach(item => local.put(storeName, cleanObject(item)).catch(() => {}));
+                                for (const item of cloudData) {
+                                    local.put(storeName, cleanObject(item)).catch(() => {});
+                                }
                             }
                         }).catch(() => {});
                     }
@@ -274,10 +276,21 @@
             });
         },
 
-        // ---- الفواتير ----
+        // ---- الفواتير (كاملة) ----
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient.from('invoices').select('*').order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        // ✅ نسخة خفيفة للوحة التحكم والفواتير
+        async getInvoicesLight() {
+            return getWithFallback('invoices', async () => {
+                const { data, error } = await supabaseClient
+                    .from('invoices')
+                    .select('id, date, type, customer_id, customer_name, total, paid, remaining, status, invoice_number, items, subtotal, discount, used_customer_balance')
+                    .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
@@ -292,10 +305,21 @@
             });
         },
 
-        // ---- المشتريات ----
+        // ---- المشتريات (كاملة) ----
         async getPurchases() {
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient.from('purchases').select('*').order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        // ✅ نسخة خفيفة للوحة التحكم وصفحة المشتريات
+        async getPurchasesLight() {
+            return getWithFallback('purchases', async () => {
+                const { data, error } = await supabaseClient
+                    .from('purchases')
+                    .select('id, date, supplier_name, supplier_id, total, paid, remaining, status, invoice_number, items')
+                    .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
@@ -312,7 +336,7 @@
         // ---- المعاملات المالية ----
         async getTransactions() {
             return getWithFallback('transactions', async () => {
-                const { data, error } = await supabaseClient.from('transactions').select('*').order('timestamp', { ascending: false });
+                const { data, error } = await supabaseClient.from('transactions').select('id, date, type, amount, payment_method, description, timestamp').order('timestamp', { ascending: false });
                 if (error) throw error;
                 return data;
             });
