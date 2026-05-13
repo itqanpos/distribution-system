@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>لوحة تحكم المشرف · حسابي</title>
+    
+    <link rel="icon" href="./icons/icon-192x192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: rgba(255,255,255,0.06);
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --radius: 16px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 0;
+            padding-top: calc(var(--safe-top) + 70px);
+            padding-bottom: var(--safe-bottom);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        /* شريط علوي */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 70px;
+            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border); display: flex;
+            align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 100;
+            padding-top: var(--safe-top);
+        }
+        .navbar h2 { font-size: 1.3rem; font-weight: 800; color: white; }
+        .navbar .logout-btn { color: var(--text-secondary); cursor: pointer; transition: 0.2s; }
+        .navbar .logout-btn:hover { color: var(--danger); }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+        
+        /* بطاقات الإحصائيات */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .stat-card {
+            background: var(--surface); border-radius: var(--radius); padding: 20px;
+            border: 1px solid var(--border);
+        }
+        .stat-card .label { color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 800; color: white; }
+        
+        /* جدول */
+        .table-container {
+            background: var(--surface); border-radius: var(--radius); padding: 20px;
+            border: 1px solid var(--border); overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th { text-align: right; padding: 12px 14px; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        td { padding: 14px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .badge {
+            padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+            display: inline-block;
+        }
+        .badge-trial { background: rgba(59,130,246,0.2); color: #3b82f6; }
+        .badge-active { background: rgba(16,185,129,0.2); color: #10b981; }
+        .badge-expired { background: rgba(239,68,68,0.2); color: #ef4444; }
+        
+        .action-btn {
+            padding: 6px 12px; border-radius: 8px; border: none; cursor: pointer;
+            font-family: inherit; font-size: 0.75rem; font-weight: 600; transition: 0.2s;
+        }
+        .btn-danger { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .btn-danger:hover { background: rgba(239,68,68,0.4); }
+        .btn-primary { background: var(--primary); color: white; }
+        
+        .empty { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .loading { text-align: center; padding: 40px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h2><i class="fas fa-shield-halved" style="color:var(--primary); margin-left:8px;"></i> لوحة تحكم المشرف</h2>
+        <span class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</span>
+    </nav>
+
+    <main class="container">
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="label">إجمالي المتاجر</div><div class="value" id="totalTenants">—</div></div>
+            <div class="stat-card"><div class="label">تجريبي</div><div class="value" id="trialCount">—</div></div>
+            <div class="stat-card"><div class="label">نشط</div><div class="value" id="activeCount">—</div></div>
+            <div class="stat-card"><div class="label">إجمالي المبيعات</div><div class="value" id="totalSales">—</div></div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>المتجر</th>
+                        <th>الخطة</th>
+                        <th>تاريخ التسجيل</th>
+                        <th>الفواتير</th>
+                        <th>المنتجات</th>
+                        <th>العملاء</th>
+                        <th>المبيعات</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="tenantsBody">
+                    <tr><td colspan="8" class="loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function checkAccess() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { window.location.href = './index.html'; return null; }
+
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+            if (profile?.role !== 'super_admin') {
+                alert('غير مصرح لك بالوصول إلى هذه الصفحة');
+                window.location.href = './dashboard.html';
+                return null;
+            }
+            return user;
+        }
+
+        function formatMoney(v) {
+            return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' ج.م';
+        }
+
+        function formatDate(d) {
+            if (!d) return '—';
+            return new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function getBadge(plan) {
+            if (plan === 'trial') return '<span class="badge badge-trial">تجريبي</span>';
+            if (plan === 'monthly' || plan === 'yearly' || plan === 'active') return '<span class="badge badge-active">نشط</span>';
+            return '<span class="badge badge-expired">منتهي</span>';
+        }
+
+        async function loadData() {
+            const user = await checkAccess();
+            if (!user) return;
+
+            try {
+                const { data, error } = await supabase.rpc('get_all_tenants_data');
+                if (error) throw error;
+
+                const tenants = data || [];
+                
+                // إحصائيات
+                const total = tenants.length;
+                const trial = tenants.filter(t => t.plan === 'trial').length;
+                const active = total - trial;
+                const allSales = tenants.reduce((s, t) => s + (Number(t.total_sales) || 0), 0);
+
+                document.getElementById('totalTenants').textContent = total;
+                document.getElementById('trialCount').textContent = trial;
+                document.getElementById('activeCount').textContent = active;
+                document.getElementById('totalSales').textContent = formatMoney(allSales);
+
+                // جدول
+                const tbody = document.getElementById('tenantsBody');
+                if (!tenants.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty">لا توجد متاجر مسجلة</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = tenants.map(t => `
+                    <tr>
+                        <td><strong>${t.name || '—'}</strong></td>
+                        <td>${getBadge(t.plan)}</td>
+                        <td>${formatDate(t.created_at)}</td>
+                        <td>${t.invoices_count || 0}</td>
+                        <td>${t.products_count || 0}</td>
+                        <td>${t.customers_count || 0}</td>
+                        <td>${formatMoney(t.total_sales)}</td>
+                        <td>
+                            <button class="action-btn btn-danger" onclick="deleteTenant('${t.id}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('tenantsBody').innerHTML = '<tr><td colspan="8" class="empty">فشل تحميل البيانات</td></tr>';
+            }
+        }
+
+        async function deleteTenant(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟')) return;
+            try {
+                // حذف tenant والبيانات المرتبطة (يجب تفعيل CASCADE أو حذف يدوي)
+                await supabase.from('tenants').delete().eq('id', id);
+                loadData();
+            } catch (e) {
+                alert('فشل الحذف: ' + e.message);
+            }
+        }
+
+        function logout() {
+            supabase.auth.signOut();
+            window.location.href = './index.html';
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
