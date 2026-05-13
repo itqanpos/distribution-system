@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - إصدار SaaS النهائي المُصحَّح
+   supabase.js - إصدار SaaS النهائي المُصلح
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -114,7 +114,7 @@
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
 
-                // ✅ محاولة جلب البروفايل، وإن لم يوجد ننشئه تلقائياً
+                // ✅ جلب أو إنشاء البروفايل
                 let profile = null;
                 const { data: existingProfile } = await supabaseClient
                     .from('profiles')
@@ -125,42 +125,51 @@
                 if (existingProfile) {
                     profile = existingProfile;
                 } else {
-                    // إنشاء tenant و profile تلقائياً للمستخدم
-                    const { data: tenant } = await supabaseClient
-                        .from('tenants')
-                        .insert({ name: `متجر ${data.user.email}`, plan: 'trial' })
-                        .select()
-                        .single();
-
-                    const { data: newProfile } = await supabaseClient
+                    // إنشاء profile جديد
+                    const { data: newProfile, error: insertError } = await supabaseClient
                         .from('profiles')
                         .upsert({
                             id: data.user.id,
                             full_name: data.user.user_metadata?.full_name || data.user.email,
                             role: 'admin',
-                            tenant_id: tenant.id
+                            tenant_id: null // مؤقتاً
                         }, { onConflict: 'id' })
                         .select()
                         .single();
-
+                    
+                    if (insertError) throw insertError;
                     profile = newProfile;
                 }
 
-                // ✅ التأكد من وجود tenant_id (حتى للمشرف العام)
-                if (!profile.tenant_id && profile.role !== 'super_admin') {
-                    // إنشاء tenant تلقائي للمستخدمين العاديين
-                    const { data: tenant } = await supabaseClient
+                // ✅ التأكد من وجود tenant_id (لغير المشرف العام)
+                if (profile.role !== 'super_admin' && !profile.tenant_id) {
+                    console.log('🔄 إنشاء Tenant تلقائي للمستخدم...');
+                    
+                    // إنشاء tenant جديد
+                    const { data: tenant, error: tenantError } = await supabaseClient
                         .from('tenants')
                         .insert({ name: `متجر ${profile.full_name || data.user.email}`, plan: 'trial' })
                         .select()
                         .single();
-
-                    await supabaseClient
+                    
+                    if (tenantError) {
+                        console.error('❌ فشل إنشاء tenant:', tenantError);
+                        throw new Error('فشل إنشاء المتجر تلقائياً');
+                    }
+                    
+                    console.log('✅ تم إنشاء Tenant:', tenant.id);
+                    
+                    // ربط tenant بالبروفايل
+                    const { error: updateError } = await supabaseClient
                         .from('profiles')
                         .update({ tenant_id: tenant.id })
                         .eq('id', data.user.id);
-
-                    profile.tenant_id = tenant.id;
+                    
+                    if (updateError) {
+                        console.error('❌ فشل ربط tenant بالبروفايل:', updateError);
+                    } else {
+                        profile.tenant_id = tenant.id;
+                    }
                 }
 
                 const session = {
