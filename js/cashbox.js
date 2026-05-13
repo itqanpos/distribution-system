@@ -1,17 +1,27 @@
 /* =============================================
-   cashbox.js - الصندوق (إصدار Premium مع تفصيل النقدي والتحويلات)
+   cashbox.js - الصندوق (إصدار فائق السرعة)
    ============================================= */
 'use strict';
 
 if (!window.Utils) {
     window.Utils = {
         formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
+            return Number(amount).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) + ' ' + currency;
         },
         formatDate: (dateStr) => {
             if (!dateStr) return '';
-            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-            catch (e) { return dateStr; }
+            try {
+                return new Date(dateStr).toLocaleDateString('ar-EG', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            } catch (e) {
+                return dateStr;
+            }
         },
         getToday: () => new Date().toISOString().split('T')[0],
         isDBReady: () => !!(window.DB && window.supabase),
@@ -23,7 +33,6 @@ const Cashbox = {
     transactions: [],
     settings: {},
     isDBReady: false,
-    currentFilteredTransactions: [],
 
     init() {
         this.cacheElements();
@@ -50,13 +59,10 @@ const Cashbox = {
             refreshBtn: document.getElementById('refreshBtn'),
             transactionsBody: document.getElementById('transactionsBody'),
             addTransactionBtn: document.getElementById('addTransactionBtn'),
-            cashBalance: document.getElementById('cashBalance'),
-            bankBalance: document.getElementById('bankBalance'),
-            totalBalance: document.getElementById('totalBalance'),
+            currentBalance: document.getElementById('currentBalance'),
             totalIncome: document.getElementById('totalIncome'),
             totalExpense: document.getElementById('totalExpense'),
             transactionCount: document.getElementById('transactionCount'),
-            netFlow: document.getElementById('netFlow'),
             transactionModal: document.getElementById('transactionModal'),
             modalTitle: document.getElementById('modalTitle'),
             closeModalBtn: document.getElementById('closeModalBtn'),
@@ -71,7 +77,6 @@ const Cashbox = {
             moreMenuBtn: document.getElementById('moreMenuBtn'),
             moreDropdown: document.getElementById('moreDropdown'),
             refreshDataBtn: document.getElementById('refreshDataBtn'),
-            printReportBtn: document.getElementById('printReportBtn'),
             sidebarAvatar: document.getElementById('sidebarAvatar'),
             sidebarUserName: document.getElementById('sidebarUserName'),
             toast: document.getElementById('toast')
@@ -95,7 +100,7 @@ const Cashbox = {
             });
         });
 
-        // زر النقاط الثلاث
+        // زر النقاط الثلاث والقائمة المنسدلة
         this.el.moreMenuBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.el.moreDropdown?.classList.toggle('show');
@@ -110,18 +115,13 @@ const Cashbox = {
             this.toast('تم تحديث البيانات');
             this.el.moreDropdown?.classList.remove('show');
         });
-        this.el.printReportBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.printReport();
-            this.el.moreDropdown?.classList.remove('show');
-        });
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.App) App.logout();
             else window.location.href = './index.html';
         });
 
-        // البحث والتصفية
+        // الفلاتر والبحث
         this.el.searchInput?.addEventListener('input', () => this.renderTable());
         this.el.typeFilter?.addEventListener('change', () => this.renderTable());
         this.el.methodFilter?.addEventListener('change', () => this.renderTable());
@@ -129,7 +129,6 @@ const Cashbox = {
         this.el.dateTo?.addEventListener('change', () => this.renderTable());
         this.el.refreshBtn?.addEventListener('click', () => this.loadData());
 
-        // مودال المعاملة
         this.el.addTransactionBtn?.addEventListener('click', () => this.openModal());
         this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
@@ -156,7 +155,7 @@ const Cashbox = {
                 this.settings = s?.data || {};
             } else {
                 this.transactions = [];
-                this.settings = { financial: { opening_cash_balance: 0, opening_bank_balance: 0 } };
+                this.settings = { financial: { opening_cash_balance: 0 } };
             }
             this.updateStats();
             this.renderTable();
@@ -166,43 +165,26 @@ const Cashbox = {
         }
     },
 
-    calculateBalances() {
-        const openingCash = this.settings?.financial?.opening_cash_balance || 0;
-        const openingBank = this.settings?.financial?.opening_bank_balance || 0;
-        let cashBalance = openingCash;
-        let bankBalance = openingBank;
-
-        this.transactions.forEach(tr => {
-            const amount = tr.amount || 0;
-            if (tr.type === 'income') {
-                if (tr.payment_method === 'cash') cashBalance += amount;
-                else if (tr.payment_method === 'bank') bankBalance += amount;
-                else cashBalance += amount; // افتراضي نقدي
-            } else if (tr.type === 'expense') {
-                if (tr.payment_method === 'cash') cashBalance -= amount;
-                else if (tr.payment_method === 'bank') bankBalance -= amount;
-                else cashBalance -= amount;
-            }
-        });
-
-        return { cash: cashBalance, bank: bankBalance, total: cashBalance + bankBalance };
+    calculateBalance() {
+        const opening = this.settings?.financial?.opening_cash_balance || 0;
+        let balance = opening;
+        for (const tr of this.transactions) {
+            if (tr.type === 'income') balance += tr.amount;
+            else balance -= tr.amount;
+        }
+        return balance;
     },
 
     updateStats() {
-        const balances = this.calculateBalances();
         let totalInc = 0, totalExp = 0;
-        this.transactions.forEach(tr => {
+        for (const tr of this.transactions) {
             if (tr.type === 'income') totalInc += tr.amount;
             else totalExp += tr.amount;
-        });
-
-        if (this.el.cashBalance) this.el.cashBalance.textContent = Utils.formatMoney(balances.cash);
-        if (this.el.bankBalance) this.el.bankBalance.textContent = Utils.formatMoney(balances.bank);
-        if (this.el.totalBalance) this.el.totalBalance.textContent = Utils.formatMoney(balances.total);
+        }
+        if (this.el.currentBalance) this.el.currentBalance.textContent = Utils.formatMoney(this.calculateBalance());
         if (this.el.totalIncome) this.el.totalIncome.textContent = Utils.formatMoney(totalInc);
         if (this.el.totalExpense) this.el.totalExpense.textContent = Utils.formatMoney(totalExp);
         if (this.el.transactionCount) this.el.transactionCount.textContent = this.transactions.length;
-        if (this.el.netFlow) this.el.netFlow.textContent = Utils.formatMoney(totalInc - totalExp);
     },
 
     renderTable() {
@@ -226,46 +208,39 @@ const Cashbox = {
             return (b.timestamp || b.created_at || '').localeCompare(a.timestamp || a.created_at || '');
         });
 
-        this.currentFilteredTransactions = filtered;
-
         if (!filtered.length) {
             this.el.transactionsBody.innerHTML = '<tr><td colspan="6" class="empty-message">لا توجد معاملات</td></tr>';
             return;
         }
 
-        // حساب الرصيد التراكمي
-        const allSortedAsc = [...this.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.timestamp || '').localeCompare(b.timestamp || ''));
+        // حساب الرصيد التراكمي مرة واحدة
         const balanceMap = new Map();
-        const balances = this.calculateBalances();
-        let runningCash = this.settings?.financial?.opening_cash_balance || 0;
-        let runningBank = this.settings?.financial?.opening_bank_balance || 0;
+        let runningBalance = this.settings?.financial?.opening_cash_balance || 0;
+        const sortedAsc = [...this.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.timestamp || '').localeCompare(b.timestamp || ''));
+        for (const tr of sortedAsc) {
+            if (tr.type === 'income') runningBalance += tr.amount;
+            else runningBalance -= tr.amount;
+            balanceMap.set(tr.id, runningBalance);
+        }
 
-        allSortedAsc.forEach(tr => {
-            if (tr.type === 'income') {
-                if (tr.payment_method === 'bank') runningBank += tr.amount;
-                else runningCash += tr.amount;
-            } else {
-                if (tr.payment_method === 'bank') runningBank -= tr.amount;
-                else runningCash -= tr.amount;
-            }
-            balanceMap.set(tr.id, { cash: runningCash, bank: runningBank, total: runningCash + runningBank });
-        });
-
-        this.el.transactionsBody.innerHTML = filtered.map(tr => {
+        // تجميع الصفوف دفعة واحدة
+        let rowsHTML = '';
+        for (const tr of filtered) {
             const typeClass = tr.type === 'income' ? 'income-text' : 'expense-text';
             const typeText = tr.type === 'income' ? 'إيراد' : 'مصروف';
             const methodText = tr.payment_method === 'cash' ? 'نقدي' : (tr.payment_method === 'bank' ? 'تحويل' : tr.payment_method || '-');
             const sign = tr.type === 'income' ? '+' : '-';
-            const bal = balanceMap.get(tr.id) || { total: 0 };
-            return `<tr>
+            const balanceAfter = balanceMap.get(tr.id) || 0;
+            rowsHTML += `<tr>
                 <td>${Utils.formatDate(tr.date)}</td>
                 <td class="${typeClass}">${typeText}</td>
                 <td>${tr.description || '-'}</td>
                 <td class="${typeClass}">${sign} ${Utils.formatMoney(tr.amount)}</td>
                 <td>${methodText}</td>
-                <td class="balance-cell">${Utils.formatMoney(bal.total)}</td>
+                <td class="balance-cell">${Utils.formatMoney(balanceAfter)}</td>
             </tr>`;
-        }).join('');
+        }
+        this.el.transactionsBody.innerHTML = rowsHTML;
     },
 
     openModal(transaction = null) {
@@ -279,15 +254,8 @@ const Cashbox = {
         this.el.transactionModal.classList.add('open');
     },
 
-    closeModal() { this.el.transactionModal.classList.remove('open'); },
-
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    closeModal() {
+        this.el.transactionModal.classList.remove('open');
     },
 
     async saveTransaction() {
@@ -301,27 +269,32 @@ const Cashbox = {
 
         // التحقق من الرصيد في حالة السحب
         if (type === 'expense') {
-            const balances = this.calculateBalances();
-            const availableBalance = method === 'bank' ? balances.bank : balances.cash;
-            if (amount > availableBalance) {
-                const balanceType = method === 'bank' ? 'رصيد التحويلات' : 'الرصيد النقدي';
-                alert(`رصيد ${balanceType} غير كافٍ. المتاح: ${Utils.formatMoney(availableBalance)}`);
+            const currentBalance = this.calculateBalance();
+            if (amount > currentBalance) {
+                alert(`الرصيد غير كافٍ. الرصيد الحالي: ${Utils.formatMoney(currentBalance)}`);
                 return;
             }
         }
 
         const transaction = {
             id: this.el.transactionId?.value || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
-            date, type, amount, description, payment_method: method
+            date,
+            type,
+            amount,
+            description,
+            payment_method: method
         };
 
         try {
-            if (this.isDBReady) await DB.saveTransaction(transaction);
-            else if (Utils.hasLocalDB()) await localDB.put('transactions', transaction);
-            else {
+            if (this.isDBReady) {
+                await DB.saveTransaction(transaction);
+            } else if (Utils.hasLocalDB()) {
+                await localDB.put('transactions', transaction);
+            } else {
                 const local = JSON.parse(localStorage.getItem('transactions') || '[]');
                 const idx = local.findIndex(t => t.id === transaction.id);
-                if (idx >= 0) local[idx] = transaction; else local.push(transaction);
+                if (idx >= 0) local[idx] = transaction;
+                else local.push(transaction);
                 localStorage.setItem('transactions', JSON.stringify(local));
             }
             this.closeModal();
@@ -333,24 +306,13 @@ const Cashbox = {
         }
     },
 
-    // طباعة تقرير المعاملات الحالية
-    printReport() {
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        const companyName = settings?.company?.name || 'حسابي';
-        const filtered = this.currentFilteredTransactions;
-        if (!filtered.length) { alert('لا توجد معاملات لطباعتها'); return; }
-
-        const rows = filtered.map(tr => {
-            const typeText = tr.type === 'income' ? 'إيراد' : 'مصروف';
-            const methodText = tr.payment_method === 'cash' ? 'نقدي' : (tr.payment_method === 'bank' ? 'تحويل' : tr.payment_method || '-');
-            return `<tr><td>${Utils.formatDate(tr.date)}</td><td>${typeText}</td><td>${tr.description || '-'}</td><td>${Utils.formatMoney(tr.amount)}</td><td>${methodText}</td></tr>`;
-        }).join('');
-
-        const reportHTML = `<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma,sans-serif;direction:rtl;text-align:right;padding:20px;color:#000;}h1{text-align:center;}table{width:100%;border-collapse:collapse;margin-top:10px;}th,td{padding:5px 8px;border:1px solid #ddd;}th{background:#f5f5f5;}</style></head><body><h1>${companyName} - تقرير المعاملات</h1><table><thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th>المبلغ</th><th>طريقة الدفع</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
-        const pw = window.open('', '_blank', 'width=800,height=600');
-        if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(reportHTML); pw.document.close(); pw.focus();
-        setTimeout(() => { pw.print(); pw.close(); }, 500);
+    showToast(msg) {
+        const t = this.el.toast;
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     }
 };
 
