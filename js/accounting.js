@@ -1,15 +1,31 @@
 /* =============================================
-   accounting.js - المحاسبة (إصدار نهائي كامل)
+   accounting.js - المحاسبة (إصدار فائق السرعة)
    ============================================= */
 'use strict';
 
 if (!window.Utils) {
     window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
-        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return dateStr; } },
+        formatMoney: (amount, currency = 'ج.م') =>
+            Number(amount).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) + ' ' + currency,
+        formatDate: (dateStr) => {
+            if (!dateStr) return '';
+            try {
+                return new Date(dateStr).toLocaleDateString('ar-EG', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            } catch (e) {
+                return dateStr;
+            }
+        },
         getToday: () => new Date().toISOString().split('T')[0],
         isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
+        hasLocalDB: () =>
+            !!(window.localDB && typeof localDB.getAll === 'function')
     };
 }
 
@@ -22,40 +38,96 @@ const Accounting = {
     init() {
         this.cacheElements();
         this.bindEvents();
-        if (window.App) { if (!App.requireAuth()) return; App.initUserInterface(); }
+        if (window.App) {
+            if (!App.requireAuth()) return;
+            App.initUserInterface();
+        }
         this.initSidebarUser();
         this.loadData();
     },
 
     cacheElements() {
         this.el = {
-            menuToggle: document.getElementById('menuToggle'), sidebar: document.getElementById('sidebar'), sidebarOverlay: document.getElementById('sidebarOverlay'),
-            moreMenuBtn: document.getElementById('moreMenuBtn'), moreDropdown: document.getElementById('moreDropdown'), refreshDataBtn: document.getElementById('refreshDataBtn'), logoutBtn: document.getElementById('logoutBtn'),
-            addJournalEntryBtn: document.getElementById('addJournalEntryBtn'), addJournalEntryBtn2: document.getElementById('addJournalEntryBtn2'),
-            tabBtns: document.querySelectorAll('.tab-btn'), tabContent: document.getElementById('tabContent'),
-            journalEntryModal: document.getElementById('journalEntryModal'), modalTitle: document.getElementById('modalTitle'), closeModalBtn: document.getElementById('closeModalBtn'), cancelModalBtn: document.getElementById('cancelModalBtn'),
-            journalEntryForm: document.getElementById('journalEntryForm'), entryId: document.getElementById('entryId'), entryDate: document.getElementById('entryDate'), entryDescription: document.getElementById('entryDescription'),
-            entryLines: document.getElementById('entryLines'), addEntryLineBtn: document.getElementById('addEntryLineBtn'),
-            totalDebit: document.getElementById('totalDebit'), totalCredit: document.getElementById('totalCredit'), balanceDiff: document.getElementById('balanceDiff'),
-            sidebarAvatar: document.getElementById('sidebarAvatar'), sidebarUserName: document.getElementById('sidebarUserName'),
+            menuToggle: document.getElementById('menuToggle'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebarOverlay'),
+            moreMenuBtn: document.getElementById('moreMenuBtn'),
+            moreDropdown: document.getElementById('moreDropdown'),
+            refreshDataBtn: document.getElementById('refreshDataBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            addJournalEntryBtn: document.getElementById('addJournalEntryBtn'),
+            addJournalEntryBtn2: document.getElementById('addJournalEntryBtn2'),
+            tabBtns: document.querySelectorAll('.tab-btn'),
+            tabContent: document.getElementById('tabContent'),
+            journalEntryModal: document.getElementById('journalEntryModal'),
+            modalTitle: document.getElementById('modalTitle'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            cancelModalBtn: document.getElementById('cancelModalBtn'),
+            journalEntryForm: document.getElementById('journalEntryForm'),
+            entryId: document.getElementById('entryId'),
+            entryDate: document.getElementById('entryDate'),
+            entryDescription: document.getElementById('entryDescription'),
+            entryLines: document.getElementById('entryLines'),
+            addEntryLineBtn: document.getElementById('addEntryLineBtn'),
+            totalDebit: document.getElementById('totalDebit'),
+            totalCredit: document.getElementById('totalCredit'),
+            balanceDiff: document.getElementById('balanceDiff'),
+            sidebarAvatar: document.getElementById('sidebarAvatar'),
+            sidebarUserName: document.getElementById('sidebarUserName'),
             toast: document.getElementById('toast')
         };
     },
 
     bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(link => { link.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }); });
+        this.el.menuToggle?.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        this.el.sidebarOverlay?.addEventListener('click', () => {
+            this.el.sidebar.classList.remove('open');
+            this.el.sidebarOverlay.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
 
-        this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+        this.el.moreMenuBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.el.moreDropdown?.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
+        });
 
-        this.el.refreshDataBtn?.addEventListener('click', (e) => { e.preventDefault(); this.loadData(); this.toast('تم تحديث البيانات'); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.addJournalEntryBtn?.addEventListener('click', (e) => { e.preventDefault(); this.openJournalEntryModal(); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.addJournalEntryBtn2?.addEventListener('click', () => this.openJournalEntryModal());
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
+        this.el.refreshDataBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.loadData();
+            this.toast('تم تحديث البيانات');
+            this.el.moreDropdown?.classList.remove('show');
+        });
+        this.el.addJournalEntryBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.openJournalEntryModal();
+            this.el.moreDropdown?.classList.remove('show');
+        });
+        if (this.el.addJournalEntryBtn2) this.el.addJournalEntryBtn2.addEventListener('click', () => this.openJournalEntryModal());
+        this.el.logoutBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.App) App.logout();
+            else window.location.href = './index.html';
+        });
 
-        this.el.tabBtns.forEach(btn => { btn.addEventListener('click', () => { this.el.tabBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); this.currentTab = btn.dataset.tab; this.renderTabContent(); }); });
+        this.el.tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.el.tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.currentTab = btn.dataset.tab;
+                this.renderTabContent();
+            });
+        });
 
         this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
@@ -65,26 +137,50 @@ const Accounting = {
 
     initSidebarUser() {
         const user = window.App?.getCurrentUser?.();
-        if (user) { if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U'; if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام'; }
+        if (user) {
+            if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
+            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
+        }
     },
 
     async loadData() {
         try {
-            if (Utils.isDBReady()) { this.journalEntries = await DB.getJournalEntries?.() || []; this.accounts = await DB.getAccounts?.() || []; }
-            else if (Utils.hasLocalDB()) { this.journalEntries = await localDB.getAll('journal_entries') || []; this.accounts = await localDB.getAll('accounts') || []; }
-            if (!this.accounts.length) { this.accounts = this.getDefaultAccounts(); }
+            if (Utils.isDBReady()) {
+                this.journalEntries = (await DB.getJournalEntries?.()) || [];
+                this.accounts = (await DB.getAccounts?.()) || [];
+            } else if (Utils.hasLocalDB()) {
+                this.journalEntries = (await localDB.getAll('journal_entries')) || [];
+                this.accounts = (await localDB.getAll('accounts')) || [];
+            }
+            if (!this.accounts.length) {
+                this.accounts = this.getDefaultAccounts();
+            }
             this.renderTabContent();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        }
     },
 
     getDefaultAccounts() {
         return [
-            { id: '1', name: 'الأصول', type: 'asset', parent: null }, { id: '11', name: 'الأصول المتداولة', type: 'asset', parent: '1' }, { id: '111', name: 'الصندوق', type: 'asset', parent: '11' }, { id: '112', name: 'البنك', type: 'asset', parent: '11' }, { id: '113', name: 'العملاء', type: 'asset', parent: '11' }, { id: '114', name: 'المخزون', type: 'asset', parent: '11' },
-            { id: '12', name: 'الأصول الثابتة', type: 'asset', parent: '1' }, { id: '121', name: 'معدات', type: 'asset', parent: '12' },
-            { id: '2', name: 'الخصوم', type: 'liability', parent: null }, { id: '21', name: 'الخصوم المتداولة', type: 'liability', parent: '2' }, { id: '211', name: 'الموردين', type: 'liability', parent: '21' },
-            { id: '3', name: 'حقوق الملكية', type: 'equity', parent: null }, { id: '31', name: 'رأس المال', type: 'equity', parent: '3' },
-            { id: '4', name: 'الإيرادات', type: 'revenue', parent: null }, { id: '41', name: 'مبيعات', type: 'revenue', parent: '4' },
-            { id: '5', name: 'المصروفات', type: 'expense', parent: null }, { id: '51', name: 'تكلفة المبيعات', type: 'expense', parent: '5' }, { id: '52', name: 'مصروفات عمومية', type: 'expense', parent: '5' }
+            { id: '1', name: 'الأصول', type: 'asset', parent: null },
+            { id: '11', name: 'الأصول المتداولة', type: 'asset', parent: '1' },
+            { id: '111', name: 'الصندوق', type: 'asset', parent: '11' },
+            { id: '112', name: 'البنك', type: 'asset', parent: '11' },
+            { id: '113', name: 'العملاء', type: 'asset', parent: '11' },
+            { id: '114', name: 'المخزون', type: 'asset', parent: '11' },
+            { id: '12', name: 'الأصول الثابتة', type: 'asset', parent: '1' },
+            { id: '121', name: 'معدات', type: 'asset', parent: '12' },
+            { id: '2', name: 'الخصوم', type: 'liability', parent: null },
+            { id: '21', name: 'الخصوم المتداولة', type: 'liability', parent: '2' },
+            { id: '211', name: 'الموردين', type: 'liability', parent: '21' },
+            { id: '3', name: 'حقوق الملكية', type: 'equity', parent: null },
+            { id: '31', name: 'رأس المال', type: 'equity', parent: '3' },
+            { id: '4', name: 'الإيرادات', type: 'revenue', parent: null },
+            { id: '41', name: 'مبيعات', type: 'revenue', parent: '4' },
+            { id: '5', name: 'المصروفات', type: 'expense', parent: null },
+            { id: '51', name: 'تكلفة المبيعات', type: 'expense', parent: '5' },
+            { id: '52', name: 'مصروفات عمومية', type: 'expense', parent: '5' }
         ];
     },
 
@@ -123,10 +219,14 @@ const Accounting = {
     },
 
     renderIncomeChart(revenue, expenses, net) {
-        const canvas = document.getElementById('incomeChart'); if (!canvas) return;
+        const canvas = document.getElementById('incomeChart');
+        if (!canvas) return;
         new Chart(canvas.getContext('2d'), {
             type: 'bar',
-            data: { labels: ['الإيرادات', 'المصروفات', 'صافي الربح'], datasets: [{ data: [revenue, expenses, net], backgroundColor: ['#10b981', '#ef4444', net >= 0 ? '#3b82f6' : '#ef4444'] }] },
+            data: {
+                labels: ['الإيرادات', 'المصروفات', 'صافي الربح'],
+                datasets: [{ data: [revenue, expenses, net], backgroundColor: ['#10b981', '#ef4444', net >= 0 ? '#3b82f6' : '#ef4444'] }]
+            },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
     },
@@ -134,87 +234,190 @@ const Accounting = {
     // ========== دفتر اليومية ==========
     renderJournal() {
         const sorted = [...this.journalEntries].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-        if (!sorted.length) { this.el.tabContent.innerHTML = '<div class="table-container"><p class="empty-message">لا توجد قيود محاسبية</p></div>'; return; }
+        if (!sorted.length) {
+            this.el.tabContent.innerHTML = '<div class="table-container"><p class="empty-message">لا توجد قيود محاسبية</p></div>';
+            return;
+        }
         let html = '<div class="table-container"><table><thead><tr><th>التاريخ</th><th>البيان</th><th>عدد الأسطر</th><th>إجراءات</th></tr></thead><tbody>';
-        sorted.forEach(entry => { html += `<tr><td>${Utils.formatDate(entry.date)}</td><td>${entry.description || '-'}</td><td>${entry.lines?.length || 0}</td><td class="action-icons"><i class="fas fa-eye" onclick="Accounting.viewEntry('${entry.id}')"></i></td></tr>`; });
-        html += '</tbody></table></div>'; this.el.tabContent.innerHTML = html;
+        for (const entry of sorted) {
+            html += `<tr><td>${Utils.formatDate(entry.date)}</td><td>${entry.description || '-'}</td><td>${entry.lines?.length || 0}</td><td class="action-icons"><i class="fas fa-eye" onclick="Accounting.viewEntry('${entry.id}')"></i></td></tr>`;
+        }
+        html += '</tbody></table></div>';
+        this.el.tabContent.innerHTML = html;
     },
 
     viewEntry(id) {
-        const entry = this.journalEntries.find(e => e.id === id); if (!entry) return;
-        let linesHtml = entry.lines?.map(line => `<tr><td>${this.getAccountName(line.accountId)}</td><td class="text-success">${line.debit > 0 ? Utils.formatMoney(line.debit) : ''}</td><td class="text-danger">${line.credit > 0 ? Utils.formatMoney(line.credit) : ''}</td></tr>`).join('') || '';
+        const entry = this.journalEntries.find(e => e.id === id);
+        if (!entry) return;
+        let linesHtml = '';
+        for (const line of entry.lines || []) {
+            linesHtml += `<tr><td>${this.getAccountName(line.accountId)}</td><td class="text-success">${line.debit > 0 ? Utils.formatMoney(line.debit) : ''}</td><td class="text-danger">${line.credit > 0 ? Utils.formatMoney(line.credit) : ''}</td></tr>`;
+        }
         this.el.tabContent.innerHTML = `<div class="table-container"><h3>تفاصيل القيد</h3><p><strong>التاريخ:</strong> ${Utils.formatDate(entry.date)}</p><p><strong>البيان:</strong> ${entry.description || '-'}</p><table><thead><tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr></thead><tbody>${linesHtml}</tbody></table><button class="btn btn-cancel" onclick="Accounting.renderJournal()">رجوع</button></div>`;
     },
 
     // ========== ميزان المراجعة ==========
     renderTrialBalance() {
-        const balances = this.calculateTrialBalance(); if (!balances.length) { this.el.tabContent.innerHTML = '<div class="table-container"><p class="empty-message">لا توجد حركات</p></div>'; return; }
+        const balances = this.calculateTrialBalance();
+        if (!balances.length) {
+            this.el.tabContent.innerHTML = '<div class="table-container"><p class="empty-message">لا توجد حركات</p></div>';
+            return;
+        }
         let totalDebit = 0, totalCredit = 0;
-        let rows = balances.map(b => { totalDebit += b.debit; totalCredit += b.credit; return `<tr><td>${b.accountName}</td><td>${Utils.formatMoney(b.debit)}</td><td>${Utils.formatMoney(b.credit)}</td></tr>`; }).join('');
+        let rows = '';
+        for (const b of balances) {
+            totalDebit += b.debit;
+            totalCredit += b.credit;
+            rows += `<tr><td>${b.accountName}</td><td>${Utils.formatMoney(b.debit)}</td><td>${Utils.formatMoney(b.credit)}</td></tr>`;
+        }
         rows += `<tr style="font-weight:bold;"><td>المجموع</td><td>${Utils.formatMoney(totalDebit)}</td><td>${Utils.formatMoney(totalCredit)}</td></tr>`;
         this.el.tabContent.innerHTML = `<div class="table-container"><table><thead><tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     },
 
     calculateTrialBalance() {
-        const map = new Map(); this.journalEntries.forEach(entry => { (entry.lines || []).forEach(line => { if (!map.has(line.accountId)) map.set(line.accountId, { accountName: this.getAccountName(line.accountId), debit: 0, credit: 0 }); const bal = map.get(line.accountId); bal.debit += line.debit || 0; bal.credit += line.credit || 0; }); });
+        const map = new Map();
+        for (const entry of this.journalEntries) {
+            for (const line of entry.lines || []) {
+                if (!map.has(line.accountId)) map.set(line.accountId, { accountName: this.getAccountName(line.accountId), debit: 0, credit: 0 });
+                const bal = map.get(line.accountId);
+                bal.debit += line.debit || 0;
+                bal.credit += line.credit || 0;
+            }
+        }
         return Array.from(map.values()).filter(b => b.debit > 0 || b.credit > 0);
     },
 
     // ========== قائمة الدخل ==========
     renderIncomeStatement() {
-        const revenueAccounts = this.accounts.filter(a => a.type === 'revenue'); const expenseAccounts = this.accounts.filter(a => a.type === 'expense');
-        const balances = this.calculateTrialBalanceAccountMap(); let totalRevenue = 0, totalExpenses = 0;
-        let revenueRows = revenueAccounts.map(acc => { const bal = balances.get(acc.id) || { debit: 0, credit: 0 }; const amount = bal.credit - bal.debit; totalRevenue += amount; return `<tr><td>${acc.name}</td><td>${Utils.formatMoney(amount)}</td></tr>`; }).join('');
-        let expenseRows = expenseAccounts.map(acc => { const bal = balances.get(acc.id) || { debit: 0, credit: 0 }; const amount = bal.debit - bal.credit; totalExpenses += amount; return `<tr><td>${acc.name}</td><td>${Utils.formatMoney(amount)}</td></tr>`; }).join('');
+        const revenueAccounts = this.accounts.filter(a => a.type === 'revenue');
+        const expenseAccounts = this.accounts.filter(a => a.type === 'expense');
+        const balances = this.calculateTrialBalanceAccountMap();
+        let totalRevenue = 0, totalExpenses = 0;
+        let revenueRows = '', expenseRows = '';
+        for (const acc of revenueAccounts) {
+            const bal = balances.get(acc.id) || { debit: 0, credit: 0 };
+            const amount = bal.credit - bal.debit;
+            totalRevenue += amount;
+            revenueRows += `<tr><td>${acc.name}</td><td>${Utils.formatMoney(amount)}</td></tr>`;
+        }
+        for (const acc of expenseAccounts) {
+            const bal = balances.get(acc.id) || { debit: 0, credit: 0 };
+            const amount = bal.debit - bal.credit;
+            totalExpenses += amount;
+            expenseRows += `<tr><td>${acc.name}</td><td>${Utils.formatMoney(amount)}</td></tr>`;
+        }
         const netIncome = totalRevenue - totalExpenses;
         this.el.tabContent.innerHTML = `<div class="table-container"><h3>الإيرادات</h3><table>${revenueRows || '<tr><td colspan="2">لا توجد إيرادات</td></tr>'}</table><h3 style="margin-top:20px;">المصروفات</h3><table>${expenseRows || '<tr><td colspan="2">لا توجد مصروفات</td></tr>'}</table><div style="display:flex;justify-content:space-between;padding:12px;font-weight:700;background:#f1f5f9;border-radius:8px;margin-top:12px;"><span>صافي الربح</span><span class="${netIncome>=0?'text-success':'text-danger'}">${Utils.formatMoney(netIncome)}</span></div></div>`;
     },
 
-    calculateTrialBalanceAccountMap() { const map = new Map(); this.journalEntries.forEach(entry => { (entry.lines || []).forEach(line => { if (!map.has(line.accountId)) map.set(line.accountId, { debit: 0, credit: 0 }); const bal = map.get(line.accountId); bal.debit += line.debit || 0; bal.credit += line.credit || 0; }); }); return map; },
+    calculateTrialBalanceAccountMap() {
+        const map = new Map();
+        for (const entry of this.journalEntries) {
+            for (const line of entry.lines || []) {
+                if (!map.has(line.accountId)) map.set(line.accountId, { debit: 0, credit: 0 });
+                const bal = map.get(line.accountId);
+                bal.debit += line.debit || 0;
+                bal.credit += line.credit || 0;
+            }
+        }
+        return map;
+    },
 
     // ========== شجرة الحسابات ==========
     renderChartOfAccounts() {
-        const renderTree = (parentId = null, level = 0) => { const children = this.accounts.filter(a => a.parent === parentId); if (!children.length) return ''; return children.map(acc => `<tr><td style="padding-right:${level*20}px;">${level>0?'↳ ':''}${acc.name}</td><td>${this.getAccountTypeName(acc.type)}</td></tr>${renderTree(acc.id, level+1)}`).join(''); };
+        const renderTree = (parentId = null, level = 0) => {
+            const children = this.accounts.filter(a => a.parent === parentId);
+            if (!children.length) return '';
+            let html = '';
+            for (const acc of children) {
+                html += `<tr><td style="padding-right:${level*20}px;">${level>0?'↳ ':''}${acc.name}</td><td>${this.getAccountTypeName(acc.type)}</td></tr>`;
+                html += renderTree(acc.id, level + 1);
+            }
+            return html;
+        };
         this.el.tabContent.innerHTML = `<div class="table-container"><table><thead><tr><th>الحساب</th><th>النوع</th></tr></thead><tbody>${renderTree()}</tbody></table></div>`;
     },
 
     // ========== دوال مساعدة ==========
-    calculateTotalByType(type) { const balances = this.calculateTrialBalanceAccountMap(); let total = 0; this.accounts.filter(a => a.type === type).forEach(acc => { const bal = balances.get(acc.id) || { debit: 0, credit: 0 }; total += (type === 'asset' || type === 'expense') ? bal.debit - bal.credit : bal.credit - bal.debit; }); return total; },
+    calculateTotalByType(type) {
+        const balances = this.calculateTrialBalanceAccountMap();
+        let total = 0;
+        for (const acc of this.accounts.filter(a => a.type === type)) {
+            const bal = balances.get(acc.id) || { debit: 0, credit: 0 };
+            total += (type === 'asset' || type === 'expense') ? bal.debit - bal.credit : bal.credit - bal.debit;
+        }
+        return total;
+    },
     getAccountName(id) { return this.accounts.find(a => a.id === id)?.name || id; },
     getAccountTypeName(type) { const map = { asset:'أصل', liability:'خصم', equity:'ملكية', revenue:'إيراد', expense:'مصروف' }; return map[type] || type; },
 
     // ========== إدارة القيود ==========
     openJournalEntryModal(entry = null) {
-        this.editingId = entry?.id || null; this.el.modalTitle.textContent = entry ? 'تعديل قيد' : 'قيد جديد';
-        this.el.entryDate.value = entry?.date || Utils.getToday(); this.el.entryDescription.value = entry?.description || ''; this.el.entryLines.innerHTML = '';
-        if (entry?.lines?.length) { entry.lines.forEach(line => this.addEntryLine(line)); } else { this.addEntryLine(); this.addEntryLine(); }
-        this.updateBalanceCheck(); this.el.journalEntryModal.classList.add('open');
+        this.editingId = entry?.id || null;
+        this.el.modalTitle.textContent = entry ? 'تعديل قيد' : 'قيد جديد';
+        this.el.entryDate.value = entry?.date || Utils.getToday();
+        this.el.entryDescription.value = entry?.description || '';
+        this.el.entryLines.innerHTML = '';
+        if (entry?.lines?.length) {
+            for (const line of entry.lines) this.addEntryLine(line);
+        } else {
+            this.addEntryLine();
+            this.addEntryLine();
+        }
+        this.updateBalanceCheck();
+        this.el.journalEntryModal.classList.add('open');
     },
     closeModal() { this.el.journalEntryModal.classList.remove('open'); },
 
     addEntryLine(line = null) {
-        const div = document.createElement('div'); div.className = 'entry-line';
+        const div = document.createElement('div');
+        div.className = 'entry-line';
         div.innerHTML = `<select class="account-select">${this.accounts.map(a => `<option value="${a.id}" ${line?.accountId===a.id?'selected':''}>${a.name}</option>`).join('')}</select><input type="number" class="debit-input" placeholder="مدين" step="0.01" min="0" value="${line?.debit||''}" oninput="Accounting.updateBalanceCheck()"><input type="number" class="credit-input" placeholder="دائن" step="0.01" min="0" value="${line?.credit||''}" oninput="Accounting.updateBalanceCheck()"><button type="button" class="remove-line-btn" onclick="this.closest('.entry-line').remove(); Accounting.updateBalanceCheck();"><i class="fas fa-times"></i></button>`;
-        this.el.entryLines.appendChild(div); this.updateBalanceCheck();
+        this.el.entryLines.appendChild(div);
+        this.updateBalanceCheck();
     },
 
     updateBalanceCheck() {
-        let totalDebit = 0, totalCredit = 0; this.el.entryLines.querySelectorAll('.entry-line').forEach(line => { totalDebit += parseFloat(line.querySelector('.debit-input')?.value) || 0; totalCredit += parseFloat(line.querySelector('.credit-input')?.value) || 0; });
-        this.el.totalDebit.textContent = Utils.formatMoney(totalDebit); this.el.totalCredit.textContent = Utils.formatMoney(totalCredit);
-        const diff = Math.abs(totalDebit - totalCredit); this.el.balanceDiff.textContent = Utils.formatMoney(diff);
-        this.el.balanceDiff.classList.toggle('text-danger', diff > 0.01); this.el.balanceDiff.classList.toggle('text-success', diff <= 0.01);
+        let totalDebit = 0, totalCredit = 0;
+        const lines = this.el.entryLines.querySelectorAll('.entry-line');
+        for (const line of lines) {
+            totalDebit += parseFloat(line.querySelector('.debit-input')?.value) || 0;
+            totalCredit += parseFloat(line.querySelector('.credit-input')?.value) || 0;
+        }
+        this.el.totalDebit.textContent = Utils.formatMoney(totalDebit);
+        this.el.totalCredit.textContent = Utils.formatMoney(totalCredit);
+        const diff = Math.abs(totalDebit - totalCredit);
+        this.el.balanceDiff.textContent = Utils.formatMoney(diff);
+        this.el.balanceDiff.classList.toggle('text-danger', diff > 0.01);
+        this.el.balanceDiff.classList.toggle('text-success', diff <= 0.01);
     },
 
     async saveJournalEntry() {
-        const date = this.el.entryDate?.value || Utils.getToday(); const description = this.el.entryDescription?.value.trim(); if (!description) { alert('البيان مطلوب'); return; }
-        const lines = []; let totalDebit = 0, totalCredit = 0;
-        this.el.entryLines.querySelectorAll('.entry-line').forEach(line => { const accountId = line.querySelector('.account-select')?.value; const debit = parseFloat(line.querySelector('.debit-input')?.value) || 0; const credit = parseFloat(line.querySelector('.credit-input')?.value) || 0; if (accountId && (debit > 0 || credit > 0)) { lines.push({ accountId, debit, credit }); totalDebit += debit; totalCredit += credit; } });
-        if (lines.length < 2) { alert('يجب إضافة سطرين على الأقل'); return; } if (Math.abs(totalDebit - totalCredit) > 0.01) { alert('القيد غير متوازن'); return; }
+        const date = this.el.entryDate?.value || Utils.getToday();
+        const description = this.el.entryDescription?.value.trim();
+        if (!description) { alert('البيان مطلوب'); return; }
+        const lines = [];
+        let totalDebit = 0, totalCredit = 0;
+        const entryLines = this.el.entryLines.querySelectorAll('.entry-line');
+        for (const line of entryLines) {
+            const accountId = line.querySelector('.account-select')?.value;
+            const debit = parseFloat(line.querySelector('.debit-input')?.value) || 0;
+            const credit = parseFloat(line.querySelector('.credit-input')?.value) || 0;
+            if (accountId && (debit > 0 || credit > 0)) {
+                lines.push({ accountId, debit, credit });
+                totalDebit += debit;
+                totalCredit += credit;
+            }
+        }
+        if (lines.length < 2) { alert('يجب إضافة سطرين على الأقل'); return; }
+        if (Math.abs(totalDebit - totalCredit) > 0.01) { alert('القيد غير متوازن'); return; }
         const entry = { id: this.editingId || (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()), date, description, lines };
         try {
-            if (Utils.isDBReady()) await DB.saveJournalEntry?.(entry); else if (Utils.hasLocalDB()) await localDB.put('journal_entries', entry);
-            else { const local = JSON.parse(localStorage.getItem('journal_entries') || '[]'); const idx = local.findIndex(e => e.id === entry.id); if (idx >= 0) local[idx] = entry; else local.push(entry); localStorage.setItem('journal_entries', JSON.stringify(local)); }
-            this.closeModal(); await this.loadData(); this.showToast('تم حفظ القيد بنجاح');
+            if (Utils.isDBReady()) await DB.saveJournalEntry?.(entry);
+            else if (Utils.hasLocalDB()) await localDB.put('journal_entries', entry);
+            this.closeModal();
+            await this.loadData();
+            this.showToast('تم حفظ القيد بنجاح');
         } catch (err) { console.error(err); alert('فشل حفظ القيد'); }
     },
 
