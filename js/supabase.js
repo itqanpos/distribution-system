@@ -121,7 +121,9 @@
                     .eq('id', data.user.id)
                     .single();
 
-                if (!profile.tenant_id) throw new Error('لا يوجد متجر مرتبط بهذا الحساب');
+                if (!profile.tenant_id && profile.role !== 'super_admin') {
+                    throw new Error('لا يوجد متجر مرتبط بهذا الحساب');
+                }
 
                 const session = {
                     id: data.user.id,
@@ -129,7 +131,7 @@
                     fullName: profile.full_name || data.user.email,
                     role: profile.role || 'rep',
                     avatar: profile.full_name?.charAt(0).toUpperCase() || 'U',
-                    tenant_id: profile.tenant_id,
+                    tenant_id: profile.tenant_id || null,
                     loginTime: new Date().toLocaleString('ar-EG')
                 };
                 localStorage.setItem('app_session', JSON.stringify(session));
@@ -144,7 +146,6 @@
 
         async signup(email, password, fullName, role = 'rep') {
             try {
-                // 1. إنشاء Tenant جديد
                 const { data: tenant, error: tenantError } = await supabaseClient
                     .from('tenants')
                     .insert({ name: `متجر ${fullName}`, plan: 'trial' })
@@ -152,7 +153,6 @@
                     .single();
                 if (tenantError) throw tenantError;
 
-                // 2. إنشاء حساب المستخدم
                 const { data, error } = await supabaseClient.auth.signUp({
                     email,
                     password,
@@ -160,7 +160,6 @@
                 });
                 if (error) throw error;
 
-                // 3. إنشاء بروفايل مرتبط بالـ Tenant
                 if (data.user) {
                     await supabaseClient.from('profiles').upsert({
                         id: data.user.id,
@@ -332,7 +331,7 @@
             });
         },
 
-        // ---------- الفواتير ----------
+        // ---------- الفواتير (كاملة + خفيفة) ----------
         async getInvoices() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -376,7 +375,7 @@
             });
         },
 
-        // ---------- المشتريات ----------
+        // ---------- المشتريات (كاملة + خفيفة) ----------
         async getPurchases() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -568,6 +567,27 @@
                 if (error) throw error;
                 return data;
             });
+        },
+
+        // ---------- دوال المشرف العام ----------
+        async getAllTenantsData() {
+            const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
+            if (error) {
+                // fallback: جلب مباشر من جدول tenants مع محاولة جلب الإحصائيات
+                const { data: tenants } = await supabaseClient
+                    .from('tenants')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                return tenants || [];
+            }
+            return data || [];
+        },
+        async deleteTenant(tenantId) {
+            const tables = ['invoices', 'purchases', 'transactions', 'returns', 'products', 'parties', 'reps', 'settings', 'journal_entries', 'accounts'];
+            for (const table of tables) {
+                await supabaseClient.from(table).delete().eq('tenant_id', tenantId);
+            }
+            await supabaseClient.from('tenants').delete().eq('id', tenantId);
         },
 
         // ---------- توليد رقم الفاتورة (معزول) ----------
