@@ -5,330 +5,268 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>حسابي · تسجيل الدخول</title>
     
-    <!-- أيقونة المتصفح (Favicon) إضافية -->
     <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
     
     <style>
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --danger: #ef4444;
-            --gray-50: #f8fafc;
-            --gray-100: #f1f5f9;
-            --gray-200: #e2e8f0;
-            --gray-300: #cbd5e1;
-            --gray-400: #94a3b8;
-            --gray-500: #64748b;
-            --gray-600: #475569;
-            --gray-700: #334155;
-            --gray-800: #1e293b;
-            --gray-900: #0f172a;
-            --radius-lg: 20px;
-            --radius-md: 14px;
-            --transition: 0.2s ease;
         }
-        
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 50%, #dbeafe 100%);
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 16px;
-            padding-top: calc(16px + var(--safe-top));
-            padding-bottom: calc(16px + var(--safe-bottom));
+            padding: 24px;
+            padding-top: calc(24px + var(--safe-top));
+            padding-bottom: calc(24px + var(--safe-bottom));
         }
-        
+
+        /* ===== بطاقة تسجيل الدخول ===== */
         .login-wrapper {
             width: 100%;
-            max-width: 460px; /* عرض أوسع قليلاً للتابلت */
+            max-width: 420px;
             animation: fadeInUp 0.6s ease-out;
         }
-        
+
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
+
         .login-card {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 36px 28px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.08);
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(30px);
+            border-radius: 24px;
+            padding: 40px 32px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
         }
-        
+
         .login-header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 36px;
         }
-        
+
         .app-icon-wrapper {
-            position: relative;
-            width: 80px;
-            height: 80px;
+            width: 72px;
+            height: 72px;
             margin: 0 auto 20px;
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 16px 32px rgba(59,130,246,0.3);
         }
-        
-        .app-icon-bg {
-            position: absolute;
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            border-radius: 22px;
-            box-shadow: 0 16px 32px rgba(59, 130, 246, 0.3);
-        }
-        
-        .app-icon-img {
-            position: relative;
-            z-index: 1;
-            width: 50px;
-            height: 50px;
-            object-fit: contain;
-            border-radius: 12px;
-        }
-        
-        .app-icon-fallback {
-            position: relative;
-            z-index: 1;
-            font-size: 36px;
+
+        .app-icon-wrapper i {
+            font-size: 32px;
             color: white;
         }
-        
+
         .app-title {
             font-size: 26px;
-            font-weight: 700;
-            color: var(--gray-900);
-            margin-bottom: 6px;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 8px;
         }
-        
+
+        .app-title span { color: #3b82f6; }
+
         .app-subtitle {
-            color: var(--gray-500);
+            color: #64748b;
             font-size: 14px;
         }
-        
+
         .form-group {
             margin-bottom: 18px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 6px;
             font-weight: 600;
-            font-size: 14px;
-            color: var(--gray-700);
+            font-size: 13px;
+            color: #94a3b8;
         }
-        
+
         .input-wrapper {
             position: relative;
         }
-        
+
         .input-wrapper i {
             position: absolute;
-            right: 14px;
+            right: 16px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--gray-400);
+            color: #475569;
             font-size: 18px;
-            transition: color var(--transition);
-            pointer-events: none; /* لتجنب حجب النقر */
+            transition: color 0.2s;
         }
-        
-        /* أيقونة العين لكلمة المرور */
-        .toggle-password {
-            right: auto !important;
-            left: 14px !important;
-            pointer-events: auto !important;
-            cursor: pointer;
-            z-index: 2;
-        }
-        
+
         .input-wrapper input {
             width: 100%;
-            padding: 14px 44px 14px 18px;
-            border: 2px solid var(--gray-200);
-            border-radius: var(--radius-md);
+            padding: 14px 48px 14px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
             font-size: 15px;
-            background: var(--gray-50);
-            transition: all var(--transition);
+            transition: border 0.3s;
             -webkit-tap-highlight-color: transparent;
         }
-        
+
         .input-wrapper input:focus {
             outline: none;
-            border-color: var(--primary);
-            background: white;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
         }
-        
-        /* المحدد الصحيح لتلوين أيقونة البريد والقفل */
+
         .input-wrapper input:focus ~ i {
-            color: var(--primary);
+            color: #3b82f6;
         }
-        
+
+        .input-wrapper input::placeholder {
+            color: #475569;
+        }
+
         .remember-row {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 20px;
         }
-        
+
         .remember-row input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            accent-color: var(--primary);
+            accent-color: #3b82f6;
             cursor: pointer;
         }
-        
+
         .remember-row span {
-            font-size: 14px;
-            color: var(--gray-600);
+            font-size: 13px;
+            color: #94a3b8;
             cursor: pointer;
         }
-        
+
         .btn-login {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             background: linear-gradient(135deg, #3b82f6, #2563eb);
             color: white;
             border: none;
-            border-radius: var(--radius-md);
+            border-radius: 50px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: all var(--transition);
+            transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
+            font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        
+
+        .btn-login:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(37,99,235,0.3);
+        }
+
         .btn-login:active {
             transform: scale(0.98);
         }
-        
+
         .btn-login.loading {
             pointer-events: none;
             opacity: 0.7;
         }
-        
-        .forgot-link {
-            text-align: center;
-            margin-top: 18px;
-        }
-        
-        .forgot-link a {
-            color: var(--primary);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
+
         .error-box {
-            background: #fef2f2;
-            color: var(--danger);
-            padding: 12px 14px;
-            border-radius: var(--radius-md);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 12px 16px;
+            border-radius: 12px;
             margin-bottom: 18px;
             font-size: 13px;
             font-weight: 500;
             display: none;
             align-items: center;
-            gap: 8px;
-            border: 1px solid #fecaca;
+            gap: 10px;
         }
-        
+
         .error-box.show {
             display: flex;
             animation: shake 0.4s ease;
         }
-        
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
         }
-        
+
         .spinner {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255,255,255,0.3);
             border-radius: 50%;
             border-top-color: white;
             animation: spin 0.8s linear infinite;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
+
+        .signup-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .signup-link a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
         .footer-text {
             text-align: center;
             margin-top: 20px;
-            color: var(--gray-400);
+            color: #475569;
             font-size: 12px;
         }
-        
-        /* تحسينات الشاشات الصغيرة جداً */
-        @media (max-width: 400px) {
+
+        @media (max-width: 480px) {
             .login-card {
-                padding: 28px 18px;
-                border-radius: 24px;
-            }
-            .app-title {
-                font-size: 22px;
-            }
-            .btn-login {
-                font-size: 15px;
-                padding: 14px;
-            }
-        }
-        
-        /* تحسين وضع التابلت الأفقي */
-        @media (min-width: 768px) and (max-height: 700px) {
-            .login-card {
-                padding: 24px 32px;
-            }
-            .login-header {
-                margin-bottom: 20px;
-            }
-            .app-icon-wrapper {
-                width: 60px;
-                height: 60px;
-                margin-bottom: 12px;
-            }
-            .app-icon-bg {
-                width: 60px;
-                height: 60px;
-                border-radius: 16px;
-            }
-            .app-icon-img, .app-icon-fallback {
-                width: 36px;
-                height: 36px;
-                font-size: 28px;
+                padding: 28px 20px;
+                border-radius: 20px;
             }
         }
     </style>
@@ -338,12 +276,9 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="app-icon-wrapper">
-                    <div class="app-icon-bg"></div>
-                    <img src="./icons/icon-192x192.png" alt="حسابي" class="app-icon-img"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <i class="fas fa-store app-icon-fallback" style="display:none;"></i>
+                    <i class="fas fa-store"></i>
                 </div>
-                <h1 class="app-title">حسابي</h1>
+                <h1 class="app-title"><span>📊</span> حسابي</h1>
                 <p class="app-subtitle">نظام إدارة المبيعات والتوزيع</p>
             </div>
             
@@ -366,7 +301,6 @@
                     <div class="input-wrapper">
                         <input type="password" id="password" placeholder="أدخل كلمة المرور" required autocomplete="current-password" dir="ltr">
                         <i class="fas fa-lock"></i>
-                        <i class="fas fa-eye-slash toggle-password" id="togglePassword" title="إظهار كلمة المرور"></i>
                     </div>
                 </div>
                 
@@ -378,15 +312,21 @@
                 <button type="submit" class="btn-login" id="loginBtn">
                     <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
                 </button>
-                
-                <div class="forgot-link">
-                    <a href="#" onclick="alert('سيتم توجيهك لاستعادة كلمة المرور قريباً.')">نسيت كلمة المرور؟</a>
-                </div>
             </form>
+            
+            <p class="signup-link">
+                ليس لديك حساب؟ <a href="./signup.html">أنشئ متجرك الآن</a>
+            </p>
             
             <p class="footer-text">© 2025 حسابي · جميع الحقوق محفوظة</p>
         </div>
     </div>
+    
+    <!-- مكتبات Supabase والتطبيق -->
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
     
     <script>
         'use strict';
@@ -399,21 +339,10 @@
             }
         })();
         
-        // ✅ زر إظهار/إخفاء كلمة المرور
-        const togglePassword = document.getElementById('togglePassword');
-        const passwordInput = document.getElementById('password');
-        
-        togglePassword.addEventListener('click', function() {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            this.classList.toggle('fa-eye');
-            this.classList.toggle('fa-eye-slash');
-            this.title = type === 'password' ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور';
-        });
-        
         // معالجة تسجيل الدخول
         const form = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
         const loginBtn = document.getElementById('loginBtn');
         const errorBox = document.getElementById('errorBox');
         const errorText = document.getElementById('errorText');
@@ -466,13 +395,11 @@
             setLoading(true);
             
             try {
-                let result;
-                if (window.App && App.login) {
-                    result = await App.login(email, password);
-                } else {
-                    console.error('نظام App غير محمل. تأكد من تضمين ملفات js/db-local.js و js/supabase.js بشكل صحيح.');
-                    throw new Error('نظام المصادقة غير متوفر. تأكد من اتصالك بالإنترنت وتحميل الملفات.');
+                if (!window.App || !App.login) {
+                    throw new Error('نظام المصادقة غير متوفر. تأكد من اتصالك بالإنترنت.');
                 }
+                
+                const result = await App.login(email, password);
                 
                 if (result.success) {
                     if (rememberMe) {
@@ -495,6 +422,7 @@
         emailInput.addEventListener('input', hideError);
         passwordInput.addEventListener('input', hideError);
         
+        // تسجيل Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./service-worker.js').catch(() => {});
         }
