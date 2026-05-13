@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (Premium UI متوافق)
+   dashboard.js - لوحة التحكم (Premium UI + سرعة)
    ============================================= */
 'use strict';
 
@@ -195,7 +195,6 @@ const Dashboard = {
             this.updateTablesDisplay();
             this.renderChart();
             
-            // إظهار البطاقات بعد التحديث
             document.querySelectorAll('.premium-card').forEach(c => {
                 c.style.opacity = '1';
                 c.style.transition = 'opacity 0.3s ease';
@@ -219,8 +218,8 @@ const Dashboard = {
             if (this.state.ready === true && window.App && window.App.DB) {
                 const DB = window.App.DB;
                 [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                    DB.getInvoicesLight().catch(()=>[]),
-                    DB.getPurchasesLight().catch(()=>[]),
+                    DB.getInvoicesLight().catch(()=>[]),   // ✅ خفيفة
+                    DB.getPurchasesLight().catch(()=>[]), // ✅ خفيفة
                     DB.getParties('customer').catch(()=>[]),
                     DB.getProducts().catch(()=>[]),
                     DB.getTransactions().catch(()=>[]),
@@ -237,7 +236,6 @@ const Dashboard = {
                 settings = s?.data || {};
             }
 
-            // استخدام for...of للسرعة
             let salesToday = 0, purchasesToday = 0;
             for (const inv of invoices) {
                 if (inv.date === today && inv.type === 'sale') salesToday += inv.total || 0;
@@ -284,7 +282,7 @@ const Dashboard = {
     async loadRecentInvoices() {
         try {
             let invs = [];
-            if (this.state.ready === true && window.App && window.App.DB) invs = await window.App.DB.getInvoicesLight().catch(()=>[]);
+            if (this.state.ready === true && window.App && window.App.DB) invs = await window.App.DB.getInvoicesLight().catch(()=>[]); // ✅ خفيفة
             else if (window.localDB) invs = await localDB.getAll('invoices') || [];
             this.state.recentInvoices = invs.filter(i => i.type === 'sale').sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
         } catch (e) {}
@@ -293,22 +291,19 @@ const Dashboard = {
     async loadRecentPurchases() {
         try {
             let pur = [];
-            if (this.state.ready === true && window.App && window.App.DB) pur = await window.App.DB.getPurchasesLight().catch(()=>[]);
+            if (this.state.ready === true && window.App && window.App.DB) pur = await window.App.DB.getPurchasesLight().catch(()=>[]); // ✅ خفيفة
             else if (window.localDB) pur = await localDB.getAll('purchases') || [];
             this.state.recentPurchases = pur.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
         } catch (e) {}
     },
 
-    // ✅ تحديث البطاقات المتوافقة مع Premium UI
     updateStatsUI() {
         const s = this.state.stats;
-        // التحديث المباشر للبطاقات باستخدام المعرفات الفريدة
         if (this.el.salesToday) this.el.salesToday.textContent = U.formatMoney(s.salesToday);
         if (this.el.purchasesToday) this.el.purchasesToday.textContent = U.formatMoney(s.purchasesToday);
         if (this.el.customersCount) this.el.customersCount.textContent = s.customers;
         if (this.el.cashBalance) this.el.cashBalance.textContent = U.formatMoney(s.cash);
 
-        // تحديث الاتجاهات
         const trendEls = document.querySelectorAll('.premium-card .card-bottom span');
         if (trendEls.length >= 4) {
             trendEls[0].textContent = '↑ حتى اللحظة';
@@ -317,7 +312,6 @@ const Dashboard = {
             trendEls[3].textContent = '↓ الرصيد الحالي';
         }
 
-        // تحديث بطاقات المقارنة
         const comparisonValues = document.querySelectorAll('.comparison-value');
         if (comparisonValues.length >= 3) {
             const weekly = s.weeklySales || 0;
