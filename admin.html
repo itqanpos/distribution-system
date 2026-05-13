@@ -6,6 +6,11 @@
     <title>لوحة تحكم المشرف · حسابي</title>
     
     <link rel="icon" href="./icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -48,7 +53,12 @@
             padding-top: var(--safe-top);
         }
         .navbar h2 { font-size: 1.3rem; font-weight: 800; color: white; }
-        .navbar .logout-btn { color: var(--text-secondary); cursor: pointer; transition: 0.2s; }
+        .navbar h2 i { color: var(--warning); margin-left: 10px; }
+        .navbar .logout-btn {
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-family: inherit; font-size: 0.9rem;
+            transition: 0.2s; display: flex; align-items: center; gap: 6px;
+        }
         .navbar .logout-btn:hover { color: var(--danger); }
         
         .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
@@ -68,7 +78,10 @@
             border: 1px solid var(--border); overflow-x: auto;
         }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
-        th { text-align: right; padding: 12px 14px; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        th {
+            text-align: right; padding: 12px 14px; color: var(--text-secondary);
+            font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border);
+        }
         td { padding: 14px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
         tr:hover td { background: rgba(255,255,255,0.02); }
         .badge {
@@ -85,7 +98,6 @@
         }
         .btn-danger { background: rgba(239,68,68,0.2); color: #ef4444; }
         .btn-danger:hover { background: rgba(239,68,68,0.4); }
-        .btn-primary { background: var(--primary); color: white; }
         
         .empty { text-align: center; padding: 40px; color: var(--text-secondary); }
         .loading { text-align: center; padding: 40px; }
@@ -93,8 +105,8 @@
 </head>
 <body>
     <nav class="navbar">
-        <h2><i class="fas fa-shield-halved" style="color:var(--primary); margin-left:8px;"></i> لوحة تحكم المشرف</h2>
-        <span class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</span>
+        <h2><i class="fas fa-shield-halved"></i> لوحة تحكم المشرف</h2>
+        <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
     </nav>
 
     <main class="container">
@@ -132,14 +144,24 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        // التحقق من الصلاحية عند تحميل الصفحة
         async function checkAccess() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { window.location.href = './index.html'; return null; }
+            if (!user) {
+                window.location.href = './admin-login.html';
+                return null;
+            }
 
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
             if (profile?.role !== 'super_admin') {
                 alert('غير مصرح لك بالوصول إلى هذه الصفحة');
-                window.location.href = './dashboard.html';
+                await supabase.auth.signOut();
+                window.location.href = './admin-login.html';
                 return null;
             }
             return user;
@@ -165,66 +187,93 @@
             if (!user) return;
 
             try {
+                // استخدام الدالة المخزنة التي تتجاوز RLS
                 const { data, error } = await supabase.rpc('get_all_tenants_data');
-                if (error) throw error;
-
-                const tenants = data || [];
                 
-                // إحصائيات
-                const total = tenants.length;
-                const trial = tenants.filter(t => t.plan === 'trial').length;
-                const active = total - trial;
-                const allSales = tenants.reduce((s, t) => s + (Number(t.total_sales) || 0), 0);
-
-                document.getElementById('totalTenants').textContent = total;
-                document.getElementById('trialCount').textContent = trial;
-                document.getElementById('activeCount').textContent = active;
-                document.getElementById('totalSales').textContent = formatMoney(allSales);
-
-                // جدول
-                const tbody = document.getElementById('tenantsBody');
-                if (!tenants.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="empty">لا توجد متاجر مسجلة</td></tr>';
+                if (error) {
+                    // إذا كانت الدالة غير موجودة، نستخدم الطريقة المباشرة
+                    console.warn('RPC غير موجودة، استخدام الطريقة المباشرة:', error);
+                    const { data: tenants } = await supabase
+                        .from('tenants')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    renderData(tenants || []);
                     return;
                 }
 
-                tbody.innerHTML = tenants.map(t => `
-                    <tr>
-                        <td><strong>${t.name || '—'}</strong></td>
-                        <td>${getBadge(t.plan)}</td>
-                        <td>${formatDate(t.created_at)}</td>
-                        <td>${t.invoices_count || 0}</td>
-                        <td>${t.products_count || 0}</td>
-                        <td>${t.customers_count || 0}</td>
-                        <td>${formatMoney(t.total_sales)}</td>
-                        <td>
-                            <button class="action-btn btn-danger" onclick="deleteTenant('${t.id}')"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `).join('');
-
+                renderData(data || []);
             } catch (err) {
-                console.error(err);
-                document.getElementById('tenantsBody').innerHTML = '<tr><td colspan="8" class="empty">فشل تحميل البيانات</td></tr>';
+                console.error('فشل تحميل البيانات:', err);
+                document.getElementById('tenantsBody').innerHTML = 
+                    '<tr><td colspan="8" class="empty">فشل تحميل البيانات. تأكد من تنفيذ كود SQL الخاص بالمشرف.</td></tr>';
             }
+        }
+
+        function renderData(tenants) {
+            // إحصائيات
+            const total = tenants.length;
+            const trial = tenants.filter(t => t.plan === 'trial').length;
+            const active = total - trial;
+            const allSales = tenants.reduce((s, t) => s + (Number(t.total_sales) || 0), 0);
+
+            document.getElementById('totalTenants').textContent = total;
+            document.getElementById('trialCount').textContent = trial;
+            document.getElementById('activeCount').textContent = active;
+            document.getElementById('totalSales').textContent = formatMoney(allSales);
+
+            // جدول
+            const tbody = document.getElementById('tenantsBody');
+            if (!tenants.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty">لا توجد متاجر مسجلة</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tenants.map(t => `
+                <tr>
+                    <td><strong>${t.name || '—'}</strong></td>
+                    <td>${getBadge(t.plan)}</td>
+                    <td>${formatDate(t.created_at)}</td>
+                    <td>${t.invoices_count || 0}</td>
+                    <td>${t.products_count || 0}</td>
+                    <td>${t.customers_count || 0}</td>
+                    <td>${formatMoney(t.total_sales)}</td>
+                    <td>
+                        <button class="action-btn btn-danger" onclick="deleteTenant('${t.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         async function deleteTenant(id) {
-            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟')) return;
+            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+            
             try {
-                // حذف tenant والبيانات المرتبطة (يجب تفعيل CASCADE أو حذف يدوي)
+                // حذف جميع البيانات المرتبطة أولاً
+                const tables = ['invoices', 'purchases', 'transactions', 'returns', 'products', 'parties', 'reps', 'settings', 'journal_entries', 'accounts'];
+                
+                for (const table of tables) {
+                    await supabase.from(table).delete().eq('tenant_id', id);
+                }
+                
+                // حذف المستأجر نفسه
                 await supabase.from('tenants').delete().eq('id', id);
-                loadData();
+                
+                loadData(); // إعادة تحميل البيانات
             } catch (e) {
-                alert('فشل الحذف: ' + e.message);
+                alert('فشل الحذف: ' + (e.message || 'خطأ غير معروف'));
             }
         }
 
-        function logout() {
-            supabase.auth.signOut();
-            window.location.href = './index.html';
-        }
+        // تسجيل الخروج
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.href = './admin-login.html';
+        });
 
+        // بدء التحميل
         loadData();
     </script>
 </body>
