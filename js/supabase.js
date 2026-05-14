@@ -1,5 +1,5 @@
 /* =============================================
-   supabase.js - إصدار SaaS النهائي المُصلح
+   supabase.js - الإصدار النهائي المُوحَّد (SaaS)
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -114,7 +114,6 @@
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
 
-                // ✅ جلب أو إنشاء البروفايل
                 let profile = null;
                 const { data: existingProfile } = await supabaseClient
                     .from('profiles')
@@ -125,46 +124,36 @@
                 if (existingProfile) {
                     profile = existingProfile;
                 } else {
-                    // إنشاء profile جديد
                     const { data: newProfile, error: insertError } = await supabaseClient
                         .from('profiles')
                         .upsert({
                             id: data.user.id,
                             full_name: data.user.user_metadata?.full_name || data.user.email,
                             role: 'admin',
-                            tenant_id: null // مؤقتاً
+                            tenant_id: null
                         }, { onConflict: 'id' })
                         .select()
                         .single();
-                    
                     if (insertError) throw insertError;
                     profile = newProfile;
                 }
 
-                // ✅ التأكد من وجود tenant_id (لغير المشرف العام)
                 if (profile.role !== 'super_admin' && !profile.tenant_id) {
                     console.log('🔄 إنشاء Tenant تلقائي للمستخدم...');
-                    
-                    // إنشاء tenant جديد
                     const { data: tenant, error: tenantError } = await supabaseClient
                         .from('tenants')
                         .insert({ name: `متجر ${profile.full_name || data.user.email}`, plan: 'trial' })
                         .select()
                         .single();
-                    
                     if (tenantError) {
                         console.error('❌ فشل إنشاء tenant:', tenantError);
                         throw new Error('فشل إنشاء المتجر تلقائياً');
                     }
-                    
                     console.log('✅ تم إنشاء Tenant:', tenant.id);
-                    
-                    // ربط tenant بالبروفايل
                     const { error: updateError } = await supabaseClient
                         .from('profiles')
                         .update({ tenant_id: tenant.id })
                         .eq('id', data.user.id);
-                    
                     if (updateError) {
                         console.error('❌ فشل ربط tenant بالبروفايل:', updateError);
                     } else {
@@ -194,32 +183,62 @@
             }
         },
 
-        async signup(email, password, fullName, role = 'rep') {
+        async signup(email, password, fullName, role = 'admin') {
             try {
-                const { data: tenant, error: tenantError } = await supabaseClient
-                    .from('tenants')
-                    .insert({ name: `متجر ${fullName}`, plan: 'trial' })
-                    .select()
-                    .single();
-                if (tenantError) throw tenantError;
-
                 const { data, error } = await supabaseClient.auth.signUp({
                     email,
                     password,
-                    options: { data: { full_name: fullName } }
+                    options: {
+                        data: { full_name: fullName },
+                        emailRedirectTo: window.location.origin + '/index.html'
+                    }
                 });
                 if (error) throw error;
 
                 if (data.user) {
-                    await supabaseClient.from('profiles').upsert({
-                        id: data.user.id,
-                        full_name: fullName,
-                        role: role,
-                        tenant_id: tenant.id
-                    }, { onConflict: 'id' });
+                    const { data: tenant, error: tenantError } = await supabaseClient
+                        .from('tenants')
+                        .insert({ name: `متجر ${fullName}`, plan: 'trial' })
+                        .select()
+                        .single();
+                    if (tenantError) throw tenantError;
+
+                    const { error: profileError } = await supabaseClient
+                        .from('profiles')
+                        .upsert({
+                            id: data.user.id,
+                            full_name: fullName,
+                            role: role,
+                            tenant_id: tenant.id
+                        }, { onConflict: 'id' });
+                    if (profileError) throw profileError;
+
+                    const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                    if (!loginError && loginData.user) {
+                        const session = {
+                            id: data.user.id,
+                            email: data.user.email,
+                            fullName: fullName,
+                            role: role,
+                            avatar: fullName.charAt(0).toUpperCase(),
+                            tenant_id: tenant.id,
+                            loginTime: new Date().toLocaleString('ar-EG')
+                        };
+                        localStorage.setItem('app_session', JSON.stringify(session));
+                        return { success: true, message: 'تم إنشاء الحساب وتوجيهك للوحة التحكم.' };
+                    } else {
+                        return {
+                            success: true,
+                            message: 'تم إنشاء الحساب بنجاح. الرجاء تفعيل بريدك الإلكتروني ثم تسجيل الدخول.'
+                        };
+                    }
                 }
 
-                return { success: true, message: 'تم إنشاء الحساب بنجاح.' };
+                return { success: false, message: 'حدث خطأ غير متوقع أثناء إنشاء الحساب.' };
             } catch (err) {
                 console.error('Signup error:', err);
                 return { success: false, message: err.message };
@@ -276,6 +295,7 @@
 
     // ==================== دوال قاعدة البيانات (SaaS) ====================
     window.DB = {
+        // ---------- المنتجات ----------
         async getProducts() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -314,6 +334,7 @@
             }
         },
 
+        // ---------- الأطراف (عملاء وموردين) ----------
         async getParties(type = null) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -349,6 +370,7 @@
             }
         },
 
+        // ---------- المندوبين ----------
         async getReps() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -378,6 +400,7 @@
             });
         },
 
+        // ---------- الفواتير (كاملة + خفيفة) ----------
         async getInvoices() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -421,6 +444,7 @@
             });
         },
 
+        // ---------- المشتريات (كاملة + خفيفة) ----------
         async getPurchases() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -463,6 +487,7 @@
             });
         },
 
+        // ---------- المعاملات المالية ----------
         async getTransactions() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -492,6 +517,7 @@
             });
         },
 
+        // ---------- المرتجعات ----------
         async getReturns(type = null) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -519,6 +545,7 @@
             });
         },
 
+        // ---------- الإعدادات ----------
         async getSettings() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return {};
@@ -566,6 +593,7 @@
             return s;
         },
 
+        // ---------- القيود المحاسبية ----------
         async getJournalEntries() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -595,6 +623,7 @@
             });
         },
 
+        // ---------- الحسابات ----------
         async getAccounts() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -609,6 +638,7 @@
             });
         },
 
+        // ---------- دوال المشرف العام ----------
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) {
@@ -628,6 +658,7 @@
             await supabaseClient.from('tenants').delete().eq('id', tenantId);
         },
 
+        // ---------- توليد رقم الفاتورة (معزول) ----------
         generateInvoiceNumber: async function() {
             const tenantId = getCurrentTenantId();
             const fallback = () => {
