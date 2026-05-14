@@ -183,62 +183,48 @@
             }
         },
 
-        async signup(email, password, fullName, role = 'admin') {
+        async signup(email, password, fullName, role = 'admin', tenantName = '', phone = '') {
             try {
+                // 1. إنشاء المستأجر أولاً بالاسم المطلوب
+                const { data: tenant, error: tenantError } = await supabaseClient
+                    .from('tenants')
+                    .insert({ name: tenantName || `متجر ${fullName}`, plan: 'trial' })
+                    .select()
+                    .single();
+                if (tenantError) throw tenantError;
+
+                // 2. إنشاء حساب المستخدم في Auth
                 const { data, error } = await supabaseClient.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: { full_name: fullName },
-                        emailRedirectTo: window.location.origin + '/index.html'
-                    }
+                    email, password,
+                    options: { data: { full_name: fullName, phone: phone } }
                 });
                 if (error) throw error;
 
+                // 3. إنشاء البروفايل
                 if (data.user) {
-                    const { data: tenant, error: tenantError } = await supabaseClient
-                        .from('tenants')
-                        .insert({ name: `متجر ${fullName}`, plan: 'trial' })
-                        .select()
-                        .single();
-                    if (tenantError) throw tenantError;
+                    await supabaseClient.from('profiles').upsert({
+                        id: data.user.id,
+                        full_name: fullName,
+                        role: role,
+                        phone: phone,
+                        tenant_id: tenant.id
+                    }, { onConflict: 'id' });
 
-                    const { error: profileError } = await supabaseClient
-                        .from('profiles')
-                        .upsert({
-                            id: data.user.id,
-                            full_name: fullName,
-                            role: role,
-                            tenant_id: tenant.id
-                        }, { onConflict: 'id' });
-                    if (profileError) throw profileError;
-
-                    const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({
-                        email,
-                        password
-                    });
-
+                    // 4. محاولة تسجيل الدخول المباشر
+                    const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (!loginError && loginData.user) {
-                        const session = {
-                            id: data.user.id,
-                            email: data.user.email,
-                            fullName: fullName,
-                            role: role,
+                        localStorage.setItem('app_session', JSON.stringify({
+                            id: data.user.id, email, fullName, role,
                             avatar: fullName.charAt(0).toUpperCase(),
                             tenant_id: tenant.id,
                             loginTime: new Date().toLocaleString('ar-EG')
-                        };
-                        localStorage.setItem('app_session', JSON.stringify(session));
-                        return { success: true, message: 'تم إنشاء الحساب وتوجيهك للوحة التحكم.' };
+                        }));
+                        return { success: true, message: 'تم إنشاء الحساب وتوجيهك.' };
                     } else {
-                        return {
-                            success: true,
-                            message: 'تم إنشاء الحساب بنجاح. الرجاء تفعيل بريدك الإلكتروني ثم تسجيل الدخول.'
-                        };
+                        return { success: true, message: 'تم الإنشاء. يرجى تفعيل البريد الإلكتروني.' };
                     }
                 }
-
-                return { success: false, message: 'حدث خطأ غير متوقع أثناء إنشاء الحساب.' };
+                return { success: false, message: 'حدث خطأ غير متوقع.' };
             } catch (err) {
                 console.error('Signup error:', err);
                 return { success: false, message: err.message };
