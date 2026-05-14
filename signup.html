@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -21,7 +20,6 @@
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
@@ -35,18 +33,15 @@
             padding-top: calc(24px + var(--safe-top));
             padding-bottom: calc(24px + var(--safe-bottom));
         }
-
         .signup-wrapper {
             width: 100%;
-            max-width: 460px;
+            max-width: 480px;
             animation: fadeInUp 0.6s ease-out;
         }
-
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
         .signup-card {
             background: rgba(30, 41, 59, 0.8);
             backdrop-filter: blur(30px);
@@ -55,339 +50,153 @@
             border: 1px solid rgba(255,255,255,0.08);
             box-shadow: 0 25px 60px rgba(0,0,0,0.3);
         }
-
-        .signup-header {
-            text-align: center;
-            margin-bottom: 36px;
-        }
-
+        .signup-header { text-align: center; margin-bottom: 32px; }
         .app-icon-wrapper {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 20px;
+            width: 72px; height: 72px; margin: 0 auto 20px;
             background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: 18px; display: flex; align-items: center; justify-content: center;
             box-shadow: 0 16px 32px rgba(59,130,246,0.3);
         }
-
-        .app-icon-wrapper i {
-            font-size: 32px;
-            color: white;
-        }
-
-        .app-title {
-            font-size: 26px;
-            font-weight: 800;
-            color: white;
-            margin-bottom: 8px;
-        }
-
+        .app-icon-wrapper i { font-size: 32px; color: white; }
+        .app-title { font-size: 26px; font-weight: 800; color: white; margin-bottom: 8px; }
         .app-title span { color: #3b82f6; }
-
-        .app-subtitle {
-            color: #64748b;
-            font-size: 14px;
-        }
-
-        .form-group {
-            margin-bottom: 18px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            font-size: 13px;
-            color: #94a3b8;
-        }
-
-        .input-wrapper {
-            position: relative;
-        }
-
+        .app-subtitle { color: #64748b; font-size: 14px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #94a3b8; }
+        .input-wrapper { position: relative; }
         .input-wrapper i {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #475569;
-            font-size: 18px;
-            transition: color 0.2s;
+            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            color: #475569; font-size: 18px; transition: color 0.2s;
         }
-
         .input-wrapper input {
-            width: 100%;
-            padding: 14px 48px 14px 20px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            color: white;
-            font-family: inherit;
-            font-size: 15px;
-            transition: border 0.3s;
-            -webkit-tap-highlight-color: transparent;
+            width: 100%; padding: 14px 48px 14px 20px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; color: white; font-family: inherit; font-size: 15px;
+            transition: border 0.3s; -webkit-tap-highlight-color: transparent;
         }
-
         .input-wrapper input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+            outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
         }
-
-        .input-wrapper input:focus ~ i {
-            color: #3b82f6;
-        }
-
-        .input-wrapper input::placeholder {
-            color: #475569;
-        }
-
-        .plans {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
+        .input-wrapper input:focus ~ i { color: #3b82f6; }
+        .input-wrapper input::placeholder { color: #475569; }
+        .plans { display: flex; gap: 12px; margin-bottom: 20px; }
         .plan-card {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            text-align: center;
-            cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.08);
-            transition: all 0.3s;
+            flex: 1; padding: 14px; border-radius: 12px; text-align: center;
+            cursor: pointer; border: 2px solid rgba(255,255,255,0.08); transition: all 0.3s;
         }
-
-        .plan-card.selected {
-            border-color: #3b82f6;
-            background: rgba(59,130,246,0.1);
-        }
-
-        .plan-card h4 {
-            color: white;
-            font-size: 0.9rem;
-            margin-bottom: 2px;
-        }
-
-        .plan-card span {
-            color: #64748b;
-            font-size: 0.75rem;
-        }
-
+        .plan-card.selected { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .plan-card h4 { color: white; font-size: 0.9rem; margin-bottom: 2px; }
+        .plan-card span { color: #64748b; font-size: 0.75rem; }
         .btn-signup {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-family: inherit;
-            -webkit-tap-highlight-color: transparent;
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center;
+            gap: 10px; font-family: inherit; -webkit-tap-highlight-color: transparent;
         }
-
-        .btn-signup:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(37,99,235,0.3);
-        }
-
-        .btn-signup:active {
-            transform: scale(0.98);
-        }
-
-        .btn-signup.loading {
-            pointer-events: none;
-            opacity: 0.7;
-        }
-
+        .btn-signup:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(37,99,235,0.3); }
+        .btn-signup:active { transform: scale(0.98); }
+        .btn-signup.loading { pointer-events: none; opacity: 0.7; }
         .error-box {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #ef4444;
-            padding: 12px 16px;
-            border-radius: 12px;
-            margin-bottom: 18px;
-            font-size: 13px;
-            font-weight: 500;
-            display: none;
-            align-items: center;
-            gap: 10px;
+            background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;
+            font-size: 13px; font-weight: 500; display: none; align-items: center; gap: 10px;
         }
-
-        .error-box.show {
-            display: flex;
-            animation: shake 0.4s ease;
-        }
-
+        .error-box.show { display: flex; animation: shake 0.4s ease; }
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
+            0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); }
         }
-
         .success-box {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #10b981;
-            padding: 12px 16px;
-            border-radius: 12px;
-            margin-bottom: 18px;
-            font-size: 13px;
-            font-weight: 500;
-            display: none;
-            align-items: center;
-            gap: 10px;
+            background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;
+            font-size: 13px; font-weight: 500; display: none; align-items: center; gap: 10px;
         }
-
-        .success-box.show {
-            display: flex;
-        }
-
+        .success-box.show { display: flex; }
         .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 0.8s linear infinite;
+            display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .login-link {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #64748b;
-        }
-
-        .login-link a {
-            color: #3b82f6;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .login-link a:hover {
-            text-decoration: underline;
-        }
-
-        .footer-text {
-            text-align: center;
-            margin-top: 20px;
-            color: #475569;
-            font-size: 12px;
-        }
-
-        @media (max-width: 480px) {
-            .signup-card {
-                padding: 28px 20px;
-                border-radius: 20px;
-            }
-            .plans {
-                flex-direction: column;
-            }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .login-link { text-align: center; margin-top: 20px; font-size: 14px; color: #64748b; }
+        .login-link a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+        .login-link a:hover { text-decoration: underline; }
+        .footer-text { text-align: center; margin-top: 20px; color: #475569; font-size: 12px; }
+        @media (max-width: 480px) { .signup-card { padding: 28px 20px; border-radius: 20px; } .plans { flex-direction: column; } }
     </style>
 </head>
 <body>
     <div class="signup-wrapper">
         <div class="signup-card">
             <div class="signup-header">
-                <div class="app-icon-wrapper">
-                    <i class="fas fa-store"></i>
-                </div>
+                <div class="app-icon-wrapper"><i class="fas fa-store"></i></div>
                 <h1 class="app-title"><span>📊</span> حسابي</h1>
                 <p class="app-subtitle">ابدأ متجرك الآن – مجاناً لمدة 14 يوم</p>
             </div>
             
-            <div class="error-box" id="errorBox">
-                <i class="fas fa-exclamation-circle"></i>
-                <span id="errorText"></span>
-            </div>
-
-            <div class="success-box" id="successBox">
-                <i class="fas fa-check-circle"></i>
-                <span id="successText"></span>
-            </div>
+            <div class="error-box" id="errorBox"><i class="fas fa-exclamation-circle"></i> <span id="errorText"></span></div>
+            <div class="success-box" id="successBox"><i class="fas fa-check-circle"></i> <span id="successText"></span></div>
             
             <form id="signupForm" autocomplete="off">
                 <div class="form-group">
+                    <label>اسم المتجر <span style="color:#ef4444;">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="text" id="tenantName" placeholder="اسم متجرك التجاري" required>
+                        <i class="fas fa-store-alt"></i>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>الاسم الكامل</label>
                     <div class="input-wrapper">
-                        <input type="text" id="fullName" placeholder="أدخل اسمك الكامل" required>
+                        <input type="text" id="fullName" placeholder="اسمك الشخصي">
                         <i class="fas fa-user"></i>
                     </div>
                 </div>
-                
                 <div class="form-group">
-                    <label>البريد الإلكتروني</label>
+                    <label>رقم الهاتف</label>
                     <div class="input-wrapper">
-                        <input type="email" id="email" placeholder="example@domain.com" required autocomplete="email" dir="ltr">
+                        <input type="tel" id="phone" placeholder="مثال: 01012345678" dir="ltr">
+                        <i class="fas fa-phone"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>البريد الإلكتروني <span style="color:#ef4444;">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="email" id="email" placeholder="example@domain.com" required dir="ltr">
                         <i class="fas fa-envelope"></i>
                     </div>
                 </div>
-                
                 <div class="form-group">
-                    <label>كلمة المرور</label>
+                    <label>كلمة المرور <span style="color:#ef4444;">*</span></label>
                     <div class="input-wrapper">
-                        <input type="password" id="password" placeholder="6 أحرف على الأقل" required minlength="6" autocomplete="new-password" dir="ltr">
+                        <input type="password" id="password" placeholder="6 أحرف على الأقل" required minlength="6" dir="ltr">
                         <i class="fas fa-lock"></i>
                     </div>
                 </div>
                 
                 <div class="plans">
-                    <div class="plan-card selected" data-plan="trial">
-                        <h4>🆓 تجريبي</h4>
-                        <span>14 يوم مجاناً</span>
-                    </div>
-                    <div class="plan-card" data-plan="monthly">
-                        <h4>📅 شهري</h4>
-                        <span>99 ج.م / شهر</span>
-                    </div>
-                    <div class="plan-card" data-plan="yearly">
-                        <h4>⭐ سنوي</h4>
-                        <span>790 ج.م / سنة</span>
-                    </div>
+                    <div class="plan-card selected" data-plan="trial"><h4>🆓 تجريبي</h4><span>14 يوم مجاناً</span></div>
+                    <div class="plan-card" data-plan="monthly"><h4>📅 شهري</h4><span>99 ج.م / شهر</span></div>
+                    <div class="plan-card" data-plan="yearly"><h4>⭐ سنوي</h4><span>790 ج.م / سنة</span></div>
                 </div>
                 
-                <button type="submit" class="btn-signup" id="signupBtn">
-                    <i class="fas fa-rocket"></i> إنشاء حساب
-                </button>
+                <button type="submit" class="btn-signup" id="signupBtn"><i class="fas fa-rocket"></i> إنشاء حساب</button>
             </form>
             
-            <p class="login-link">
-                لديك حساب بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
-            </p>
-            
+            <p class="login-link">لديك حساب بالفعل؟ <a href="./index.html">تسجيل الدخول</a></p>
             <p class="footer-text">© 2025 حسابي · جميع الحقوق محفوظة</p>
         </div>
     </div>
     
-    <!-- الاعتماد على ملفات النظام الرئيسية -->
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    
     <script>
         'use strict';
         
         const form = document.getElementById('signupForm');
+        const tenantNameInput = document.getElementById('tenantName');
         const fullNameInput = document.getElementById('fullName');
+        const phoneInput = document.getElementById('phone');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const signupBtn = document.getElementById('signupBtn');
@@ -396,7 +205,6 @@
         const successBox = document.getElementById('successBox');
         const successText = document.getElementById('successText');
         
-        // اختيار الخطة
         document.querySelectorAll('.plan-card').forEach(card => {
             card.addEventListener('click', () => {
                 document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
@@ -404,23 +212,9 @@
             });
         });
         
-        function showError(message) {
-            errorText.textContent = message;
-            errorBox.classList.add('show');
-            successBox.classList.remove('show');
-        }
-        
-        function showSuccess(message) {
-            successText.textContent = message;
-            successBox.classList.add('show');
-            errorBox.classList.remove('show');
-        }
-        
-        function hideMessages() {
-            errorBox.classList.remove('show');
-            successBox.classList.remove('show');
-        }
-        
+        function showError(message) { errorText.textContent = message; errorBox.classList.add('show'); successBox.classList.remove('show'); }
+        function showSuccess(message) { successText.textContent = message; successBox.classList.add('show'); errorBox.classList.remove('show'); }
+        function hideMessages() { errorBox.classList.remove('show'); successBox.classList.remove('show'); }
         function setLoading(loading) {
             if (loading) {
                 signupBtn.classList.add('loading');
@@ -437,47 +231,26 @@
             e.preventDefault();
             hideMessages();
             
-            const fullName = fullNameInput.value.trim();
+            const tenantName = tenantNameInput.value.trim();
+            const fullName = fullNameInput.value.trim() || tenantName;
+            const phone = phoneInput.value.trim();
             const email = emailInput.value.trim();
             const password = passwordInput.value;
             const plan = document.querySelector('.plan-card.selected')?.dataset?.plan || 'trial';
             
-            if (!fullName) {
-                showError('الرجاء إدخال اسمك الكامل');
-                fullNameInput.focus();
-                return;
-            }
-            if (!email) {
-                showError('الرجاء إدخال البريد الإلكتروني');
-                emailInput.focus();
-                return;
-            }
-            if (!password || password.length < 6) {
-                showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-                passwordInput.focus();
-                return;
-            }
+            if (!tenantName) { showError('اسم المتجر مطلوب'); tenantNameInput.focus(); return; }
+            if (!email) { showError('البريد الإلكتروني مطلوب'); emailInput.focus(); return; }
+            if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); passwordInput.focus(); return; }
             
             setLoading(true);
             
             try {
-                // ✅ استخدام App.signup من supabase.js (النسخة المعدلة)
-                const result = await window.App.signup(email, password, fullName);
+                const result = await window.App.signup(email, password, fullName, 'admin', tenantName, phone);
                 
                 if (result.success) {
-                    // تحديث الخطة المختارة
-                    const session = JSON.parse(localStorage.getItem('app_session'));
-                    if (session?.tenant_id) {
-                        await supabase.from('tenants').update({ plan: plan }).eq('id', session.tenant_id);
-                    }
-                    
                     showSuccess('🎉 تم إنشاء متجرك بنجاح! جاري توجيهك...');
                     signupBtn.style.display = 'none';
-                    
-                    // توجيه إلى لوحة التحكم بعد ثانيتين
-                    setTimeout(() => {
-                        window.location.href = './dashboard.html';
-                    }, 2000);
+                    setTimeout(() => { window.location.href = './dashboard.html'; }, 2000);
                 } else {
                     showError(result.message || 'فشل إنشاء الحساب. حاول مرة أخرى.');
                     setLoading(false);
@@ -489,7 +262,7 @@
             }
         });
         
-        fullNameInput.addEventListener('input', hideMessages);
+        tenantNameInput.addEventListener('input', hideMessages);
         emailInput.addEventListener('input', hideMessages);
         passwordInput.addEventListener('input', hideMessages);
     </script>
