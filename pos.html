@@ -5,41 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نقطة البيع · حسابي</title>
     
-    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     
-    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Stylesheets -->
     <link rel="stylesheet" href="./css/pos.css">
-    <style>
-        /* فرض الأرقام الإنجليزية في الواجهة كما طلبت */
-        :root {
-            --font-main: 'Cairo', sans-serif;
-        }
-        body {
-            font-family: var(--font-main);
-            -webkit-font-feature-settings: "tnum";
-            font-feature-settings: "tnum";
-        }
-        input, .value, .summary-row span, #receiptPrintArea {
-            font-variant-numeric: tabular-nums;
-            /* لضمان ظهور الأرقام بالصيغة اللاتينية/الإنجليزية */
-            font-family: 'Cairo', sans-serif; 
-        }
-    </style>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
     
-    <!-- Scripts -->
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -48,7 +27,7 @@
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- شريط علوي (Navbar) -->
+    <!-- شريط علوي محسّن مع قائمة النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -63,233 +42,151 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <!-- زر الثلاث نقاط للقائمة الإضافية -->
                 <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
                     <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة</a>
-                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> الفواتير المعلقة</a>
+                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة الحالية</a>
+                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> استرجاع فاتورة معلقة</a>
                     <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" id="logoutBtn" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- القائمة الجانبية (Sidebar) المحسّنة -->
+    <!-- القائمة الجانبية بنفس تصميم لوحة التحكم -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header-pro">
-            <div class="sidebar-avatar-container">
-                <div class="sidebar-avatar" id="sidebarAvatar">
-                    <img src="./icons/user-placeholder.png" alt="User" id="userImg" onerror="this.parentElement.textContent='U'">
-                </div>
-                <h4 id="sidebarUserName">مدير النظام</h4>
-                <span class="user-role">مسؤول</span>
-            </div>
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
         </div>
-        
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
             <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
             <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            
-            <div class="menu-section">العمليات</div>
             <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
             <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            
-            <div class="menu-section">المخزون والمالية</div>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            
-            <div class="menu-section">النظام</div>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
     </aside>
 
-    <!-- الحاوية الرئيسية لنقطة البيع -->
+    <!-- حاوية نقطة البيع الرئيسية -->
     <div class="pos-container">
-        <!-- منطقة البحث والعميل -->
+        <!-- منطقة العميل والبحث -->
         <div class="top-search-area">
             <div class="customer-box">
-                <div class="input-with-icon">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="customerSearchInput" placeholder="بحث عن عميل..." list="customerList" autocomplete="off">
-                </div>
+                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
                 <datalist id="customerList"></datalist>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
             <div class="search-header">
-                <div class="input-with-icon">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="productSearchInput" placeholder="ابحث عن منتج (اسم أو باركود)..." autocomplete="off">
-                </div>
+                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
 
-        <!-- منطقة السلة -->
+        <!-- السلة -->
         <div class="cart-main-area">
             <div class="cart-items" id="cartItemsContainer">
                 <div class="cart-header-row">
-                    <span class="col-product">الصنف</span>
-                    <span class="col-qty">الكمية</span>
-                    <span class="col-price">السعر</span>
-                    <span class="col-total">الإجمالي</span>
-                    <span class="col-action"></span>
+                    <span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span>
                 </div>
-                <!-- الرسالة الافتراضية -->
-                <div class="empty-cart-message">
-                    <i class="fas fa-shopping-basket"></i>
-                    <p>السلة فارغة، ابدأ بإضافة المنتجات</p>
-                </div>
+                <div class="empty-cart-message">السلة فارغة</div>
             </div>
             
-            <!-- ملخص الحساب والأزرار -->
+            <!-- تذييل السلة (محسّن بمسافة آمنة سفلية) -->
             <div class="cart-footer">
                 <div class="cart-summary">
                     <div class="summary-stats">
-                        <div class="stat-item">
-                            <span class="label">الأصناف:</span>
-                            <span class="value" id="itemTypesCount">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">القطع:</span>
-                            <span class="value" id="totalPieces">0</span>
-                        </div>
+                        <div class="stat-item"><div class="label">الأصناف</div><div class="value" id="itemTypesCount">0</div></div>
+                        <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
                     </div>
-                    
-                    <div class="summary-rows-container">
-                        <div class="summary-row">
-                            <span>الإجمالي</span>
-                            <span id="subtotal">0.00</span>
-                        </div>
-                        <div class="summary-row discount-row">
-                            <span>الخصم</span>
-                            <div class="discount-inputs">
-                                <input type="number" id="discountValue" value="0" min="0" step="0.01">
-                                <select id="discountType">
-                                    <option value="amount">ج.م</option>
-                                    <option value="percent">%</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="summary-row total">
-                            <span>الصافي النهائي</span>
-                            <span id="netTotal">0.00</span>
-                        </div>
+                    <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
+                    <div class="summary-row discount-row">
+                        <span>الخصم:</span>
+                        <input type="number" id="discountValue" value="0" min="0" step="0.01">
+                        <select id="discountType">
+                            <option value="amount">ج.م</option>
+                            <option value="percent">%</option>
+                        </select>
                     </div>
+                    <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
                 </div>
-                
                 <div class="action-buttons">
-                    <button class="btn btn-success btn-lg" id="payBtn">
-                        <i class="fas fa-money-check-alt"></i> إتمام عملية البيع (F10)
-                    </button>
+                    <button class="btn btn-success btn-lg" id="payBtn"><i class="fas fa-check"></i> دفع</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- مودال تعديل الكمية والسعر (بين الأدنى والأقصى) -->
+    <!-- المودالات: إضافة منتج، الدفع، الفواتير المعلقة، الإيصال -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalProductName">إضافة منتج</h2>
-                <button id="closeUnitModalBtn" class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>الوحدة</label>
-                    <div id="unitButtons" class="unit-selector"></div>
-                </div>
-                <div class="grid-form">
-                    <div class="form-group">
-                        <label>الكمية</label>
-                        <input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1">
-                    </div>
-                    <div class="form-group">
-                        <label>السعر</label>
-                        <input type="number" id="selectedPrice" min="0" step="0.01">
-                        <small id="priceLimitsInfo" style="color: #64748b; font-size: 11px;"></small>
-                    </div>
-                </div>
-                <div class="stock-status" id="stockInfo"></div>
-                <button class="btn btn-primary w-100" id="addToCartBtn" style="margin-top:20px;">تأكيد الإضافة</button>
-            </div>
+            <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
+            <div class="form-group"><label>اختر الوحدة</label><div id="unitButtons" class="unit-selector"></div></div>
+            <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
+            <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
+            <small id="stockInfo"></small>
+            <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
         </div>
     </div>
 
-    <!-- مودال الدفع المحسّن -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>إتمام الدفع</h2>
-                <button id="closePaymentModalBtn" class="close-btn">&times;</button>
+            <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
+            <div id="paymentDetails">
+                <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
+                <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
+                <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
+                <div class="summary-row">
+                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
+                    <span id="currentBalance">0.00 ج.م</span>
+                </div>
             </div>
-            <div class="payment-overview">
-                <div class="pay-item"><span>الإجمالي:</span> <strong id="paySubtotal">0.00</strong></div>
-                <div class="pay-item"><span>الخصم:</span> <strong id="payDiscount">0.00</strong></div>
-                <div class="pay-item net"><span>الصافي:</span> <strong id="payNet">0.00</strong></div>
-            </div>
-            
-            <div class="balance-section">
-                <div class="pay-item"><span>رصيد العميل الحالي:</span> <span id="currentBalance">0.00</span></div>
-            </div>
-
-            <div class="form-group">
-                <label>طريقة الدفع</label>
-                <select id="paymentMethod" class="form-control">
+            <div class="form-group"><label>طريقة الدفع</label>
+                <select id="paymentMethod">
                     <option value="cash">نقدي</option>
-                    <option value="transfer">تحويل بنكي / محفظة</option>
-                    <option value="mixed">مختلط (نقدي + تحويل)</option>
-                    <option value="credit">آجل (على الحساب)</option>
+                    <option value="transfer">تحويل</option>
+                    <option value="mixed">مختلط</option>
+                    <option value="credit">آجل</option>
                 </select>
             </div>
-
-            <div id="paymentInputs">
-                <div id="cashField" class="form-group">
-                    <label>المبلغ النقدي</label>
-                    <input type="number" id="cashAmount" class="form-control accent" min="0" step="0.01" value="0">
-                </div>
-                <div id="transferField" class="form-group" style="display:none;">
-                    <label>المبلغ المحول</label>
-                    <input type="number" id="transferAmount" class="form-control accent" min="0" step="0.01" value="0">
-                </div>
+            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
+            <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
+            <div class="summary-row">
+                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
+                <span id="balanceAfter">0.00 ج.م</span>
             </div>
+            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
+            <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
+        </div>
+    </div>
 
-            <div class="payment-result">
-                <div class="pay-item"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00</span></div>
-                <div class="pay-item"><span>الرصيد بعد الدفع:</span> <strong id="balanceAfter">0.00</strong></div>
-            </div>
-
-            <div class="form-group">
-                <label>ملاحظات إضافية</label>
-                <input type="text" id="paymentNotes" placeholder="مثلاً: رقم التحويل أو تفاصيل أخرى...">
-            </div>
-            
-            <button class="btn btn-success btn-lg w-100" id="confirmAndPrintBtn">تأكيد العملية وطباعة الإيصال</button>
+    <div class="modal" id="heldInvoicesModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
+            <div id="heldInvoicesList"></div>
         </div>
     </div>
 
     <!-- مودال الإيصال -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
-            <div class="receipt-header-actions">
-                <span>معاينة الإيصال</span>
-                <button id="closeReceiptModalBtn" class="close-btn">&times;</button>
-            </div>
-            <div id="receiptPrintArea" class="receipt-paper">
-                <!-- محتوى الإيصال يتم توليده عبر JS -->
-            </div>
+            <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
+            <div id="receiptPrintArea"></div>
             <div class="receipt-actions">
                 <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-secondary" id="cancelReceiptModalBtn">إغلاق</button>
+                <button class="btn btn-cancel" id="cancelReceiptModalBtn">إغلاق</button>
             </div>
         </div>
     </div>
