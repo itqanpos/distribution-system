@@ -1,5 +1,6 @@
 /* =============================================
-   supabase.js - الإصدار النهائي المُوحَّد (SaaS)
+   supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
+   تم التحديث: دمج RPC للفواتير والمشتريات، تحسينات الأمان
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -238,18 +239,19 @@
             return session ? JSON.parse(session) : null;
         },
 
+        getTenantId() {
+            return getCurrentTenantId();
+        },
+
         requireAuth() {
             const user = this.getCurrentUser();
             if (!user) {
                 window.location.href = './index.html';
                 return false;
             }
-            
-            // ✅ التحقق من صلاحية المتجر (للمستخدمين العاديين فقط)
             if (user.role !== 'super_admin' && user.tenant_id) {
                 this.checkTenantStatus(user.tenant_id);
             }
-            
             return true;
         },
 
@@ -260,9 +262,7 @@
                     .select('plan')
                     .eq('id', tenantId)
                     .single();
-                    
                 if (tenant && tenant.plan === 'expired') {
-                    // ✅ توجيه إلى صفحة انتهاء الاشتراك بدلاً من تنبيه بسيط
                     window.location.href = './expired.html';
                 }
             } catch (e) {
@@ -299,7 +299,7 @@
         }
     };
 
-    // ==================== دوال قاعدة البيانات (SaaS) ====================
+    // ==================== دوال قاعدة البيانات ====================
     window.DB = {
         // ---------- المنتجات ----------
         async getProducts() {
@@ -340,7 +340,7 @@
             }
         },
 
-        // ---------- الأطراف (عملاء وموردين) ----------
+        // ---------- الأطراف ----------
         async getParties(type = null) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -406,7 +406,7 @@
             });
         },
 
-        // ---------- الفواتير (كاملة + خفيفة) ----------
+        // ---------- الفواتير ----------
         async getInvoices() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -426,14 +426,38 @@
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
                     .from('invoices')
-                    .select('id, date, type, customer_id, customer_name, total, paid, remaining, status, invoice_number, items, subtotal, discount, used_customer_balance')
+                    .select('id, date, type, customer_id, total, paid, remaining, status, items, subtotal, discount')
                     .eq('tenant_id', tenantId)
                     .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
-        // @deprecated – استخدم InvoiceService.createSaleInvoice بدلاً منها (تستخدم دالة الخادم)
+        async getInvoiceById(id) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            const { data, error } = await supabaseClient
+                .from('invoices')
+                .select('*')
+                .eq('id', id)
+                .eq('tenant_id', tenantId)
+                .single();
+            if (error) throw error;
+            return data;
+        },
+
+        // ------ إنشاء فاتورة مبيعات (RPC) ------
+        async createSaleInvoice(invoiceData) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            const payload = { ...invoiceData, tenant_id: tenantId };
+            const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: payload });
+            if (error) throw new Error(error.message);
+            if (!data || !data.success) throw new Error(data?.error || 'فشل غير معروف');
+            return data;
+        },
+
+        // @deprecated – استخدم DB.createSaleInvoice بدلاً منها
         async saveInvoice(inv) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) throw new Error('No tenant');
@@ -451,7 +475,7 @@
             });
         },
 
-        // ---------- المشتريات (كاملة + خفيفة) ----------
+        // ---------- المشتريات ----------
         async getPurchases() {
             const tenantId = getCurrentTenantId();
             if (!tenantId) return [];
@@ -471,13 +495,38 @@
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
                     .from('purchases')
-                    .select('id, date, supplier_name, supplier_id, total, paid, remaining, status, invoice_number, items')
+                    .select('id, date, supplier_id, total, paid, remaining, status, items')
                     .eq('tenant_id', tenantId)
                     .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
             });
         },
+        async getPurchaseById(id) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            const { data, error } = await supabaseClient
+                .from('purchases')
+                .select('*')
+                .eq('id', id)
+                .eq('tenant_id', tenantId)
+                .single();
+            if (error) throw error;
+            return data;
+        },
+
+        // ------ إنشاء فاتورة مشتريات (RPC) ------
+        async createPurchaseInvoice(purchaseData) {
+            const tenantId = getCurrentTenantId();
+            if (!tenantId) throw new Error('No tenant');
+            const payload = { ...purchaseData, tenant_id: tenantId };
+            const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: payload });
+            if (error) throw new Error(error.message);
+            if (!data || !data.success) throw new Error(data?.error || 'فشل غير معروف');
+            return data;
+        },
+
+        // @deprecated – استخدم DB.createPurchaseInvoice بدلاً منها
         async savePurchase(p) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) throw new Error('No tenant');
@@ -665,7 +714,7 @@
             await supabaseClient.from('tenants').delete().eq('id', tenantId);
         },
 
-        // ---------- توليد رقم الفاتورة (معزول) ----------
+        // ---------- توليد رقم الفاتورة ----------
         generateInvoiceNumber: async function() {
             const tenantId = getCurrentTenantId();
             const fallback = () => {
