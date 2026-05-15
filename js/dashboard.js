@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (Premium UI + سرعة)
+   dashboard.js - لوحة التحكم (وقت فعلي + اسم)
    ============================================= */
 'use strict';
 
@@ -50,10 +50,16 @@ const Dashboard = {
             this.updateSidebarUser();
         }
 
-        // إخفاء البطاقات مؤقتاً (لعدم ظهور أصفار)
         document.querySelectorAll('.premium-card').forEach(c => c.style.opacity = '0');
 
         this.loadAllData();
+
+        // ✅ تحديث دوري للنشاط الأخير كل 30 ثانية لوقت فعلي
+        setInterval(() => {
+            if (!this.state.loading) {
+                this.updateActivityTimeline();
+            }
+        }, 30000);
     },
 
     cacheDOM() {
@@ -90,12 +96,19 @@ const Dashboard = {
         this.el.refreshDataBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             this.loadAllData();
-            this.toast('تم تحديث البيانات');
+            Toast.success('تم تحديث البيانات');
             this.el.moreDropdown?.classList.remove('show');
         });
-        this.el.logoutBtn?.addEventListener('click', (e) => {
+        this.el.logoutBtn?.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+            const confirmed = await ModalConfirm.show({
+                title: 'تسجيل الخروج',
+                message: 'هل أنت متأكد من تسجيل الخروج؟',
+                icon: 'warn',
+                confirmText: 'خروج',
+                type: 'danger'
+            });
+            if (confirmed) {
                 if (window.App) App.logout();
                 else location.href = './index.html';
             }
@@ -107,7 +120,7 @@ const Dashboard = {
             });
         });
         window.addEventListener('online', () => {
-            this.toast('تم استعادة الاتصال – جاري التحديث...');
+            Toast.info('تم استعادة الاتصال – جاري التحديث...');
             this.loadAllData();
         });
         document.addEventListener('visibilitychange', () => {
@@ -121,8 +134,10 @@ const Dashboard = {
         const user = window.App?.getCurrentUser?.();
         if (user) {
             if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
-            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
-            if (this.el.heroGreeting) this.el.heroGreeting.textContent = `مرحباً، ${user.fullName?.split(' ')[0] || 'المدير'} 👋`;
+            // ✅ استخدام الاسم الأول أو البريد كاحتياطي
+            const firstName = (user.fullName || user.email || 'مدير النظام').split(' ')[0];
+            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = firstName;
+            if (this.el.heroGreeting) this.el.heroGreeting.textContent = `مرحباً، ${firstName} 👋`;
         }
     },
 
@@ -130,8 +145,9 @@ const Dashboard = {
         const user = window.App?.getCurrentUser?.();
         if (user) {
             if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
-            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
-            if (this.el.heroGreeting) this.el.heroGreeting.textContent = `مرحباً، ${user.fullName?.split(' ')[0] || 'المدير'} 👋`;
+            const firstName = (user.fullName || user.email || 'مدير النظام').split(' ')[0];
+            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = firstName;
+            if (this.el.heroGreeting) this.el.heroGreeting.textContent = `مرحباً، ${firstName} 👋`;
         }
     },
 
@@ -188,7 +204,7 @@ const Dashboard = {
             console.log('✅ كل البيانات تم تحميلها');
         } catch (e) {
             console.error('خطأ عام:', e);
-            this.toast('تعذر تحميل بعض البيانات');
+            Toast.error('تعذر تحميل بعض البيانات');
         } finally {
             this.state.loading = false;
             this.updateStatsUI();
@@ -218,8 +234,8 @@ const Dashboard = {
             if (this.state.ready === true && window.App && window.App.DB) {
                 const DB = window.App.DB;
                 [invoices, purchases, parties, products, transactions, settings] = await Promise.all([
-                    DB.getInvoicesLight().catch(()=>[]),   // ✅ خفيفة
-                    DB.getPurchasesLight().catch(()=>[]), // ✅ خفيفة
+                    DB.getInvoicesLight().catch(()=>[]),
+                    DB.getPurchasesLight().catch(()=>[]),
                     DB.getParties('customer').catch(()=>[]),
                     DB.getProducts().catch(()=>[]),
                     DB.getTransactions().catch(()=>[]),
@@ -282,16 +298,26 @@ const Dashboard = {
     async loadRecentInvoices() {
         try {
             let invs = [];
-            if (this.state.ready === true && window.App && window.App.DB) invs = await window.App.DB.getInvoicesLight().catch(()=>[]); // ✅ خفيفة
+            if (this.state.ready === true && window.App && window.App.DB) invs = await window.App.DB.getInvoicesLight().catch(()=>[]);
             else if (window.localDB) invs = await localDB.getAll('invoices') || [];
-            this.state.recentInvoices = invs.filter(i => i.type === 'sale').sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
+            // ترتيب حسب التاريخ ثم رقم الفاتورة (الأحدث أولاً)
+            this.state.recentInvoices = invs
+                .filter(i => i.type === 'sale')
+                .sort((a, b) => {
+                    const dateComp = (b.date || '').localeCompare(a.date || '');
+                    if (dateComp !== 0) return dateComp;
+                    const aNum = parseInt((a.invoice_number || '').split('-').pop()) || 0;
+                    const bNum = parseInt((b.invoice_number || '').split('-').pop()) || 0;
+                    return bNum - aNum;
+                })
+                .slice(0, 5);
         } catch (e) {}
     },
 
     async loadRecentPurchases() {
         try {
             let pur = [];
-            if (this.state.ready === true && window.App && window.App.DB) pur = await window.App.DB.getPurchasesLight().catch(()=>[]); // ✅ خفيفة
+            if (this.state.ready === true && window.App && window.App.DB) pur = await window.App.DB.getPurchasesLight().catch(()=>[]);
             else if (window.localDB) pur = await localDB.getAll('purchases') || [];
             this.state.recentPurchases = pur.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
         } catch (e) {}
@@ -330,17 +356,24 @@ const Dashboard = {
             if (!invs.length) {
                 this.el.recentInvoices.innerHTML = '<div class="empty">لا توجد فواتير حديثة</div>';
             } else {
-                let rows = invs.map(inv => `
-                    <tr>
-                        <td>${U.escapeHTML(inv.invoice_number || inv.id?.substring(0,8) || '—')}</td>
-                        <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
-                        <td>${new Date(inv.date).toLocaleDateString('ar-EG')}</td>
-                        <td>${U.formatMoney(inv.total)}</td>
-                        <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
-                    </tr>`).join('');
+                let rows = invs.map(inv => {
+                    const invNumber = inv.invoice_number || inv.id?.substring(0, 8) || '—';
+                    // استخدام وقت افتراضي (اليوم) إذا لم يكن هناك timestamp
+                    const timeStr = inv.date ? new Date(inv.date).toLocaleDateString('ar-EG') : '—';
+                    return `
+                        <tr>
+                            <td>${U.escapeHTML(invNumber)}</td>
+                            <td>${U.escapeHTML(inv.customer_name || 'نقدي')}</td>
+                            <td>${timeStr}</td>
+                            <td>${U.formatMoney(inv.total)}</td>
+                            <td><span class="badge ${inv.status==='paid'?'badge-success':(inv.status==='held'?'badge-warning':'badge-danger')}">${inv.status==='paid'?'مدفوعة':(inv.status==='held'?'معلقة':'غير مدفوعة')}</span></td>
+                        </tr>
+                    `;
+                }).join('');
                 this.el.recentInvoices.innerHTML = `<table><thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
+
         if (this.el.recentPurchases) {
             const pur = this.state.recentPurchases;
             if (!pur.length) {
@@ -352,7 +385,8 @@ const Dashboard = {
                         <td>${new Date(p.date).toLocaleDateString('ar-EG')}</td>
                         <td>${U.formatMoney(p.total)}</td>
                         <td><span class="badge ${p.status==='paid'?'badge-success':'badge-danger'}">${p.status==='paid'?'مدفوعة':'غير مدفوعة'}</span></td>
-                    </tr>`).join('');
+                    </tr>
+                `).join('');
                 this.el.recentPurchases.innerHTML = `<table><thead><tr><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
         }
@@ -397,29 +431,48 @@ const Dashboard = {
     updateActivityTimeline() {
         const container = this.el.activityTimeline;
         if (!container) return;
+        
         const activities = [];
         if (this.state.recentInvoices.length) {
             const inv = this.state.recentInvoices[0];
-            activities.push({ text: `فاتورة جديدة للعميل ${inv.customer_name || 'نقدي'}`, time: this.timeAgo(inv.date), amount: U.formatMoney(inv.total) });
+            activities.push({
+                text: `فاتورة جديدة للعميل ${inv.customer_name || 'نقدي'}`,
+                time: this.timeAgo(inv.date),
+                amount: U.formatMoney(inv.total)
+            });
         }
         if (this.state.recentPurchases.length) {
             const pur = this.state.recentPurchases[0];
-            activities.push({ text: `فاتورة شراء من ${pur.supplier_name || 'مورد'}`, time: this.timeAgo(pur.date), amount: U.formatMoney(pur.total) });
+            activities.push({
+                text: `فاتورة شراء من ${pur.supplier_name || 'مورد'}`,
+                time: this.timeAgo(pur.date),
+                amount: U.formatMoney(pur.total)
+            });
         }
+
         container.innerHTML = activities.length ? activities.map(a => `
             <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>${a.text}</strong><p>${a.time} - ${a.amount || ''}</p></div></div>
         `).join('') : '<p class="empty">لا توجد نشاطات حديثة</p>';
     },
 
     timeAgo(dateStr) {
-        const now = new Date(); const date = new Date(dateStr);
-        const diffMins = Math.floor((now - date) / 60000);
+        if (!dateStr) return '—';
+        const now = new Date();
+        const date = new Date(dateStr);
+        // إذا كان التاريخ لا يحتوي على وقت، نفترض أنه بداية اليوم
+        if (dateStr.length === 10) {
+            date.setHours(0, 0, 0, 0);
+        }
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
         if (diffMins < 1) return 'الآن';
         if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
         const diffHours = Math.floor(diffMins / 60);
         if (diffHours < 24) return `منذ ${diffHours} ساعة`;
         const diffDays = Math.floor(diffHours / 24);
-        return `منذ ${diffDays} يوم`;
+        if (diffDays < 30) return `منذ ${diffDays} يوم`;
+        const diffMonths = Math.floor(diffDays / 30);
+        return `منذ ${diffMonths} شهر`;
     }
 };
 
