@@ -1,5 +1,5 @@
 /* =============================================
-   purchases.js - المشتريات (إصدار مُحسَّن)
+   purchases.js - المشتريات (إصدار نهائي)
    يستخدم PurchaseService + دالة الخادم
    ============================================= */
 'use strict';
@@ -22,12 +22,12 @@ const Toast = {
     clearTimeout(this._timer);
     this._timer = setTimeout(() => el.classList.remove('show'), 3000);
   },
-  info(msg) { this.show(msg, 'info'); },
   success(msg) { this.show(msg, 'success'); },
-  error(msg) { this.show(msg, 'error'); }
+  error(msg) { this.show(msg, 'error'); },
+  info(msg) { this.show(msg, 'info'); }
 };
 
-// ========== الأدوات المساعدة ==========
+// الأدوات المساعدة
 const U = {
     formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
     escapeHTML: (s) => {
@@ -37,9 +37,7 @@ const U = {
     },
     today: () => new Date().toISOString().split('T')[0],
     round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d),
-    generateUUID: () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
-    isDBReady: () => !!(window.DB && window.supabase),
-    hasLocalDB: () => !!(window.localDB)
+    generateUUID: () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); })
 };
 
 const Purchases = {
@@ -91,8 +89,7 @@ const Purchases = {
             'purchaseDate', 'invoiceNumber', 'itemsContainer', 'addItemBtn',
             'totalAmount', 'paidAmount', 'paymentMethod', 'remainingAmount',
             'detailsModal', 'detailsContent', 'closeDetailsBtn', 'toast',
-            'filterBtns',
-            'moreMenuBtn', 'moreDropdown' // ✅ زر الثلاث نقاط
+            'filterBtns', 'moreMenuBtn', 'moreDropdown'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
         this.el.filterBtns = document.querySelectorAll('.filter-btn');
@@ -104,7 +101,6 @@ const Purchases = {
         document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
         this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else location.href = './index.html'; });
 
-        // ✅ زر الثلاث نقاط
         this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
         document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
 
@@ -206,7 +202,6 @@ const Purchases = {
         }).join('');
     },
 
-    // ======================== المودال ========================
     openModal(purchase = null) {
         this.state.editingId = purchase?.id || null;
         this.el.modalTitle.textContent = purchase ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة';
@@ -300,7 +295,7 @@ const Purchases = {
         this.el.remainingAmount.textContent = U.formatMoney(Math.max(0, total - paid));
     },
 
-    // ======================== حفظ الفاتورة ========================
+    // ======================== حفظ الفاتورة (معدّلة لاستخدام PurchaseService) ========================
     async savePurchase() {
         const supplierName = this.el.supplierInput.value.trim();
         if (!supplierName) return alert('اسم المورد مطلوب');
@@ -309,12 +304,10 @@ const Purchases = {
         if (this.state.ready === true) {
             const existing = this.state.suppliers.find(s => s.name === supplierName);
             if (!existing) {
-                try {
-                    const newSupplier = await DB.saveParty({ name: supplierName, type: 'supplier', balance: 0 });
-                    this.state.suppliers.push(newSupplier);
-                    this.populateSupplierList();
-                    supplierId = newSupplier.id;
-                } catch (e) { return alert('فشل حفظ المورد الجديد'); }
+                const newSupplier = await DB.saveParty({ name: supplierName, type: 'supplier', balance: 0 });
+                this.state.suppliers.push(newSupplier);
+                this.populateSupplierList();
+                supplierId = newSupplier.id;
             } else supplierId = existing.id;
         }
 
@@ -342,7 +335,6 @@ const Purchases = {
             date,
             supplier_id: supplierId,
             supplier_name: supplierName,
-            invoice_number: null, // لا نرسل رقم الفاتورة إلى الخادم (غير موجود كعمود)
             items,
             total,
             paid,
@@ -352,15 +344,14 @@ const Purchases = {
         };
 
         try {
-            // ✅ استخدام PurchaseService (التي تستدعي دالة الخادم)
             if (this.state.ready === true) {
+                // استخدام PurchaseService بدلاً من DB.savePurchase
                 await PurchaseService.createPurchaseInvoice({
                     ...purchaseData,
                     cash_paid: paymentMethod === 'cash' ? paid : 0,
                     transfer_paid: paymentMethod === 'transfer' ? paid : 0
                 });
             } else if (window.localDB) {
-                // Offline: حفظ محلي (مع تحديث المخزون يدويًا مؤقتًا)
                 await localDB.put('purchases', purchaseData);
                 for (const item of items) {
                     const prod = this.state.products.find(p => p.name === item.productName);
@@ -371,14 +362,15 @@ const Purchases = {
                     }
                 }
                 if (paid > 0 && paymentMethod !== 'credit') {
-                    await localDB.put('transactions', {
+                    const transaction = {
                         id: U.generateUUID(),
                         date,
                         type: 'expense',
                         amount: paid,
                         description: `دفع فاتورة شراء ${purchaseData.id}`,
                         payment_method: paymentMethod === 'cash' ? 'cash' : 'bank'
-                    });
+                    };
+                    await localDB.put('transactions', transaction);
                 }
                 if (supplierId) {
                     const supplier = this.state.suppliers.find(s => s.id === supplierId);
