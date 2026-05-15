@@ -1,9 +1,32 @@
 /* =============================================
    pos.js - نقطة البيع (إصدار احترافي)
-   تم التحديث: استخدام InvoiceService + دالة الخادم + بحث عملاء بقائمة منسدلة
+   تم التحديث: استخدام InvoiceService + دالة الخادم + بحث عملاء منسدل + Toast مستقل
    ============================================= */
 'use strict';
 
+// ========== كائن Toast (يعمل حتى لو لم يوجد toast.js) ==========
+const Toast = {
+  _el: null,
+  _timer: null,
+  _getEl() {
+    if (!this._el) this._el = document.getElementById('toast');
+    return this._el;
+  },
+  show(msg, type = 'info') {
+    const el = this._getEl();
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'toast ' + type + ' show';
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => el.classList.remove('show'), 3000);
+  },
+  info(msg) { this.show(msg, 'info'); },
+  success(msg) { this.show(msg, 'success'); },
+  error(msg) { this.show(msg, 'error'); }
+};
+window.Toast = Toast;
+
+// ========== الأدوات المساعدة ==========
 const Utils = {
     formatMoney: (amount, currency = 'ج.م') => Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
     formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return dateStr; } },
@@ -43,7 +66,7 @@ const POS = {
         const ids = [
             'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown', 'holdInvoiceBtn', 'heldInvoicesBtn', 'logoutBtn',
             'productSearchInput', 'customerSearchInput', 'customerList', 'customerBalanceDisplay', 'productDropdown',
-            'customerDropdown', // new
+            'customerDropdown',
             'cartItemsContainer', 'discountValue', 'discountType', 'itemTypesCount', 'totalPieces', 'subtotal', 'netTotal', 'payBtn',
             'unitQuantityModal', 'modalProductName', 'unitButtons', 'selectedQuantity', 'selectedPrice', 'stockInfo', 'addToCartBtn', 'closeUnitModalBtn',
             'paymentModal', 'paySubtotal', 'payDiscount', 'payNet', 'currentBalance', 'paymentMethod', 'cashField', 'transferField', 'cashAmount', 'transferAmount',
@@ -71,7 +94,6 @@ const POS = {
         this.el.productDropdown?.addEventListener('click', (e) => { const item = e.target.closest('.dropdown-item'); if (item?.dataset.id) { this.openUnitModal(item.dataset.id); this.hideProductDropdown(); this.el.productSearchInput.value = ''; } });
         document.addEventListener('click', (e) => { if (!e.target.closest('.search-header')) this.hideProductDropdown(); });
 
-        // --- البحث عن العملاء (قائمة مخصصة) ---
         this.el.customerSearchInput?.addEventListener('input', () => this.filterCustomers());
         this.el.customerDropdown?.addEventListener('click', (e) => {
             const item = e.target.closest('.dropdown-item');
@@ -92,7 +114,6 @@ const POS = {
             if (!e.target.closest('.customer-box .search-header')) this.hideCustomerDropdown();
         });
         this.el.customerSearchInput?.addEventListener('focus', () => {
-            // Show all customers on focus if empty
             if (!this.el.customerSearchInput.value.trim()) this.filterCustomers();
         });
 
@@ -145,7 +166,6 @@ const POS = {
         for (const c of this.state.customers) { this.cache.customerMap.set(String(c.id), c); this.cache.customerMap.set(c.id, c); }
     },
 
-    // ========== البحث عن العملاء ==========
     filterCustomers() {
         const term = this.el.customerSearchInput?.value.trim().toLowerCase() || '';
         const dropdown = this.el.customerDropdown;
@@ -156,9 +176,7 @@ const POS = {
             filtered = filtered.filter(c => c.name?.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
         }
 
-        let html = '';
-        // خيار النقدي دائمًا
-        html += `<div class="dropdown-item" data-id="cash">
+        let html = `<div class="dropdown-item" data-id="cash">
                     <div class="item-info"><h4>نقدي (بدون عميل)</h4></div>
                     <div class="item-price"></div>
                 </div>`;
@@ -178,17 +196,12 @@ const POS = {
         dropdown.classList.add('show');
     },
 
-    hideCustomerDropdown() {
-        this.el.customerDropdown?.classList.remove('show');
-    },
+    hideCustomerDropdown() { this.el.customerDropdown?.classList.remove('show'); },
 
     updateCustomerDisplay() {
         const balanceDiv = this.el.customerBalanceDisplay;
         if (!balanceDiv) return;
-        if (!this.state.selectedCustomerId) {
-            balanceDiv.innerHTML = '';
-            return;
-        }
+        if (!this.state.selectedCustomerId) { balanceDiv.innerHTML = ''; return; }
         const customer = this.cache.customerMap.get(this.state.selectedCustomerId);
         if (customer) {
             const bal = customer.balance || 0;
@@ -198,11 +211,7 @@ const POS = {
         }
     },
 
-    getSelectedCustomer() {
-        return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null;
-    },
-
-    // بقية الدوال (دون تغيير) ...
+    getSelectedCustomer() { return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null; },
     getBaseStock(product) { return product?.units?.[0]?.stock || 0; },
 
     filterProducts() {
@@ -375,7 +384,6 @@ const POS = {
         return item.quantity / (selectedUnit?.factor || 1);
     },
 
-    // ====================== دالة الدفع المعدلة ======================
     async completePayment() {
         if (this.state.isProcessing) { Toast.info('جاري معالجة الدفع...'); return; }
         this.state.isProcessing = true;
@@ -398,7 +406,6 @@ const POS = {
             const customer = this.getSelectedCustomer();
             const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
 
-            // بناء كائن الفاتورة (متوافق مع دالة الخادم)
             const invoice = {
                 id: Utils.generateUUID(),
                 invoice_number: invoiceNumber,
@@ -418,7 +425,6 @@ const POS = {
                 notes: this.el.paymentNotes?.value || ''
             };
 
-            // استدعاء خدمة الفواتير
             const result = await InvoiceService.createSaleInvoice(invoice);
 
             if (!result || !result.success) {
@@ -442,13 +448,17 @@ const POS = {
             Toast.success('تم البيع بنجاح');
         } catch (error) {
             console.error('خطأ في الدفع:', error);
-            await ModalConfirm.show({
-                title: 'خطأ في الدفع',
-                message: error.message || 'حدث خطأ غير متوقع',
-                icon: 'warn',
-                confirmText: 'حسناً',
-                type: 'danger'
-            });
+            if (typeof ModalConfirm !== 'undefined') {
+                await ModalConfirm.show({
+                    title: 'خطأ في الدفع',
+                    message: error.message || 'حدث خطأ غير متوقع',
+                    icon: 'warn',
+                    confirmText: 'حسناً',
+                    type: 'danger'
+                });
+            } else {
+                alert('خطأ: ' + (error.message || 'حدث خطأ غير متوقع'));
+            }
         } finally {
             this.state.isProcessing = false;
             this.el.confirmAndPrintBtn.disabled = false;
