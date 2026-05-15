@@ -3,29 +3,19 @@
 // تستخدم دالة create_sale_invoice المخزنة على Supabase
 
 const InvoiceService = {
-  /**
-   * إنشاء فاتورة مبيعات جديدة – باستخدام دالة الخادم
-   * @param {Object} invoiceData - بيانات الفاتورة
-   * @returns {Promise<Object>} { success, invoice_id, invoice_number, ... }
-   */
   async createSaleInvoice(invoiceData) {
-    // --- التحقق الأولي ---
     if (!invoiceData || !invoiceData.items || invoiceData.items.length === 0) {
       throw new Error('الفاتورة فارغة');
     }
 
-    // --- تجهيز البيانات للدالة المخزنة ---
-    // نرسل cash_paid و transfer_paid كحقول منفصلة لتستخدمها الدالة
     const payload = {
       ...invoiceData,
-      // التأكد من أن الحقول المالية موجودة
       cash_paid: invoiceData.cash_paid || 0,
       transfer_paid: invoiceData.transfer_paid || 0,
       used_customer_balance: invoiceData.used_customer_balance || 0
     };
 
     try {
-      // استدعاء دالة Supabase RPC
       const { data, error } = await window.supabase.rpc('create_sale_invoice', {
         p_data: payload
       });
@@ -37,12 +27,6 @@ const InvoiceService = {
 
       if (!data || !data.success) {
         throw new Error(data?.error || 'فشل إنشاء الفاتورة');
-      }
-
-      // مزامنة IndexedDB بعد نجاح العملية (اختياري لكن مستحسن)
-      if (window.localDB?.ready) {
-        // يمكننا إعادة تحميل المنتجات من السحابة لتحديث المخزون محلياً
-        // أو الاعتماد على إعادة التحميل من الصفحة
       }
 
       return data;
