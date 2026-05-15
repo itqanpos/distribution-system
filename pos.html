@@ -88,12 +88,16 @@
     <div class="pos-container">
         <div class="top-search-area">
             <div class="customer-box">
-                <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
-                <datalist id="customerList"></datalist>
+                <div class="search-header" style="position: relative;">
+                    <i class="fas fa-user" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                    <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." autocomplete="off" style="padding-right: 35px;">
+                    <div id="customerDropdown" class="search-dropdown"></div>
+                </div>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
             <div class="search-header">
-                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
+                <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off" style="padding-right: 35px;">
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
