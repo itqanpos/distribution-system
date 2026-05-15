@@ -1,6 +1,6 @@
 /* =============================================
    pos.js - نقطة البيع (إصدار احترافي)
-   تم التحديث: استخدام InvoiceService + دالة الخادم
+   تم التحديث: استخدام InvoiceService + دالة الخادم + بحث عملاء بقائمة منسدلة
    ============================================= */
 'use strict';
 
@@ -43,6 +43,7 @@ const POS = {
         const ids = [
             'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown', 'holdInvoiceBtn', 'heldInvoicesBtn', 'logoutBtn',
             'productSearchInput', 'customerSearchInput', 'customerList', 'customerBalanceDisplay', 'productDropdown',
+            'customerDropdown', // new
             'cartItemsContainer', 'discountValue', 'discountType', 'itemTypesCount', 'totalPieces', 'subtotal', 'netTotal', 'payBtn',
             'unitQuantityModal', 'modalProductName', 'unitButtons', 'selectedQuantity', 'selectedPrice', 'stockInfo', 'addToCartBtn', 'closeUnitModalBtn',
             'paymentModal', 'paySubtotal', 'payDiscount', 'payNet', 'currentBalance', 'paymentMethod', 'cashField', 'transferField', 'cashAmount', 'transferAmount',
@@ -70,7 +71,31 @@ const POS = {
         this.el.productDropdown?.addEventListener('click', (e) => { const item = e.target.closest('.dropdown-item'); if (item?.dataset.id) { this.openUnitModal(item.dataset.id); this.hideProductDropdown(); this.el.productSearchInput.value = ''; } });
         document.addEventListener('click', (e) => { if (!e.target.closest('.search-header')) this.hideProductDropdown(); });
 
-        this.el.customerSearchInput?.addEventListener('input', () => this.onCustomerSearch());
+        // --- البحث عن العملاء (قائمة مخصصة) ---
+        this.el.customerSearchInput?.addEventListener('input', () => this.filterCustomers());
+        this.el.customerDropdown?.addEventListener('click', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (item?.dataset.id) {
+                if (item.dataset.id === 'cash') {
+                    this.state.selectedCustomerId = null;
+                    this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+                } else {
+                    this.state.selectedCustomerId = item.dataset.id;
+                    const cust = this.cache.customerMap.get(item.dataset.id);
+                    this.el.customerSearchInput.value = cust?.name || '';
+                }
+                this.updateCustomerDisplay();
+                this.hideCustomerDropdown();
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.customer-box .search-header')) this.hideCustomerDropdown();
+        });
+        this.el.customerSearchInput?.addEventListener('focus', () => {
+            // Show all customers on focus if empty
+            if (!this.el.customerSearchInput.value.trim()) this.filterCustomers();
+        });
+
         this.el.discountValue?.addEventListener('input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this.updateTotalsAndUI(); });
         this.el.discountType?.addEventListener('change', () => { this.state.discountType = this.el.discountType.value; this.updateTotalsAndUI(); });
         this.el.payBtn?.addEventListener('click', () => this.openPaymentModal());
@@ -110,7 +135,7 @@ const POS = {
             else if (Utils.hasLocalDB()) { this.state.products = await localDB.getAll('products') || []; this.state.customers = (await localDB.getAll('parties') || []).filter(p => p.type === 'customer'); }
             else { this.state.products = []; this.state.customers = []; }
             this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
-            this.populateCustomerList();
+            this.buildCache();
         } catch (e) { Toast.error('فشل تحميل البيانات'); }
     },
 
@@ -120,11 +145,64 @@ const POS = {
         for (const c of this.state.customers) { this.cache.customerMap.set(String(c.id), c); this.cache.customerMap.set(c.id, c); }
     },
 
-    populateCustomerList() {
-        const list = this.el.customerList; if (!list) return;
-        list.innerHTML = `<option value="نقدي (بدون عميل)" data-id="cash">نقدي (بدون عميل)</option>` + this.state.customers.map(c => `<option value="${Utils.escapeHTML(c.name)}" data-id="${c.id}">${Utils.escapeHTML(c.name)}</option>`).join('');
+    // ========== البحث عن العملاء ==========
+    filterCustomers() {
+        const term = this.el.customerSearchInput?.value.trim().toLowerCase() || '';
+        const dropdown = this.el.customerDropdown;
+        if (!dropdown) return;
+
+        let filtered = this.state.customers;
+        if (term && term !== 'نقدي (بدون عميل)') {
+            filtered = filtered.filter(c => c.name?.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
+        }
+
+        let html = '';
+        // خيار النقدي دائمًا
+        html += `<div class="dropdown-item" data-id="cash">
+                    <div class="item-info"><h4>نقدي (بدون عميل)</h4></div>
+                    <div class="item-price"></div>
+                </div>`;
+
+        filtered.forEach(c => {
+            const bal = c.balance || 0;
+            const balanceStr = bal > 0 ? `دائن ${Utils.formatMoney(bal)}` : bal < 0 ? `مدين ${Utils.formatMoney(-bal)}` : 'لا رصيد';
+            html += `<div class="dropdown-item" data-id="${c.id}">
+                        <div class="item-info">
+                            <h4>${Utils.escapeHTML(c.name)}</h4>
+                            <small style="color:#94a3b8;">${balanceStr}</small>
+                        </div>
+                        <div class="item-price" style="font-size:12px;">${c.phone || ''}</div>
+                    </div>`;
+        });
+        dropdown.innerHTML = html;
+        dropdown.classList.add('show');
     },
 
+    hideCustomerDropdown() {
+        this.el.customerDropdown?.classList.remove('show');
+    },
+
+    updateCustomerDisplay() {
+        const balanceDiv = this.el.customerBalanceDisplay;
+        if (!balanceDiv) return;
+        if (!this.state.selectedCustomerId) {
+            balanceDiv.innerHTML = '';
+            return;
+        }
+        const customer = this.cache.customerMap.get(this.state.selectedCustomerId);
+        if (customer) {
+            const bal = customer.balance || 0;
+            balanceDiv.innerHTML = bal > 0 ? `العميل دائن بـ ${Utils.formatMoney(bal)}` : bal < 0 ? `مدين بـ ${Utils.formatMoney(-bal)}` : 'لا رصيد';
+        } else {
+            balanceDiv.innerHTML = '';
+        }
+    },
+
+    getSelectedCustomer() {
+        return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null;
+    },
+
+    // بقية الدوال (دون تغيير) ...
     getBaseStock(product) { return product?.units?.[0]?.stock || 0; },
 
     filterProducts() {
@@ -137,24 +215,6 @@ const POS = {
         dropdown.classList.add('show');
     },
     hideProductDropdown() { this.el.productDropdown?.classList.remove('show'); },
-
-    onCustomerSearch() {
-        const val = this.el.customerSearchInput?.value || '';
-        const balanceDiv = this.el.customerBalanceDisplay; if (!balanceDiv) return;
-        if (val === 'نقدي (بدون عميل)') { this.state.selectedCustomerId = null; balanceDiv.innerHTML = ''; return; }
-        const option = Array.from(this.el.customerList?.querySelectorAll('option') || []).find(o => o.value === val);
-        if (option?.dataset.id) {
-            const customer = this.cache.customerMap.get(option.dataset.id);
-            if (customer) {
-                this.state.selectedCustomerId = customer.id;
-                const bal = customer.balance || 0;
-                balanceDiv.innerHTML = bal > 0 ? `العميل دائن بـ ${Utils.formatMoney(bal)}` : bal < 0 ? `مدين بـ ${Utils.formatMoney(-bal)}` : 'لا رصيد';
-                return;
-            }
-        }
-        this.state.selectedCustomerId = null; balanceDiv.innerHTML = '';
-    },
-    getSelectedCustomer() { return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null; },
 
     calculateTotals() {
         let subtotal = 0;
@@ -349,28 +409,26 @@ const POS = {
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
-                cash_paid: cashPaid,               // يُستخدم في دالة الخادم
-                transfer_paid: transferPaid,       // يُستخدم في دالة الخادم
+                cash_paid: cashPaid,
+                transfer_paid: transferPaid,
                 used_customer_balance: usedBalance,
-                paid: totalPaid,                   // للتوافق مع الحقول القديمة
+                paid: totalPaid,
                 remaining: diff >= 0 ? 0 : -diff,
                 status: diff >= 0 ? 'paid' : 'partial',
                 notes: this.el.paymentNotes?.value || ''
             };
 
-            // استدعاء خدمة الفواتير (التي تستخدم دالة الخادم إذا كانت متاحة)
+            // استدعاء خدمة الفواتير
             const result = await InvoiceService.createSaleInvoice(invoice);
 
             if (!result || !result.success) {
                 throw new Error(result?.error || 'فشل غير معروف');
             }
 
-            // نجاح العملية
             this.closeModal('paymentModal');
-            await this.loadProductsAndCustomers(); // إعادة تحميل المنتجات لتحديث المخزون
+            await this.loadProductsAndCustomers();
             this.buildCache();
 
-            // عرض الإيصال
             const customerObj = customer || { name: 'نقدي', balance: 0 };
             this.showReceiptModal(
                 { ...invoice, invoice_number: result.invoice_number || invoice.invoice_number },
@@ -409,8 +467,7 @@ const POS = {
         this.state.cart = []; this.state.selectedCustomerId = null; this.state.discountValue = 0; this.state.discountType = 'amount'; this.state.usedCustomerBalance = 0;
         if (this.el.discountValue) this.el.discountValue.value = 0;
         if (this.el.discountType) this.el.discountType.value = 'amount';
-        if (this.el.customerSearchInput) this.el.customerSearchInput.value = '';
-        if (this.el.customerBalanceDisplay) { this.el.customerBalanceDisplay.innerHTML = ''; this.el.customerBalanceDisplay.className = 'customer-balance'; }
+        if (this.el.customerSearchInput) { this.el.customerSearchInput.value = ''; this.updateCustomerDisplay(); }
         this.renderCart();
     },
 
@@ -460,9 +517,17 @@ const POS = {
             if (!inv) { Toast.error('الفاتورة غير موجودة'); return; }
             this.state.cart = inv.items.map(item => ({...item}));
             this.state.selectedCustomerId = inv.customer_id;
-            if (inv.customer_id) { const cust = this.cache.customerMap.get(String(inv.customer_id)); if (cust) this.el.customerSearchInput.value = cust.name || ''; }
-            else this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
-            this.onCustomerSearch(); this.renderCart();
+            if (inv.customer_id) {
+                const cust = this.cache.customerMap.get(String(inv.customer_id));
+                if (cust) {
+                    this.el.customerSearchInput.value = cust.name || '';
+                    this.updateCustomerDisplay();
+                }
+            } else {
+                this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+                this.updateCustomerDisplay();
+            }
+            this.renderCart();
             this.closeModal('heldInvoicesModal'); Toast.success('تم تحميل الفاتورة المعلقة');
         } catch (err) { console.error(err); Toast.error('فشل استرجاع الفاتورة'); }
     },
