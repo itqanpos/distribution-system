@@ -433,6 +433,7 @@
                 return data;
             });
         },
+        // @deprecated – استخدم InvoiceService.createSaleInvoice بدلاً منها (تستخدم دالة الخادم)
         async saveInvoice(inv) {
             const tenantId = getCurrentTenantId();
             if (!tenantId) throw new Error('No tenant');
