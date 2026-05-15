@@ -12,7 +12,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
     
@@ -23,11 +23,14 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <!-- المكونات الجديدة -->
+    <script src="./js/toast.js"></script>
+    <script src="./js/modal.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- شريط علوي محسّن مع قائمة النقاط الثلاث -->
+    <!-- شريط علوي مع قائمة النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -56,7 +59,7 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية بنفس تصميم لوحة التحكم -->
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -81,7 +84,6 @@
 
     <!-- حاوية نقطة البيع الرئيسية -->
     <div class="pos-container">
-        <!-- منطقة العميل والبحث -->
         <div class="top-search-area">
             <div class="customer-box">
                 <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." list="customerList" autocomplete="off">
@@ -94,16 +96,12 @@
             </div>
         </div>
 
-        <!-- السلة -->
         <div class="cart-main-area">
             <div class="cart-items" id="cartItemsContainer">
-                <div class="cart-header-row">
-                    <span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span>
-                </div>
+                <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>
                 <div class="empty-cart-message">السلة فارغة</div>
             </div>
             
-            <!-- تذييل السلة (محسّن بمسافة آمنة سفلية) -->
             <div class="cart-footer">
                 <div class="cart-summary">
                     <div class="summary-stats">
@@ -114,10 +112,7 @@
                     <div class="summary-row discount-row">
                         <span>الخصم:</span>
                         <input type="number" id="discountValue" value="0" min="0" step="0.01">
-                        <select id="discountType">
-                            <option value="amount">ج.م</option>
-                            <option value="percent">%</option>
-                        </select>
+                        <select id="discountType"><option value="amount">ج.م</option><option value="percent">%</option></select>
                     </div>
                     <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
                 </div>
@@ -128,7 +123,7 @@
         </div>
     </div>
 
-    <!-- المودالات: إضافة منتج، الدفع، الفواتير المعلقة، الإيصال -->
+    <!-- مودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -147,26 +142,15 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
-                <div class="summary-row">
-                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
-                    <span id="currentBalance">0.00 ج.م</span>
-                </div>
+                <div class="summary-row"><span id="currentBalanceLabel">الرصيد الحالي:</span> <span id="currentBalance">0.00 ج.م</span></div>
             </div>
             <div class="form-group"><label>طريقة الدفع</label>
-                <select id="paymentMethod">
-                    <option value="cash">نقدي</option>
-                    <option value="transfer">تحويل</option>
-                    <option value="mixed">مختلط</option>
-                    <option value="credit">آجل</option>
-                </select>
+                <select id="paymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="mixed">مختلط</option><option value="credit">آجل</option></select>
             </div>
             <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
             <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
-            <div class="summary-row">
-                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
-                <span id="balanceAfter">0.00 ج.م</span>
-            </div>
+            <div class="summary-row"><span id="balanceAfterLabel">الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
             <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
         </div>
@@ -179,7 +163,6 @@
         </div>
     </div>
 
-    <!-- مودال الإيصال -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
             <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
