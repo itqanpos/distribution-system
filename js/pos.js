@@ -1,5 +1,6 @@
 /* =============================================
    pos.js - نقطة البيع (إصدار احترافي)
+   تم التحديث: استخدام InvoiceService + دالة الخادم
    ============================================= */
 'use strict';
 
@@ -314,6 +315,7 @@ const POS = {
         return item.quantity / (selectedUnit?.factor || 1);
     },
 
+    // ====================== دالة الدفع المعدلة ======================
     async completePayment() {
         if (this.state.isProcessing) { Toast.info('جاري معالجة الدفع...'); return; }
         this.state.isProcessing = true;
@@ -325,47 +327,70 @@ const POS = {
             const method = this.el.paymentMethod?.value || 'cash';
             if (method === 'cash') cashPaid = +this.el.cashAmount?.value || 0;
             else if (method === 'transfer') transferPaid = +this.el.transferAmount?.value || 0;
-            else if (method === 'mixed') { cashPaid = +this.el.cashAmount?.value || 0; transferPaid = +this.el.transferAmount?.value || 0; }
+            else if (method === 'mixed') {
+                cashPaid = +this.el.cashAmount?.value || 0;
+                transferPaid = +this.el.transferAmount?.value || 0;
+            }
             const usedBalance = this.state.usedCustomerBalance || 0;
             const totalPaid = Utils.round(cashPaid + transferPaid + usedBalance, 2);
             const diff = Utils.round(totalPaid - totals.net, 2);
 
+            const customer = this.getSelectedCustomer();
             const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
+
+            // بناء كائن الفاتورة (متوافق مع دالة الخادم)
             const invoice = {
-                id: Utils.generateUUID(), invoice_number: invoiceNumber, type: 'sale', date: Utils.getToday(),
+                id: Utils.generateUUID(),
+                invoice_number: invoiceNumber,
+                date: Utils.getToday(),
                 customer_id: this.state.selectedCustomerId || null,
-                customer_name: this.getSelectedCustomer()?.name || 'نقدي',
+                customer_name: customer?.name || 'نقدي',
                 items: this.state.cart.map(item => ({...item})),
-                subtotal: totals.subtotal, discount: totals.discount, total: totals.net,
-                paid: totalPaid, remaining: diff >= 0 ? 0 : -diff, status: diff >= 0 ? 'paid' : 'partial',
-                notes: this.el.paymentNotes?.value || '', used_customer_balance: usedBalance
+                subtotal: totals.subtotal,
+                discount: totals.discount,
+                total: totals.net,
+                cash_paid: cashPaid,               // يُستخدم في دالة الخادم
+                transfer_paid: transferPaid,       // يُستخدم في دالة الخادم
+                used_customer_balance: usedBalance,
+                paid: totalPaid,                   // للتوافق مع الحقول القديمة
+                remaining: diff >= 0 ? 0 : -diff,
+                status: diff >= 0 ? 'paid' : 'partial',
+                notes: this.el.paymentNotes?.value || ''
             };
 
-            const customer = this.getSelectedCustomer();
-            const oldBal = customer?.balance || 0;
+            // استدعاء خدمة الفواتير (التي تستخدم دالة الخادم إذا كانت متاحة)
+            const result = await InvoiceService.createSaleInvoice(invoice);
 
-            if (this.state.isDBReady) {
-                await DB.saveInvoice(invoice);
-                for (const item of this.state.cart) {
-                    const prod = this.cache.productMap.get(String(item.productId));
-                    if (prod) { const reduction = this.getBaseQuantityReduction(item); prod.units[0].stock = Utils.round(Math.max(0, prod.units[0].stock - reduction), 3); await DB.saveProduct(prod); }
-                }
-                if (customer) { customer.balance = Utils.round((customer.balance || 0) - usedBalance + diff, 2); await DB.saveParty(customer); }
-                if (cashPaid > 0) await DB.saveTransaction({ id: Utils.generateUUID(), date: Utils.getToday(), type: 'income', amount: cashPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'cash' });
-                if (transferPaid > 0) await DB.saveTransaction({ id: Utils.generateUUID(), date: Utils.getToday(), type: 'income', amount: transferPaid, description: `فاتورة ${invoiceNumber}`, payment_method: 'bank' });
-            } else if (Utils.hasLocalDB()) {
-                await localDB.put('invoices', invoice);
-                if (customer) { customer.balance = Utils.round((customer.balance || 0) - usedBalance + diff, 2); await localDB.put('parties', customer); }
+            if (!result || !result.success) {
+                throw new Error(result?.error || 'فشل غير معروف');
             }
 
+            // نجاح العملية
             this.closeModal('paymentModal');
-            await this.loadProductsAndCustomers(); this.buildCache();
-            this.showReceiptModal(invoice, customer || { name: 'نقدي', balance: 0 }, this.state.cart, totals, oldBal);
+            await this.loadProductsAndCustomers(); // إعادة تحميل المنتجات لتحديث المخزون
+            this.buildCache();
+
+            // عرض الإيصال
+            const customerObj = customer || { name: 'نقدي', balance: 0 };
+            this.showReceiptModal(
+                { ...invoice, invoice_number: result.invoice_number || invoice.invoice_number },
+                customerObj,
+                this.state.cart,
+                totals,
+                customer?.balance || 0
+            );
+
             this.resetCart();
             Toast.success('تم البيع بنجاح');
         } catch (error) {
             console.error('خطأ في الدفع:', error);
-            await ModalConfirm.show({ title: 'خطأ في الدفع', message: error.message || 'حدث خطأ غير متوقع', icon: 'warn', confirmText: 'حسناً', type: 'danger' });
+            await ModalConfirm.show({
+                title: 'خطأ في الدفع',
+                message: error.message || 'حدث خطأ غير متوقع',
+                icon: 'warn',
+                confirmText: 'حسناً',
+                type: 'danger'
+            });
         } finally {
             this.state.isProcessing = false;
             this.el.confirmAndPrintBtn.disabled = false;
