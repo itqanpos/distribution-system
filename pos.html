@@ -26,6 +26,8 @@
     <!-- المكونات الجديدة -->
     <script src="./js/toast.js"></script>
     <script src="./js/modal.js"></script>
+    <!-- ✅ خدمة الفواتير (طبقة وسيطة لاستدعاء دالة الخادم) -->
+    <script src="./js/services/invoiceService.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -90,7 +92,7 @@
                 <datalist id="customerList"></datalist>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
-            <div class="search-header">
+            <div class="search-dropdown">
                 <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off">
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
@@ -176,6 +178,7 @@
 
     <div class="toast" id="toast"></div>
 
+    <!-- ✅ تحميل نقطة البيع (بعد جميع المكونات) -->
     <script src="./js/pos.js"></script>
 </body>
 </html>
