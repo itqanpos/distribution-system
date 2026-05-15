@@ -1,10 +1,8 @@
 /* =============================================
-   purchases.js - المشتريات (إصدار نهائي)
-   يستخدم PurchaseService + دالة الخادم
+   purchases.js - المشتريات (إصدار محدث)
+   مطابق لتصميم pos مع PurchaseService + دالة الخادم
    ============================================= */
 'use strict';
-
-console.log('✅ المشتريات – بدء التحميل');
 
 // ========== Toast مستقل ==========
 const Toast = {
@@ -27,14 +25,9 @@ const Toast = {
   info(msg) { this.show(msg, 'info'); }
 };
 
-// الأدوات المساعدة
 const U = {
     formatMoney: (v) => Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ج.م',
-    escapeHTML: (s) => {
-        const d = document.createElement('div');
-        d.appendChild(document.createTextNode(s));
-        return d.innerHTML;
-    },
+    escapeHTML: (s) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; },
     today: () => new Date().toISOString().split('T')[0],
     round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d),
     generateUUID: () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); })
@@ -62,10 +55,21 @@ const Purchases = {
         await this.loadAllData();
         this.renderTable();
         this.updateStats();
+        this.initSidebarUser();
         window.addEventListener('online', () => this.loadAllData().then(() => { this.renderTable(); this.updateStats(); }));
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') this.loadAllData().then(() => { this.renderTable(); this.updateStats(); });
         });
+    },
+
+    initSidebarUser() {
+        const user = window.App?.getCurrentUser?.();
+        if (user) {
+            const avatarEl = document.getElementById('sidebarAvatar');
+            const nameEl = document.getElementById('sidebarUserName');
+            if (avatarEl) avatarEl.textContent = user.avatar || 'U';
+            if (nameEl) nameEl.textContent = user.fullName || user.email || 'مدير النظام';
+        }
     },
 
     waitForDB() {
@@ -81,7 +85,7 @@ const Purchases = {
 
     cacheDOM() {
         const ids = [
-            'menuToggle', 'sidebar', 'userDropdown', 'userProfileBtn', 'logoutBtn',
+            'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown', 'logoutBtn',
             'searchInput', 'refreshBtn', 'purchasesBody', 'newPurchaseBtn',
             'totalPurchases', 'paidPurchases', 'unpaidPurchases', 'purchaseCount',
             'purchaseModal', 'modalTitle', 'closeModalBtn', 'cancelModalBtn',
@@ -89,20 +93,22 @@ const Purchases = {
             'purchaseDate', 'invoiceNumber', 'itemsContainer', 'addItemBtn',
             'totalAmount', 'paidAmount', 'paymentMethod', 'remainingAmount',
             'detailsModal', 'detailsContent', 'closeDetailsBtn', 'toast',
-            'filterBtns', 'moreMenuBtn', 'moreDropdown'
+            'filterBtns', 'printReportBtn', 'sidebarAvatar', 'sidebarUserName'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
         this.el.filterBtns = document.querySelectorAll('.filter-btn');
     },
 
     bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => this.el.sidebar.classList.toggle('open'));
-        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else location.href = './index.html'; });
+        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
+        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay.classList.remove('show'); });
+        document.querySelectorAll('.menu-item').forEach(link => { link.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }); });
 
         this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
         document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+
+        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else location.href = './index.html'; });
+        this.el.printReportBtn?.addEventListener('click', (e) => { e.preventDefault(); this.printReport(); this.el.moreDropdown?.classList.remove('show'); });
 
         this.el.searchInput?.addEventListener('input', () => this.renderTable());
         this.el.refreshBtn?.addEventListener('click', () => this.loadAllData().then(() => { this.renderTable(); this.updateStats(); }));
@@ -122,8 +128,6 @@ const Purchases = {
         this.el.purchaseForm?.addEventListener('submit', (e) => { e.preventDefault(); this.savePurchase(); });
         this.el.addItemBtn?.addEventListener('click', () => this.addItemCard());
         this.el.closeDetailsBtn?.addEventListener('click', () => this.el.detailsModal.classList.remove('open'));
-
-        document.querySelectorAll('.menu-item').forEach(link => link.addEventListener('click', () => this.el.sidebar.classList.remove('open')));
     },
 
     async loadAllData() {
@@ -175,7 +179,6 @@ const Purchases = {
         });
         if (this.state.currentFilter === 'paid') filtered = filtered.filter(p => p.status === 'paid' || p.remaining === 0);
         else if (this.state.currentFilter === 'unpaid') filtered = filtered.filter(p => p.status !== 'paid' && p.remaining > 0);
-
         filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         const tbody = this.el.purchasesBody;
@@ -221,9 +224,7 @@ const Purchases = {
         this.el.purchaseModal.classList.add('open');
     },
 
-    closeModal() {
-        this.el.purchaseModal.classList.remove('open');
-    },
+    closeModal() { this.el.purchaseModal.classList.remove('open'); },
 
     addItemCard(item = null) {
         const card = document.createElement('div');
@@ -295,7 +296,6 @@ const Purchases = {
         this.el.remainingAmount.textContent = U.formatMoney(Math.max(0, total - paid));
     },
 
-    // ======================== حفظ الفاتورة (معدّلة لاستخدام PurchaseService) ========================
     async savePurchase() {
         const supplierName = this.el.supplierInput.value.trim();
         if (!supplierName) return alert('اسم المورد مطلوب');
@@ -345,7 +345,6 @@ const Purchases = {
 
         try {
             if (this.state.ready === true) {
-                // استخدام PurchaseService بدلاً من DB.savePurchase
                 await PurchaseService.createPurchaseInvoice({
                     ...purchaseData,
                     cash_paid: paymentMethod === 'cash' ? paid : 0,
@@ -362,15 +361,14 @@ const Purchases = {
                     }
                 }
                 if (paid > 0 && paymentMethod !== 'credit') {
-                    const transaction = {
+                    await localDB.put('transactions', {
                         id: U.generateUUID(),
                         date,
                         type: 'expense',
                         amount: paid,
                         description: `دفع فاتورة شراء ${purchaseData.id}`,
                         payment_method: paymentMethod === 'cash' ? 'cash' : 'bank'
-                    };
-                    await localDB.put('transactions', transaction);
+                    });
                 }
                 if (supplierId) {
                     const supplier = this.state.suppliers.find(s => s.id === supplierId);
@@ -426,6 +424,53 @@ const Purchases = {
     editPurchase(id) {
         const purchase = this.state.purchases.find(p => p.id === id);
         if (purchase) this.openModal(purchase);
+    },
+
+    // طباعة تقرير المشتريات من قائمة الثلاث نقاط
+    printReport() {
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) { Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
+        const rows = this.state.purchases.map(p => {
+            return `<tr>
+                <td>${U.escapeHTML(p.invoice_number || p.id?.substring(0,8) || '')}</td>
+                <td>${p.date}</td>
+                <td>${U.escapeHTML(p.supplier_name || '')}</td>
+                <td>${U.formatMoney(p.total)}</td>
+                <td>${U.formatMoney(p.paid)}</td>
+                <td>${U.formatMoney(p.remaining)}</td>
+                <td>${p.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة'}</td>
+            </tr>`;
+        }).join('');
+        const totalAll = this.state.purchases.reduce((s, p) => s + (p.total || 0), 0);
+        const paidAll = this.state.purchases.reduce((s, p) => s + (p.paid || 0), 0);
+        const remainingAll = totalAll - paidAll;
+        printWindow.document.write(`
+            <html dir="rtl"><head><meta charset="UTF-8">
+            <title>تقرير المشتريات - حسابي</title>
+            <style>
+                body { font-family: 'Cairo', sans-serif; padding: 20px; direction: rtl; color: #0f172a; }
+                h1 { text-align: center; margin-bottom: 10px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: center; }
+                th { background: #f1f5f9; font-weight: 600; }
+                .summary { display: flex; justify-content: space-around; margin: 20px 0; background: #f8fafc; padding: 15px; border-radius: 12px; }
+                .summary div { text-align: center; }
+                .summary strong { display: block; font-size: 1.2em; color: #2563eb; }
+            </style>
+            </head><body>
+                <h1>تقرير المشتريات</h1>
+                <div class="summary">
+                    <div><span>إجمالي المشتريات</span><strong>${U.formatMoney(totalAll)}</strong></div>
+                    <div><span>المدفوع</span><strong>${U.formatMoney(paidAll)}</strong></div>
+                    <div><span>المتبقي</span><strong>${U.formatMoney(remainingAll)}</strong></div>
+                    <div><span>عدد الفواتير</span><strong>${this.state.purchases.length}</strong></div>
+                </div>
+                <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>
+            </body></html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     }
 };
 
