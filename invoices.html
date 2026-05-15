@@ -13,7 +13,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/invoices.css">
     
@@ -24,11 +24,13 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <!-- المكونات الجديدة -->
+    <script src="./js/toast.js"></script>
+    <script src="./js/modal.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- الشريط العلوي مع زر النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -43,12 +45,10 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="./pos.html"><i class="fas fa-plus"></i> فاتورة بيع جديدة</a>
-                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث البيانات</a>
+                    <a href="./pos.html"><i class="fas fa-plus"></i> فاتورة جديدة</a>
+                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث</a>
                     <a href="#" id="printReportBtn"><i class="fas fa-print"></i> طباعة التقرير الحالي</a>
                     <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
@@ -58,7 +58,6 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -84,12 +83,9 @@
     <main class="main-content">
         <div class="page-header">
             <div class="page-title"><h1><i class="fas fa-file-invoice"></i> الفواتير</h1></div>
-            <div>
-                <a href="./pos.html" class="btn btn-primary"><i class="fas fa-plus"></i> فاتورة بيع جديدة</a>
-            </div>
+            <div><a href="./pos.html" class="btn btn-primary"><i class="fas fa-plus"></i> فاتورة بيع جديدة</a></div>
         </div>
 
-        <!-- بطاقات الإحصائيات -->
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card"><div class="stat-icon" style="color:#16a34a;"><i class="fas fa-shopping-cart"></i></div><div class="stat-content"><div class="stat-title">إجمالي المبيعات</div><div class="stat-value" id="totalSales">0.00 ج.م</div></div></div>
             <div class="stat-card"><div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div><div class="stat-content"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value" id="totalReturns">0.00 ج.م</div></div></div>
@@ -99,14 +95,8 @@
 
         <div class="filter-bar">
             <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل..."></div>
-            <div class="filter-group">
-                <label>النوع:</label>
-                <select id="typeFilter"><option value="all">الكل</option><option value="sale">بيع</option><option value="return">مرتجع</option></select>
-            </div>
-            <div class="filter-group">
-                <label>الحالة:</label>
-                <select id="statusFilter"><option value="all">الكل</option><option value="paid">مدفوعة</option><option value="partial">جزئية</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select>
-            </div>
+            <div class="filter-group"><label>النوع:</label><select id="typeFilter"><option value="all">الكل</option><option value="sale">بيع</option><option value="return">مرتجع</option></select></div>
+            <div class="filter-group"><label>الحالة:</label><select id="statusFilter"><option value="all">الكل</option><option value="paid">مدفوعة</option><option value="partial">جزئية</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select></div>
             <button class="btn btn-outline" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
         </div>
 
@@ -118,7 +108,6 @@
         </div>
     </main>
 
-    <!-- مودال عرض الإيصال -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
             <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
@@ -130,7 +119,6 @@
         </div>
     </div>
 
-    <!-- مودال تعديل الفاتورة -->
     <div class="modal" id="editInvoiceModal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header"><h2>تعديل الفاتورة</h2><button id="closeEditModalBtn">&times;</button></div>
