@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -96,26 +97,6 @@
         .btn-signup:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(37,99,235,0.3); }
         .btn-signup:active { transform: scale(0.98); }
         .btn-signup.loading { pointer-events: none; opacity: 0.7; }
-        .error-box {
-            background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #ef4444; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;
-            font-size: 13px; font-weight: 500; display: none; align-items: center; gap: 10px;
-        }
-        .error-box.show { display: flex; animation: shake 0.4s ease; }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); }
-        }
-        .success-box {
-            background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #10b981; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;
-            font-size: 13px; font-weight: 500; display: none; align-items: center; gap: 10px;
-        }
-        .success-box.show { display: flex; }
-        .spinner {
-            display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
         .login-link { text-align: center; margin-top: 20px; font-size: 14px; color: #64748b; }
         .login-link a { color: #3b82f6; text-decoration: none; font-weight: 600; }
         .login-link a:hover { text-decoration: underline; }
@@ -131,9 +112,6 @@
                 <h1 class="app-title"><span>📊</span> حسابي</h1>
                 <p class="app-subtitle">ابدأ متجرك الآن – مجاناً لمدة 14 يوم</p>
             </div>
-            
-            <div class="error-box" id="errorBox"><i class="fas fa-exclamation-circle"></i> <span id="errorText"></span></div>
-            <div class="success-box" id="successBox"><i class="fas fa-check-circle"></i> <span id="successText"></span></div>
             
             <form id="signupForm" autocomplete="off">
                 <div class="form-group">
@@ -190,6 +168,8 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="./js/modal.js"></script>
     <script>
         'use strict';
         
@@ -200,10 +180,6 @@
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const signupBtn = document.getElementById('signupBtn');
-        const errorBox = document.getElementById('errorBox');
-        const errorText = document.getElementById('errorText');
-        const successBox = document.getElementById('successBox');
-        const successText = document.getElementById('successText');
         
         document.querySelectorAll('.plan-card').forEach(card => {
             card.addEventListener('click', () => {
@@ -212,9 +188,6 @@
             });
         });
         
-        function showError(message) { errorText.textContent = message; errorBox.classList.add('show'); successBox.classList.remove('show'); }
-        function showSuccess(message) { successText.textContent = message; successBox.classList.add('show'); errorBox.classList.remove('show'); }
-        function hideMessages() { errorBox.classList.remove('show'); successBox.classList.remove('show'); }
         function setLoading(loading) {
             if (loading) {
                 signupBtn.classList.add('loading');
@@ -229,7 +202,6 @@
         
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            hideMessages();
             
             const tenantName = tenantNameInput.value.trim();
             const fullName = fullNameInput.value.trim() || tenantName;
@@ -238,9 +210,9 @@
             const password = passwordInput.value;
             const plan = document.querySelector('.plan-card.selected')?.dataset?.plan || 'trial';
             
-            if (!tenantName) { showError('اسم المتجر مطلوب'); tenantNameInput.focus(); return; }
-            if (!email) { showError('البريد الإلكتروني مطلوب'); emailInput.focus(); return; }
-            if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); passwordInput.focus(); return; }
+            if (!tenantName) { Toast.error('اسم المتجر مطلوب'); tenantNameInput.focus(); return; }
+            if (!email) { Toast.error('البريد الإلكتروني مطلوب'); emailInput.focus(); return; }
+            if (!password || password.length < 6) { Toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); passwordInput.focus(); return; }
             
             setLoading(true);
             
@@ -248,23 +220,19 @@
                 const result = await window.App.signup(email, password, fullName, 'admin', tenantName, phone);
                 
                 if (result.success) {
-                    showSuccess('🎉 تم إنشاء متجرك بنجاح! جاري توجيهك...');
+                    Toast.success('🎉 تم إنشاء متجرك بنجاح! جاري توجيهك...');
                     signupBtn.style.display = 'none';
                     setTimeout(() => { window.location.href = './dashboard.html'; }, 2000);
                 } else {
-                    showError(result.message || 'فشل إنشاء الحساب. حاول مرة أخرى.');
+                    Toast.error(result.message || 'فشل إنشاء الحساب. حاول مرة أخرى.');
                     setLoading(false);
                 }
             } catch (err) {
                 console.error('Signup error:', err);
-                showError('حدث خطأ غير متوقع. تأكد من اتصالك بالإنترنت.');
+                Toast.error('حدث خطأ غير متوقع. تأكد من اتصالك بالإنترنت.');
                 setLoading(false);
             }
         });
-        
-        tenantNameInput.addEventListener('input', hideMessages);
-        emailInput.addEventListener('input', hideMessages);
-        passwordInput.addEventListener('input', hideMessages);
     </script>
 </body>
 </html>
