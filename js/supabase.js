@@ -239,11 +239,35 @@
         },
 
         requireAuth() {
-            if (!this.getCurrentUser()) {
+            const user = this.getCurrentUser();
+            if (!user) {
                 window.location.href = './index.html';
                 return false;
             }
+            
+            // ✅ التحقق من صلاحية المتجر (للمستخدمين العاديين فقط)
+            if (user.role !== 'super_admin' && user.tenant_id) {
+                this.checkTenantStatus(user.tenant_id);
+            }
+            
             return true;
+        },
+
+        async checkTenantStatus(tenantId) {
+            try {
+                const { data: tenant } = await supabaseClient
+                    .from('tenants')
+                    .select('plan')
+                    .eq('id', tenantId)
+                    .single();
+                    
+                if (tenant && tenant.plan === 'expired') {
+                    // ✅ توجيه إلى صفحة انتهاء الاشتراك بدلاً من تنبيه بسيط
+                    window.location.href = './expired.html';
+                }
+            } catch (e) {
+                console.warn('فشل التحقق من حالة المتجر:', e);
+            }
         },
 
         requireRole(allowedRoles) {
