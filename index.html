@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>تسجيل الدخول · حسابي</title>
     
-    <!-- أيقونات وخطوط -->
     <link rel="icon" href="./icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -94,20 +94,6 @@
         .btn-login:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(37,99,235,0.3); }
         .btn-login:active { transform: scale(0.98); }
         .btn-login.loading { pointer-events: none; opacity: 0.7; }
-        .error-box {
-            background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #ef4444; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;
-            font-size: 13px; font-weight: 500; display: none; align-items: center; gap: 10px;
-        }
-        .error-box.show { display: flex; animation: shake 0.4s ease; }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); }
-        }
-        .spinner {
-            display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
         .signup-link { text-align: center; margin-top: 20px; font-size: 14px; color: #64748b; }
         .signup-link a { color: #3b82f6; text-decoration: none; font-weight: 600; }
         .signup-link a:hover { text-decoration: underline; }
@@ -124,11 +110,6 @@
                 <p class="app-subtitle">نظام إدارة المبيعات والتوزيع</p>
             </div>
             
-            <div class="error-box" id="errorBox">
-                <i class="fas fa-exclamation-circle"></i>
-                <span id="errorText"></span>
-            </div>
-            
             <form id="loginForm" autocomplete="off">
                 <div class="form-group">
                     <label>البريد الإلكتروني</label>
@@ -142,14 +123,6 @@
                     <div class="input-wrapper">
                         <input type="password" id="password" placeholder="أدخل كلمة المرور" required dir="ltr">
                         <i class="fas fa-lock"></i>
-                    </div>
-                </div>
-                <!-- حقل اسم المتجر (اختياري، لزيادة الأمان) -->
-                <div class="form-group">
-                    <label>اسم المتجر (اختياري)</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="tenantName" placeholder="أدخل اسم متجرك إن وجد">
-                        <i class="fas fa-store-alt"></i>
                     </div>
                 </div>
                 <div class="remember-row">
@@ -169,6 +142,9 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="./js/modal.js"></script>
+    
     <script>
         'use strict';
         
@@ -184,13 +160,8 @@
         const form = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
-        const tenantNameInput = document.getElementById('tenantName');
         const loginBtn = document.getElementById('loginBtn');
-        const errorBox = document.getElementById('errorBox');
-        const errorText = document.getElementById('errorText');
         
-        function showError(message) { errorText.textContent = message; errorBox.classList.add('show'); }
-        function hideError() { errorBox.classList.remove('show'); }
         function setLoading(loading) {
             if (loading) {
                 loginBtn.classList.add('loading');
@@ -205,22 +176,20 @@
         
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            hideError();
             
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-            const tenantName = tenantNameInput.value.trim();
             const rememberMe = document.getElementById('rememberMe').checked;
             
-            if (!email) { showError('الرجاء إدخال البريد الإلكتروني'); emailInput.focus(); return; }
-            if (!password) { showError('الرجاء إدخال كلمة المرور'); passwordInput.focus(); return; }
-            if (password.length < 6) { showError('كلمة المرور قصيرة جداً (6 أحرف على الأقل)'); passwordInput.focus(); return; }
+            if (!email) { Toast.error('الرجاء إدخال البريد الإلكتروني'); emailInput.focus(); return; }
+            if (!password) { Toast.error('الرجاء إدخال كلمة المرور'); passwordInput.focus(); return; }
+            if (password.length < 6) { Toast.error('كلمة المرور قصيرة جداً (6 أحرف على الأقل)'); passwordInput.focus(); return; }
             
             setLoading(true);
             
             try {
                 if (!window.App || !App.login) throw new Error('نظام المصادقة غير متوفر.');
-                const result = await App.login(email, password, tenantName);
+                const result = await App.login(email, password);
                 
                 if (result.success) {
                     if (rememberMe) localStorage.setItem('remember_me', 'true');
@@ -230,18 +199,15 @@
                     if (user && user.role === 'super_admin') window.location.href = './admin.html';
                     else window.location.href = result.redirectUrl;
                 } else {
-                    showError(result.message || 'فشل تسجيل الدخول. تحقق من بيانات الاعتماد.');
+                    Toast.error(result.message || 'فشل تسجيل الدخول. تحقق من بيانات الاعتماد.');
                     setLoading(false);
                 }
             } catch (err) {
                 console.error('Login error:', err);
-                showError('حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت.');
+                Toast.error('حدث خطأ في الاتصال. تأكد من اتصالك بالإنترنت.');
                 setLoading(false);
             }
         });
-        
-        emailInput.addEventListener('input', hideError);
-        passwordInput.addEventListener('input', hideError);
         
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
     </script>
