@@ -77,7 +77,7 @@
             background: var(--surface); border-radius: var(--radius); padding: 20px;
             border: 1px solid var(--border); overflow-x: auto;
         }
-        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
         th {
             text-align: right; padding: 12px 14px; color: var(--text-secondary);
             font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border);
@@ -98,7 +98,8 @@
         }
         .btn-danger { background: rgba(239,68,68,0.2); color: #ef4444; }
         .btn-danger:hover { background: rgba(239,68,68,0.4); }
-        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #2563eb; }
         .empty { text-align: center; padding: 40px; color: var(--text-secondary); }
         .loading { text-align: center; padding: 40px; }
     </style>
@@ -187,21 +188,15 @@
             if (!user) return;
 
             try {
-                // استخدام الدالة المخزنة التي تتجاوز RLS
                 const { data, error } = await supabase.rpc('get_all_tenants_data');
-                
                 if (error) {
-                    // إذا كانت الدالة غير موجودة، نستخدم الطريقة المباشرة
-                    console.warn('RPC غير موجودة، استخدام الطريقة المباشرة:', error);
                     const { data: tenants } = await supabase
                         .from('tenants')
                         .select('*')
                         .order('created_at', { ascending: false });
-                    
                     renderData(tenants || []);
                     return;
                 }
-
                 renderData(data || []);
             } catch (err) {
                 console.error('فشل تحميل البيانات:', err);
@@ -232,13 +227,24 @@
             tbody.innerHTML = tenants.map(t => `
                 <tr>
                     <td><strong>${t.name || '—'}</strong></td>
-                    <td>${getBadge(t.plan)}</td>
+                    <td>
+                        <select onchange="updateTenantPlan('${t.id}', this.value)" 
+                            style="padding:6px; border-radius:8px; background:#1e293b; color:white; border:1px solid #334155; font-family:inherit;">
+                            <option value="trial" ${t.plan === 'trial' ? 'selected' : ''}>تجريبي</option>
+                            <option value="monthly" ${t.plan === 'monthly' ? 'selected' : ''}>شهري</option>
+                            <option value="yearly" ${t.plan === 'yearly' ? 'selected' : ''}>سنوي</option>
+                            <option value="expired" ${t.plan === 'expired' ? 'selected' : ''}>منتهي</option>
+                        </select>
+                    </td>
                     <td>${formatDate(t.created_at)}</td>
                     <td>${t.invoices_count || 0}</td>
                     <td>${t.products_count || 0}</td>
                     <td>${t.customers_count || 0}</td>
                     <td>${formatMoney(t.total_sales)}</td>
-                    <td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="action-btn btn-primary" onclick="toggleTenantStatus('${t.id}', '${t.plan === 'expired' ? 'active' : 'expired'}')">
+                            <i class="fas fa-power-off"></i> ${t.plan === 'expired' ? 'تفعيل' : 'تعطيل'}
+                        </button>
                         <button class="action-btn btn-danger" onclick="deleteTenant('${t.id}')">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -247,21 +253,36 @@
             `).join('');
         }
 
-        async function deleteTenant(id) {
-            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟ لا يمكن التراجع عن هذا الإجراء.')) return;
-            
+        async function updateTenantPlan(tenantId, newPlan) {
             try {
-                // حذف جميع البيانات المرتبطة أولاً
+                await supabase.from('tenants').update({ plan: newPlan }).eq('id', tenantId);
+                alert('تم تحديث الخطة بنجاح');
+            } catch (e) {
+                alert('فشل تحديث الخطة: ' + e.message);
+            }
+        }
+
+        async function toggleTenantStatus(tenantId, currentStatus) {
+            const newPlan = currentStatus === 'expired' ? 'active' : 'expired';
+            if (!confirm(`هل أنت متأكد من ${newPlan === 'active' ? 'تفعيل' : 'تعطيل'} هذا المتجر؟`)) return;
+            try {
+                await supabase.from('tenants').update({ plan: newPlan }).eq('id', tenantId);
+                loadData();
+                alert(`تم ${newPlan === 'active' ? 'تفعيل' : 'تعطيل'} المتجر بنجاح`);
+            } catch (e) {
+                alert('فشل تغيير حالة المتجر: ' + e.message);
+            }
+        }
+
+        async function deleteTenant(tenantId) {
+            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+            try {
                 const tables = ['invoices', 'purchases', 'transactions', 'returns', 'products', 'parties', 'reps', 'settings', 'journal_entries', 'accounts'];
-                
                 for (const table of tables) {
-                    await supabase.from(table).delete().eq('tenant_id', id);
+                    await supabase.from(table).delete().eq('tenant_id', tenantId);
                 }
-                
-                // حذف المستأجر نفسه
-                await supabase.from('tenants').delete().eq('id', id);
-                
-                loadData(); // إعادة تحميل البيانات
+                await supabase.from('tenants').delete().eq('id', tenantId);
+                loadData();
             } catch (e) {
                 alert('فشل الحذف: ' + (e.message || 'خطأ غير معروف'));
             }
