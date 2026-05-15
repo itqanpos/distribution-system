@@ -13,7 +13,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/dashboard.css">
     
@@ -24,12 +24,14 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- المكونات الجديدة -->
+    <script src="./js/toast.js"></script>
+    <script src="./js/modal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- الشريط العلوي مع زر النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -44,20 +46,17 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث البيانات</a>
                     <div class="dropdown-divider"></div>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- القائمة الجانبية مع صورة المستخدم في الأعلى -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -80,104 +79,63 @@
         </ul>
     </aside>
 
-    <!-- المحتوى الرئيسي (Premium Dashboard) -->
-    <main class="dashboard-container">
+    <main class="main-content">
+        <div class="page-header">
+            <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1></div>
+            <div class="date-display" id="currentDate"></div>
+        </div>
 
-        <!-- HERO SECTION -->
-        <section class="hero-section">
-            <div class="hero-content">
-                <div>
-                    <h1 id="heroGreeting">مرحباً، محمد 👋</h1>
-                    <p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p>
+        <!-- المحتوى الديناميكي -->
+        <div class="dashboard-container">
+            <section class="hero-section">
+                <div class="hero-content">
+                    <div><h1 id="heroGreeting">مرحباً، محمد 👋</h1><p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p></div>
+                    <div class="hero-actions">
+                        <button class="primary-btn" onclick="window.location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
+                        <button class="secondary-btn" onclick="window.location.href='./reports.html'"><i class="fas fa-chart-line"></i> التقارير</button>
+                    </div>
                 </div>
-                <div class="hero-actions">
-                    <button class="primary-btn" onclick="window.location.href='./pos.html'">
-                        <i class="fas fa-plus"></i> فاتورة جديدة
-                    </button>
-                    <button class="secondary-btn" onclick="window.location.href='./reports.html'">
-                        <i class="fas fa-chart-line"></i> التقارير
-                    </button>
-                </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- STATS -->
-        <section class="stats-grid">
-            <div class="premium-card sales">
-                <div class="card-top">
-                    <div><span>مبيعات اليوم</span><h2 id="salesToday">0.00 ج.م</h2></div>
-                    <div class="icon-box"><i class="fas fa-chart-line"></i></div>
-                </div>
-                <div class="card-bottom"><span class="success-text" id="salesTrend">↑ جاري التحميل...</span></div>
-            </div>
-            <div class="premium-card purchases">
-                <div class="card-top">
-                    <div><span>المشتريات</span><h2 id="purchasesToday">0.00 ج.م</h2></div>
-                    <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
-                </div>
-                <div class="card-bottom"><span class="warning-text" id="purchasesTrend">↑ جاري التحميل...</span></div>
-            </div>
-            <div class="premium-card customers">
-                <div class="card-top">
-                    <div><span>العملاء</span><h2 id="customersCount">0</h2></div>
-                    <div class="icon-box"><i class="fas fa-users"></i></div>
-                </div>
-                <div class="card-bottom"><span class="success-text" id="customersTrend">+ جاري التحميل...</span></div>
-            </div>
-            <div class="premium-card cash">
-                <div class="card-top">
-                    <div><span>رصيد الصندوق</span><h2 id="cashBalance">0.00 ج.م</h2></div>
-                    <div class="icon-box"><i class="fas fa-wallet"></i></div>
-                </div>
-                <div class="card-bottom"><span class="danger-text" id="cashTrend">↓ جاري التحميل...</span></div>
-            </div>
-        </section>
+            <section class="stats-grid">
+                <div class="premium-card sales"><div class="card-top"><div><span>مبيعات اليوم</span><h2 id="salesToday">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-chart-line"></i></div></div><div class="card-bottom"><span class="success-text" id="salesTrend">↑ حتى اللحظة</span></div></div>
+                <div class="premium-card purchases"><div class="card-top"><div><span>المشتريات</span><h2 id="purchasesToday">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-shopping-cart"></i></div></div><div class="card-bottom"><span class="warning-text" id="purchasesTrend">↑ حتى اللحظة</span></div></div>
+                <div class="premium-card customers"><div class="card-top"><div><span>العملاء</span><h2 id="customersCount">0</h2></div><div class="icon-box"><i class="fas fa-users"></i></div></div><div class="card-bottom"><span class="success-text" id="customersTrend">+ إجمالي</span></div></div>
+                <div class="premium-card cash"><div class="card-top"><div><span>رصيد الصندوق</span><h2 id="cashBalance">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-wallet"></i></div></div><div class="card-bottom"><span class="danger-text" id="cashTrend">↓ الرصيد الحالي</span></div></div>
+            </section>
 
-        <!-- QUICK ACTIONS -->
-        <section class="quick-actions">
-            <div class="section-header"><h3>إجراءات سريعة</h3></div>
-            <div class="actions-grid">
-                <button class="action-card" onclick="window.location.href='./pos.html'"><i class="fas fa-file-invoice"></i><span>فاتورة جديدة</span></button>
-                <button class="action-card" onclick="window.location.href='./customers.html'"><i class="fas fa-user-plus"></i><span>إضافة عميل</span></button>
-                <button class="action-card" onclick="window.location.href='./products.html'"><i class="fas fa-box"></i><span>إضافة منتج</span></button>
-                <button class="action-card" onclick="window.location.href='./reports.html'"><i class="fas fa-print"></i><span>طباعة تقرير</span></button>
-            </div>
-        </section>
+            <section class="quick-actions">
+                <div class="section-header"><h3>إجراءات سريعة</h3></div>
+                <div class="actions-grid">
+                    <button class="action-card" onclick="window.location.href='./pos.html'"><i class="fas fa-file-invoice"></i><span>فاتورة جديدة</span></button>
+                    <button class="action-card" onclick="window.location.href='./customers.html'"><i class="fas fa-user-plus"></i><span>إضافة عميل</span></button>
+                    <button class="action-card" onclick="window.location.href='./products.html'"><i class="fas fa-box"></i><span>إضافة منتج</span></button>
+                    <button class="action-card" onclick="window.location.href='./reports.html'"><i class="fas fa-print"></i><span>طباعة تقرير</span></button>
+                </div>
+            </section>
 
-        <!-- MAIN GRID -->
-        <section class="main-grid">
-            <div class="glass-card large-card">
-                <div class="section-header">
-                    <h3>تحليل المبيعات</h3>
-                    <select class="modern-select">
-                        <option value="7">آخر 7 أيام</option>
-                        <option value="30">آخر 30 يوم</option>
-                    </select>
+            <section class="main-grid">
+                <div class="glass-card large-card">
+                    <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select"><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يوم</option></select></div>
+                    <div class="chart-placeholder"><canvas id="salesChart"></canvas></div>
                 </div>
-                <div class="chart-placeholder">
-                    <canvas id="salesChart"></canvas>
+                <div class="glass-card">
+                    <div class="section-header"><h3>تنبيهات ذكية</h3></div>
+                    <div class="insights-list">
+                        <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p>0 منتجات</p></div></div>
+                        <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو ملحوظ</p></div></div>
+                        <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p>0 فاتورة غير مدفوعة</p></div></div>
+                    </div>
                 </div>
-            </div>
-            <div class="glass-card">
-                <div class="section-header"><h3>تنبيهات ذكية</h3></div>
-                <div class="insights-list">
-                    <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p>0 منتجات قاربت النفاد</p></div></div>
-                    <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو ملحوظ</p></div></div>
-                    <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p>0 فاتورة غير مدفوعة</p></div></div>
-                </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- RECENT ACTIVITY -->
-        <section class="activity-section">
-            <div class="glass-card">
-                <div class="section-header"><h3>النشاط الأخير</h3></div>
-                <div class="timeline" id="activityTimeline">
-                    <p class="empty">جاري تحميل النشاطات...</p>
+            <section class="activity-section">
+                <div class="glass-card">
+                    <div class="section-header"><h3>النشاط الأخير</h3></div>
+                    <div class="timeline" id="activityTimeline"><p class="empty">جاري التحميل...</p></div>
                 </div>
-            </div>
-        </section>
-
+            </section>
+        </div>
     </main>
 
     <div class="toast" id="toast"></div>
