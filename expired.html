@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>انتهاء الاشتراك · حسابي</title>
+    
+    <link rel="icon" href="./icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            padding-top: calc(24px + var(--safe-top));
+            padding-bottom: calc(24px + var(--safe-bottom));
+        }
+        .expired-card {
+            width: 100%;
+            max-width: 480px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(30px);
+            border-radius: 24px;
+            padding: 40px 32px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            animation: fadeInUp 0.6s ease-out;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .icon-wrapper {
+            width: 80px; height: 80px; margin: 0 auto 24px;
+            background: rgba(239, 68, 68, 0.15); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-wrapper i { font-size: 40px; color: #ef4444; }
+        .expired-card h1 { font-size: 24px; font-weight: 800; color: white; margin-bottom: 12px; }
+        .expired-card p { color: #94a3b8; font-size: 15px; line-height: 1.8; margin-bottom: 24px; }
+        .store-info {
+            background: rgba(255,255,255,0.03); border-radius: 16px;
+            padding: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.06);
+        }
+        .store-info .row {
+            display: flex; justify-content: space-between; padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .store-info .row:last-child { border-bottom: none; }
+        .store-info .label { color: #64748b; font-size: 13px; }
+        .store-info .value { color: #e2e8f0; font-weight: 600; font-size: 13px; }
+        .contact-methods { display: flex; flex-direction: column; gap: 12px; }
+        .contact-btn {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; padding: 14px 20px; border-radius: 12px;
+            font-family: inherit; font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s; text-decoration: none;
+            border: none; color: white;
+        }
+        .contact-whatsapp { background: #25d366; }
+        .contact-whatsapp:hover { background: #1da851; }
+        .contact-phone { background: #3b82f6; }
+        .contact-phone:hover { background: #2563eb; }
+        .logout-btn {
+            background: none; border: 1px solid #475569; color: #94a3b8;
+            padding: 12px 20px; border-radius: 12px; font-family: inherit;
+            font-size: 14px; cursor: pointer; transition: all 0.3s;
+            width: 100%; margin-top: 16px;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+        @media (max-width: 480px) {
+            .expired-card { padding: 28px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="expired-card">
+        <div class="icon-wrapper">
+            <i class="fas fa-clock"></i>
+        </div>
+        <h1>انتهت صلاحية الاشتراك</h1>
+        <p>نشكرك على استخدامك لنظام <strong>حسابي</strong>. انتهت صلاحية اشتراك متجرك الحالي. للاستمرار في استخدام النظام، يرجى التواصل معنا عبر إحدى الطرق التالية لتجديد الاشتراك.</p>
+        
+        <div class="store-info" id="storeInfo">
+            <div class="row"><span class="label">اسم المتجر</span><span class="value" id="tenantName">—</span></div>
+            <div class="row"><span class="label">تاريخ الانتهاء</span><span class="value" id="expiryDate">—</span></div>
+        </div>
+        
+        <div class="contact-methods">
+            <a href="#" class="contact-btn contact-whatsapp" id="whatsappLink" target="_blank">
+                <i class="fab fa-whatsapp"></i> تواصل عبر واتساب
+            </a>
+            <a href="#" class="contact-btn contact-phone" id="phoneLink">
+                <i class="fas fa-phone"></i> اتصال هاتفي
+            </a>
+        </div>
+        
+        <button class="logout-btn" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+        </button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // إعدادات الدعم
+        const supportPhone = '201012345678'; // غيره برقمك
+        const supportWhatsapp = '201012345678'; // غيره برقم الواتساب
+        const whatsappMessage = 'مرحباً، أود تجديد اشتراكي في نظام حسابي.';
+        
+        document.getElementById('whatsappLink').href = `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(whatsappMessage)}`;
+        document.getElementById('phoneLink').href = `tel:${supportPhone}`;
+        
+        async function loadTenantInfo() {
+            const session = JSON.parse(localStorage.getItem('app_session'));
+            if (!session || !session.tenant_id) return;
+            
+            try {
+                const { data: tenant } = await supabase
+                    .from('tenants')
+                    .select('name, plan')
+                    .eq('id', session.tenant_id)
+                    .single();
+                
+                if (tenant) {
+                    document.getElementById('tenantName').textContent = tenant.name || '—';
+                    document.getElementById('expiryDate').textContent = new Date().toLocaleDateString('ar-EG');
+                }
+            } catch (e) {
+                console.error('فشل تحميل بيانات المتجر:', e);
+            }
+        }
+        
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            localStorage.removeItem('app_session');
+            window.location.href = './index.html';
+        });
+        
+        loadTenantInfo();
+    </script>
+</body>
+</html>
