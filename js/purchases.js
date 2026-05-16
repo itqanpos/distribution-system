@@ -1,13 +1,10 @@
 /* =============================================
-   purchases.js - المشتريات (إصدار محدث)
-   مطابق لتصميم pos مع PurchaseService + دالة الخادم
+   purchases.js - المشتريات (إصدار موحد)
    ============================================= */
 'use strict';
 
-// ========== Toast مستقل ==========
 const Toast = {
-  _el: null,
-  _timer: null,
+  _el: null, _timer: null,
   _getEl() {
     if (!this._el) this._el = document.getElementById('toast');
     return this._el;
@@ -49,26 +46,25 @@ const Purchases = {
         this.bindEvents();
         if (window.App) {
             App.requireAuth();
-            App.initUserInterface();
+            App.initUserInterface(); // لتهيئة الصورة الرمزية في السايد بار
         }
+        // تحديث الصورة الرمزية يدوياً للتأكد
+        this.updateSidebarAvatar();
         await this.waitForDB();
         await this.loadAllData();
         this.renderTable();
         this.updateStats();
-        this.initSidebarUser();
         window.addEventListener('online', () => this.loadAllData().then(() => { this.renderTable(); this.updateStats(); }));
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') this.loadAllData().then(() => { this.renderTable(); this.updateStats(); });
         });
     },
 
-    initSidebarUser() {
+    updateSidebarAvatar() {
         const user = window.App?.getCurrentUser?.();
         if (user) {
-            const avatarEl = document.getElementById('sidebarAvatar');
-            const nameEl = document.getElementById('sidebarUserName');
-            if (avatarEl) avatarEl.textContent = user.avatar || 'U';
-            if (nameEl) nameEl.textContent = user.fullName || user.email || 'مدير النظام';
+            const av = document.getElementById('sidebarAvatar');
+            if (av) av.textContent = user.avatar || 'U';
         }
     },
 
@@ -93,25 +89,50 @@ const Purchases = {
             'purchaseDate', 'invoiceNumber', 'itemsContainer', 'addItemBtn',
             'totalAmount', 'paidAmount', 'paymentMethod', 'remainingAmount',
             'detailsModal', 'detailsContent', 'closeDetailsBtn', 'toast',
-            'filterBtns', 'printReportBtn', 'sidebarAvatar', 'sidebarUserName'
+            'filterBtns', 'printReportBtn', 'sidebarAvatar'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
         this.el.filterBtns = document.querySelectorAll('.filter-btn');
     },
 
     bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(link => { link.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }); });
+        this.el.menuToggle?.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        this.el.sidebarOverlay?.addEventListener('click', () => {
+            this.el.sidebar.classList.remove('open');
+            this.el.sidebarOverlay.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
 
-        this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+        this.el.moreMenuBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.el.moreDropdown?.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
+        });
 
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else location.href = './index.html'; });
-        this.el.printReportBtn?.addEventListener('click', (e) => { e.preventDefault(); this.printReport(); this.el.moreDropdown?.classList.remove('show'); });
+        this.el.logoutBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.App) App.logout(); else location.href = './index.html';
+        });
+        this.el.printReportBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.printReport();
+            this.el.moreDropdown?.classList.remove('show');
+        });
 
         this.el.searchInput?.addEventListener('input', () => this.renderTable());
-        this.el.refreshBtn?.addEventListener('click', () => this.loadAllData().then(() => { this.renderTable(); this.updateStats(); }));
+        this.el.refreshBtn?.addEventListener('click', () =>
+            this.loadAllData().then(() => { this.renderTable(); this.updateStats(); })
+        );
 
         this.el.filterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -150,16 +171,16 @@ const Purchases = {
     populateSupplierList() {
         const list = this.el.supplierList;
         if (!list) return;
-        list.innerHTML = this.state.suppliers.map(s => `<option value="${U.escapeHTML(s.name)}" data-id="${U.escapeHTML(String(s.id))}">${U.escapeHTML(s.name)}</option>`).join('');
+        list.innerHTML = this.state.suppliers.map(s => `<option value="${U.escapeHTML(s.name)}" data-id="${s.id}">${U.escapeHTML(s.name)}</option>`).join('');
     },
 
     createProductDatalist() {
         const old = document.getElementById('productDatalist');
         if (old) old.remove();
-        const datalist = document.createElement('datalist');
-        datalist.id = 'productDatalist';
-        datalist.innerHTML = this.state.products.map(p => `<option value="${U.escapeHTML(p.name)}">${U.escapeHTML(p.name)}</option>`).join('');
-        document.body.appendChild(datalist);
+        const dl = document.createElement('datalist');
+        dl.id = 'productDatalist';
+        dl.innerHTML = this.state.products.map(p => `<option value="${U.escapeHTML(p.name)}">`).join('');
+        document.body.appendChild(dl);
     },
 
     updateStats() {
@@ -174,8 +195,8 @@ const Purchases = {
     renderTable() {
         const term = (this.el.searchInput?.value || '').trim().toLowerCase();
         let filtered = this.state.purchases.filter(p => {
-            const matchSearch = !term || (p.invoice_number || '').includes(term) || (p.supplier_name || '').includes(term) || (p.id || '').includes(term);
-            return matchSearch;
+            const match = !term || (p.invoice_number || '').includes(term) || (p.supplier_name || '').includes(term) || (p.id || '').includes(term);
+            return match;
         });
         if (this.state.currentFilter === 'paid') filtered = filtered.filter(p => p.status === 'paid' || p.remaining === 0);
         else if (this.state.currentFilter === 'unpaid') filtered = filtered.filter(p => p.status !== 'paid' && p.remaining > 0);
@@ -187,7 +208,7 @@ const Purchases = {
             return;
         }
         tbody.innerHTML = filtered.map(p => {
-            const statusBadge = p.status === 'paid' || p.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
+            const badge = p.status === 'paid' || p.remaining === 0 ? '<span class="badge badge-success">مدفوعة</span>' : '<span class="badge badge-danger">غير مدفوعة</span>';
             return `<tr>
                 <td>${U.escapeHTML(p.invoice_number || p.id?.substring(0,8) || '')}</td>
                 <td>${p.date}</td>
@@ -195,7 +216,7 @@ const Purchases = {
                 <td>${U.formatMoney(p.total)}</td>
                 <td>${U.formatMoney(p.paid)}</td>
                 <td>${U.formatMoney(p.remaining)}</td>
-                <td>${statusBadge}</td>
+                <td>${badge}</td>
                 <td class="action-icons">
                     <i class="fas fa-edit" onclick="Purchases.editPurchase('${p.id}')"></i>
                     <i class="fas fa-print" onclick="Purchases.printPurchase('${p.id}')"></i>
@@ -426,46 +447,24 @@ const Purchases = {
         if (purchase) this.openModal(purchase);
     },
 
-    // طباعة تقرير المشتريات من قائمة الثلاث نقاط
     printReport() {
         const printWindow = window.open('', '_blank', 'width=800,height=600');
-        if (!printWindow) { Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
-        const rows = this.state.purchases.map(p => {
-            return `<tr>
-                <td>${U.escapeHTML(p.invoice_number || p.id?.substring(0,8) || '')}</td>
-                <td>${p.date}</td>
-                <td>${U.escapeHTML(p.supplier_name || '')}</td>
-                <td>${U.formatMoney(p.total)}</td>
-                <td>${U.formatMoney(p.paid)}</td>
-                <td>${U.formatMoney(p.remaining)}</td>
-                <td>${p.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة'}</td>
-            </tr>`;
-        }).join('');
+        if (!printWindow) { Toast.error('الرجاء السماح بالنوافذ المنبثقة'); return; }
+        const rows = this.state.purchases.map(p => `<tr>
+            <td>${U.escapeHTML(p.invoice_number || p.id?.substring(0,8) || '')}</td>
+            <td>${p.date}</td><td>${U.escapeHTML(p.supplier_name || '')}</td>
+            <td>${U.formatMoney(p.total)}</td><td>${U.formatMoney(p.paid)}</td>
+            <td>${U.formatMoney(p.remaining)}</td>
+            <td>${p.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة'}</td>
+        </tr>`).join('');
         const totalAll = this.state.purchases.reduce((s, p) => s + (p.total || 0), 0);
         const paidAll = this.state.purchases.reduce((s, p) => s + (p.paid || 0), 0);
-        const remainingAll = totalAll - paidAll;
         printWindow.document.write(`
-            <html dir="rtl"><head><meta charset="UTF-8">
-            <title>تقرير المشتريات - حسابي</title>
-            <style>
-                body { font-family: 'Cairo', sans-serif; padding: 20px; direction: rtl; color: #0f172a; }
-                h1 { text-align: center; margin-bottom: 10px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: center; }
-                th { background: #f1f5f9; font-weight: 600; }
-                .summary { display: flex; justify-content: space-around; margin: 20px 0; background: #f8fafc; padding: 15px; border-radius: 12px; }
-                .summary div { text-align: center; }
-                .summary strong { display: block; font-size: 1.2em; color: #2563eb; }
-            </style>
-            </head><body>
-                <h1>تقرير المشتريات</h1>
-                <div class="summary">
-                    <div><span>إجمالي المشتريات</span><strong>${U.formatMoney(totalAll)}</strong></div>
-                    <div><span>المدفوع</span><strong>${U.formatMoney(paidAll)}</strong></div>
-                    <div><span>المتبقي</span><strong>${U.formatMoney(remainingAll)}</strong></div>
-                    <div><span>عدد الفواتير</span><strong>${this.state.purchases.length}</strong></div>
-                </div>
-                <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>
+            <html dir="rtl"><head><meta charset="UTF-8"><title>تقرير المشتريات</title>
+            <style>body{font-family:'Cairo',sans-serif;padding:20px;direction:rtl;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:8px;text-align:center;} th{background:#f5f5f5;}</style>
+            </head><body><h1>تقرير المشتريات</h1>
+            <p>الإجمالي: ${U.formatMoney(totalAll)} | المدفوع: ${U.formatMoney(paidAll)} | المتبقي: ${U.formatMoney(totalAll - paidAll)} | عدد الفواتير: ${this.state.purchases.length}</p>
+            <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>
             </body></html>
         `);
         printWindow.document.close();
