@@ -10,7 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- يمكنك ربط ملف CSS خارجي بدلاً من الأنماط الداخلية -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -20,16 +19,63 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            margin: 0;
             padding: 20px;
             position: relative;
         }
+        /* شاشة تحميل جميلة */
         #app-loader {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #fff; display: flex; align-items: center; justify-content: center;
-            z-index: 9999; font-family: 'Cairo', sans-serif;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: 'Cairo', sans-serif;
+            transition: opacity 0.3s ease;
         }
-        body.loaded #app-loader { display: none; }
+        body.loaded #app-loader {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loader-logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+        .loader-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 20px;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 15px;
+        }
+        .loader-text {
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* نموذج تسجيل الدخول */
         .login-card {
             background: white;
             border-radius: 20px;
@@ -103,6 +149,7 @@
             margin-top: 10px;
         }
         .btn:hover { background: #2563eb; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .signup-link {
             margin-top: 20px;
             font-size: 14px;
@@ -122,8 +169,16 @@
     </style>
 </head>
 <body class="loading">
-    <div id="app-loader">⏳ جاري التحقق من الجلسة...</div>
+    <!-- شاشة التحميل -->
+    <div id="app-loader">
+        <div class="loader-logo">
+            <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
+        </div>
+        <div class="spinner"></div>
+        <div class="loader-text">جاري التحميل...</div>
+    </div>
 
+    <!-- نموذج تسجيل الدخول -->
     <div class="login-card" id="loginCard">
         <div class="logo">
             <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
@@ -155,34 +210,43 @@
 
     <script>
         (async function() {
-            // تأكد من وجود App
             if (!window.App) {
                 document.body.classList.remove('loading');
                 alert('خطأ في تحميل التطبيق');
                 return;
             }
 
-            // 1. تحقق من وجود جلسة صالحة
+            // 1. تحقق سريع من الجلسة
+            // يمكن استخدام getCachedUser() للسرعة الفائقة (بدون طلب شبكة)
+            const cached = App.getCachedUser();
+            if (cached) {
+                // جلسة صالحة محلياً - توجيه فوري
+                let target = './dashboard.html';
+                if (cached.role === 'rep') target = './pos.html';
+                else if (cached.role === 'super_admin') target = './admin.html';
+                window.location.href = target;
+                return;
+            }
+
+            // 2. لا يوجد جلسة محلية، تحقق كامل من Supabase (صامت)
             const user = await App.getCurrentUser();
             if (user) {
-                // الجلسة صالحة -> توجيه فوري للصفحة المناسبة
                 let target = './dashboard.html';
                 if (user.role === 'rep') target = './pos.html';
                 else if (user.role === 'super_admin') target = './admin.html';
                 window.location.href = target;
-                return; // أوقف التحميل
+                return;
             }
 
-            // 2. لا توجد جلسة -> أظهر نموذج الدخول
+            // 3. لا توجد جلسة فعلية - أظهر نموذج الدخول
             document.body.classList.remove('loading');
 
-            // 3. أحداث تسجيل الدخول
+            // 4. أحداث تسجيل الدخول
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
             const errorMsg = document.getElementById('errorMsg');
 
-            // تسجيل الدخول عند الضغط على زر الدخول أو Enter
             async function performLogin() {
                 const email = emailInput.value.trim();
                 const password = passInput.value;
@@ -225,7 +289,6 @@
                 if (e.key === 'Enter') passInput.focus();
             });
 
-            // تركيز أول حقل
             emailInput.focus();
         })();
     </script>
