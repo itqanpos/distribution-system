@@ -20,18 +20,69 @@
     <meta name="theme-color" content="#3b82f6">
 
     <style>
-        /* شاشة تحميل أولية تخفي المحتوى حتى يتم التحقق من الجلسة */
+        /* شاشة تحميل جميلة */
         #app-loader {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #fff; display: flex; align-items: center; justify-content: center;
-            z-index: 9999; font-family: 'Cairo', sans-serif;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: 'Cairo', sans-serif;
+            transition: opacity 0.3s ease;
         }
-        body.loading #app-loader { display: flex; }
-        body:not(.loading) #app-loader { display: none; }
+        body.loaded #app-loader {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loader-logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+        .loader-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 20px;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 15px;
+        }
+        .loader-text {
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body class="loading">
-    <div id="app-loader">⏳ جاري التحقق من الجلسة...</div>
+    <!-- شاشة التحميل -->
+    <div id="app-loader">
+        <div class="loader-logo">
+            <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
+        </div>
+        <div class="spinner"></div>
+        <div class="loader-text">جاري التحميل...</div>
+    </div>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -196,27 +247,26 @@
 
     <script>
         (async function() {
-            // انتظر حتى يبدأ supabase client ويكون App معرفاً
             if (!window.App) {
                 console.error('App غير معرف');
                 document.body.classList.remove('loading');
                 return;
             }
 
-            // التحقق من الجلسة بشكل غير متزامن
+            // استخدام requireAuth المحسَّنة (سريعة، تمنع الوميض)
             const authorized = await App.requireAuth();
-            if (!authorized) return; // تمت إعادة التوجيه بالفعل
+            if (!authorized) return; // تمت إعادة التوجيه
 
-            // تحقق من الدور إن احتجت (مندوب أو مدير)
+            // تحقق من الدور
             if (!App.requireRole(['admin', 'rep'])) return;
 
-            // تهيئة الواجهة (اسم المستخدم، الصورة الرمزية)
+            // تهيئة واجهة المستخدم (الشريط الجانبي)
             App.initUserInterface();
 
-            // إخفاء شاشة التحميل وإظهار المحتوى
+            // إخفاء شاشة التحميل
             document.body.classList.remove('loading');
 
-            // تحميل سكربت نقطة البيع بعد التأكد من الجلسة
+            // تحميل سكربت pos.js بعد التأكد من الجلسة
             const script = document.createElement('script');
             script.src = './js/pos.js';
             document.body.appendChild(script);
