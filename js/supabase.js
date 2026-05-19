@@ -1,8 +1,10 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.3 - أداء فائق، أمان كامل، معالجة الوميض وحلقة التوجيه
+   الإصدار 2.4 - إصلاحات أمنية، مزامنة، تحسين الأداء
    ============================================= */
 (function() {
+    // ⚠️ تأكد من وجود Row Level Security (RLS) على جميع الجداول في Supabase.
+    // المفتاح المنشور هنا آمن فقط إذا كانت السياسات تمنع وصول مستأجر لبيانات آخر.
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
 
@@ -17,11 +19,38 @@
     window.supabase = supabaseClient;
     console.log('✅ Supabase client initialized');
 
+    // ==================== الأداة المساعدة للذاكرة المؤقتة ====================
+    let _currentUser = null; // آخر مستخدم تم التحقق منه من الخادم (آمن)
+
+    // تحديث المستخدم المخزن (يُستدعى بعد كل تحقق ناجح)
+    function setCurrentUser(user) {
+        _currentUser = user;
+        // نُحدّث localStorage للاستخدامات الظاهرية السريعة (بدون صلاحيات)
+        if (user) {
+            localStorage.setItem('app_session', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                fullName: user.fullName,
+                role: user.role,        // للإشارة فقط، لا يُعتمد عليه للصلاحيات
+                tenant_id: user.tenant_id,
+                loginTime: new Date().toLocaleString('ar-EG')
+            }));
+        } else {
+            localStorage.removeItem('app_session');
+        }
+    }
+
+    // جلب سريع من الذاكرة (بدون اتصال) – للتحقق الأولي فقط
+    function getCachedUser() {
+        return _currentUser; // نُعيد آخر مستخدم مُتحقق منه
+    }
+
     // ==================== الأدوات المساعدة ====================
     function cleanObject(obj) {
-        const cleaned = { ...obj };
-        delete cleaned.updated_at;
-        return cleaned;
+        // لا نحذف updated_at لأنه مهم للتتبع وحل التعارضات.
+        // إذا كان Supabase يديرها تلقائياً، يمكنك تركه.
+        // لكننا ننشئ نسخة لتجنب تعديل المرجع الأصلي.
+        return { ...obj };
     }
 
     function getLocalDB() {
@@ -37,17 +66,22 @@
                 if (localData && localData.length > 0) {
                     console.log(`📦 ${storeName}: عرض ${localData.length} عنصر من IndexedDB`);
                     if (navigator.onLine && supabaseClient) {
+                        // مزامنة خلفية
                         cloudFetcher().then(async (cloudData) => {
                             if (cloudData && Array.isArray(cloudData)) {
                                 for (const item of cloudData) {
-                                    await local.put(storeName, cleanObject(item)).catch(() => {});
+                                    await local.put(storeName, cleanObject(item)).catch(e =>
+                                        console.warn(`فشل تخزين ${storeName} محلياً:`, e)
+                                    );
                                 }
                             }
                         }).catch(() => {});
                     }
                     return localData;
                 }
-            } catch (e) { /* تجاهل */ }
+            } catch (e) {
+                console.warn(`خطأ في قراءة ${storeName} من IndexedDB:`, e);
+            }
         }
 
         if (navigator.onLine && supabaseClient) {
@@ -56,7 +90,9 @@
                 if (local && data && Array.isArray(data)) {
                     await local.clear(storeName);
                     for (const item of data) {
-                        await local.put(storeName, cleanObject(item)).catch(() => {});
+                        await local.put(storeName, cleanObject(item)).catch(e =>
+                            console.warn(`فشل تخزين ${storeName} محلياً:`, e)
+                        );
                     }
                 }
                 return data;
@@ -72,7 +108,9 @@
         const local = getLocalDB();
         const cleanData = cleanObject(data);
         if (local) {
-            await local.put(storeName, cleanData).catch(() => {});
+            await local.put(storeName, cleanData).catch(e =>
+                console.warn(`فشل حفظ ${storeName} محلياً:`, e)
+            );
         }
         if (navigator.onLine && supabaseClient) {
             try {
@@ -88,48 +126,77 @@
                         type: cleanData.id ? 'UPDATE' : 'INSERT',
                         table: storeName,
                         data: cleanData
-                    }).catch(() => {});
+                    }).catch(e => console.warn('فشل إضافة إلى طابور المزامنة:', e));
                 }
-                return cleanData;
+                return cleanData; // إرجاع البيانات المحفوظة محلياً على الأقل
             }
         } else {
+            // بدون اتصال: نضيف إلى طابور المزامنة
             if (local && local.addToSyncQueue) {
                 await local.addToSyncQueue({
                     type: cleanData.id ? 'UPDATE' : 'INSERT',
                     table: storeName,
                     data: cleanData
-                }).catch(() => {});
+                }).catch(e => console.warn('فشل إضافة إلى طابور المزامنة:', e));
             }
             return cleanData;
         }
     }
 
+    // ==================== دالة معالجة طابور المزامنة عند عودة الاتصال ====================
+    async function processSyncQueue() {
+        const local = getLocalDB();
+        if (!local || !local.getSyncQueue) return;
+        if (!navigator.onLine) return;
+
+        const queue = await local.getSyncQueue().catch(() => []);
+        if (!queue || queue.length === 0) return;
+
+        console.log(`🔄 معالجة ${queue.length} عملية مؤجلة...`);
+        for (const item of queue) {
+            try {
+                if (item.table === 'products') {
+                    await window.DB.saveProduct(item.data);
+                } else if (item.table === 'parties') {
+                    await window.DB.saveParty(item.data);
+                } else if (item.table === 'transactions') {
+                    await window.DB.saveTransaction(item.data);
+                // أضف جداول أخرى حسب الحاجة
+                } else {
+                    console.warn('عملية غير معروفة في الطابور:', item);
+                }
+            } catch (e) {
+                console.warn('فشل مزامنة عنصر:', e);
+            }
+        }
+        console.log('✅ انتهت معالجة الطابور');
+    }
+
+    // استمع لعودة الاتصال
+    window.addEventListener('online', () => {
+        console.log('🌐 عاد الاتصال بالإنترنت');
+        processSyncQueue();
+    });
+
     // ==================== المصادقة والصلاحيات ====================
     window.App = {
-        // --- قراءة سريعة من localStorage (بدون اتصال بالخادم) ---
-        getCachedUser() {
-            const session = localStorage.getItem('app_session');
-            if (!session) return null;
-            try {
-                const parsed = JSON.parse(session);
-                if (parsed.id && parsed.role && parsed.tenant_id !== undefined) {
-                    return parsed;
-                }
-            } catch (e) {}
-            return null;
-        },
-
-        // --- التحقق الكامل من الجلسة عبر Supabase ---
+        // --- التحقق الكامل من الجلسة عبر Supabase (المصدر الوحيد للصلاحيات) ---
         async getCurrentUser() {
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return null;
+            if (!user) {
+                setCurrentUser(null);
+                return null;
+            }
             const { data: profile } = await supabaseClient
                 .from('profiles')
                 .select('*, tenants(plan)')
                 .eq('id', user.id)
                 .single();
-            if (!profile) return null;
-            return {
+            if (!profile) {
+                setCurrentUser(null);
+                return null;
+            }
+            const fullUser = {
                 id: user.id,
                 email: user.email,
                 fullName: profile.full_name,
@@ -137,9 +204,14 @@
                 tenant_id: profile.tenant_id,
                 plan: profile.tenants?.plan
             };
+            setCurrentUser(fullUser);
+            return fullUser;
         },
 
         async getTenantId() {
+            if (_currentUser && _currentUser.tenant_id) {
+                return _currentUser.tenant_id;
+            }
             const user = await this.getCurrentUser();
             return user?.tenant_id || null;
         },
@@ -178,21 +250,21 @@
                     profile.tenant_id = newTenantId;
                 }
 
-                let redirectUrl = './dashboard.html';
-                if (profile.role === 'rep') redirectUrl = './pos.html';
-                else if (profile.role === 'super_admin') redirectUrl = './admin.html';
-
-                const sessionInfo = {
+                const userInfo = {
                     id: userId,
                     email: authData.user.email,
                     fullName: profile.full_name || email,
                     role: profile.role,
                     tenant_id: profile.tenant_id,
-                    loginTime: new Date().toLocaleString('ar-EG')
+                    plan: undefined // سيُحدث لاحقاً إذا لزم
                 };
-                localStorage.setItem('app_session', JSON.stringify(sessionInfo));
+                setCurrentUser(userInfo);
 
-                return { success: true, redirectUrl, user: sessionInfo };
+                let redirectUrl = './dashboard.html';
+                if (userInfo.role === 'rep') redirectUrl = './pos.html';
+                else if (userInfo.role === 'super_admin') redirectUrl = './admin.html';
+
+                return { success: true, redirectUrl, user: userInfo };
             } catch (err) {
                 console.error('Login error:', err);
                 return { success: false, message: err.message };
@@ -233,52 +305,40 @@
         // --- تسجيل الخروج ---
         async logout() {
             await supabaseClient.auth.signOut();
-            localStorage.removeItem('app_session');
+            setCurrentUser(null);
             window.location.href = './index.html';
         },
 
-        // --- التحقق من الصلاحية (سريع، يمنع الوميض وحلقة التوجيه) ---
+        // --- التحقق من الصلاحية (يمنع الوميض وحلقة التوجيه) ---
         async requireAuth() {
-            const cached = this.getCachedUser();
-            if (cached) {
-                // سماح مؤقت بالدخول، والتحقق الصامت في الخلفية
+            // إذا كان لدينا مستخدم مخزن مؤقتاً (من جلسة سابقة) نعيد true فوراً ونحدث في الخلفية
+            if (_currentUser) {
+                // التحقق الصامت في الخلفية
                 this.getCurrentUser().then(async (user) => {
                     if (!user) {
-                        // الجلسة منتهية فعلاً: احذف localStorage وأعد التوجيه
-                        localStorage.removeItem('app_session');
-                        // منع إعادة التوجيه المتكرر إذا كنا بالفعل في index
+                        // الجلسة انتهت
+                        setCurrentUser(null);
                         if (window.location.pathname.indexOf('index.html') === -1) {
                             window.location.href = './index.html';
                         }
-                    } else {
-                        // تحديث الجلسة المحلية
-                        localStorage.setItem('app_session', JSON.stringify({
-                            ...user,
-                            loginTime: new Date().toLocaleString('ar-EG')
-                        }));
+                    } else if (user.role !== 'super_admin' && user.tenant_id) {
+                        this.checkTenantStatus(user.tenant_id).catch(() => {});
                     }
                 }).catch(() => {});
-
-                if (cached.role !== 'super_admin' && cached.tenant_id) {
-                    this.checkTenantStatus(cached.tenant_id).catch(() => {});
-                }
                 return true;
             }
 
             // لا يوجد مخبأ - تحقق كامل
             const user = await this.getCurrentUser();
             if (!user) {
-                localStorage.removeItem('app_session');
-                window.location.href = './index.html';
+                if (window.location.pathname.indexOf('index.html') === -1) {
+                    window.location.href = './index.html';
+                }
                 return false;
             }
             if (user.role !== 'super_admin' && user.tenant_id) {
                 await this.checkTenantStatus(user.tenant_id);
             }
-            localStorage.setItem('app_session', JSON.stringify({
-                ...user,
-                loginTime: new Date().toLocaleString('ar-EG')
-            }));
             return true;
         },
 
@@ -297,23 +357,34 @@
             }
         },
 
-        // التحقق من الدور (متزامنة - تقرأ من localStorage)
-        requireRole(allowedRoles) {
-            const session = JSON.parse(localStorage.getItem('app_session') || '{}');
-            const userRole = (session.role || '').toLowerCase();
+        // --- التحقق من الدور (آمنة، تعتمد على الذاكرة أو الخادم) ---
+        async requireRole(allowedRoles) {
+            // نحاول استخدام المستخدم المخزن، أو نجلبه إن لم يوجد
+            let user = _currentUser;
+            if (!user) {
+                user = await this.getCurrentUser();
+            }
+            if (!user) {
+                window.location.href = './index.html';
+                return false;
+            }
+            const userRole = (user.role || '').toLowerCase();
             const allowed = allowedRoles.map(r => r.toLowerCase());
             if (!allowed.includes(userRole)) {
                 alert('غير مسموح لك بالوصول إلى هذه الصفحة');
-                window.location.href = userRole === 'admin' ? './dashboard.html' : './pos.html';
+                // توجيه حسب الدور الفعلي
+                if (userRole === 'admin') window.location.href = './dashboard.html';
+                else if (userRole === 'rep') window.location.href = './pos.html';
+                else window.location.href = './index.html';
                 return false;
             }
             return true;
         },
 
-        // تهيئة واجهة المستخدم من localStorage
+        // تهيئة واجهة المستخدم (تقرأ من localStorage للسرعة، لا تؤثر على الصلاحيات)
         initUserInterface() {
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
-            if (session) {
+            if (session && session.fullName) {
                 const nameEl = document.getElementById('userName');
                 const avatarEl = document.getElementById('userAvatar');
                 const timeEl = document.getElementById('loginTime');
@@ -337,7 +408,7 @@
             });
         },
         async saveProduct(p) {
-            if (!p.id) p.id = crypto.randomUUID();
+            if (!p.id) p.id = crypto.randomUUID(); // UUID عميل مقبول لـ offline، مع مخاطرة تضارب ضئيلة
             return saveWithFallback('products', p, async (product) => {
                 const { data, error } = await supabaseClient
                     .from('products')
@@ -421,7 +492,9 @@
             });
         },
         async getInvoicesLight() {
-            return getWithFallback('invoices', async () => {
+            // ملاحظة: البيانات الخفيفة تُستخدم للعرض السريع فقط، ويجب ألا تُخزن محلياً كاملة
+            // هنا نستخدم getWithFallback الذي سيُخزّن النتائج الخفيفة أيضاً.
+            return getWithFallback('invoices_light', async () => {
                 const { data, error } = await supabaseClient
                     .from('invoices')
                     .select('id, date, type, customer_id, total, paid, remaining, status')
@@ -465,7 +538,7 @@
             });
         },
         async getPurchasesLight() {
-            return getWithFallback('purchases', async () => {
+            return getWithFallback('purchases_light', async () => {
                 const { data, error } = await supabaseClient
                     .from('purchases')
                     .select('id, date, supplier_id, total, paid, remaining, status')
@@ -602,5 +675,16 @@
         }
     };
 
-    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.3)');
+    // ==================== مراقبة تغيرات الجلسة ====================
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+            setCurrentUser(null);
+            // يمكن توجيه المستخدم هنا إذا لزم
+        } else if (event === 'SIGNED_IN' && session) {
+            // نحدّث المستخدم بصمت
+            window.App.getCurrentUser().catch(() => {});
+        }
+    });
+
+    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.4)');
 })();
