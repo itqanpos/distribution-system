@@ -103,7 +103,6 @@ const Purchases = {
     },
 
     bindEvents() {
-        // السايد بار
         this.el.menuToggle?.addEventListener('click', () => {
             this.el.sidebar.classList.toggle('open');
             this.el.sidebarOverlay?.classList.toggle('show');
@@ -119,7 +118,6 @@ const Purchases = {
             });
         });
 
-        // زر الثلاث نقاط
         this.el.moreMenuBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.el.moreDropdown?.classList.toggle('show');
@@ -128,7 +126,6 @@ const Purchases = {
             if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
         });
 
-        // تسجيل الخروج وطباعة التقرير
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.App) App.logout(); else location.href = './index.html';
@@ -139,13 +136,11 @@ const Purchases = {
             this.el.moreDropdown?.classList.remove('show');
         });
 
-        // البحث والتحديث
         this.el.searchInput?.addEventListener('input', () => this.renderTable());
         this.el.refreshBtn?.addEventListener('click', () =>
             this.loadAllData().then(() => { this.renderTable(); this.updateStats(); })
         );
 
-        // أزرار الفلتر
         this.el.filterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 this.el.filterBtns.forEach(b => b.classList.remove('active'));
@@ -155,18 +150,11 @@ const Purchases = {
             });
         });
 
-        // فتح وإغلاق المودال
         this.el.newPurchaseBtn?.addEventListener('click', () => this.openModal());
         this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
         this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
-
-        // إرسال النموذج
         this.el.purchaseForm?.addEventListener('submit', (e) => { e.preventDefault(); this.savePurchase(); });
-
-        // إضافة صنف
         this.el.addItemBtn?.addEventListener('click', () => this.addItemCard());
-
-        // إغلاق التفاصيل
         this.el.closeDetailsBtn?.addEventListener('click', () => this.el.detailsModal.classList.remove('open'));
     },
 
@@ -278,6 +266,8 @@ const Purchases = {
     addItemCard(item = null) {
         const card = document.createElement('div');
         card.className = 'item-card';
+        // تخزين productId في data-product-id للكارد (إن وُجد)
+        if (item?.productId) card.dataset.productId = item.productId;
         card.innerHTML = `
             <input type="text" class="item-product-name" placeholder="اسم المنتج" list="productDatalist" autocomplete="off" value="${U.escapeHTML(item?.productName || '')}" onchange="Purchases.onProductSelected(this)">
             <select class="item-unit" onchange="Purchases.onUnitChange(this)" ${!item ? 'disabled' : ''}>
@@ -309,6 +299,8 @@ const Purchases = {
         const priceInput = card.querySelector('.item-price');
         const product = this.state.products.find(p => p.name === productName);
         if (product) {
+            // تخزين productId في الكارد
+            card.dataset.productId = product.id;
             unitSelect.innerHTML = this.getUnitOptions(productName);
             unitSelect.disabled = false;
             if (product.units.length > 0) {
@@ -316,6 +308,7 @@ const Purchases = {
                 priceInput.value = product.units[0].cost || 0;
             }
         } else {
+            card.dataset.productId = '';
             unitSelect.innerHTML = '<option>اختر المنتج أولاً</option>';
             unitSelect.disabled = true;
         }
@@ -330,7 +323,6 @@ const Purchases = {
         this.updateTotalAndRemaining();
     },
 
-    // ==================== حساب الإجمالي والمتبقي (تلقائي) ====================
     updateTotalAndRemaining() {
         let total = 0;
         this.el.itemsContainer.querySelectorAll('.item-card').forEach(card => {
@@ -373,11 +365,14 @@ const Purchases = {
         const cards = this.el.itemsContainer.querySelectorAll('.item-card');
         const items = [];
         cards.forEach(card => {
+            const productId = card.dataset.productId || null;   // ✅ قراءة productId
             const productName = card.querySelector('.item-product-name')?.value.trim();
             const unitName = card.querySelector('.item-unit')?.value;
             const qty = parseFloat(card.querySelector('.item-qty')?.value) || 0;
             const price = parseFloat(card.querySelector('.item-price')?.value) || 0;
-            if (productName && unitName && qty > 0) items.push({ productName, unitName, quantity: qty, price });
+            if (productName && unitName && qty > 0) {
+                items.push({ productId, productName, unitName, quantity: qty, price });
+            }
         });
         if (!items.length) return alert('أضف صنفًا واحدًا على الأقل');
 
@@ -445,16 +440,13 @@ const Purchases = {
         }
     },
 
-    // ==================== التفاصيل والطباعة ====================
     viewDetails(id) {
         const purchase = this.state.purchases.find(p => p.id === id);
         if (!purchase) return;
         const itemsHtml = (purchase.items || []).map(i => `
             <tr>
-                <td>${U.escapeHTML(i.productName)}</td>
-                <td>${i.unitName}</td>
-                <td>${i.quantity}</td>
-                <td>${U.formatMoney(i.price)}</td>
+                <td>${U.escapeHTML(i.productName)}</td><td>${i.unitName}</td>
+                <td>${i.quantity}</td><td>${U.formatMoney(i.price)}</td>
                 <td>${U.formatMoney(i.price * i.quantity)}</td>
             </tr>
         `).join('');
