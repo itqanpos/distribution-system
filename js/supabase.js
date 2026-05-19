@@ -1,6 +1,6 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.1 - آمن، معزول، معالجة الوميض، يدعم Offline
+   الإصدار 2.2 - أداء فائق، أمان كامل، معالجة الوميض، Offline
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -28,19 +28,7 @@
         return (window.localDB && window.localDB.ready) ? window.localDB : null;
     }
 
-    // دالة مساعدة داخلية للحصول على tenant_id من الجلسة (للاستخدامات الخاصة فقط)
-    async function getCurrentTenantId() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return null;
-        const { data: profile } = await supabaseClient
-            .from('profiles')
-            .select('tenant_id')
-            .eq('id', user.id)
-            .single();
-        return profile?.tenant_id || null;
-    }
-
-    // ==================== طبقة Offline (محسّنة) ====================
+    // ==================== طبقة Offline ====================
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
         if (local) {
@@ -118,6 +106,47 @@
 
     // ==================== المصادقة والصلاحيات ====================
     window.App = {
+        // --- دوال مساعدة للجلسة ---
+
+        // قراءة سريعة من الذاكرة المحلية (بدون اتصال بالخادم)
+        getCachedUser() {
+            const session = localStorage.getItem('app_session');
+            if (!session) return null;
+            try {
+                const parsed = JSON.parse(session);
+                if (parsed.id && parsed.role && parsed.tenant_id !== undefined) {
+                    return parsed;
+                }
+            } catch (e) {}
+            return null;
+        },
+
+        // التحقق الكامل من الجلسة عبر Supabase
+        async getCurrentUser() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return null;
+            const { data: profile } = await supabaseClient
+                .from('profiles')
+                .select('*, tenants(plan)')
+                .eq('id', user.id)
+                .single();
+            if (!profile) return null;
+            return {
+                id: user.id,
+                email: user.email,
+                fullName: profile.full_name,
+                role: profile.role,
+                tenant_id: profile.tenant_id,
+                plan: profile.tenants?.plan
+            };
+        },
+
+        async getTenantId() {
+            const user = await this.getCurrentUser();
+            return user?.tenant_id || null;
+        },
+
+        // --- تسجيل الدخول ---
         async login(email, password) {
             try {
                 const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -172,6 +201,7 @@
             }
         },
 
+        // --- إنشاء حساب جديد ---
         async signup(email, password, fullName, role = 'admin', tenantName = '', phone = '') {
             try {
                 const { data: authData, error: signUpError } = await supabaseClient.auth.signUp({
@@ -202,37 +232,36 @@
             }
         },
 
+        // --- تسجيل الخروج ---
         async logout() {
             await supabaseClient.auth.signOut();
             localStorage.removeItem('app_session');
             window.location.href = './index.html';
         },
 
-        async getCurrentUser() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return null;
-            const { data: profile } = await supabaseClient
-                .from('profiles')
-                .select('*, tenants(plan)')
-                .eq('id', user.id)
-                .single();
-            if (!profile) return null;
-            return {
-                id: user.id,
-                email: user.email,
-                fullName: profile.full_name,
-                role: profile.role,
-                tenant_id: profile.tenant_id,
-                plan: profile.tenants?.plan
-            };
-        },
-
-        async getTenantId() {
-            const user = await this.getCurrentUser();
-            return user?.tenant_id || null;
-        },
-
+        // --- التحقق من الصلاحية (سريع، يمنع الوميض) ---
         async requireAuth() {
+            const cached = this.getCachedUser();
+            if (cached) {
+                // عرض فوري، والتحقق الكامل في الخلفية
+                this.getCurrentUser().then(async (user) => {
+                    if (!user) {
+                        window.location.href = './index.html';
+                    } else {
+                        localStorage.setItem('app_session', JSON.stringify({
+                            ...user,
+                            loginTime: new Date().toLocaleString('ar-EG')
+                        }));
+                    }
+                }).catch(() => {});
+
+                if (cached.role !== 'super_admin' && cached.tenant_id) {
+                    this.checkTenantStatus(cached.tenant_id).catch(() => {});
+                }
+                return true;
+            }
+
+            // لا يوجد مخبأ - تحقق كامل
             const user = await this.getCurrentUser();
             if (!user) {
                 window.location.href = './index.html';
@@ -241,7 +270,6 @@
             if (user.role !== 'super_admin' && user.tenant_id) {
                 await this.checkTenantStatus(user.tenant_id);
             }
-            // تحديث session المحلية (للتوافق مع requireRole و initUserInterface)
             localStorage.setItem('app_session', JSON.stringify({
                 ...user,
                 loginTime: new Date().toLocaleString('ar-EG')
@@ -264,6 +292,7 @@
             }
         },
 
+        // التحقق من الدور (متزامنة - تقرأ من localStorage)
         requireRole(allowedRoles) {
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
             const userRole = (session.role || '').toLowerCase();
@@ -276,6 +305,7 @@
             return true;
         },
 
+        // تهيئة واجهة المستخدم من localStorage
         initUserInterface() {
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
             if (session) {
@@ -291,6 +321,7 @@
 
     // ==================== دوال قاعدة البيانات ====================
     window.DB = {
+        // --- المنتجات ---
         async getProducts() {
             return getWithFallback('products', async () => {
                 const { data, error } = await supabaseClient
@@ -322,6 +353,7 @@
             }
         },
 
+        // --- الأطراف ---
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -352,6 +384,7 @@
             }
         },
 
+        // --- المندوبين ---
         async getReps() {
             return getWithFallback('reps', async () => {
                 const { data, error } = await supabaseClient
@@ -375,6 +408,7 @@
             });
         },
 
+        // --- الفواتير ---
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
@@ -405,6 +439,7 @@
             return data;
         },
 
+        // إنشاء فاتورة بيع (RPC آمنة)
         async createSaleInvoice(invoiceData) {
             const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: invoiceData });
             if (error) throw new Error(error.message);
@@ -412,6 +447,7 @@
             return data;
         },
 
+        // إنشاء فاتورة مشتريات (RPC آمنة)
         async createPurchaseInvoice(purchaseData) {
             const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: purchaseData });
             if (error) throw new Error(error.message);
@@ -419,6 +455,7 @@
             return data;
         },
 
+        // --- المشتريات ---
         async getPurchases() {
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
@@ -449,6 +486,7 @@
             return data;
         },
 
+        // --- المعاملات المالية ---
         async getTransactions() {
             return getWithFallback('transactions', async () => {
                 const { data, error } = await supabaseClient
@@ -472,6 +510,7 @@
             });
         },
 
+        // --- المرتجعات ---
         async getReturns(type = null) {
             return getWithFallback('returns', async () => {
                 let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
@@ -494,6 +533,7 @@
             });
         },
 
+        // --- الإعدادات ---
         async getSettings() {
             try {
                 const { data, error } = await supabaseClient
@@ -516,6 +556,7 @@
             return data.data;
         },
 
+        // --- القيود المحاسبية ---
         async getJournalEntries() {
             return getWithFallback('journal_entries', async () => {
                 const { data, error } = await supabaseClient
@@ -539,6 +580,7 @@
             });
         },
 
+        // --- الحسابات ---
         async getAccounts() {
             return getWithFallback('accounts', async () => {
                 const { data, error } = await supabaseClient
@@ -550,6 +592,7 @@
             });
         },
 
+        // --- دوال المشرف العام ---
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) throw error;
@@ -560,6 +603,7 @@
             if (error) throw error;
         },
 
+        // --- توليد رقم الفاتورة ---
         generateInvoiceNumber: async function() {
             const { data, error } = await supabaseClient.rpc('next_invoice_number');
             if (error) throw error;
@@ -567,5 +611,5 @@
         }
     };
 
-    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.1)');
+    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.2)');
 })();
