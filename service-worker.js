@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hesaby-app-v5'; // ← زِد الإصدار لإجبار التحديث
+const CACHE_NAME = 'hesaby-app-v6'; // ← زِد الإصدار لإجبار التحديث
 
 // قائمة الأصول التي تُخزَّن عند التثبيت (ثابتة)
 const STATIC_ASSETS = [
