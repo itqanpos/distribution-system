@@ -1,6 +1,6 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.0 - آمن، معزول، يدعم Offline
+   الإصدار 2.1 - آمن، معزول، معالجة الوميض، يدعم Offline
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -32,7 +32,6 @@
     async function getCurrentTenantId() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return null;
-        // جلب tenant_id من profiles بشكل آمن
         const { data: profile } = await supabaseClient
             .from('profiles')
             .select('tenant_id')
@@ -44,20 +43,17 @@
     // ==================== طبقة Offline (محسّنة) ====================
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
-        // محاولة جلب بيانات محلية أولاً
         if (local) {
             try {
                 const localData = await local.getAll(storeName);
                 if (localData && localData.length > 0) {
                     console.log(`📦 ${storeName}: عرض ${localData.length} عنصر من IndexedDB`);
-                    // تحديث في الخلفية
                     if (navigator.onLine && supabaseClient) {
                         cloudFetcher().then(async (cloudData) => {
                             if (cloudData && Array.isArray(cloudData)) {
                                 for (const item of cloudData) {
                                     await local.put(storeName, cleanObject(item)).catch(() => {});
                                 }
-                                // إزالة القديم غير الموجود في السحابة (اختياري)
                             }
                         }).catch(() => {});
                     }
@@ -70,7 +66,6 @@
             try {
                 const data = await cloudFetcher();
                 if (local && data && Array.isArray(data)) {
-                    // مزامنة كاملة (يمكن تحسينها لاحقاً)
                     await local.clear(storeName);
                     for (const item of data) {
                         await local.put(storeName, cleanObject(item)).catch(() => {});
@@ -94,7 +89,6 @@
         if (navigator.onLine && supabaseClient) {
             try {
                 const result = await cloudSaver(cleanData);
-                // إزالة من طابور المزامنة عند النجاح
                 if (local && local.removeFromSyncQueue) {
                     await local.removeFromSyncQueue(cleanData.id).catch(() => {});
                 }
@@ -108,7 +102,6 @@
                         data: cleanData
                     }).catch(() => {});
                 }
-                // إرجاع البيانات المحفوظة محلياً
                 return cleanData;
             }
         } else {
@@ -137,9 +130,7 @@
                     .eq('id', userId)
                     .single();
 
-                // إذا لم يكن له بروفايل، أنشئ واحداً (مع مستأجر تلقائي للمشرفين الجدد)
                 if (!profile) {
-                    // هذا لن يحدث إلا إذا تم إنشاء المستخدم يدوياً من لوحة التحكم
                     const { data: newProfile, error: insertError } = await supabaseClient
                         .from('profiles')
                         .insert({ id: userId, full_name: email, role: 'admin' })
@@ -149,7 +140,6 @@
                     profile = newProfile;
                 }
 
-                // إذا لم يكن super_admin وليس له tenant_id، أنشئ tenant
                 if (profile.role !== 'super_admin' && !profile.tenant_id) {
                     console.log('🔄 إنشاء متجر تلقائي...');
                     const tenantName = `متجر ${profile.full_name || email}`;
@@ -158,11 +148,9 @@
                         console.error('❌ فشل إنشاء المتجر:', tenantError);
                         throw new Error('فشل إنشاء المتجر');
                     }
-                    // تحديث البروفايل محلياً
                     profile.tenant_id = newTenantId;
                 }
 
-                // إعادة توجيه حسب الدور
                 let redirectUrl = './dashboard.html';
                 if (profile.role === 'rep') redirectUrl = './pos.html';
                 else if (profile.role === 'super_admin') redirectUrl = './admin.html';
@@ -187,23 +175,18 @@
 
         async signup(email, password, fullName, role = 'admin', tenantName = '', phone = '') {
             try {
-                // 1. تسجيل في auth
                 const { data: authData, error: signUpError } = await supabaseClient.auth.signUp({
                     email,
                     password,
                     options: { data: { full_name: fullName, phone: phone } }
                 });
                 if (signUpError) throw signUpError;
-
                 if (!authData.user) throw new Error('فشل إنشاء المستخدم');
 
-                // 2. إنشاء مستأجر عبر RPC
                 const tenantNameFinal = tenantName || `متجر ${fullName}`;
                 const { data: tenantId, error: tenantError } = await supabaseClient.rpc('create_my_tenant', { p_tenant_name: tenantNameFinal });
                 if (tenantError) throw tenantError;
 
-                // 3. تحديث البروفايل (بعد RPC سيتم تعيين tenant_id و role)
-                // RPC السابقة تقوم بذلك، لكن للتأكيد نقوم بـ upsert
                 await supabaseClient.from('profiles').upsert({
                     id: authData.user.id,
                     full_name: fullName,
@@ -212,9 +195,7 @@
                     tenant_id: tenantId
                 }, { onConflict: 'id' });
 
-                // تسجيل الدخول مباشرة
                 await supabaseClient.auth.signInWithPassword({ email, password });
-
                 return { success: true, message: 'تم إنشاء الحساب بنجاح.' };
             } catch (err) {
                 console.error('Signup error:', err);
@@ -231,7 +212,6 @@
         async getCurrentUser() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return null;
-            // نجلب البروفايل من قاعدة البيانات (أضمن)
             const { data: profile } = await supabaseClient
                 .from('profiles')
                 .select('*, tenants(plan)')
@@ -262,6 +242,11 @@
             if (user.role !== 'super_admin' && user.tenant_id) {
                 await this.checkTenantStatus(user.tenant_id);
             }
+            // تحديث session المحلية (للتوافق مع باقي الكود)
+            localStorage.setItem('app_session', JSON.stringify({
+                ...user,
+                loginTime: new Date().toLocaleString('ar-EG')
+            }));
             return true;
         },
 
@@ -280,8 +265,8 @@
             }
         },
 
+        // دالة requireRole تظل متزامنة (تقرأ من localStorage المؤقت)
         requireRole(allowedRoles) {
-            // هذه الدالة يجب أن تكون متزامنة، لذا نقرأ session المخزن مؤقتاً
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
             const userRole = (session.role || '').toLowerCase();
             const allowed = allowedRoles.map(r => r.toLowerCase());
@@ -293,6 +278,7 @@
             return true;
         },
 
+        // تحديث واجهة المستخدم من localStorage (للعرض فقط)
         initUserInterface() {
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
             if (session) {
@@ -320,7 +306,6 @@
             });
         },
         async saveProduct(p) {
-            // لا نضيف tenant_id يدوياً، RLS سيتولى ذلك
             if (!p.id) p.id = crypto.randomUUID();
             return saveWithFallback('products', p, async (product) => {
                 const { data, error } = await supabaseClient
@@ -373,8 +358,28 @@
         },
 
         // ---------- المندوبين ----------
-        async getReps() { /* مشابه للباقي */ },
-        async saveRep(r) { /* ... */ },
+        async getReps() {
+            return getWithFallback('reps', async () => {
+                const { data, error } = await supabaseClient
+                    .from('reps')
+                    .select('*')
+                    .order('name');
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveRep(r) {
+            if (!r.id) r.id = crypto.randomUUID();
+            return saveWithFallback('reps', r, async (rep) => {
+                const { data, error } = await supabaseClient
+                    .from('reps')
+                    .upsert(cleanObject(rep), { onConflict: 'id' })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            });
+        },
 
         // ---------- الفواتير ----------
         async getInvoices() {
@@ -424,6 +429,37 @@
             return data;
         },
 
+        // ---------- المشتريات ----------
+        async getPurchases() {
+            return getWithFallback('purchases', async () => {
+                const { data, error } = await supabaseClient
+                    .from('purchases')
+                    .select('*')
+                    .order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        async getPurchasesLight() {
+            return getWithFallback('purchases', async () => {
+                const { data, error } = await supabaseClient
+                    .from('purchases')
+                    .select('id, date, supplier_id, total, paid, remaining, status')
+                    .order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        async getPurchaseById(id) {
+            const { data, error } = await supabaseClient
+                .from('purchases')
+                .select('*')
+                .eq('id', id)
+                .single();
+            if (error) throw error;
+            return data;
+        },
+
         // ---------- المعاملات المالية ----------
         async getTransactions() {
             return getWithFallback('transactions', async () => {
@@ -448,6 +484,29 @@
             });
         },
 
+        // ---------- المرتجعات ----------
+        async getReturns(type = null) {
+            return getWithFallback('returns', async () => {
+                let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
+                if (type) q = q.eq('type', type);
+                const { data, error } = await q;
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveReturn(r) {
+            if (!r.id) r.id = crypto.randomUUID();
+            return saveWithFallback('returns', r, async (ret) => {
+                const { data, error } = await supabaseClient
+                    .from('returns')
+                    .upsert(cleanObject(ret), { onConflict: 'id' })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            });
+        },
+
         // ---------- الإعدادات ----------
         async getSettings() {
             try {
@@ -464,11 +523,47 @@
         async saveSettings(s) {
             const { data, error } = await supabaseClient
                 .from('settings')
-                .upsert({ data: s }, { onConflict: 'tenant_id' }) // الآن المفتاح tenant_id
+                .upsert({ data: s }, { onConflict: 'tenant_id' })
                 .select()
                 .single();
             if (error) throw error;
             return data.data;
+        },
+
+        // ---------- القيود المحاسبية ----------
+        async getJournalEntries() {
+            return getWithFallback('journal_entries', async () => {
+                const { data, error } = await supabaseClient
+                    .from('journal_entries')
+                    .select('*')
+                    .order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            });
+        },
+        async saveJournalEntry(entry) {
+            if (!entry.id) entry.id = crypto.randomUUID();
+            return saveWithFallback('journal_entries', entry, async (e) => {
+                const { data, error } = await supabaseClient
+                    .from('journal_entries')
+                    .upsert(cleanObject(e), { onConflict: 'id' })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return data;
+            });
+        },
+
+        // ---------- الحسابات ----------
+        async getAccounts() {
+            return getWithFallback('accounts', async () => {
+                const { data, error } = await supabaseClient
+                    .from('accounts')
+                    .select('*')
+                    .order('name');
+                if (error) throw error;
+                return data;
+            });
         },
 
         // ---------- دوال المشرف العام ----------
@@ -490,5 +585,5 @@
         }
     };
 
-    console.log('✅ نظام آمن متعدد المستأجرين جاهز');
+    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.1)');
 })();
