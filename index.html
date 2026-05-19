@@ -22,154 +22,45 @@
             padding: 20px;
             position: relative;
         }
-        /* شاشة تحميل جميلة */
         #app-loader {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: #f0f4f8;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            font-family: 'Cairo', sans-serif;
-            transition: opacity 0.3s ease;
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: #f0f4f8; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 9999;
+            font-family: 'Cairo', sans-serif; transition: opacity 0.3s ease;
         }
-        body.loaded #app-loader {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .loader-logo {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-            animation: pulse 1.5s infinite;
-        }
-        .loader-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 20px;
-        }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e2e8f0;
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 15px;
-        }
-        .loader-text {
-            color: #64748b;
-            font-size: 16px;
-            font-weight: 500;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
+        body.loaded #app-loader { opacity: 0; pointer-events: none; }
+        .loader-logo { width:80px; height:80px; margin-bottom:20px; animation: pulse 1.5s infinite; }
+        .loader-logo img { width:100%; height:100%; object-fit:contain; border-radius:20px; }
+        .spinner { width:40px; height:40px; border:4px solid #e2e8f0; border-top-color:#3b82f6;
+                   border-radius:50%; animation: spin 0.8s linear infinite; margin-bottom:15px; }
+        .loader-text { color:#64748b; font-size:16px; font-weight:500; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.05);} 100%{transform:scale(1);} }
 
-        /* نموذج تسجيل الدخول */
         .login-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-            padding: 40px 30px;
-            width: 100%;
-            max-width: 420px;
-            text-align: center;
-            display: none; /* تظهر بعد التحقق */
+            background: white; border-radius:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);
+            padding:40px 30px; width:100%; max-width:420px; text-align:center; display:none;
         }
         body.loaded .login-card { display: block; }
-        .logo {
-            margin-bottom: 25px;
-        }
-        .logo img {
-            width: 70px;
-            height: 70px;
-            object-fit: contain;
-            border-radius: 20px;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-        }
-        h2 {
-            font-size: 24px;
-            font-weight: 800;
-            color: #1e293b;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            color: #64748b;
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
-        .input-group {
-            margin-bottom: 18px;
-            text-align: right;
-            position: relative;
-        }
-        .input-group i {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-        }
-        .input-group input {
-            width: 100%;
-            padding: 14px 45px 14px 14px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            font-family: 'Cairo', sans-serif;
-            font-size: 16px;
-            transition: 0.2s;
-        }
-        .input-group input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
-        }
-        .btn {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            width: 100%;
-            font-family: 'Cairo', sans-serif;
-            font-weight: 700;
-            font-size: 18px;
-            cursor: pointer;
-            transition: 0.2s;
-            margin-top: 10px;
-        }
-        .btn:hover { background: #2563eb; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .signup-link {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #64748b;
-        }
-        .signup-link a {
-            color: #3b82f6;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .error-message {
-            color: #ef4444;
-            font-size: 14px;
-            margin-top: 10px;
-            display: none;
-        }
+        .logo { margin-bottom:25px; }
+        .logo img { width:70px; height:70px; object-fit:contain; border-radius:20px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); }
+        h2 { font-size:24px; font-weight:800; color:#1e293b; margin-bottom:10px; }
+        .subtitle { color:#64748b; font-size:14px; margin-bottom:30px; }
+        .input-group { margin-bottom:18px; text-align:right; position:relative; }
+        .input-group i { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:#94a3b8; }
+        .input-group input { width:100%; padding:14px 45px 14px 14px; border:1px solid #e2e8f0; border-radius:12px;
+                            font-family:'Cairo',sans-serif; font-size:16px; transition:0.2s; }
+        .input-group input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
+        .btn { background:#3b82f6; color:white; border:none; border-radius:12px; padding:14px; width:100%;
+               font-family:'Cairo',sans-serif; font-weight:700; font-size:18px; cursor:pointer; transition:0.2s; margin-top:10px; }
+        .btn:hover { background:#2563eb; }
+        .btn:disabled { opacity:0.6; cursor:not-allowed; }
+        .signup-link { margin-top:20px; font-size:14px; color:#64748b; }
+        .signup-link a { color:#3b82f6; font-weight:600; text-decoration:none; }
+        .error-message { color:#ef4444; font-size:14px; margin-top:10px; display:none; }
     </style>
 </head>
 <body class="loading">
-    <!-- شاشة التحميل -->
     <div id="app-loader">
         <div class="loader-logo">
             <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
@@ -178,7 +69,6 @@
         <div class="loader-text">جاري التحميل...</div>
     </div>
 
-    <!-- نموذج تسجيل الدخول -->
     <div class="login-card" id="loginCard">
         <div class="logo">
             <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
@@ -202,7 +92,6 @@
         </div>
     </div>
 
-    <!-- تحميل المكتبات والسكربتات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/db-local.js"></script>
@@ -216,19 +105,7 @@
                 return;
             }
 
-            // 1. تحقق سريع من الجلسة
-            // يمكن استخدام getCachedUser() للسرعة الفائقة (بدون طلب شبكة)
-            const cached = App.getCachedUser();
-            if (cached) {
-                // جلسة صالحة محلياً - توجيه فوري
-                let target = './dashboard.html';
-                if (cached.role === 'rep') target = './pos.html';
-                else if (cached.role === 'super_admin') target = './admin.html';
-                window.location.href = target;
-                return;
-            }
-
-            // 2. لا يوجد جلسة محلية، تحقق كامل من Supabase (صامت)
+            // 1. تحقق حقيقي كامل من الجلسة (بدون الاعتماد على getCachedUser فقط)
             const user = await App.getCurrentUser();
             if (user) {
                 let target = './dashboard.html';
@@ -238,10 +115,10 @@
                 return;
             }
 
-            // 3. لا توجد جلسة فعلية - أظهر نموذج الدخول
+            // 2. لا توجد جلسة - إظهار نموذج الدخول
             document.body.classList.remove('loading');
 
-            // 4. أحداث تسجيل الدخول
+            // 3. أحداث تسجيل الدخول
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
@@ -282,14 +159,15 @@
             }
 
             loginBtn.addEventListener('click', performLogin);
-            passInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') performLogin();
-            });
-            emailInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') passInput.focus();
-            });
+            passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performLogin(); });
+            emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') passInput.focus(); });
 
             emailInput.focus();
+
+            // تسجيل Service Worker إن أمكن
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            }
         })();
     </script>
 </body>
