@@ -1,6 +1,6 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.2 - أداء فائق، أمان كامل، معالجة الوميض، Offline
+   الإصدار 2.3 - أداء فائق، أمان كامل، معالجة الوميض وحلقة التوجيه
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -106,9 +106,7 @@
 
     // ==================== المصادقة والصلاحيات ====================
     window.App = {
-        // --- دوال مساعدة للجلسة ---
-
-        // قراءة سريعة من الذاكرة المحلية (بدون اتصال بالخادم)
+        // --- قراءة سريعة من localStorage (بدون اتصال بالخادم) ---
         getCachedUser() {
             const session = localStorage.getItem('app_session');
             if (!session) return null;
@@ -121,7 +119,7 @@
             return null;
         },
 
-        // التحقق الكامل من الجلسة عبر Supabase
+        // --- التحقق الكامل من الجلسة عبر Supabase ---
         async getCurrentUser() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return null;
@@ -239,15 +237,21 @@
             window.location.href = './index.html';
         },
 
-        // --- التحقق من الصلاحية (سريع، يمنع الوميض) ---
+        // --- التحقق من الصلاحية (سريع، يمنع الوميض وحلقة التوجيه) ---
         async requireAuth() {
             const cached = this.getCachedUser();
             if (cached) {
-                // عرض فوري، والتحقق الكامل في الخلفية
+                // سماح مؤقت بالدخول، والتحقق الصامت في الخلفية
                 this.getCurrentUser().then(async (user) => {
                     if (!user) {
-                        window.location.href = './index.html';
+                        // الجلسة منتهية فعلاً: احذف localStorage وأعد التوجيه
+                        localStorage.removeItem('app_session');
+                        // منع إعادة التوجيه المتكرر إذا كنا بالفعل في index
+                        if (window.location.pathname.indexOf('index.html') === -1) {
+                            window.location.href = './index.html';
+                        }
                     } else {
+                        // تحديث الجلسة المحلية
                         localStorage.setItem('app_session', JSON.stringify({
                             ...user,
                             loginTime: new Date().toLocaleString('ar-EG')
@@ -264,6 +268,7 @@
             // لا يوجد مخبأ - تحقق كامل
             const user = await this.getCurrentUser();
             if (!user) {
+                localStorage.removeItem('app_session');
                 window.location.href = './index.html';
                 return false;
             }
@@ -321,7 +326,6 @@
 
     // ==================== دوال قاعدة البيانات ====================
     window.DB = {
-        // --- المنتجات ---
         async getProducts() {
             return getWithFallback('products', async () => {
                 const { data, error } = await supabaseClient
@@ -353,7 +357,6 @@
             }
         },
 
-        // --- الأطراف ---
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -384,7 +387,6 @@
             }
         },
 
-        // --- المندوبين ---
         async getReps() {
             return getWithFallback('reps', async () => {
                 const { data, error } = await supabaseClient
@@ -408,7 +410,6 @@
             });
         },
 
-        // --- الفواتير ---
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
@@ -439,7 +440,6 @@
             return data;
         },
 
-        // إنشاء فاتورة بيع (RPC آمنة)
         async createSaleInvoice(invoiceData) {
             const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: invoiceData });
             if (error) throw new Error(error.message);
@@ -447,7 +447,6 @@
             return data;
         },
 
-        // إنشاء فاتورة مشتريات (RPC آمنة)
         async createPurchaseInvoice(purchaseData) {
             const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: purchaseData });
             if (error) throw new Error(error.message);
@@ -455,7 +454,6 @@
             return data;
         },
 
-        // --- المشتريات ---
         async getPurchases() {
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
@@ -486,7 +484,6 @@
             return data;
         },
 
-        // --- المعاملات المالية ---
         async getTransactions() {
             return getWithFallback('transactions', async () => {
                 const { data, error } = await supabaseClient
@@ -510,7 +507,6 @@
             });
         },
 
-        // --- المرتجعات ---
         async getReturns(type = null) {
             return getWithFallback('returns', async () => {
                 let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
@@ -533,7 +529,6 @@
             });
         },
 
-        // --- الإعدادات ---
         async getSettings() {
             try {
                 const { data, error } = await supabaseClient
@@ -556,7 +551,6 @@
             return data.data;
         },
 
-        // --- القيود المحاسبية ---
         async getJournalEntries() {
             return getWithFallback('journal_entries', async () => {
                 const { data, error } = await supabaseClient
@@ -580,7 +574,6 @@
             });
         },
 
-        // --- الحسابات ---
         async getAccounts() {
             return getWithFallback('accounts', async () => {
                 const { data, error } = await supabaseClient
@@ -592,7 +585,6 @@
             });
         },
 
-        // --- دوال المشرف العام ---
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) throw error;
@@ -603,7 +595,6 @@
             if (error) throw error;
         },
 
-        // --- توليد رقم الفاتورة ---
         generateInvoiceNumber: async function() {
             const { data, error } = await supabaseClient.rpc('next_invoice_number');
             if (error) throw error;
@@ -611,5 +602,5 @@
         }
     };
 
-    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.2)');
+    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.3)');
 })();
