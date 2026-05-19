@@ -28,7 +28,7 @@
         return (window.localDB && window.localDB.ready) ? window.localDB : null;
     }
 
-    // لم نعد نستخدم localStorage لتخزين tenant_id؛ نثق فقط بـ Supabase auth
+    // دالة مساعدة داخلية للحصول على tenant_id من الجلسة (للاستخدامات الخاصة فقط)
     async function getCurrentTenantId() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return null;
@@ -116,7 +116,7 @@
         }
     }
 
-    // ==================== المصادقة والصلاحيات (مصححة) ====================
+    // ==================== المصادقة والصلاحيات ====================
     window.App = {
         async login(email, password) {
             try {
@@ -155,7 +155,6 @@
                 if (profile.role === 'rep') redirectUrl = './pos.html';
                 else if (profile.role === 'super_admin') redirectUrl = './admin.html';
 
-                // تخزين بيانات خفيفة للجلسة (للاستخدام في الواجهة فقط، لا للأمان)
                 const sessionInfo = {
                     id: userId,
                     email: authData.user.email,
@@ -242,7 +241,7 @@
             if (user.role !== 'super_admin' && user.tenant_id) {
                 await this.checkTenantStatus(user.tenant_id);
             }
-            // تحديث session المحلية (للتوافق مع باقي الكود)
+            // تحديث session المحلية (للتوافق مع requireRole و initUserInterface)
             localStorage.setItem('app_session', JSON.stringify({
                 ...user,
                 loginTime: new Date().toLocaleString('ar-EG')
@@ -265,7 +264,6 @@
             }
         },
 
-        // دالة requireRole تظل متزامنة (تقرأ من localStorage المؤقت)
         requireRole(allowedRoles) {
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
             const userRole = (session.role || '').toLowerCase();
@@ -278,7 +276,6 @@
             return true;
         },
 
-        // تحديث واجهة المستخدم من localStorage (للعرض فقط)
         initUserInterface() {
             const session = JSON.parse(localStorage.getItem('app_session') || '{}');
             if (session) {
@@ -292,9 +289,8 @@
         }
     };
 
-    // ==================== دوال قاعدة البيانات (طبقة آمنة) ====================
+    // ==================== دوال قاعدة البيانات ====================
     window.DB = {
-        // ---------- المنتجات ----------
         async getProducts() {
             return getWithFallback('products', async () => {
                 const { data, error } = await supabaseClient
@@ -326,7 +322,6 @@
             }
         },
 
-        // ---------- الأطراف ----------
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -357,7 +352,6 @@
             }
         },
 
-        // ---------- المندوبين ----------
         async getReps() {
             return getWithFallback('reps', async () => {
                 const { data, error } = await supabaseClient
@@ -381,7 +375,6 @@
             });
         },
 
-        // ---------- الفواتير ----------
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
@@ -412,16 +405,13 @@
             return data;
         },
 
-        // ------ إنشاء فاتورة بيع (RPC آمنة) ------
         async createSaleInvoice(invoiceData) {
-            // لا نضيف tenant_id، الدالة RPC تستخرجه
             const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: invoiceData });
             if (error) throw new Error(error.message);
             if (!data.success) throw new Error(data.error);
             return data;
         },
 
-        // ------ إنشاء فاتورة مشتريات (RPC آمنة) ------
         async createPurchaseInvoice(purchaseData) {
             const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: purchaseData });
             if (error) throw new Error(error.message);
@@ -429,7 +419,6 @@
             return data;
         },
 
-        // ---------- المشتريات ----------
         async getPurchases() {
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
@@ -460,7 +449,6 @@
             return data;
         },
 
-        // ---------- المعاملات المالية ----------
         async getTransactions() {
             return getWithFallback('transactions', async () => {
                 const { data, error } = await supabaseClient
@@ -484,7 +472,6 @@
             });
         },
 
-        // ---------- المرتجعات ----------
         async getReturns(type = null) {
             return getWithFallback('returns', async () => {
                 let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
@@ -507,13 +494,12 @@
             });
         },
 
-        // ---------- الإعدادات ----------
         async getSettings() {
             try {
                 const { data, error } = await supabaseClient
                     .from('settings')
                     .select('data')
-                    .single(); // يعتمد على RLS لإرجاع صف المستأجر الحالي
+                    .single();
                 if (error && error.code !== 'PGRST116') throw error;
                 return data?.data || {};
             } catch (e) {
@@ -530,7 +516,6 @@
             return data.data;
         },
 
-        // ---------- القيود المحاسبية ----------
         async getJournalEntries() {
             return getWithFallback('journal_entries', async () => {
                 const { data, error } = await supabaseClient
@@ -554,7 +539,6 @@
             });
         },
 
-        // ---------- الحسابات ----------
         async getAccounts() {
             return getWithFallback('accounts', async () => {
                 const { data, error } = await supabaseClient
@@ -566,7 +550,6 @@
             });
         },
 
-        // ---------- دوال المشرف العام ----------
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) throw error;
@@ -577,7 +560,6 @@
             if (error) throw error;
         },
 
-        // ---------- توليد رقم الفاتورة ----------
         generateInvoiceNumber: async function() {
             const { data, error } = await supabaseClient.rpc('next_invoice_number');
             if (error) throw error;
