@@ -1,22 +1,31 @@
 /* =============================================
    db-local.js - قاعدة البيانات المحلية IndexedDB
+   الإصدار 2.0 - متوافق مع العزل الأمني وطابور المزامنة
    ============================================= */
 (function() {
     const DB_NAME = 'hesaby_db';
-    const DB_VERSION = 4;
+    const DB_VERSION = 5; // زدنا الإصدار لإعادة إنشاء المتاجر
 
-    // قائمة المتاجر (Object Stores)
-    const stores = [
-        'products', 'parties', 'reps', 'invoices', 'purchases',
-        'transactions', 'returns', 'settings', 'sync_queue',
-        'journal_entries', 'accounts'
-    ];
+    // تعريف المتاجر مع مفاتيحها الأساسية
+    const storeConfig = {
+        products: { keyPath: 'id' },
+        parties: { keyPath: 'id' },
+        reps: { keyPath: 'id' },
+        invoices: { keyPath: 'id' },
+        purchases: { keyPath: 'id' },
+        transactions: { keyPath: 'id' },
+        returns: { keyPath: 'id' },
+        settings: { keyPath: 'id' }, // سنستخدم id='main' محلياً ونتجاهل tenant_id هنا
+        sync_queue: { keyPath: 'id' },
+        journal_entries: { keyPath: 'id' },
+        accounts: { keyPath: 'id' }
+    };
 
     class LocalDB {
         constructor() {
             this.db = null;
             this.ready = false;
-            this.init();
+            this.initPromise = this.init();
         }
 
         async init() {
@@ -25,9 +34,26 @@
 
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
-                    stores.forEach(storeName => {
-                        if (!db.objectStoreNames.contains(storeName)) {
-                            db.createObjectStore(storeName, { keyPath: 'id' });
+                    const oldVersion = event.oldVersion;
+
+                    // حذف المتاجر القديمة إن وُجدت (ترقية نظيفة)
+                    Array.from(db.objectStoreNames).forEach(name => {
+                        if (!storeConfig[name]) {
+                            db.deleteObjectStore(name);
+                        }
+                    });
+
+                    // إنشاء المتاجر حسب التكوين الجديد
+                    Object.entries(storeConfig).forEach(([name, config]) => {
+                        if (!db.objectStoreNames.contains(name)) {
+                            const store = db.createObjectStore(name, { keyPath: config.keyPath });
+                            // إضافة فهارس مساعدة
+                            if (name === 'sync_queue') {
+                                store.createIndex('created_at', 'created_at', { unique: false });
+                            }
+                            if (name === 'invoices' || name === 'purchases' || name === 'transactions') {
+                                store.createIndex('tenant_id', 'tenant_id', { unique: false });
+                            }
                         }
                     });
                 };
@@ -46,11 +72,15 @@
             });
         }
 
+        async _ensureReady() {
+            if (!this.ready) await this.initPromise;
+        }
+
         async getById(storeName, id) {
-            if (!this.ready) await this.init();
+            await this._ensureReady();
             return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(storeName, 'readonly');
-                const store = transaction.objectStore(storeName);
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
                 const request = store.get(id);
                 request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
@@ -58,10 +88,10 @@
         }
 
         async getAll(storeName) {
-            if (!this.ready) await this.init();
+            await this._ensureReady();
             return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(storeName, 'readonly');
-                const store = transaction.objectStore(storeName);
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
                 const request = store.getAll();
                 request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
@@ -69,22 +99,35 @@
         }
 
         async put(storeName, data) {
-            if (!this.ready) await this.init();
-            if (!data.id) data.id = crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now();
+            await this._ensureReady();
+            // تأكد من وجود id، وتوليده إن لزم (باستثناء settings التي نستخدم id='main')
+            if (!data.id) {
+                if (storeName === 'settings') {
+                    data.id = 'main'; // مفتاح ثابت للإعدادات المحلية
+                } else {
+                    data.id = crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now();
+                }
+            }
+            // إزالة tenant_id من البيانات المخزنة في sync_queue (للأمان)
+            const cleanData = storeName === 'sync_queue' ? { ...data, data: { ...data.data } } : data;
+            if (storeName === 'sync_queue' && cleanData.data?.tenant_id) {
+                delete cleanData.data.tenant_id;
+            }
+
             return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(storeName, 'readwrite');
-                const store = transaction.objectStore(storeName);
-                const request = store.put(data);
-                request.onsuccess = () => resolve(data);
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const request = store.put(cleanData);
+                request.onsuccess = () => resolve(cleanData);
                 request.onerror = () => reject(request.error);
             });
         }
 
         async delete(storeName, id) {
-            if (!this.ready) await this.init();
+            await this._ensureReady();
             return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(storeName, 'readwrite');
-                const store = transaction.objectStore(storeName);
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
                 const request = store.delete(id);
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
@@ -92,27 +135,44 @@
         }
 
         async clear(storeName) {
-            if (!this.ready) await this.init();
+            await this._ensureReady();
             return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(storeName, 'readwrite');
-                const store = transaction.objectStore(storeName);
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
                 const request = store.clear();
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
         }
 
+        // إضافة عنصر لطابور المزامنة
         async addToSyncQueue(entry) {
-            if (!this.ready) await this.init();
+            await this._ensureReady();
             const queueEntry = {
                 id: crypto.randomUUID ? crypto.randomUUID() : 'q-' + Date.now(),
-                ...entry,
-                created_at: new Date().toISOString()
+                type: entry.type,
+                table: entry.table,
+                data: { ...entry.data }, // نسخة لتجنب التعديلات غير المقصودة
+                created_at: new Date().toISOString(),
+                retries: 0
             };
+            // إزالة tenant_id من البيانات المخزنة (مبدأ أمان)
+            if (queueEntry.data.tenant_id) {
+                delete queueEntry.data.tenant_id;
+            }
             return this.put('sync_queue', queueEntry);
+        }
+
+        // حذف عنصر من طابور المزامنة (يُستدعى بعد المزامنة الناجحة)
+        async removeFromSyncQueue(id) {
+            return this.delete('sync_queue', id);
+        }
+
+        // جلب كل عناصر الطابور (اختياري، لتشخيص المشاكل)
+        async getSyncQueue() {
+            return this.getAll('sync_queue');
         }
     }
 
-    // إنشاء كائن عام
     window.localDB = new LocalDB();
 })();
