@@ -1,136 +1,228 @@
-const CACHE_NAME = 'hesaby-app-v6'; // ← زِد الإصدار لإجبار التحديث
+/* =============================================
+   service-worker.js – نظام نقاط البيع (POS)
+   الإصدار 2.0 – دعم Offline كامل، تحديث آمن، تخزين مرن
+   ============================================= */
+const CACHE_NAME = 'hesaby-app-v7'; // ← زِد الإصدار مع كل تحديث
 
-// قائمة الأصول التي تُخزَّن عند التثبيت (ثابتة)
-const STATIC_ASSETS = [
+// الأصول التي يجب تخزينها فور التثبيت (الشاشة الرئيسية والموارد الأساسية)
+const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/signup.html',
   '/expired.html',
-  '/css/dashboard.css',
-  '/css/pos.css',
-  '/css/invoices.css',
-  '/css/purchases.css',
-  '/css/cashbox.css',
-  '/css/accounting.css',
-  '/css/reports.css',
-  '/css/sales-returns.css',
-  '/css/purchase-returns.css',
-  '/css/customers.css',
-  '/css/products.css',
-  '/css/settings.css',
-  '/js/supabase.js',
-  '/js/db-local.js',
-  '/js/sync.js',
-  '/js/toast.js',
-  '/js/modal.js',
-  '/js/services/invoiceService.js',
+  '/offline.html', // صفحة fallback عند عدم الاتصال
+  '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
-  '/manifest.json'
+  '/js/supabase.js',
+  '/js/db-local.js'
 ];
 
-// صفحات HTML المحمية (لا تُخزَّن تلقائياً، تُجلَب من الشبكة أولاً)
-const PROTECTED_PAGES = [
-  '/dashboard.html',
-  '/pos.html',
-  '/invoices.html',
-  '/purchases.html',
-  '/cashbox.html',
-  '/accounting.html',
-  '/reports.html',
-  '/sales-returns.html',
-  '/purchase-returns.html',
-  '/customers.html',
-  '/products.html',
-  '/settings.html',
-  '/admin.html'
+// استثناءات: لا تُخزَّن مؤقتاً أبداً (طلبات API حقيقية)
+const API_PATTERNS = [
+  '/rest/v1/',
+  '/auth/v1/',
+  '/rpc/',
+  '/api/',
+  'supabase.co'
 ];
 
-// تثبيت الـ Service Worker: تخزين الأصول الثابتة فقط
+// تثبيت الـ Service Worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Service Worker: تخزين الأصول الثابتة');
-      return cache.addAll(STATIC_ASSETS);
+      console.log('📦 Service Worker: تخزين الأصول الأساسية');
+      return cache.addAll(PRECACHE_ASSETS);
     })
   );
-  // تخطي الانتظار لتفعيل الـ SW الجديد فوراً
+  // تفعيل فوري للـ SW الجديد (مع clients.claim لاحقاً)
   self.skipWaiting();
 });
 
-// استراتيجية Network First للصفحات المحمية، وCache First للأصول الثابتة
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  const path = url.pathname;
-
-  // تجاهل طلبات API أو Supabase
-  if (path.includes('/rest/v1/') || path.includes('/auth/v1/') || path.includes('/rpc/')) {
-    return; // لا نتدخل، تُمرر للشبكة مباشرة
-  }
-
-  // إذا كانت الصفحة محمية → Network First
-  if (PROTECTED_PAGES.includes(path) || path.endsWith('.html')) {
-    event.respondWith(networkFirst(event.request));
-  } else {
-    // الأصول الثابتة (CSS, JS, أيقونات) → Cache First
-    event.respondWith(cacheFirst(event.request));
-  }
-});
-
-// استراتيجية الشبكة أولاً مع fallback للكاش
-async function networkFirst(request) {
-  try {
-    const networkResponse = await fetch(request);
-    // نسخة للكاش للتحديث المستقبلي
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, networkResponse.clone());
-    return networkResponse;
-  } catch (error) {
-    // لا يوجد إنترنت → استخدم الكاش إن وُجد
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    // إذا لم يكن هناك كاش، أرجع صفحة fallback (اختياري)
-    return new Response('غير متصل بالإنترنت', { status: 503 });
-  }
-}
-
-// استراتيجية الكاش أولاً مع التحديث في الخلفية للأصول الثابتة
-async function cacheFirst(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    // تحديث في الخلفية
-    fetch(request).then((response) => {
-      caches.open(CACHE_NAME).then((cache) => {
-        cache.put(request, response);
-      });
-    }).catch(() => {});
-    return cachedResponse;
-  }
-  // لم يُوجد في الكاش → جلبه من الشبكة وتخزينه
-  try {
-    const networkResponse = await fetch(request);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, networkResponse.clone());
-    return networkResponse;
-  } catch (error) {
-    return new Response('غير متصل بالإنترنت', { status: 503 });
-  }
-}
-
-// تفعيل الـ SW الجديد: تنظيف الكاش القديم
+// تفعيل الـ SW الجديد: تنظيف الكاش القديم + السيطرة على جميع العملاء
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((cacheName) => cacheName !== CACHE_NAME)
-          .map((cacheName) => caches.delete(cacheName))
+          .map((cacheName) => {
+            console.log('🗑️ حذف الكاش القديم:', cacheName);
+            return caches.delete(cacheName);
+          })
       );
     }).then(() => {
-      // السيطرة على جميع العملاء فوراً
+      // السيطرة على جميع العملاء المفتوحة فوراً
       return clients.claim();
+    }).then(() => {
+      // إخطار جميع العملاء بوجود تحديث
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_ACTIVATED', cacheName: CACHE_NAME });
+        });
+      });
     })
   );
+});
+
+// استراتيجية التخزين المؤقت للطلبات
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  const path = url.pathname;
+
+  // تجاهل طلبات API (تترك للشبكة أو طبقة IndexedDB)
+  if (isApiRequest(url)) {
+    return; // لا نتدخل، تُمرر مباشرة
+  }
+
+  // طلبات التنقل (صفحات HTML) → Stale-While-Revalidate
+  if (event.request.mode === 'navigate' || path.endsWith('.html')) {
+    event.respondWith(staleWhileRevalidate(event.request));
+    return;
+  }
+
+  // الأصول الثابتة (CSS, JS, خطوط, أيقونات) → Cache First مع تحديث خلفي
+  if (isStaticAsset(path)) {
+    event.respondWith(cacheFirstWithRefresh(event.request));
+    return;
+  }
+
+  // أي طلب آخر (صور المنتجات، إلخ) → Network First مع Fallback
+  event.respondWith(networkFirstWithFallback(event.request));
+});
+
+// ==================== دوال الاستراتيجيات ====================
+
+/**
+ * Stale-While-Revalidate (مثالي للصفحات المحمية):
+ * يُظهر النسخة المخزنة فوراً، ويُحدث الكاش في الخلفية.
+ * هذا يضمن عدم فقدان المستخدم لواجهة التطبيق حتى لو انقطع الاتصال فجأة.
+ */
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+
+  // بدء تحديث الشبكة في الخلفية (لا ننتظره)
+  const networkPromise = fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch((error) => {
+      console.warn('⚠️ فشل تحديث الخلفية:', request.url, error);
+    });
+
+  // إعادة المخزن فوراً إن وُجد
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  // لا يوجد في الكاش → انتظر الشبكة
+  try {
+    const networkResponse = await networkPromise;
+    return networkResponse;
+  } catch (error) {
+    // لا يوجد كاش ولا شبكة → صفحة fallback
+    if (request.mode === 'navigate') {
+      const offlinePage = await cache.match('/offline.html');
+      return offlinePage || new Response('أنت غير متصل بالإنترنت. يرجى المحاولة لاحقاً.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Cache First مع تحديث خلفي (للأصول الثابتة):
+ * يُرجع المخزن فوراً، ويُحدثه من الشبكة للزيارة القادمة.
+ */
+async function cacheFirstWithRefresh(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+
+  if (cachedResponse) {
+    // تحديث في الخلفية
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          cache.put(request, response);
+        }
+      })
+      .catch(() => {});
+    return cachedResponse;
+  }
+
+  // لم يُوجد في الكاش → جلبه من الشبكة
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    // لا شبكة ولا كاش → خطأ
+    return new Response('المورد غير متوفر', { status: 408 });
+  }
+}
+
+/**
+ * Network First مع Fallback (للموارد غير الحرجة):
+ * يحاول الشبكة أولاً، ثم يرجع للكاش إذا فشل.
+ */
+async function networkFirstWithFallback(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    return new Response('غير متصل', { status: 503 });
+  }
+}
+
+// ==================== دوال مساعدة ====================
+
+function isApiRequest(url) {
+  const href = url.href;
+  return API_PATTERNS.some(pattern => href.includes(pattern));
+}
+
+function isStaticAsset(path) {
+  const staticExtensions = ['.css', '.js', '.woff2', '.woff', '.ttf', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.json'];
+  return staticExtensions.some(ext => path.endsWith(ext)) || path.startsWith('/icons/') || path.startsWith('/fonts/');
+}
+
+// ==================== رسائل من العميل ====================
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    // يسمح للعميل بطلب تفعيل SW الجديد يدوياً (تحديث آمن)
+    self.skipWaiting();
+  }
+
+  if (event.data && event.data.type === 'GET_CACHE_SIZE') {
+    // إرسال حجم الكاش للعميل (لأغراض تشخيصية)
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const keys = await cache.keys();
+      let totalSize = 0;
+      for (const request of keys) {
+        const response = await cache.match(request);
+        if (response) {
+          const blob = await response.blob();
+          totalSize += blob.size;
+        }
+      }
+      event.ports[0].postMessage({ size: totalSize, itemCount: keys.length });
+    });
+  }
 });
