@@ -1,41 +1,50 @@
 /* =============================================
    sync.js - مزامنة آمنة متوافقة مع RLS و RPC
-   الإصدار 2.0 - إصلاحات شاملة، تعامل آمن مع tenant_id
+   الإصدار 2.1 - قائمة بيضاء، دعم DELETE، أداء متوازي
    ============================================= */
 (function() {
-    const SYNC_INTERVAL = 30000;        // 30 ثانية
+    const SYNC_INTERVAL = 30000;
     const MAX_RETRIES = 3;
-    const INITIAL_DELAY = 2000;         // تأخير بدء التشغيل
+    const INITIAL_DELAY = 2000;
+    const CONCURRENT_LIMIT = 5;
+
+    // ✅ قائمة بيضاء: الجداول المسموح بمزامنتها عبر الطابور
+    const ALLOWED_TABLES = [
+        'products',
+        'parties',
+        'transactions',
+        'returns',
+        'journal_entries',
+        'accounts',
+        'invoices',
+        'purchases'
+    ];
 
     class SyncManager {
         constructor() {
             this.syncing = false;
             this.retryCount = {};
-            this.failedEntries = new Set(); // لتتبع العمليات الفاشلة نهائياً
+            this.failedEntries = new Set();
         }
 
         init() {
-            // مستمع واحد للاتصال بالإنترنت
             window.addEventListener('online', () => {
                 console.log('🌐 اتصال إنترنت – بدء المزامنة...');
                 this.syncAll();
             });
 
-            // مزامنة دورية
             this.intervalId = setInterval(() => {
                 if (navigator.onLine && !this.syncing) {
                     this.syncAll();
                 }
             }, SYNC_INTERVAL);
 
-            // مزامنة أولية بعد التحميل
             if (navigator.onLine) {
                 setTimeout(() => this.syncAll(), INITIAL_DELAY);
             }
         }
 
         async syncAll() {
-            // تجنب التشغيل المتوازي
             if (this.syncing) return;
             if (!window.localDB?.ready) return;
             if (!navigator.onLine) return;
@@ -45,52 +54,40 @@
             try {
                 const queue = await window.localDB.getAll('sync_queue');
                 if (!queue || queue.length === 0) {
+                    this.syncing = false;
                     return;
                 }
 
-                // إزالة العمليات الفاشلة نهائياً من القائمة (لن نكررها بعد 3 محاولات)
                 const actionableQueue = queue.filter(entry => !this.failedEntries.has(entry.id));
 
                 if (actionableQueue.length === 0) {
-                    console.log('✅ جميع العمليات المعلقة فشلت سابقاً. يرجى مراجعة السجلات.');
+                    console.log('✅ جميع العمليات المعلقة فشلت سابقاً.');
+                    this._notifyUserIfNeeded(queue.length);
+                    this.syncing = false;
                     return;
                 }
 
                 console.log(`🔄 جاري مزامنة ${actionableQueue.length} عنصر...`);
 
-                // فرز حسب الطابع الزمني (timestamp) إن وُجد، وإلا فـ INSERT أولاً
                 const sorted = [...actionableQueue].sort((a, b) => {
                     if (a.timestamp && b.timestamp) {
                         return a.timestamp - b.timestamp;
                     }
-                    // fallback: INSERT أولاً
                     if (a.type === 'INSERT' && b.type !== 'INSERT') return -1;
                     if (a.type !== 'INSERT' && b.type === 'INSERT') return 1;
                     return 0;
                 });
 
-                for (const entry of sorted) {
-                    if (this.failedEntries.has(entry.id)) continue;
+                // تنفيذ متوازٍ مع حد أقصى
+                for (let i = 0; i < sorted.length; i += CONCURRENT_LIMIT) {
+                    const batch = sorted.slice(i, i + CONCURRENT_LIMIT);
+                    await Promise.all(batch.map(entry => this._handleEntry(entry)));
+                }
 
-                    try {
-                        await this.processEntry(entry);
-                        // نجحت المزامنة → إزالة من الطابور
-                        await window.localDB.delete('sync_queue', entry.id).catch(e =>
-                            console.warn('فشل حذف عنصر من طابور المزامنة:', e)
-                        );
-                        delete this.retryCount[entry.id];
-                        console.log(`✅ تمت مزامنة: ${entry.table} [${entry.type}]`);
-                    } catch (error) {
-                        console.error(`❌ فشلت مزامنة ${entry.table} [${entry.type}]:`, error);
-                        this.retryCount[entry.id] = (this.retryCount[entry.id] || 0) + 1;
-
-                        if (this.retryCount[entry.id] >= MAX_RETRIES) {
-                            // وصلنا للحد الأقصى → نُبقي العملية لكن نمنعها من المحاولات المستقبلية
-                            this.failedEntries.add(entry.id);
-                            console.warn(`🚫 عملية ${entry.id} فشلت بعد ${MAX_RETRIES} محاولات. يُرجى التحقق يدوياً.`);
-                            // هنا يمكن إرسال إشعار للمستخدم أو تسجيل في localStorage
-                        }
-                    }
+                // إشعار إذا بقيت عناصر فاشلة
+                const remainingQueue = await window.localDB.getAll('sync_queue');
+                if (remainingQueue && remainingQueue.length > 0) {
+                    this._notifyUserIfNeeded(remainingQueue.length);
                 }
             } catch (e) {
                 console.error('❌ خطأ عام في المزامنة:', e);
@@ -99,43 +96,66 @@
             }
         }
 
+        async _handleEntry(entry) {
+            if (this.failedEntries.has(entry.id)) return;
+
+            try {
+                await this.processEntry(entry);
+                await window.localDB.delete('sync_queue', entry.id).catch(e =>
+                    console.warn('فشل حذف عنصر من طابور المزامنة:', e)
+                );
+                delete this.retryCount[entry.id];
+                console.log(`✅ تمت مزامنة: ${entry.table} [${entry.type}]`);
+            } catch (error) {
+                console.error(`❌ فشلت مزامنة ${entry.table} [${entry.type}]:`, error);
+                this.retryCount[entry.id] = (this.retryCount[entry.id] || 0) + 1;
+
+                if (this.retryCount[entry.id] >= MAX_RETRIES) {
+                    this.failedEntries.add(entry.id);
+                    console.warn(`🚫 عملية ${entry.id} فشلت بعد ${MAX_RETRIES} محاولات.`);
+                }
+            }
+        }
+
         async processEntry(entry) {
-            // 1. التحقق من المستخدم (يمنع إرسال بيانات منتهية الصلاحية)
+            // 1. التحقق من القائمة البيضاء
+            if (!ALLOWED_TABLES.includes(entry.table)) {
+                throw new Error(`الجدول "${entry.table}" غير مسموح به في المزامنة`);
+            }
+
+            // 2. التحقق من المستخدم
             if (!window.App || !window.App.getCurrentUser) {
                 throw new Error('تطبيق غير مهيأ');
             }
             const user = await window.App.getCurrentUser();
             if (!user) throw new Error('لم يتم المصادقة. الرجاء تسجيل الدخول.');
 
-            // 2. بناء البيانات النظيفة مع تعيين tenant_id من الجلسة (مصدر موثوق)
+            // 3. بناء البيانات مع tenant_id من الجلسة
             const cleanData = { ...entry.data };
-            // نحذف tenant_id القديم المحتمل (من localStorage) ونعتمد على جلسة Supabase الحالية
             if (cleanData.tenant_id && cleanData.tenant_id !== user.tenant_id) {
                 console.warn('⚠️ اختلاف tenant_id، استخدام معرف الجلسة الحالية');
             }
-            cleanData.tenant_id = user.tenant_id; // الضمان أن RLS يقبلها
+            cleanData.tenant_id = user.tenant_id;
 
-            // 3. معالجة حسب نوع الجدول
+            // 4. معالجة حسب الجدول
             switch (entry.table) {
-                // فواتير المبيعات – تستدعي RPC خاصة لضمان سلامة المخزون
                 case 'invoices':
                     if (entry.type === 'INSERT' || entry.type === 'UPDATE') {
-                        const invResult = await window.DB.createSaleInvoice(cleanData);
-                        return invResult;
+                        await window.DB.createSaleInvoice(cleanData);
+                    } else if (entry.type === 'DELETE') {
+                        await this._voidInvoice(cleanData.id, user.tenant_id);
                     }
                     break;
 
-                // فواتير المشتريات – تستدعي RPC خاصة
                 case 'purchases':
                     if (entry.type === 'INSERT' || entry.type === 'UPDATE') {
-                        const purResult = await window.DB.createPurchaseInvoice(cleanData);
-                        return purResult;
+                        await window.DB.createPurchaseInvoice(cleanData);
+                    } else if (entry.type === 'DELETE') {
+                        await this._voidPurchase(cleanData.id, user.tenant_id);
                     }
                     break;
 
-                // جداول أخرى – نعتمد على RLS و API العادي
                 default:
-                    // تأكد من وجود supabase كـ window.supabase
                     const sb = window.supabase;
                     if (!sb) throw new Error('Supabase غير مهيأ');
 
@@ -161,30 +181,61 @@
             }
         }
 
-        // دالة مساعدة: إعادة تعيين العمليات الفاشلة (يمكن استدعاؤها من واجهة المستخدم)
+        async _voidInvoice(id, tenantId) {
+            // استخدام RPC مخصص للإبطال إن وجد، وإلا تحديث مباشر
+            try {
+                const { error } = await window.supabase.rpc('void_invoice', { p_invoice_id: id, p_tenant_id: tenantId });
+                if (error) throw error;
+            } catch (rpcError) {
+                console.warn('RPC void_invoice غير موجود، استخدام التحديث المباشر');
+                const { error } = await window.supabase
+                    .from('invoices')
+                    .update({ status: 'voided' })
+                    .eq('id', id)
+                    .eq('tenant_id', tenantId);
+                if (error) throw error;
+            }
+        }
+
+        async _voidPurchase(id, tenantId) {
+            try {
+                const { error } = await window.supabase.rpc('void_purchase', { p_purchase_id: id, p_tenant_id: tenantId });
+                if (error) throw error;
+            } catch (rpcError) {
+                console.warn('RPC void_purchase غير موجود، استخدام التحديث المباشر');
+                const { error } = await window.supabase
+                    .from('purchases')
+                    .update({ status: 'voided' })
+                    .eq('id', id)
+                    .eq('tenant_id', tenantId);
+                if (error) throw error;
+            }
+        }
+
+        _notifyUserIfNeeded(pendingCount) {
+            if (typeof window.Toast !== 'undefined' && window.Toast.info) {
+                window.Toast.info(`توجد ${pendingCount} عملية معلقة في انتظار المزامنة`);
+            }
+        }
+
         resetFailedEntries() {
             this.failedEntries.clear();
             this.retryCount = {};
             console.log('🔄 تمت إعادة تعيين العمليات الفاشلة.');
         }
 
-        // دالة مساعدة: عدد العمليات المعلقة
         async getQueueStats() {
             if (!window.localDB?.ready) return { pending: 0, failed: 0 };
             try {
                 const queue = await window.localDB.getAll('sync_queue');
                 const pending = queue ? queue.filter(e => !this.failedEntries.has(e.id)).length : 0;
-                return {
-                    pending,
-                    failed: this.failedEntries.size
-                };
+                return { pending, failed: this.failedEntries.size };
             } catch (e) {
                 return { pending: 0, failed: 0 };
             }
         }
     }
 
-    // إنشاء النسخة الوحيدة وإتاحتها عالمياً
     window.syncManager = new SyncManager();
     window.syncManager.init();
 })();
