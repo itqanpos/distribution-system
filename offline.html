@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غير متصل · حسابي</title>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f0f4f8;
+            color: #1e293b;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+        }
+        .icon { font-size: 64px; margin-bottom: 20px; }
+        h1 { font-size: 24px; margin-bottom: 10px; }
+        p { color: #64748b; margin-bottom: 20px; }
+        button {
+            background: #3b82f6; color: white; border: none; border-radius: 12px;
+            padding: 12px 24px; font-family: 'Cairo', sans-serif; font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        <h1>أنت غير متصل بالإنترنت</h1>
+        <p>يرجى التحقق من اتصالك والمحاولة مرة أخرى.</p>
+        <button onclick="location.reload()">إعادة المحاولة</button>
+    </div>
+</body>
+</html>
