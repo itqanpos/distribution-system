@@ -1,12 +1,8 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.5 - إصلاحات أمنية، تحسين أداء، دعم تعليق الفواتير
+   الإصدار 2.6 - توافق مع المخطط الجديد، إصلاحات الإعدادات والمتسلسلات
    ============================================= */
 (function() {
-    // ⚠️ تحذير أمني هام:
-    // هذا التطبيق يعتمد على Row Level Security (RLS) في Supabase
-    // لحماية بيانات المستأجرين. تأكد من تفعيل السياسات المناسبة
-    // على جميع الجداول قبل النشر.
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
 
@@ -44,7 +40,7 @@
         return (window.localDB && window.localDB.ready) ? window.localDB : null;
     }
 
-    // ==================== طبقة Offline محسّنة ====================
+    // ==================== طبقة Offline ====================
     async function getWithFallback(storeName, cloudFetcher) {
         const local = getLocalDB();
         if (local) {
@@ -53,7 +49,6 @@
                 if (localData && localData.length > 0) {
                     console.log(`📦 ${storeName}: عرض ${localData.length} عنصر من IndexedDB`);
                     if (navigator.onLine && supabaseClient) {
-                        // مزامنة خلفية متوازية
                         cloudFetcher().then(async (cloudData) => {
                             if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
                                 const batchSize = 50;
@@ -182,7 +177,6 @@
     // ==================== المصادقة والصلاحيات ====================
     window.App = {
         async getCurrentUser() {
-            // التحقق من الجلسة أولاً
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
                 setCurrentUser(null);
@@ -495,7 +489,6 @@
             });
         },
         async getInvoicesLight() {
-            // إرجاع بيانات خفيفة بدون تخزينها بشكل منفصل لتجنب التضارب
             try {
                 const { data, error } = await supabaseClient
                     .from('invoices')
@@ -634,22 +627,30 @@
             });
         },
 
+        // دوال الإعدادات متوافقة مع المخطط الجديد (settings.tenant_id كمفتاح)
         async getSettings() {
+            const tenantId = await App.getTenantId();
+            if (!tenantId) return {};
             try {
                 const { data, error } = await supabaseClient
                     .from('settings')
                     .select('data')
+                    .eq('tenant_id', tenantId)
                     .single();
                 if (error && error.code !== 'PGRST116') throw error;
                 return data?.data || {};
             } catch (e) {
+                console.warn('فشل جلب الإعدادات:', e);
                 return {};
             }
         },
+
         async saveSettings(s) {
+            const tenantId = await App.getTenantId();
+            if (!tenantId) throw new Error('لا يوجد مستأجر');
             const { data, error } = await supabaseClient
                 .from('settings')
-                .upsert({ data: s }, { onConflict: 'tenant_id' })
+                .upsert({ tenant_id: tenantId, data: s }, { onConflict: 'tenant_id' })
                 .select()
                 .single();
             if (error) throw error;
@@ -700,10 +701,52 @@
             if (error) throw error;
         },
 
+        // متوافقة مع جدول sequences الجديد (tenant_id, name)
         generateInvoiceNumber: async function() {
-            const { data, error } = await supabaseClient.rpc('next_invoice_number');
-            if (error) throw error;
-            return data;
+            const tenantId = await App.getTenantId();
+            if (!tenantId) throw new Error('لا يوجد مستأجر');
+
+            const year = new Date().getFullYear().toString().slice(-2);
+            const seqName = `inv_${year}`;
+
+            // استدعاء RPC أو التعامل المباشر
+            const { data, error } = await supabaseClient.rpc('next_sequence', {
+                p_tenant_id: tenantId,
+                p_name: seqName
+            });
+
+            if (error) {
+                // Fallback: التعامل المباشر مع جدول sequences
+                const { data: seqData, error: seqError } = await supabaseClient
+                    .from('sequences')
+                    .select('value')
+                    .eq('tenant_id', tenantId)
+                    .eq('name', seqName)
+                    .single();
+
+                if (seqError && seqError.code === 'PGRST116') {
+                    // إنشاء صف جديد
+                    const { data: newSeq, error: insertError } = await supabaseClient
+                        .from('sequences')
+                        .insert({ tenant_id: tenantId, name: seqName, value: 1 })
+                        .select()
+                        .single();
+                    if (insertError) throw insertError;
+                    return `${year}-${String(newSeq.value).padStart(4, '0')}`;
+                }
+                if (seqError) throw seqError;
+
+                const newValue = (seqData.value || 0) + 1;
+                const { error: updateError } = await supabaseClient
+                    .from('sequences')
+                    .update({ value: newValue })
+                    .eq('tenant_id', tenantId)
+                    .eq('name', seqName);
+                if (updateError) throw updateError;
+                return `${year}-${String(newValue).padStart(4, '0')}`;
+            }
+
+            return data; // RPC يجب أن يرجع الرقم كاملاً
         }
     };
 
@@ -716,5 +759,5 @@
         }
     });
 
-    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.5)');
+    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.6)');
 })();
