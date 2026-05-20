@@ -20,7 +20,6 @@
     <meta name="theme-color" content="#3b82f6">
 
     <style>
-        /* شريط تحميل صغير جداً أعلى الصفحة */
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
             background: #3b82f6; width: 0%; z-index: 9999;
@@ -29,12 +28,11 @@
     </style>
 </head>
 <body>
-    <!-- شريط تحميل صغير (غير معطل) -->
     <div id="loading-bar"></div>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- شريط علوي -->
+    <!-- الشريط العلوي -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -131,7 +129,7 @@
         </div>
     </div>
 
-    <!-- مودالات -->
+    <!-- المودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -182,10 +180,10 @@
         </div>
     </div>
 
-    <!-- عنصر التوست -->
+    <!-- التوست -->
     <div id="toast" class="toast"></div>
 
-    <!-- تحميل المكتبات -->
+    <!-- المكتبات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/db-local.js"></script>
@@ -204,33 +202,44 @@
             async function initApp() {
                 if (!window.App) {
                     console.error('App غير معرف');
+                    alert('خطأ في تحميل التطبيق');
                     return;
                 }
 
                 showLoading();
 
                 try {
-                    // تحقق سريع من الجلسة والدور
                     const authorized = await App.requireAuth();
-                    if (!authorized) return; // تم التوجيه
+                    if (!authorized) return;
 
                     if (!App.requireRole(['admin', 'rep'])) return;
 
-                    // تهيئة الواجهة
                     App.initUserInterface();
-                    
-                    // تحميل سكربت نقطة البيع
+
+                    // تحميل pos.js
                     const script = document.createElement('script');
                     script.src = './js/pos.js';
+                    script.onload = function() {
+                        // DOM جاهز، وpos.js عرّف POS
+                        if (window.POS) {
+                            window.POS.init();
+                        } else {
+                            console.error('POS غير معرف بعد تحميل pos.js');
+                        }
+                        hideLoading();
+                    };
+                    script.onerror = function() {
+                        alert('فشل تحميل نقطة البيع');
+                        hideLoading();
+                    };
                     document.body.appendChild(script);
                 } catch (e) {
                     console.error('خطأ في التهيئة:', e);
-                } finally {
                     hideLoading();
                 }
             }
 
-            // بدء التهيئة فوراً
+            // ابدأ التهيئة فوراً
             initApp();
         })();
     </script>
