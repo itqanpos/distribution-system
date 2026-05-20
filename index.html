@@ -7,7 +7,6 @@
     <meta name="description" content="تسجيل الدخول إلى نظام حسابي">
     <title>تسجيل الدخول · حسابي</title>
 
-    <!-- تحميل الخطوط بشكل أسرع -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -24,9 +23,7 @@
             min-height: 100vh;
             padding: 20px;
             position: relative;
-            transition: background 0.3s ease;
         }
-        /* شاشة التحميل */
         #app-loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #f0f4f8; display: flex; flex-direction: column;
@@ -48,7 +45,6 @@
             0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); }
         }
 
-        /* بطاقة تسجيل الدخول */
         .login-card {
             background: white; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
             padding: 40px 30px; width: 100%; max-width: 420px; text-align: center;
@@ -80,7 +76,6 @@
         }
         .input-group input:focus + i, .input-group input:focus ~ i { color: #3b82f6; }
 
-        /* زر إظهار/إخفاء كلمة المرور */
         .toggle-password {
             position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
             background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px;
@@ -112,7 +107,6 @@
             background: #fef2f2; border-radius: 8px; display: none; text-align: center;
         }
 
-        /* Responsive */
         @media (max-width: 480px) {
             .login-card { padding: 30px 20px; }
             h2 { font-size: 20px; }
@@ -121,7 +115,6 @@
 </head>
 <body class="loading">
 
-    <!-- شاشة التحميل -->
     <div id="app-loader">
         <div class="loader-logo">
             <img src="./icons/icon-192x192.png" alt="حسابي"
@@ -132,7 +125,6 @@
         <div class="loader-text">جاري التحميل...</div>
     </div>
 
-    <!-- نموذج تسجيل الدخول -->
     <div class="login-card" id="loginCard">
         <div class="logo">
             <img src="./icons/icon-192x192.png" alt="حسابي"
@@ -169,7 +161,6 @@
         </div>
     </div>
 
-    <!-- السكربتات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/db-local.js"></script>
@@ -177,7 +168,6 @@
 
     <script>
         (function() {
-            // --- الدوال المساعدة ---
             const $ = (sel) => document.querySelector(sel);
             const emailInput = $('#email');
             const passInput = $('#password');
@@ -186,7 +176,7 @@
             const loginForm = $('#loginForm');
             const togglePasswordBtn = $('#togglePassword');
 
-            let isRedirecting = false; // لمنع إعادة التوجيه المتكررة
+            let isRedirecting = false;
 
             function showError(msg) {
                 errorMsg.textContent = msg;
@@ -216,7 +206,6 @@
                 window.location.href = target;
             }
 
-            // --- إظهار/إخفاء كلمة المرور ---
             togglePasswordBtn.addEventListener('click', () => {
                 const isPassword = passInput.type === 'password';
                 passInput.type = isPassword ? 'text' : 'password';
@@ -227,7 +216,6 @@
                     isPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
             });
 
-            // --- تنفيذ تسجيل الدخول ---
             async function performLogin(e) {
                 if (e) e.preventDefault();
                 hideError();
@@ -240,18 +228,8 @@
                 const email = emailInput.value.trim();
                 const password = passInput.value;
 
-                // تحقق أساسي
-                if (!email) {
-                    showError('يرجى إدخال البريد الإلكتروني');
-                    emailInput.focus();
-                    return;
-                }
-                if (!password) {
-                    showError('يرجى إدخال كلمة المرور');
-                    passInput.focus();
-                    return;
-                }
-                // تحقق بسيط من صيغة البريد
+                if (!email) { showError('يرجى إدخال البريد الإلكتروني'); emailInput.focus(); return; }
+                if (!password) { showError('يرجى إدخال كلمة المرور'); passInput.focus(); return; }
                 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                     showError('صيغة البريد الإلكتروني غير صحيحة');
                     emailInput.focus();
@@ -259,92 +237,84 @@
                 }
 
                 setLoading(true);
-
                 try {
                     const result = await window.App.login(email, password);
                     if (result.success) {
                         redirectUser(result.user?.role);
                     } else {
-                        showError(result.message || 'فشل تسجيل الدخول. تحقق من بياناتك.');
+                        showError(result.message || 'فشل تسجيل الدخول');
                     }
                 } catch (e) {
-                    console.error('خطأ غير متوقع:', e);
-                    showError('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
+                    console.error(e);
+                    showError('حدث خطأ غير متوقع');
                 } finally {
                     setLoading(false);
                 }
             }
 
-            // --- التهيئة الرئيسية (إصلاح مشكلة التحميل العالق) ---
             async function init() {
-                // 1. انتظر تحميل App الأساسي لفترة قصيرة فقط
-                if (!window.App) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    if (!window.App) {
-                        document.body.classList.remove('loading');
-                        showError('فشل تحميل التطبيق. تأكد من اتصالك بالإنترنت.');
-                        return;
-                    }
-                }
-
-                // 2. تحقق سريع من localStorage (مصدر سريع، لا يعلق)
-                const sessionStr = localStorage.getItem('app_session');
-                if (sessionStr) {
-                    try {
-                        const session = JSON.parse(sessionStr);
-                        if (session.id && session.role && session.tenant_id !== undefined) {
-                            // جلسة محتملة: وجه فوراً، وتحقق بصمت لاحقاً
-                            redirectUser(session.role);
-
-                            // تحقق صامت من صلاحية الجلسة الفعلية
-                            window.App.getCurrentUser().then(user => {
-                                if (!user) {
-                                    // الجلسة منتهية: امسح وأعد التوجيه
-                                    localStorage.removeItem('app_session');
-                                    isRedirecting = false;
-                                    window.location.href = './index.html';
-                                }
-                            }).catch(() => {});
-                            return; // خرج من init، لا تعرض النموذج
-                        }
-                    } catch (e) { /* بيانات تالفة */ }
-                }
-
-                // 3. لا توجد جلسة مخزنة: أظهر نموذج الدخول فوراً
+                // أهم خطوة: إزالة شاشة التحميل فوراً
                 document.body.classList.remove('loading');
-                emailInput.focus();
 
-                // 4. في الخلفية، تحقق من وجود جلسة سحابية (نادر، مثل جلسة من تبويب آخر)
-                if (window.App && window.App.getCurrentUser) {
-                    window.App.getCurrentUser().then(user => {
-                        if (user && !isRedirecting) {
-                            redirectUser(user.role);
+                try {
+                    // انتظر تحميل App إن تأخر
+                    if (!window.App) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        if (!window.App) {
+                            showError('فشل تحميل التطبيق. تأكد من اتصالك بالإنترنت.');
+                            return;
                         }
-                    }).catch(() => {});
-                }
+                    }
 
-                // 5. ربط الأحداث
-                loginForm.addEventListener('submit', performLogin);
-                passInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') performLogin(e);
-                });
-                emailInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') passInput.focus();
-                });
-                // إخفاء الخطأ عند الكتابة
-                [emailInput, passInput].forEach(input => {
-                    input.addEventListener('input', hideError);
-                });
+                    // تحقق سريع من localStorage
+                    const sessionStr = localStorage.getItem('app_session');
+                    if (sessionStr) {
+                        try {
+                            const session = JSON.parse(sessionStr);
+                            if (session.id && session.role && session.tenant_id !== undefined) {
+                                redirectUser(session.role);
+                                // تحقق صامت من الجلسة الفعلية
+                                window.App.getCurrentUser().then(user => {
+                                    if (!user) {
+                                        localStorage.removeItem('app_session');
+                                        isRedirecting = false;
+                                        window.location.href = './index.html';
+                                    }
+                                }).catch(() => {});
+                                return;
+                            }
+                        } catch (e) {}
+                    }
 
-                // 6. تسجيل Service Worker (تأكد أن الملف اسمه sw.js)
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.register('./sw.js').catch(err =>
-                        console.warn('فشل تسجيل Service Worker:', err)
-                    );
+                    // إظهار النموذج (فعلياً ظاهر الآن بعد إزالة loading)
+                    emailInput.focus();
+
+                    // تحقق خلفي من وجود جلسة سحابية
+                    if (window.App && window.App.getCurrentUser) {
+                        window.App.getCurrentUser().then(user => {
+                            if (user && !isRedirecting) redirectUser(user.role);
+                        }).catch(() => {});
+                    }
+
+                    // ربط الأحداث
+                    loginForm.addEventListener('submit', performLogin);
+                    passInput.addEventListener('keypress', e => { if (e.key === 'Enter') performLogin(e); });
+                    emailInput.addEventListener('keypress', e => { if (e.key === 'Enter') passInput.focus(); });
+                    [emailInput, passInput].forEach(input => input.addEventListener('input', hideError));
+
+                    // Service Worker
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.register('./sw.js').catch(err =>
+                            console.warn('فشل تسجيل Service Worker:', err)
+                        );
+                    }
+                } catch (error) {
+                    console.error('خطأ في init:', error);
+                    showError('حدث خطأ أثناء تشغيل الصفحة.');
                 }
             }
 
-            // --- بدء التشغيل عند تحميل الصفحة ---
+            // تشغيل init حالما يكون DOM جاهزاً
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
             } else {
