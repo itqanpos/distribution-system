@@ -1,16 +1,20 @@
 /* =============================================
    service-worker.js – نظام نقاط البيع (POS)
-   الإصدار 2.0 – دعم Offline كامل، تحديث آمن، تخزين مرن
+   الإصدار 2.1 – أمان محسّن، عدم تخزين صفحات محمية
    ============================================= */
-const CACHE_NAME = 'hesaby-app-v7'; // ← زِد الإصدار مع كل تحديث
+const CACHE_NAME = 'hesaby-app-v8';
 
-// الأصول التي يجب تخزينها فور التثبيت (الشاشة الرئيسية والموارد الأساسية)
-const PRECACHE_ASSETS = [
+// الصفحات العامة فقط هي التي تُخزَّن (لا تحتوي على بيانات مستخدم)
+const PUBLIC_PAGES = [
   '/',
   '/index.html',
   '/signup.html',
-  '/expired.html',
-  '/offline.html', // صفحة fallback عند عدم الاتصال
+  '/offline.html'
+];
+
+// الأصول الثابتة التي تُخزَّن فور التثبيت
+const PRECACHE_ASSETS = [
+  ...PUBLIC_PAGES,
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -18,7 +22,7 @@ const PRECACHE_ASSETS = [
   '/js/db-local.js'
 ];
 
-// استثناءات: لا تُخزَّن مؤقتاً أبداً (طلبات API حقيقية)
+// استثناءات: لا تُخزَّن مؤقتاً أبداً
 const API_PATTERNS = [
   '/rest/v1/',
   '/auth/v1/',
@@ -27,7 +31,6 @@ const API_PATTERNS = [
   'supabase.co'
 ];
 
-// تثبيت الـ Service Worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -35,11 +38,9 @@ self.addEventListener('install', (event) => {
       return cache.addAll(PRECACHE_ASSETS);
     })
   );
-  // تفعيل فوري للـ SW الجديد (مع clients.claim لاحقاً)
   self.skipWaiting();
 });
 
-// تفعيل الـ SW الجديد: تنظيف الكاش القديم + السيطرة على جميع العملاء
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -51,58 +52,47 @@ self.addEventListener('activate', (event) => {
             return caches.delete(cacheName);
           })
       );
-    }).then(() => {
-      // السيطرة على جميع العملاء المفتوحة فوراً
-      return clients.claim();
-    }).then(() => {
-      // إخطار جميع العملاء بوجود تحديث
-      return self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: 'SW_ACTIVATED', cacheName: CACHE_NAME });
-        });
-      });
-    })
+    }).then(() => clients.claim())
   );
 });
 
-// استراتيجية التخزين المؤقت للطلبات
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const path = url.pathname;
 
-  // تجاهل طلبات API (تترك للشبكة أو طبقة IndexedDB)
+  // تجاهل طلبات API
   if (isApiRequest(url)) {
-    return; // لا نتدخل، تُمرر مباشرة
-  }
-
-  // طلبات التنقل (صفحات HTML) → Stale-While-Revalidate
-  if (event.request.mode === 'navigate' || path.endsWith('.html')) {
-    event.respondWith(staleWhileRevalidate(event.request));
     return;
   }
 
-  // الأصول الثابتة (CSS, JS, خطوط, أيقونات) → Cache First مع تحديث خلفي
+  // طلبات التنقل (صفحات HTML)
+  if (event.request.mode === 'navigate') {
+    if (isPublicPage(path)) {
+      // الصفحات العامة فقط: stale-while-revalidate
+      event.respondWith(staleWhileRevalidate(event.request));
+    } else {
+      // الصفحات المحمية: network first بدون تخزين
+      event.respondWith(networkFirstNoCache(event.request));
+    }
+    return;
+  }
+
+  // الأصول الثابتة → Cache First مع تحديث خلفي
   if (isStaticAsset(path)) {
     event.respondWith(cacheFirstWithRefresh(event.request));
     return;
   }
 
-  // أي طلب آخر (صور المنتجات، إلخ) → Network First مع Fallback
+  // أي طلب آخر → Network First مع Fallback
   event.respondWith(networkFirstWithFallback(event.request));
 });
 
-// ==================== دوال الاستراتيجيات ====================
+// ==================== استراتيجيات ====================
 
-/**
- * Stale-While-Revalidate (مثالي للصفحات المحمية):
- * يُظهر النسخة المخزنة فوراً، ويُحدث الكاش في الخلفية.
- * هذا يضمن عدم فقدان المستخدم لواجهة التطبيق حتى لو انقطع الاتصال فجأة.
- */
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(CACHE_NAME);
   const cachedResponse = await cache.match(request);
 
-  // بدء تحديث الشبكة في الخلفية (لا ننتظره)
   const networkPromise = fetch(request)
     .then((response) => {
       if (response.ok) {
@@ -110,42 +100,48 @@ async function staleWhileRevalidate(request) {
       }
       return response;
     })
-    .catch((error) => {
-      console.warn('⚠️ فشل تحديث الخلفية:', request.url, error);
-    });
+    .catch(() => {});
 
-  // إعادة المخزن فوراً إن وُجد
   if (cachedResponse) {
     return cachedResponse;
   }
 
-  // لا يوجد في الكاش → انتظر الشبكة
   try {
     const networkResponse = await networkPromise;
-    return networkResponse;
+    if (networkResponse) return networkResponse;
+  } catch (error) {}
+
+  // Fallback إلى offline.html
+  if (request.mode === 'navigate') {
+    const offlinePage = await cache.match('/offline.html');
+    return offlinePage || new Response('أنت غير متصل بالإنترنت', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+    });
+  }
+  return new Response('غير متصل', { status: 503 });
+}
+
+async function networkFirstNoCache(request) {
+  try {
+    const response = await fetch(request);
+    return response;
   } catch (error) {
-    // لا يوجد كاش ولا شبكة → صفحة fallback
-    if (request.mode === 'navigate') {
-      const offlinePage = await cache.match('/offline.html');
-      return offlinePage || new Response('أنت غير متصل بالإنترنت. يرجى المحاولة لاحقاً.', {
-        status: 503,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-      });
-    }
-    throw error;
+    // لا تخزين، لكن نعرض offline.html عند الفشل
+    const cache = await caches.open(CACHE_NAME);
+    const offlinePage = await cache.match('/offline.html');
+    return offlinePage || new Response('أنت غير متصل بالإنترنت', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+    });
   }
 }
 
-/**
- * Cache First مع تحديث خلفي (للأصول الثابتة):
- * يُرجع المخزن فوراً، ويُحدثه من الشبكة للزيارة القادمة.
- */
 async function cacheFirstWithRefresh(request) {
   const cache = await caches.open(CACHE_NAME);
   const cachedResponse = await cache.match(request);
 
   if (cachedResponse) {
-    // تحديث في الخلفية
     fetch(request)
       .then((response) => {
         if (response.ok) {
@@ -156,7 +152,6 @@ async function cacheFirstWithRefresh(request) {
     return cachedResponse;
   }
 
-  // لم يُوجد في الكاش → جلبه من الشبكة
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
@@ -164,15 +159,10 @@ async function cacheFirstWithRefresh(request) {
     }
     return networkResponse;
   } catch (error) {
-    // لا شبكة ولا كاش → خطأ
     return new Response('المورد غير متوفر', { status: 408 });
   }
 }
 
-/**
- * Network First مع Fallback (للموارد غير الحرجة):
- * يحاول الشبكة أولاً، ثم يرجع للكاش إذا فشل.
- */
 async function networkFirstWithFallback(request) {
   try {
     const networkResponse = await fetch(request);
@@ -197,32 +187,17 @@ function isApiRequest(url) {
   return API_PATTERNS.some(pattern => href.includes(pattern));
 }
 
+function isPublicPage(path) {
+  return PUBLIC_PAGES.some(p => path.endsWith(p) || path === p);
+}
+
 function isStaticAsset(path) {
   const staticExtensions = ['.css', '.js', '.woff2', '.woff', '.ttf', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.json'];
   return staticExtensions.some(ext => path.endsWith(ext)) || path.startsWith('/icons/') || path.startsWith('/fonts/');
 }
 
-// ==================== رسائل من العميل ====================
-
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    // يسمح للعميل بطلب تفعيل SW الجديد يدوياً (تحديث آمن)
     self.skipWaiting();
-  }
-
-  if (event.data && event.data.type === 'GET_CACHE_SIZE') {
-    // إرسال حجم الكاش للعميل (لأغراض تشخيصية)
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const keys = await cache.keys();
-      let totalSize = 0;
-      for (const request of keys) {
-        const response = await cache.match(request);
-        if (response) {
-          const blob = await response.blob();
-          totalSize += blob.size;
-        }
-      }
-      event.ports[0].postMessage({ size: totalSize, itemCount: keys.length });
-    });
   }
 });
