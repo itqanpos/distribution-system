@@ -227,50 +227,6 @@
                     isPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
             });
 
-            // --- التحقق من الجلسة السابقة بسرعة ---
-            async function checkExistingSession() {
-                // 1. محاولة سريعة من localStorage (بدون اتصال)
-                const sessionStr = localStorage.getItem('app_session');
-                if (sessionStr) {
-                    try {
-                        const session = JSON.parse(sessionStr);
-                        if (session.id && session.role && session.tenant_id !== undefined) {
-                            // لدينا جلسة مخزنة - نوجه فوراً ونتحقق في الخلفية
-                            // هذا يمنع الوميض ويحسن سرعة التحميل
-                            redirectUser(session.role);
-
-                            // تحقق صامت من صلاحية الجلسة
-                            if (window.App && window.App.getCurrentUser) {
-                                window.App.getCurrentUser().then(user => {
-                                    if (!user) {
-                                        // الجلسة منتهية - نمسح ونعيد التوجيه لصفحة الدخول
-                                        localStorage.removeItem('app_session');
-                                        isRedirecting = false;
-                                        window.location.href = './index.html';
-                                    }
-                                    // لو الجلسة صالحة، المستخدم بالفعل في الصفحة الصحيحة
-                                }).catch(() => {});
-                            }
-                            return true; // وجدنا جلسة (محتملة)
-                        }
-                    } catch (e) { /* بيانات تالفة */ }
-                }
-
-                // 2. لا جلسة محلية - نتحقق من Supabase (بطيء لكن ضروري)
-                if (window.App && window.App.getCurrentUser) {
-                    try {
-                        const user = await window.App.getCurrentUser();
-                        if (user) {
-                            redirectUser(user.role);
-                            return true;
-                        }
-                    } catch (e) {
-                        console.warn('فشل التحقق من الجلسة:', e);
-                    }
-                }
-                return false;
-            }
-
             // --- تنفيذ تسجيل الدخول ---
             async function performLogin(e) {
                 if (e) e.preventDefault();
@@ -319,11 +275,10 @@
                 }
             }
 
-            // --- التهيئة الرئيسية ---
+            // --- التهيئة الرئيسية (إصلاح مشكلة التحميل العالق) ---
             async function init() {
-                // انتظر تحميل App (من supabase.js)
+                // 1. انتظر تحميل App الأساسي لفترة قصيرة فقط
                 if (!window.App) {
-                    // انتظر قليلاً ثم تحقق مرة أخرى
                     await new Promise(resolve => setTimeout(resolve, 500));
                     if (!window.App) {
                         document.body.classList.remove('loading');
@@ -332,15 +287,43 @@
                     }
                 }
 
-                // تحقق من الجلسة الموجودة
-                const hasSession = await checkExistingSession();
-                if (hasSession) return; // سيتم التوجيه
+                // 2. تحقق سريع من localStorage (مصدر سريع، لا يعلق)
+                const sessionStr = localStorage.getItem('app_session');
+                if (sessionStr) {
+                    try {
+                        const session = JSON.parse(sessionStr);
+                        if (session.id && session.role && session.tenant_id !== undefined) {
+                            // جلسة محتملة: وجه فوراً، وتحقق بصمت لاحقاً
+                            redirectUser(session.role);
 
-                // لا توجد جلسة - إظهار نموذج الدخول
+                            // تحقق صامت من صلاحية الجلسة الفعلية
+                            window.App.getCurrentUser().then(user => {
+                                if (!user) {
+                                    // الجلسة منتهية: امسح وأعد التوجيه
+                                    localStorage.removeItem('app_session');
+                                    isRedirecting = false;
+                                    window.location.href = './index.html';
+                                }
+                            }).catch(() => {});
+                            return; // خرج من init، لا تعرض النموذج
+                        }
+                    } catch (e) { /* بيانات تالفة */ }
+                }
+
+                // 3. لا توجد جلسة مخزنة: أظهر نموذج الدخول فوراً
                 document.body.classList.remove('loading');
                 emailInput.focus();
 
-                // ربط الأحداث
+                // 4. في الخلفية، تحقق من وجود جلسة سحابية (نادر، مثل جلسة من تبويب آخر)
+                if (window.App && window.App.getCurrentUser) {
+                    window.App.getCurrentUser().then(user => {
+                        if (user && !isRedirecting) {
+                            redirectUser(user.role);
+                        }
+                    }).catch(() => {});
+                }
+
+                // 5. ربط الأحداث
                 loginForm.addEventListener('submit', performLogin);
                 passInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') performLogin(e);
@@ -353,7 +336,7 @@
                     input.addEventListener('input', hideError);
                 });
 
-                // تسجيل Service Worker (مسار نسبي)
+                // 6. تسجيل Service Worker (تأكد أن الملف اسمه sw.js)
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.register('./sw.js').catch(err =>
                         console.warn('فشل تسجيل Service Worker:', err)
