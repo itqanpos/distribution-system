@@ -1,12 +1,11 @@
 /* =============================================
    db-local.js - قاعدة البيانات المحلية IndexedDB
-   الإصدار 2.1 - إصلاحات أمنية، طابع زمني، ترقية آمنة
+   الإصدار 2.2 - إصلاحات أمنية، دوال بحث، تحسينات
    ============================================= */
 (function() {
     const DB_NAME = 'hesaby_db';
-    const DB_VERSION = 6; // زدنا الإصدار للتحديث
+    const DB_VERSION = 7;
 
-    // تعريف المتاجر مع مفاتيحها الأساسية
     const storeConfig = {
         products: { keyPath: 'id' },
         parties: { keyPath: 'id' },
@@ -36,16 +35,20 @@
                     const db = event.target.result;
                     console.log(`🔄 تحديث IndexedDB من الإصدار ${event.oldVersion} إلى ${DB_VERSION}`);
 
-                    // إنشاء المتاجر المفقودة فقط، لا تحذف القديمة
                     Object.entries(storeConfig).forEach(([name, config]) => {
                         if (!db.objectStoreNames.contains(name)) {
                             const store = db.createObjectStore(name, { keyPath: config.keyPath });
-                            // فهارس مساعدة
                             if (name === 'sync_queue') {
                                 store.createIndex('timestamp', 'timestamp', { unique: false });
                             }
                             if (name === 'invoices' || name === 'purchases' || name === 'transactions') {
                                 store.createIndex('tenant_id', 'tenant_id', { unique: false });
+                            }
+                            if (name === 'products') {
+                                store.createIndex('name', 'name', { unique: false });
+                            }
+                            if (name === 'parties') {
+                                store.createIndex('type', 'type', { unique: false });
                             }
                         }
                     });
@@ -93,9 +96,34 @@
             });
         }
 
+        async getByField(storeName, field, value) {
+            await this._ensureReady();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const results = request.result.filter(item => item[field] === value);
+                    resolve(results);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async getByIndex(storeName, indexName, value) {
+            await this._ensureReady();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const index = store.index(indexName);
+                const request = index.getAll(value);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
         async put(storeName, data) {
             await this._ensureReady();
-            // توليد id تلقائي لأي عنصر لا يحمله
             const dataToStore = { ...data };
             if (!dataToStore.id) {
                 if (storeName === 'settings') {
@@ -131,13 +159,28 @@
             });
         }
 
+        async count(storeName) {
+            await this._ensureReady();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.count();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
         async clear(storeName) {
             await this._ensureReady();
+            console.warn(`⚠️ جاري مسح جميع البيانات من ${storeName}`);
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readwrite');
                 const store = tx.objectStore(storeName);
                 const request = store.clear();
-                request.onsuccess = () => resolve();
+                request.onsuccess = () => {
+                    console.log(`🗑️ تم مسح ${storeName} بالكامل`);
+                    resolve();
+                };
                 request.onerror = (event) => {
                     console.error(`❌ فشل مسح ${storeName}:`, event.target.error);
                     reject(event.target.error);
@@ -152,12 +195,11 @@
                 id: this._generateId(),
                 type: entry.type,
                 table: entry.table,
-                data: { ...entry.data }, // نسخة كاملة (بدون حذف tenant_id)
-                timestamp: Date.now(),    // طابع زمني للفرز في sync.js
+                data: { ...entry.data },
+                timestamp: Date.now(),
                 created_at: new Date().toISOString(),
                 retries: 0
             };
-            // لا نحذف tenant_id هنا؛ sync.js سيتعامل معه بالاعتماد على الجلسة
             return this.put('sync_queue', queueEntry);
         }
 
@@ -177,9 +219,15 @@
 
         // --- مساعدة ---
         _generateId() {
-            // استخدام crypto.randomUUID إن توفر، وإلا توليد بسيط
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-                return crypto.randomUUID();
+            if (typeof crypto !== 'undefined') {
+                if (crypto.randomUUID) {
+                    return crypto.randomUUID();
+                }
+                // استخدام crypto.getRandomValues كبديل آمن
+                const arr = new Uint8Array(16);
+                crypto.getRandomValues(arr);
+                const hex = Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+                return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
             }
             return 'id-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
         }
