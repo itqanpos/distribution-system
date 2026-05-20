@@ -88,7 +88,7 @@
         <div class="error-message" id="errorMsg"></div>
         <button class="btn" id="loginBtn">دخول</button>
         <div class="signup-link">
-            ليس لديك حساب؟ <a href="./signup.html">إنشاء حساب جديد</a>
+            ليس لديك حساب؟ <a href="./signup.html" rel="noopener">إنشاء حساب جديد</a>
         </div>
     </div>
 
@@ -105,16 +105,15 @@
                 return;
             }
 
-            // حماية من التعليق: أياً كان ما يحدث، نخفي شاشة التحميل بعد 5 ثوان
+            // حماية من التعليق: إظهار النموذج بعد 5 ثوان كحد أقصى
             const timeout = setTimeout(() => {
                 console.warn('⏰ انتهت مهلة التحقق - إظهار نموذج الدخول');
                 document.body.classList.remove('loading');
             }, 5000);
 
             try {
-                // تحقق حقيقي من الجلسة
                 const user = await App.getCurrentUser();
-                clearTimeout(timeout); // ألغِ المهلة لأننا حصلنا على رد
+                clearTimeout(timeout);
 
                 if (user) {
                     let target = './dashboard.html';
@@ -126,13 +125,10 @@
             } catch (error) {
                 console.error('فشل التحقق من الجلسة:', error);
                 clearTimeout(timeout);
-                // حتى لو فشل، نكمل ونجهز نموذج الدخول
             }
 
-            // لا توجد جلسة (أو فشل التحقق) -> إظهار نموذج الدخول
             document.body.classList.remove('loading');
 
-            // أحداث تسجيل الدخول
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
@@ -168,7 +164,9 @@
             }
 
             function showError(msg) {
-                errorMsg.textContent = msg;
+                // استخدام textContent آمن ضد XSS
+                errorMsg.textContent = '';
+                errorMsg.appendChild(document.createTextNode(msg));
                 errorMsg.style.display = 'block';
             }
 
@@ -178,9 +176,11 @@
 
             emailInput.focus();
 
-            // تسجيل Service Worker
+            // تسجيل Service Worker – المسار الصحيح
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(() => {});
+                navigator.serviceWorker.register('./service-worker.js').catch((err) => {
+                    console.warn('فشل تسجيل Service Worker:', err);
+                });
             }
         })();
     </script>
