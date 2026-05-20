@@ -20,28 +20,11 @@
             justify-content: center;
             min-height: 100vh;
             padding: 20px;
-            position: relative;
         }
-        #app-loader {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #f0f4f8; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; z-index: 9999;
-            font-family: 'Cairo', sans-serif; transition: opacity 0.3s ease;
-        }
-        body.loaded #app-loader { opacity: 0; pointer-events: none; }
-        .loader-logo { width:80px; height:80px; margin-bottom:20px; animation: pulse 1.5s infinite; }
-        .loader-logo img { width:100%; height:100%; object-fit:contain; border-radius:20px; }
-        .spinner { width:40px; height:40px; border:4px solid #e2e8f0; border-top-color:#3b82f6;
-                   border-radius:50%; animation: spin 0.8s linear infinite; margin-bottom:15px; }
-        .loader-text { color:#64748b; font-size:16px; font-weight:500; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.05);} 100%{transform:scale(1);} }
-
         .login-card {
             background: white; border-radius:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);
-            padding:40px 30px; width:100%; max-width:420px; text-align:center; display:none;
+            padding:40px 30px; width:100%; max-width:420px; text-align:center;
         }
-        body.loaded .login-card { display: block; }
         .logo { margin-bottom:25px; }
         .logo img { width:70px; height:70px; object-fit:contain; border-radius:20px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); }
         h2 { font-size:24px; font-weight:800; color:#1e293b; margin-bottom:10px; }
@@ -58,16 +41,17 @@
         .signup-link { margin-top:20px; font-size:14px; color:#64748b; }
         .signup-link a { color:#3b82f6; font-weight:600; text-decoration:none; }
         .error-message { color:#ef4444; font-size:14px; margin-top:10px; display:none; }
+        /* شريط تحميل صغير أعلى الصفحة */
+        #loading-bar {
+            position: fixed; top:0; left:0; height:3px; background:#3b82f6;
+            width:0%; z-index:9999; transition: width 0.3s ease;
+        }
     </style>
 </head>
-<body class="loading">
-    <div id="app-loader">
-        <div class="loader-logo">
-            <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
-        </div>
-        <div class="spinner"></div>
-        <div class="loader-text">جاري التحميل...</div>
-    </div>
+<body>
+
+    <!-- شريط تحميل صغير غير معطل -->
+    <div id="loading-bar"></div>
 
     <div class="login-card" id="loginCard">
         <div class="logo">
@@ -98,39 +82,37 @@
     <script src="./js/sync.js"></script>
 
     <script>
-        (async function() {
-            if (!window.App) {
-                document.body.classList.remove('loading');
-                alert('خطأ في تحميل التطبيق');
-                return;
-            }
+        (function() {
+            const loadingBar = document.getElementById('loading-bar');
+            
+            function showLoading() { loadingBar.style.width = '80%'; }
+            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
 
-            // حماية من التعليق: أياً كان ما يحدث، نخفي شاشة التحميل بعد 6 ثوان
-            const timeout = setTimeout(() => {
-                console.warn('⏰ انتهت مهلة التحقق - إظهار نموذج الدخول');
-                document.body.classList.remove('loading');
-            }, 6000);
-
-            try {
-                // تحقق حقيقي من الجلسة
-                const user = await App.getCurrentUser();
-                clearTimeout(timeout);
-
-                if (user) {
-                    let target = './dashboard.html';
-                    if (user.role === 'rep') target = './pos.html';
-                    else if (user.role === 'super_admin') target = './admin.html';
-                    window.location.href = target;
-                    return;
+            async function checkSession() {
+                if (!window.App) {
+                    console.warn('App غير محمل');
+                    return false;
                 }
-            } catch (error) {
-                console.error('فشل التحقق من الجلسة:', error);
-                clearTimeout(timeout);
-                // حتى لو فشل، نكمل ونجهز نموذج الدخول
+                try {
+                    showLoading();
+                    const user = await App.getCurrentUser();
+                    if (user) {
+                        let target = './dashboard.html';
+                        if (user.role === 'rep') target = './pos.html';
+                        else if (user.role === 'super_admin') target = './admin.html';
+                        window.location.href = target;
+                        return true;
+                    }
+                } catch (e) {
+                    console.error('فشل التحقق من الجلسة:', e);
+                } finally {
+                    hideLoading();
+                }
+                return false;
             }
 
-            // لا توجد جلسة (أو فشل التحقق) -> إظهار نموذج الدخول
-            document.body.classList.remove('loading');
+            // التحقق من الجلسة بهدوء دون حجب الواجهة
+            checkSession();
 
             // أحداث تسجيل الدخول
             const emailInput = document.getElementById('email');
@@ -150,6 +132,7 @@
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'جاري الدخول...';
                 errorMsg.style.display = 'none';
+                showLoading();
 
                 try {
                     const result = await App.login(email, password);
@@ -164,11 +147,11 @@
                 } finally {
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'دخول';
+                    hideLoading();
                 }
             }
 
             function showError(msg) {
-                // آمن ضد XSS باستخدام textContent
                 errorMsg.textContent = '';
                 errorMsg.appendChild(document.createTextNode(msg));
                 errorMsg.style.display = 'block';
@@ -180,11 +163,9 @@
 
             emailInput.focus();
 
-            // تسجيل Service Worker – المسار الصحيح
+            // تسجيل Service Worker
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./service-worker.js').catch((err) => {
-                    console.warn('فشل تسجيل Service Worker:', err);
-                });
+                navigator.serviceWorker.register('./service-worker.js').catch(() => {});
             }
         })();
     </script>
