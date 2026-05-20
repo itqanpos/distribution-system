@@ -1,30 +1,8 @@
 /* =============================================
    pos.js - نقطة البيع (إصدار احترافي)
-   تم التحديث: استخدام InvoiceService + دالة الخادم + بحث عملاء منسدل + Toast مستقل
+   تم التحديث: توحيد Toast، إصلاح تعليق الفواتير، تحسين الأداء
    ============================================= */
 'use strict';
-
-// ========== كائن Toast (يعمل حتى لو لم يوجد toast.js) ==========
-const Toast = {
-  _el: null,
-  _timer: null,
-  _getEl() {
-    if (!this._el) this._el = document.getElementById('toast');
-    return this._el;
-  },
-  show(msg, type = 'info') {
-    const el = this._getEl();
-    if (!el) return;
-    el.textContent = msg;
-    el.className = 'toast ' + type + ' show';
-    clearTimeout(this._timer);
-    this._timer = setTimeout(() => el.classList.remove('show'), 3000);
-  },
-  info(msg) { this.show(msg, 'info'); },
-  success(msg) { this.show(msg, 'success'); },
-  error(msg) { this.show(msg, 'error'); }
-};
-window.Toast = Toast;
 
 // ========== الأدوات المساعدة ==========
 const Utils = {
@@ -73,7 +51,7 @@ const POS = {
             'remainingDisplay', 'balanceAfterLabel', 'balanceAfter', 'paymentNotes', 'confirmAndPrintBtn', 'closePaymentModalBtn',
             'heldInvoicesModal', 'heldInvoicesList', 'closeHeldModalBtn',
             'receiptModal', 'receiptPrintArea', 'printReceiptBtn', 'cancelReceiptModalBtn', 'closeReceiptModalBtn',
-            'sidebarAvatar', 'sidebarUserName', 'toast'
+            'sidebarAvatar', 'sidebarUserName'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
@@ -138,8 +116,12 @@ const POS = {
     updateOnlineStatus() { const n = document.getElementById('mainNavbar'); if (n) n.classList.toggle('offline', !navigator.onLine); },
 
     initSidebarUser() {
-        const user = window.App?.getCurrentUser?.();
-        if (user) { if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U'; if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام'; }
+        window.App?.getCurrentUser?.().then(user => {
+            if (user) {
+                if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = (user.fullName || 'U').charAt(0).toUpperCase();
+                if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
+            }
+        }).catch(() => {});
     },
 
     async loadInitialData() {
@@ -147,17 +129,27 @@ const POS = {
         await this.loadProductsAndCustomers();
         this.buildCache();
         this.restoreCartFromStorage();
-        if (!this.state.products.length) Toast.info('لا توجد منتجات. أضف منتجات أولاً.');
+        if (!this.state.products.length && window.Toast) Toast.info('لا توجد منتجات. أضف منتجات أولاً.');
     },
 
     async loadProductsAndCustomers() {
         try {
-            if (this.state.isDBReady) { this.state.products = await DB.getProducts() || []; this.state.customers = await DB.getParties('customer') || []; }
-            else if (Utils.hasLocalDB()) { this.state.products = await localDB.getAll('products') || []; this.state.customers = (await localDB.getAll('parties') || []).filter(p => p.type === 'customer'); }
-            else { this.state.products = []; this.state.customers = []; }
+            if (this.state.isDBReady) {
+                this.state.products = await DB.getProducts() || [];
+                this.state.customers = await DB.getParties('customer') || [];
+            } else if (Utils.hasLocalDB()) {
+                this.state.products = await localDB.getAll('products') || [];
+                this.state.customers = (await localDB.getAll('parties') || []).filter(p => p.type === 'customer');
+            } else {
+                this.state.products = [];
+                this.state.customers = [];
+            }
             this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
             this.buildCache();
-        } catch (e) { Toast.error('فشل تحميل البيانات'); }
+        } catch (e) {
+            console.error('فشل تحميل البيانات:', e);
+            if (window.Toast) Toast.error('فشل تحميل البيانات');
+        }
     },
 
     buildCache() {
@@ -212,7 +204,6 @@ const POS = {
     },
 
     getSelectedCustomer() { return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null; },
-    getBaseStock(product) { return product?.units?.[0]?.stock || 0; },
 
     filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
@@ -278,7 +269,10 @@ const POS = {
 
     openUnitModal(productId) {
         const product = this.cache.productMap.get(String(productId)) || this.cache.productMap.get(productId);
-        if (!product || !product.units?.length) { Toast.info('المنتج غير موجود'); return; }
+        if (!product || !product.units?.length) {
+            if (window.Toast) Toast.info('المنتج غير موجود');
+            return;
+        }
         this.state.selectedProduct = product;
         this.el.modalProductName.textContent = Utils.escapeHTML(product.name);
         const container = this.el.unitButtons;
@@ -311,12 +305,27 @@ const POS = {
 
     async addToCartFromModal() {
         const qty = +this.el.selectedQuantity?.value || 0;
-        if (qty <= 0 || qty > (+this.el.selectedQuantity?.max || 0)) { await ModalConfirm.show({ title: 'خطأ', message: 'كمية غير متاحة', icon: 'warn', confirmText: 'حسناً', type: 'danger' }); return; }
-        const price = +this.el.selectedPrice?.value || 0; if (price < 0) { await ModalConfirm.show({ title: 'خطأ', message: 'السعر لا يمكن أن يكون سالباً', icon: 'warn', confirmText: 'حسناً', type: 'danger' }); return; }
+        if (qty <= 0 || qty > (+this.el.selectedQuantity?.max || 0)) {
+            if (typeof ModalConfirm !== 'undefined') {
+                await ModalConfirm.show({ title: 'خطأ', message: 'كمية غير متاحة', icon: 'warn', confirmText: 'حسناً', type: 'danger' });
+            } else if (window.Toast) Toast.error('كمية غير متاحة');
+            return;
+        }
+        const price = +this.el.selectedPrice?.value || 0;
+        if (price < 0) {
+            if (window.Toast) Toast.error('السعر لا يمكن أن يكون سالباً');
+            return;
+        }
         const unit = this.state.selectedUnit;
         if (unit) {
-            if (unit.minPrice > 0 && price < unit.minPrice) { await ModalConfirm.show({ title: 'خطأ', message: `لا يمكن البيع بأقل من السعر الأدنى: ${Utils.formatMoney(unit.minPrice)}`, icon: 'warn', confirmText: 'حسناً', type: 'danger' }); return; }
-            if (unit.maxPrice > 0 && price > unit.maxPrice) { await ModalConfirm.show({ title: 'خطأ', message: `لا يمكن البيع بأعلى من السعر الأقصى: ${Utils.formatMoney(unit.maxPrice)}`, icon: 'warn', confirmText: 'حسناً', type: 'danger' }); return; }
+            if (unit.minPrice > 0 && price < unit.minPrice) {
+                if (window.Toast) Toast.error(`لا يمكن البيع بأقل من السعر الأدنى: ${Utils.formatMoney(unit.minPrice)}`);
+                return;
+            }
+            if (unit.maxPrice > 0 && price > unit.maxPrice) {
+                if (window.Toast) Toast.error(`لا يمكن البيع بأعلى من السعر الأقصى: ${Utils.formatMoney(unit.maxPrice)}`);
+                return;
+            }
         }
         const existing = this.state.cart.find(i => i.productId === this.state.selectedProduct.id && i.unitName === unit.name);
         if (existing) existing.quantity = Utils.round(existing.quantity + qty, 3);
@@ -328,7 +337,10 @@ const POS = {
     closeModal(id) { const m = this.el[id]; if (m) m.classList.remove('open'); },
 
     openPaymentModal() {
-        if (!this.state.cart.length) { Toast.info('السلة فارغة'); return; }
+        if (!this.state.cart.length) {
+            if (window.Toast) Toast.info('السلة فارغة');
+            return;
+        }
         const totals = this.calculateTotals();
         this.el.paySubtotal.textContent = Utils.formatMoney(totals.subtotal);
         this.el.payDiscount.textContent = Utils.formatMoney(totals.discount);
@@ -375,17 +387,11 @@ const POS = {
         this.el.balanceAfter.classList.toggle('text-danger', newBal < 0);
     },
 
-    getBaseQuantityReduction(item) {
-        const product = this.cache.productMap.get(String(item.productId));
-        if (!product?.units) return 0;
-        const baseUnit = product.units[0];
-        if (item.unitName === baseUnit.name) return item.quantity;
-        const selectedUnit = product.units.find(u => u.name === item.unitName);
-        return item.quantity / (selectedUnit?.factor || 1);
-    },
-
     async completePayment() {
-        if (this.state.isProcessing) { Toast.info('جاري معالجة الدفع...'); return; }
+        if (this.state.isProcessing) {
+            if (window.Toast) Toast.info('جاري معالجة الدفع...');
+            return;
+        }
         this.state.isProcessing = true;
         this.el.confirmAndPrintBtn.disabled = true;
 
@@ -425,14 +431,24 @@ const POS = {
                 notes: this.el.paymentNotes?.value || ''
             };
 
-            const result = await InvoiceService.createSaleInvoice(invoice);
+            // استخدام InvoiceService إن وُجدت، وإلا استخدام DB مباشرة
+            let result;
+            if (window.InvoiceService && window.InvoiceService.createSaleInvoice) {
+                result = await InvoiceService.createSaleInvoice(invoice);
+            } else if (this.state.isDBReady) {
+                result = await DB.createSaleInvoice(invoice);
+            } else {
+                throw new Error('خدمة الفواتير غير متاحة');
+            }
 
             if (!result || !result.success) {
                 throw new Error(result?.error || 'فشل غير معروف');
             }
 
             this.closeModal('paymentModal');
-            await this.loadProductsAndCustomers();
+
+            // تحديث المخزون محلياً بدلاً من إعادة تحميل كل شيء
+            this._updateLocalStockAfterSale();
             this.buildCache();
 
             const customerObj = customer || { name: 'نقدي', balance: 0 };
@@ -445,7 +461,7 @@ const POS = {
             );
 
             this.resetCart();
-            Toast.success('تم البيع بنجاح');
+            if (window.Toast) Toast.success('تم البيع بنجاح');
         } catch (error) {
             console.error('خطأ في الدفع:', error);
             if (typeof ModalConfirm !== 'undefined') {
@@ -456,12 +472,31 @@ const POS = {
                     confirmText: 'حسناً',
                     type: 'danger'
                 });
+            } else if (window.Toast) {
+                Toast.error(error.message || 'حدث خطأ غير متوقع');
             } else {
                 alert('خطأ: ' + (error.message || 'حدث خطأ غير متوقع'));
             }
         } finally {
             this.state.isProcessing = false;
             this.el.confirmAndPrintBtn.disabled = false;
+        }
+    },
+
+    _updateLocalStockAfterSale() {
+        // تحديث المخزون محلياً بناءً على ما تم بيعه
+        for (const item of this.state.cart) {
+            const product = this.cache.productMap.get(String(item.productId));
+            if (!product?.units) continue;
+            const baseUnit = product.units[0];
+            let reduction;
+            if (item.unitName === baseUnit.name) {
+                reduction = item.quantity;
+            } else {
+                const unit = product.units.find(u => u.name === item.unitName);
+                reduction = item.quantity / (unit?.factor || 1);
+            }
+            baseUnit.stock = Math.max(0, (baseUnit.stock || 0) - reduction);
         }
     },
 
@@ -482,7 +517,10 @@ const POS = {
     },
 
     async holdInvoice() {
-        if (!this.state.cart.length) { Toast.info('السلة فارغة'); return; }
+        if (!this.state.cart.length) {
+            if (window.Toast) Toast.info('السلة فارغة');
+            return;
+        }
         const totals = this.calculateTotals();
         const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
         const invoice = {
@@ -493,12 +531,18 @@ const POS = {
             paid: 0, remaining: totals.net, status: 'held', notes: 'فاتورة معلقة'
         };
         try {
-            if (this.state.isDBReady) await DB.saveInvoice(invoice);
-            else if (Utils.hasLocalDB()) await localDB.put('invoices', invoice);
-            Toast.success(`تم تعليق الفاتورة ${invoiceNumber}`);
+            // استخدام DB.saveInvoice التي تمت إضافتها إلى supabase.js
+            if (this.state.isDBReady && DB.saveInvoice) {
+                await DB.saveInvoice(invoice);
+            } else if (Utils.hasLocalDB()) {
+                await localDB.put('invoices', invoice);
+            }
+            if (window.Toast) Toast.success(`تم تعليق الفاتورة ${invoiceNumber}`);
             this.resetCart();
-            await this.loadProductsAndCustomers(); this.buildCache();
-        } catch (error) { console.error(error); Toast.error('فشل تعليق الفاتورة'); }
+        } catch (error) {
+            console.error(error);
+            if (window.Toast) Toast.error('فشل تعليق الفاتورة');
+        }
     },
 
     async loadHeldInvoices() {
@@ -522,9 +566,20 @@ const POS = {
     async resumeInvoice(id) {
         let inv;
         try {
-            if (this.state.isDBReady) { const invoices = await DB.getInvoices(); inv = invoices.find(i => i.id === id); if (inv && window.supabase) await supabase.from('invoices').delete().eq('id', id); }
-            else if (Utils.hasLocalDB()) { inv = (await localDB.getAll('invoices')).find(i => i.id === id); if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {}); }
-            if (!inv) { Toast.error('الفاتورة غير موجودة'); return; }
+            if (this.state.isDBReady) {
+                inv = await DB.getInvoiceById(id);
+                if (inv) {
+                    // حذف الفاتورة المعلقة بعد تحميلها
+                    try { await supabase.from('invoices').delete().eq('id', id); } catch {}
+                }
+            } else if (Utils.hasLocalDB()) {
+                inv = await localDB.getById('invoices', id);
+                if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
+            }
+            if (!inv) {
+                if (window.Toast) Toast.error('الفاتورة غير موجودة');
+                return;
+            }
             this.state.cart = inv.items.map(item => ({...item}));
             this.state.selectedCustomerId = inv.customer_id;
             if (inv.customer_id) {
@@ -538,8 +593,12 @@ const POS = {
                 this.updateCustomerDisplay();
             }
             this.renderCart();
-            this.closeModal('heldInvoicesModal'); Toast.success('تم تحميل الفاتورة المعلقة');
-        } catch (err) { console.error(err); Toast.error('فشل استرجاع الفاتورة'); }
+            this.closeModal('heldInvoicesModal');
+            if (window.Toast) Toast.success('تم تحميل الفاتورة المعلقة');
+        } catch (err) {
+            console.error(err);
+            if (window.Toast) Toast.error('فشل استرجاع الفاتورة');
+        }
     },
 
     showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
@@ -557,20 +616,51 @@ const POS = {
         const content = this.el.receiptPrintArea.innerHTML;
         const settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); const companyName = settings?.company?.name || 'حسابي';
         const printWindow = window.open('', '_blank', 'width=400,height=600');
-        if (!printWindow) { Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
+        if (!printWindow) {
+            if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة');
+            return;
+        }
         printWindow.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma;direction:rtl;text-align:right;padding:20px;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
         printWindow.document.close(); printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     },
 
-    showToast(msg) { const t = this.el.toast; if (!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(this._toastTimer); this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000); },
     saveCartToStorage() {
-        if (this.state.cart.length) localStorage.setItem('pos_held_cart', JSON.stringify({ cart: this.state.cart, customerId: this.state.selectedCustomerId, discountType: this.state.discountType, discountValue: this.state.discountValue }));
-        else localStorage.removeItem('pos_held_cart');
+        if (this.state.cart.length) {
+            localStorage.setItem('pos_held_cart', JSON.stringify({
+                cart: this.state.cart,
+                customerId: this.state.selectedCustomerId,
+                discountType: this.state.discountType,
+                discountValue: this.state.discountValue,
+                timestamp: Date.now()
+            }));
+        } else {
+            localStorage.removeItem('pos_held_cart');
+        }
     },
     restoreCartFromStorage() {
-        const saved = localStorage.getItem('pos_held_cart'); if (!saved) return;
-        try { const held = JSON.parse(saved); this.state.cart = held.cart || []; this.state.selectedCustomerId = held.customerId; this.state.discountType = held.discountType || 'amount'; this.state.discountValue = held.discountValue || 0; this.renderCart(); } catch {}
+        const saved = localStorage.getItem('pos_held_cart');
+        if (!saved) return;
+        try {
+            const held = JSON.parse(saved);
+            // لا تسترجع إذا مر أكثر من ساعتين
+            if (held.timestamp && (Date.now() - held.timestamp) > 2 * 60 * 60 * 1000) {
+                localStorage.removeItem('pos_held_cart');
+                return;
+            }
+            this.state.cart = held.cart || [];
+            this.state.selectedCustomerId = held.customerId;
+            this.state.discountType = held.discountType || 'amount';
+            this.state.discountValue = held.discountValue || 0;
+            this.renderCart();
+            if (held.customerId) {
+                const cust = this.cache.customerMap.get(String(held.customerId));
+                if (cust && this.el.customerSearchInput) {
+                    this.el.customerSearchInput.value = cust.name || '';
+                    this.updateCustomerDisplay();
+                }
+            }
+        } catch {}
         localStorage.removeItem('pos_held_cart');
     }
 };
