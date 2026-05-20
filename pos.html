@@ -108,7 +108,7 @@
                     <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة الحالية</a>
                     <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> استرجاع فاتورة معلقة</a>
                     <div class="dropdown-divider"></div>
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
@@ -123,18 +123,18 @@
         </div>
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./dashboard.html" rel="noopener"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
             <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+            <li><a class="menu-item" href="./invoices.html" rel="noopener"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html" rel="noopener"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html" rel="noopener"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html" rel="noopener"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html" rel="noopener"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html" rel="noopener"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html" rel="noopener"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
+            <li><a class="menu-item" href="./customers.html" rel="noopener"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html" rel="noopener"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html" rel="noopener"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
     </aside>
 
@@ -234,7 +234,8 @@
         </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- عنصر التوست (تستخدمه toast.js) -->
+    <div id="toast" class="toast"></div>
 
     <!-- تحميل المكتبات والسكربتات بالترتيب الصحيح -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
