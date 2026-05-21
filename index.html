@@ -16,6 +16,7 @@
             font-family: 'Cairo', sans-serif;
             background: linear-gradient(145deg, #f0f4ff 0%, #ffffff 50%, #e8f0fe 100%);
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -36,9 +37,13 @@
         .login-wrapper {
             width: 100%;
             max-width: 420px;
+            max-height: 90vh;
+            max-height: 90dvh;
+            overflow-y: auto;
             position: relative;
             z-index: 1;
             animation: slideUp 0.6s ease;
+            -webkit-overflow-scrolling: touch;
         }
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(40px); }
@@ -177,7 +182,7 @@
             
             <div class="input-group">
                 <span class="icon"><i class="fas fa-envelope"></i></span>
-                <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" />
+                <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email" autocorrect="off" autocapitalize="none" />
             </div>
             <div class="input-group">
                 <span class="icon"><i class="fas fa-lock"></i></span>
@@ -187,7 +192,7 @@
             <button class="login-btn" id="loginBtn">تسجيل الدخول</button>
             
             <div class="signup-link">
-                ليس لديك متجر؟ <a href="./signup.html">أنشئ متجرك الآن</a>
+                ليس لديك متجر؟ <a href="./signup.html" rel="noopener">أنشئ متجرك الآن</a>
             </div>
         </div>
     </div>
@@ -205,11 +210,7 @@
             const loginBtn = document.getElementById('loginBtn');
 
             function showError(msg) {
-                if (window.Toast) {
-                    Toast.error(msg);
-                } else {
-                    alert(msg);
-                }
+                if (window.Toast) { Toast.error(msg); } else { alert(msg); }
             }
 
             if (!window.App) {
@@ -218,7 +219,6 @@
                 return;
             }
 
-            // تحقق من الجلسة السابقة بصمت
             App.getCurrentUser().then(user => {
                 if (user) {
                     let target = './dashboard.html';
