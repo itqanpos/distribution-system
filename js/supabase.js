@@ -396,7 +396,6 @@
 
     // ==================== دوال قاعدة البيانات ====================
     window.DB = {
-        // ---------- المنتجات ----------
         async getProducts() {
             return getWithFallback('products', async () => {
                 const { data, error } = await supabaseClient
@@ -428,7 +427,6 @@
             }
         },
 
-        // ---------- الأطراف (عملاء وموردين) ----------
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -459,7 +457,6 @@
             }
         },
 
-        // ---------- المندوبين ----------
         async getReps() {
             return getWithFallback('reps', async () => {
                 const { data, error } = await supabaseClient
@@ -483,7 +480,6 @@
             });
         },
 
-        // ---------- الفواتير ----------
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
@@ -537,7 +533,6 @@
             return data;
         },
 
-        // إنشاء فاتورة مبيعات (RPC)
         async createSaleInvoice(invoiceData) {
             const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: invoiceData });
             if (error) throw new Error(error.message);
@@ -545,7 +540,6 @@
             return data;
         },
 
-        // إنشاء فاتورة مشتريات (RPC)
         async createPurchaseInvoice(purchaseData) {
             const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: purchaseData });
             if (error) throw new Error(error.message);
@@ -553,7 +547,6 @@
             return data;
         },
 
-        // ---------- المشتريات ----------
         async getPurchases() {
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
@@ -607,7 +600,6 @@
             return data;
         },
 
-        // ---------- المعاملات ----------
         async getTransactions() {
             return getWithFallback('transactions', async () => {
                 const { data, error } = await supabaseClient
@@ -631,7 +623,6 @@
             });
         },
 
-        // ---------- المرتجعات ----------
         async getReturns(type = null) {
             return getWithFallback('returns', async () => {
                 let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
@@ -654,7 +645,6 @@
             });
         },
 
-        // ---------- الإعدادات (متوافقة مع المخطط الجديد) ----------
         async getSettings() {
             const tenantId = await App.getTenantId();
             if (!tenantId) return {};
@@ -684,7 +674,6 @@
             return data.data;
         },
 
-        // ---------- القيود المحاسبية ----------
         async getJournalEntries() {
             return getWithFallback('journal_entries', async () => {
                 const { data, error } = await supabaseClient
@@ -708,7 +697,6 @@
             });
         },
 
-        // ---------- الحسابات ----------
         async getAccounts() {
             return getWithFallback('accounts', async () => {
                 const { data, error } = await supabaseClient
@@ -720,7 +708,6 @@
             });
         },
 
-        // ---------- إدارة المستأجرين (للمشرف العام) ----------
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) throw error;
@@ -731,7 +718,6 @@
             if (error) throw error;
         },
 
-        // ---------- توليد رقم الفاتورة (متوافقة مع جدول sequences الجديد) ----------
         generateInvoiceNumber: async function() {
             const tenantId = await App.getTenantId();
             if (!tenantId) throw new Error('لا يوجد مستأجر');
@@ -777,7 +763,6 @@
         }
     };
 
-    // ==================== مراقبة تغيرات الجلسة ====================
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
             setCurrentUser(null);
