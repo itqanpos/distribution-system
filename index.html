@@ -14,53 +14,37 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
-            background: linear-gradient(135deg, #dbeafe 0%, #f0f4f8 50%, #e0e7ff 100%);
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #e0f2fe 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
             position: relative;
-            overflow-x: hidden;
+            overflow: hidden;
         }
-        /* زخارف خلفية */
-        body::before {
-            content: '';
+        /* دوائر زخرفية */
+        .circle-1, .circle-2 {
             position: absolute;
-            top: -50px;
-            right: -50px;
-            width: 200px;
-            height: 200px;
-            background: rgba(59, 130, 246, 0.08);
             border-radius: 50%;
+            background: rgba(59, 130, 246, 0.05);
+            z-index: 0;
         }
-        body::after {
-            content: '';
-            position: absolute;
-            bottom: -80px;
-            left: -60px;
-            width: 300px;
-            height: 300px;
-            background: rgba(16, 185, 129, 0.06);
-            border-radius: 50%;
-        }
+        .circle-1 { width: 400px; height: 400px; top: -150px; right: -150px; }
+        .circle-2 { width: 300px; height: 300px; bottom: -100px; left: -100px; background: rgba(16, 185, 129, 0.05); }
 
         .login-card {
             background: white;
             border-radius: 24px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.02);
             padding: 40px 32px;
             width: 100%;
             max-width: 440px;
             position: relative;
             z-index: 2;
-            animation: fadeInUp 0.6s ease;
+            animation: fadeIn 0.5s ease;
         }
-
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .logo-area {
             text-align: center;
@@ -71,18 +55,20 @@
             height: 72px;
             object-fit: contain;
             border-radius: 18px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-            margin-bottom: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
         }
         .logo-area h1 {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 800;
-            color: #1e293b;
+            color: #0f172a;
             margin-bottom: 6px;
+            letter-spacing: -0.5px;
         }
         .logo-area p {
             color: #64748b;
             font-size: 15px;
+            font-weight: 500;
         }
 
         .input-group {
@@ -96,6 +82,7 @@
             transform: translateY(-50%);
             color: #94a3b8;
             font-size: 16px;
+            transition: 0.2s;
         }
         .input-group input {
             width: 100%;
@@ -113,9 +100,7 @@
             background: white;
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
-        .input-group input::placeholder {
-            color: #94a3b8;
-        }
+        .input-group input::placeholder { color: #94a3b8; }
 
         .btn {
             background: linear-gradient(135deg, #3b82f6, #2563eb);
@@ -130,19 +115,14 @@
             cursor: pointer;
             transition: 0.3s;
             margin-top: 8px;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
         .btn:hover {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
             transform: translateY(-1px);
         }
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
         .error-message {
             color: #ef4444;
@@ -151,7 +131,7 @@
             display: none;
             text-align: center;
             background: #fef2f2;
-            padding: 8px;
+            padding: 10px;
             border-radius: 10px;
         }
 
@@ -166,17 +146,25 @@
             font-weight: 700;
             text-decoration: none;
         }
-        .signup-link a:hover {
-            text-decoration: underline;
+        .signup-link a:hover { text-decoration: underline; }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #94a3b8;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
+    <div class="circle-1"></div>
+    <div class="circle-2"></div>
+
     <div class="login-card">
         <div class="logo-area">
             <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
             <h1>حسابي</h1>
-            <p>نظام إدارة المبيعات</p>
+            <p>نظام إدارة الأعمال الذكي</p>
         </div>
         
         <div class="input-group">
@@ -188,9 +176,13 @@
             <input type="password" id="password" placeholder="كلمة المرور" autocomplete="current-password" />
         </div>
         <div class="error-message" id="errorMsg"></div>
-        <button class="btn" id="loginBtn">دخول</button>
+        <button class="btn" id="loginBtn">تسجيل الدخول</button>
+        
         <div class="signup-link">
-            ليس لديك حساب؟ <a href="./signup.html">إنشاء حساب جديد</a>
+            ليس لديك متجر؟ <a href="./signup.html">أنشئ متجرك الآن</a>
+        </div>
+        <div class="footer-text">
+            نظام حسابات ومبيعات سحابي متعدد المستأجرين
         </div>
     </div>
 
@@ -206,15 +198,14 @@
             const loginBtn = document.getElementById('loginBtn');
             const errorMsg = document.getElementById('errorMsg');
 
-            // إذا كان App غير محمل (اتصال بطيء) نعرض رسالة
             if (!window.App) {
-                errorMsg.textContent = 'خطأ في تحميل التطبيق. تأكد من اتصالك بالإنترنت.';
+                errorMsg.textContent = 'تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.';
                 errorMsg.style.display = 'block';
                 loginBtn.disabled = true;
                 return;
             }
 
-            // تحقق من الجلسة بهدوء دون حظر الواجهة
+            // تحقق من الجلسة السابقة بصمت
             App.getCurrentUser().then(user => {
                 if (user) {
                     let target = './dashboard.html';
@@ -249,7 +240,7 @@
                     console.error(e);
                 } finally {
                     loginBtn.disabled = false;
-                    loginBtn.textContent = 'دخول';
+                    loginBtn.textContent = 'تسجيل الدخول';
                 }
             }
 
@@ -265,7 +256,6 @@
 
             emailInput.focus();
 
-            // تسجيل Service Worker إن أمكن
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./service-worker.js').catch(() => {});
             }
