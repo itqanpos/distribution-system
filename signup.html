@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>تسجيل الدخول · حسابي</title>
+    <title>إنشاء متجر · حسابي</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
-            background: linear-gradient(145deg, #f0f4ff 0%, #ffffff 50%, #e8f0fe 100%);
+            background: linear-gradient(145deg, #ecfdf5 0%, #ffffff 50%, #e0f2fe 100%);
             min-height: 100vh;
             min-height: 100dvh;
             display: flex;
@@ -28,15 +28,15 @@
             position: absolute;
             border-radius: 50%;
             opacity: 0.06;
-            background: #3b82f6;
+            background: #10b981;
             z-index: 0;
         }
         .bg-shape-1 { width: 500px; height: 500px; top: -200px; right: -200px; }
-        .bg-shape-2 { width: 400px; height: 400px; bottom: -150px; left: -150px; background: #10b981; }
+        .bg-shape-2 { width: 400px; height: 400px; bottom: -150px; left: -150px; background: #3b82f6; }
 
-        .login-wrapper {
+        .signup-wrapper {
             width: 100%;
-            max-width: 420px;
+            max-width: 480px;
             max-height: 90vh;
             max-height: 90dvh;
             overflow-y: auto;
@@ -50,32 +50,31 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .login-card {
+        .signup-card {
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-radius: 32px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255,255,255,0.5);
-            padding: 40px 32px;
+            padding: 36px 28px;
         }
 
         .logo-area {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
         }
         .logo-area img {
-            width: 72px;
-            height: 72px;
+            width: 64px;
+            height: 64px;
             object-fit: contain;
-            border-radius: 18px;
+            border-radius: 16px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         .logo-area h1 {
-            font-size: 28px;
+            font-size: 27px;
             font-weight: 800;
             color: #0f172a;
-            letter-spacing: -0.3px;
         }
         .logo-area .subtitle {
             color: #64748b;
@@ -84,21 +83,22 @@
         }
 
         .input-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
             position: relative;
         }
         .input-group .icon {
             position: absolute;
-            right: 16px;
+            right: 14px;
             top: 50%;
             transform: translateY(-50%);
             color: #94a3b8;
             font-size: 16px;
             pointer-events: none;
         }
-        .input-group input {
+        .input-group input,
+        .input-group select {
             width: 100%;
-            padding: 14px 48px 14px 16px;
+            padding: 14px 46px 14px 16px;
             border: 1px solid rgba(203, 213, 225, 0.8);
             border-radius: 16px;
             font-family: 'Cairo', sans-serif;
@@ -109,16 +109,26 @@
             transition: 0.3s;
             color: #1e293b;
         }
-        .input-group input:focus {
+        .input-group input:focus,
+        .input-group select:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: #10b981;
             background: rgba(255,255,255,0.95);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
         .input-group input::placeholder { color: #94a3b8; }
+        .input-group select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: left 14px center;
+            background-size: 18px;
+            padding-left: 44px;
+        }
 
-        .login-btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        .signup-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             border: none;
             border-radius: 16px;
@@ -131,40 +141,41 @@
             transition: 0.3s;
             margin-top: 8px;
             letter-spacing: 0.3px;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
         }
-        .login-btn:hover {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.3);
+        .signup-btn:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            box-shadow: 0 12px 28px rgba(5, 150, 105, 0.35);
             transform: translateY(-1px);
         }
-        .login-btn:active { transform: scale(0.98); }
-        .login-btn:disabled {
+        .signup-btn:active { transform: scale(0.98); }
+        .signup-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
 
-        .signup-link {
+        .login-link {
             margin-top: 24px;
             text-align: center;
             font-size: 15px;
             color: #64748b;
         }
-        .signup-link a {
+        .login-link a {
             color: #3b82f6;
             font-weight: 700;
             text-decoration: none;
         }
-        .signup-link a:hover { text-decoration: underline; }
+        .login-link a:hover { text-decoration: underline; }
 
         @media (max-width: 480px) {
-            .login-card { padding: 32px 24px; border-radius: 28px; }
-            .logo-area img { width: 60px; height: 60px; }
+            .signup-card { padding: 28px 20px; border-radius: 28px; }
+            .logo-area img { width: 56px; height: 56px; }
             .logo-area h1 { font-size: 24px; }
-            .input-group input { padding: 12px 44px 12px 14px; font-size: 15px; }
-            .login-btn { padding: 12px; font-size: 17px; }
+            .input-group input,
+            .input-group select { padding: 12px 42px 12px 14px; font-size: 15px; }
+            .signup-btn { padding: 12px; font-size: 17px; }
         }
     </style>
 </head>
@@ -172,42 +183,63 @@
     <div class="bg-shape bg-shape-1"></div>
     <div class="bg-shape bg-shape-2"></div>
 
-    <div class="login-wrapper">
-        <div class="login-card">
+    <div class="signup-wrapper">
+        <div class="signup-card">
             <div class="logo-area">
                 <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
-                <h1>حسابي</h1>
-                <p class="subtitle">نظام إدارة الأعمال الذكي</p>
+                <h1>أنشئ متجرك الخاص</h1>
+                <p class="subtitle">نسخة تجريبية مجانية – بدون بطاقة ائتمان</p>
             </div>
             
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-user"></i></span>
+                <input type="text" id="fullName" placeholder="اسمك الكامل" autocomplete="name" autocorrect="off" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-store"></i></span>
+                <input type="text" id="tenantName" placeholder="اسم المتجر (مطلوب)" autocomplete="organization" />
+            </div>
             <div class="input-group">
                 <span class="icon"><i class="fas fa-envelope"></i></span>
                 <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email" autocorrect="off" autocapitalize="none" />
             </div>
             <div class="input-group">
                 <span class="icon"><i class="fas fa-lock"></i></span>
-                <input type="password" id="password" placeholder="كلمة المرور" autocomplete="current-password" />
+                <input type="password" id="password" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" />
             </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-phone"></i></span>
+                <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)" autocomplete="tel" inputmode="tel" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-user-tag"></i></span>
+                <select id="role">
+                    <option value="admin">مدير المتجر</option>
+                    <option value="rep">مندوب مبيعات</option>
+                </select>
+            </div>
+
+            <button class="signup-btn" id="signupBtn">إنشاء متجرك مجاناً</button>
             
-            <button class="login-btn" id="loginBtn">تسجيل الدخول</button>
-            
-            <div class="signup-link">
-                ليس لديك متجر؟ <a href="./signup.html" rel="noopener">أنشئ متجرك الآن</a>
+            <div class="login-link">
+                لديك متجر بالفعل؟ <a href="./index.html" rel="noopener">تسجيل الدخول</a>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
     <script src="./js/toast.js"></script>
 
     <script>
         (function() {
+            const fullNameInput = document.getElementById('fullName');
+            const tenantNameInput = document.getElementById('tenantName');
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
-            const loginBtn = document.getElementById('loginBtn');
+            const phoneInput = document.getElementById('phone');
+            const roleSelect = document.getElementById('role');
+            const signupBtn = document.getElementById('signupBtn');
 
             function showError(msg) {
                 if (window.Toast) { Toast.error(msg); } else { alert(msg); }
@@ -215,56 +247,48 @@
 
             if (!window.App) {
                 showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
-                loginBtn.disabled = true;
+                signupBtn.disabled = true;
                 return;
             }
 
-            App.getCurrentUser().then(user => {
-                if (user) {
-                    let target = './dashboard.html';
-                    if (user.role === 'rep') target = './pos.html';
-                    else if (user.role === 'super_admin') target = './admin.html';
-                    window.location.href = target;
-                }
-            }).catch(() => {});
-
-            async function performLogin() {
+            async function performSignup() {
+                const fullName = fullNameInput.value.trim();
+                const tenantName = tenantNameInput.value.trim();
                 const email = emailInput.value.trim();
                 const password = passInput.value;
+                const phone = phoneInput.value.trim();
+                const role = roleSelect.value;
 
-                if (!email || !password) {
-                    showError('يرجى إدخال البريد الإلكتروني وكلمة المرور');
-                    return;
-                }
+                if (!fullName) { showError('يرجى إدخال اسمك الكامل'); return; }
+                if (!tenantName) { showError('يرجى اختيار اسم لمتجرك'); return; }
+                if (!email) { showError('يرجى إدخال البريد الإلكتروني'); return; }
+                if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
 
-                loginBtn.disabled = true;
-                loginBtn.textContent = 'جاري الدخول...';
+                signupBtn.disabled = true;
+                signupBtn.textContent = 'جاري إنشاء المتجر...';
 
                 try {
-                    const result = await App.login(email, password);
+                    const result = await App.signup(email, password, fullName, role, tenantName, phone);
                     if (result.success) {
-                        window.location.href = result.redirectUrl || './dashboard.html';
+                        setTimeout(() => {
+                            window.location.href = role === 'rep' ? './pos.html' : './dashboard.html';
+                        }, 500);
                     } else {
-                        showError(result.message || 'فشل تسجيل الدخول');
+                        showError(result.message || 'فشل إنشاء المتجر');
                     }
                 } catch (e) {
                     showError('حدث خطأ غير متوقع');
                     console.error(e);
                 } finally {
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = 'تسجيل الدخول';
+                    signupBtn.disabled = false;
+                    signupBtn.textContent = 'إنشاء متجرك مجاناً';
                 }
             }
 
-            loginBtn.addEventListener('click', performLogin);
-            passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performLogin(); });
-            emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') passInput.focus(); });
+            signupBtn.addEventListener('click', performSignup);
+            roleSelect.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSignup(); });
 
-            emailInput.focus();
-
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-            }
+            fullNameInput.focus();
         })();
     </script>
 </body>
