@@ -1,6 +1,6 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.6 - متوافق مع المخطط الجديد، إصلاحات شاملة
+   الإصدار 2.7 - شامل جميع الإصلاحات، جاهز للمستقبل
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -396,6 +396,7 @@
 
     // ==================== دوال قاعدة البيانات ====================
     window.DB = {
+        // ---------- المنتجات ----------
         async getProducts() {
             return getWithFallback('products', async () => {
                 const { data, error } = await supabaseClient
@@ -427,6 +428,7 @@
             }
         },
 
+        // ---------- الأطراف (عملاء وموردين) ----------
         async getParties(type = null) {
             return getWithFallback('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').order('name');
@@ -457,6 +459,7 @@
             }
         },
 
+        // ---------- المندوبين ----------
         async getReps() {
             return getWithFallback('reps', async () => {
                 const { data, error } = await supabaseClient
@@ -480,12 +483,13 @@
             });
         },
 
+        // ---------- الفواتير ----------
         async getInvoices() {
             return getWithFallback('invoices', async () => {
                 const { data, error } = await supabaseClient
                     .from('invoices')
                     .select('*')
-                    .order('date', { ascending: false });
+                    .order('created_at', { ascending: false });
                 if (error) throw error;
                 return data;
             });
@@ -506,17 +510,19 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('invoices')
-                    .select('id, invoice_number, date, type, customer_id, customer_name, total, paid, remaining, status')
-                    .order('date', { ascending: false });
+                    .select('id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status')
+                    .order('created_at', { ascending: false });
                 if (error) throw error;
                 return data;
             } catch (e) {
                 const local = getLocalDB();
                 if (local) {
                     const all = await local.getAll('invoices');
-                    return all.map(({ id, invoice_number, date, type, customer_id, customer_name, total, paid, remaining, status }) =>
-                        ({ id, invoice_number, date, type, customer_id, customer_name, total, paid, remaining, status })
-                    );
+                    return all
+                        .map(({ id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status }) =>
+                            ({ id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status })
+                        )
+                        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
                 }
                 return [];
             }
@@ -531,6 +537,7 @@
             return data;
         },
 
+        // إنشاء فاتورة مبيعات (RPC)
         async createSaleInvoice(invoiceData) {
             const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: invoiceData });
             if (error) throw new Error(error.message);
@@ -538,6 +545,7 @@
             return data;
         },
 
+        // إنشاء فاتورة مشتريات (RPC)
         async createPurchaseInvoice(purchaseData) {
             const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: purchaseData });
             if (error) throw new Error(error.message);
@@ -545,12 +553,13 @@
             return data;
         },
 
+        // ---------- المشتريات ----------
         async getPurchases() {
             return getWithFallback('purchases', async () => {
                 const { data, error } = await supabaseClient
                     .from('purchases')
                     .select('*')
-                    .order('date', { ascending: false });
+                    .order('created_at', { ascending: false });
                 if (error) throw error;
                 return data;
             });
@@ -571,17 +580,19 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('purchases')
-                    .select('id, date, supplier_id, total, paid, remaining, status')
-                    .order('date', { ascending: false });
+                    .select('id, date, created_at, supplier_id, supplier_name, total, paid, remaining, status')
+                    .order('created_at', { ascending: false });
                 if (error) throw error;
                 return data;
             } catch (e) {
                 const local = getLocalDB();
                 if (local) {
                     const all = await local.getAll('purchases');
-                    return all.map(({ id, date, supplier_id, total, paid, remaining, status }) =>
-                        ({ id, date, supplier_id, total, paid, remaining, status })
-                    );
+                    return all
+                        .map(({ id, date, created_at, supplier_id, supplier_name, total, paid, remaining, status }) =>
+                            ({ id, date, created_at, supplier_id, supplier_name, total, paid, remaining, status })
+                        )
+                        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
                 }
                 return [];
             }
@@ -596,6 +607,7 @@
             return data;
         },
 
+        // ---------- المعاملات ----------
         async getTransactions() {
             return getWithFallback('transactions', async () => {
                 const { data, error } = await supabaseClient
@@ -619,6 +631,7 @@
             });
         },
 
+        // ---------- المرتجعات ----------
         async getReturns(type = null) {
             return getWithFallback('returns', async () => {
                 let q = supabaseClient.from('returns').select('*').order('date', { ascending: false });
@@ -641,7 +654,7 @@
             });
         },
 
-        // متوافقة مع المخطط الجديد (settings.tenant_id كمفتاح أساسي)
+        // ---------- الإعدادات (متوافقة مع المخطط الجديد) ----------
         async getSettings() {
             const tenantId = await App.getTenantId();
             if (!tenantId) return {};
@@ -671,6 +684,7 @@
             return data.data;
         },
 
+        // ---------- القيود المحاسبية ----------
         async getJournalEntries() {
             return getWithFallback('journal_entries', async () => {
                 const { data, error } = await supabaseClient
@@ -694,6 +708,7 @@
             });
         },
 
+        // ---------- الحسابات ----------
         async getAccounts() {
             return getWithFallback('accounts', async () => {
                 const { data, error } = await supabaseClient
@@ -705,6 +720,7 @@
             });
         },
 
+        // ---------- إدارة المستأجرين (للمشرف العام) ----------
         async getAllTenantsData() {
             const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
             if (error) throw error;
@@ -715,7 +731,7 @@
             if (error) throw error;
         },
 
-        // متوافقة مع جدول sequences الجديد (tenant_id, name)
+        // ---------- توليد رقم الفاتورة (متوافقة مع جدول sequences الجديد) ----------
         generateInvoiceNumber: async function() {
             const tenantId = await App.getTenantId();
             if (!tenantId) throw new Error('لا يوجد مستأجر');
@@ -770,5 +786,5 @@
         }
     });
 
-    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.6)');
+    console.log('✅ نظام آمن متعدد المستأجرين جاهز (v2.7)');
 })();
