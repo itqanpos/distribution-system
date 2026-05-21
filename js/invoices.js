@@ -16,7 +16,7 @@ const InvoicesPage = {
     init() {
         this.cacheDOM();
         this.bindEvents();
-        this.loadInvoices();
+        this.loadData();
     },
 
     cacheDOM() {
@@ -31,6 +31,7 @@ const InvoicesPage = {
             detailsContent: document.getElementById('invoiceDetailsContent'),
             closeDetailsBtn: document.getElementById('closeDetailsModalBtn'),
             voidBtn: document.getElementById('voidInvoiceBtn'),
+            editBtn: document.getElementById('editInvoiceBtn'),
             printBtn: document.getElementById('printInvoiceBtn'),
             pagination: document.getElementById('pagination'),
             sidebar: document.getElementById('sidebar'),
@@ -38,7 +39,12 @@ const InvoicesPage = {
             menuToggle: document.getElementById('menuToggle'),
             moreMenuBtn: document.getElementById('moreMenuBtn'),
             moreDropdown: document.getElementById('moreDropdown'),
-            logoutBtn: document.getElementById('logoutBtn')
+            logoutBtn: document.getElementById('logoutBtn'),
+            printSalesReportBtn: document.getElementById('printSalesReportBtn'),
+            statTotalInvoices: document.getElementById('statTotalInvoices'),
+            statTotalSales: document.getElementById('statTotalSales'),
+            statPaid: document.getElementById('statPaid'),
+            statUnpaid: document.getElementById('statUnpaid')
         };
     },
 
@@ -73,6 +79,14 @@ const InvoicesPage = {
             else window.location.href = './index.html';
         });
 
+        // زر طباعة تقرير المبيعات
+        this.el.printSalesReportBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.printSalesReport();
+            this.el.sidebar?.classList.remove('open');
+            this.el.sidebarOverlay?.classList.remove('show');
+        });
+
         // الفلاتر
         this.el.filterType?.addEventListener('change', () => this.applyFilters());
         this.el.filterStatus?.addEventListener('change', () => this.applyFilters());
@@ -88,9 +102,15 @@ const InvoicesPage = {
         this.el.closeDetailsBtn?.addEventListener('click', () => this.closeDetailsModal());
         this.el.printBtn?.addEventListener('click', () => this.printCurrentInvoice());
         this.el.voidBtn?.addEventListener('click', () => this.voidCurrentInvoice());
+        this.el.editBtn?.addEventListener('click', () => this.editCurrentInvoice());
         this.el.detailsModal?.addEventListener('click', (e) => {
             if (e.target === this.el.detailsModal) this.closeDetailsModal();
         });
+    },
+
+    async loadData() {
+        await this.loadInvoices();
+        this.loadStats();
     },
 
     async loadInvoices() {
@@ -103,6 +123,23 @@ const InvoicesPage = {
             if (window.Toast) Toast.error('فشل تحميل الفواتير');
             this.showEmptyState();
         }
+    },
+
+    loadStats() {
+        const invoices = this.state.invoices;
+        const totalCount = invoices.length;
+        const totalSales = invoices
+            .filter(i => i.type === 'sale' && i.status !== 'voided')
+            .reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
+        const paidCount = invoices.filter(i => i.status === 'paid').length;
+        const unpaidCount = invoices.filter(i => i.status === 'unpaid' || i.status === 'partial').length;
+
+        const formatMoney = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+
+        if (this.el.statTotalInvoices) this.el.statTotalInvoices.textContent = totalCount;
+        if (this.el.statTotalSales) this.el.statTotalSales.textContent = formatMoney(totalSales);
+        if (this.el.statPaid) this.el.statPaid.textContent = paidCount;
+        if (this.el.statUnpaid) this.el.statUnpaid.textContent = unpaidCount;
     },
 
     applyFilters() {
@@ -127,9 +164,7 @@ const InvoicesPage = {
             );
         }
 
-        // ترتيب حسب التاريخ تنازلياً
-        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
+        // الترتيب حسب created_at (الأحدث أولاً) تم في getInvoicesLight
         this.state.filteredInvoices = filtered;
         this.state.currentPage = 1;
         this.renderTable();
@@ -174,6 +209,11 @@ const InvoicesPage = {
                         <button class="action-btn" onclick="InvoicesPage.viewInvoice('${inv.id}')" title="عرض التفاصيل">
                             <i class="fas fa-eye"></i>
                         </button>
+                        ${inv.type === 'sale' && inv.status !== 'voided' ? `
+                        <button class="action-btn edit-btn" onclick="InvoicesPage.editInvoice('${inv.id}')" title="تعديل الفاتورة">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ` : ''}
                         ${inv.status !== 'voided' ? `
                         <button class="action-btn danger" onclick="InvoicesPage.confirmVoid('${inv.id}')" title="إلغاء الفاتورة">
                             <i class="fas fa-ban"></i>
@@ -286,9 +326,12 @@ const InvoicesPage = {
             </div>
         `;
 
-        // إظهار أو إخفاء زر الإلغاء
+        // أزرار المودال
         if (this.el.voidBtn) {
             this.el.voidBtn.style.display = (invoice.status !== 'voided') ? 'flex' : 'none';
+        }
+        if (this.el.editBtn) {
+            this.el.editBtn.style.display = (invoice.type === 'sale' && invoice.status !== 'voided') ? 'flex' : 'none';
         }
 
         this.el.detailsModal?.classList.add('open');
@@ -310,7 +353,6 @@ const InvoicesPage = {
             if (window.InvoiceService && window.InvoiceService.voidInvoice) {
                 await InvoiceService.voidInvoice(invoice.id);
             } else {
-                // Fallback
                 const { error } = await supabase
                     .from('invoices')
                     .update({ status: 'voided' })
@@ -319,7 +361,7 @@ const InvoicesPage = {
             }
             if (window.Toast) Toast.success('تم إلغاء الفاتورة بنجاح');
             this.closeDetailsModal();
-            this.loadInvoices();
+            this.loadData();
         } catch (e) {
             console.error('فشل إلغاء الفاتورة:', e);
             if (window.Toast) Toast.error('فشل إلغاء الفاتورة');
@@ -334,10 +376,77 @@ const InvoicesPage = {
         });
     },
 
+    // فتح الفاتورة في نقطة البيع للتعديل
+    editInvoice(id) {
+        // تخزين معرف الفاتورة في localStorage لتستقبله نقطة البيع
+        localStorage.setItem('edit_invoice_id', id);
+        window.location.href = './pos.html';
+    },
+
+    editCurrentInvoice() {
+        const invoice = this.state.selectedInvoice;
+        if (!invoice) return;
+        this.closeDetailsModal();
+        this.editInvoice(invoice.id);
+    },
+
     printCurrentInvoice() {
         const invoice = this.state.selectedInvoice;
         if (!invoice) return;
         window.print();
+    },
+
+    // طباعة تقرير المبيعات كامل
+    printSalesReport() {
+        const salesInvoices = this.state.invoices.filter(i => i.type === 'sale');
+        const formatMoney = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+        const totalAll = salesInvoices.reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
+
+        let rows = '';
+        salesInvoices.forEach(inv => {
+            rows += `
+                <tr>
+                    <td>${inv.invoice_number || inv.id?.substring(0, 8) || '-'}</td>
+                    <td>${inv.date || '-'}</td>
+                    <td>${inv.customer_name || '-'}</td>
+                    <td>${formatMoney(inv.total)}</td>
+                </tr>
+            `;
+        });
+
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة');
+            return;
+        }
+
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head><meta charset="UTF-8">
+            <title>تقرير المبيعات</title>
+            <style>
+                body { font-family: 'Cairo', sans-serif; direction: rtl; padding: 20px; }
+                h2 { text-align: center; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                th { background: #f5f5f5; }
+                .total { font-weight: bold; font-size: 1.2em; text-align: left; margin-top: 20px; }
+            </style>
+            </head>
+            <body>
+                <h2>تقرير المبيعات</h2>
+                <p>التاريخ: ${new Date().toLocaleDateString('ar-EG')}</p>
+                <table>
+                    <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="total">إجمالي المبيعات: ${formatMoney(totalAll)}</div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
     }
 };
 
