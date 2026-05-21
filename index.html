@@ -23,7 +23,6 @@
             position: relative;
             overflow: hidden;
         }
-        /* خلفية زخرفية */
         .bg-shape {
             position: absolute;
             border-radius: 50%;
@@ -34,7 +33,6 @@
         .bg-shape-1 { width: 500px; height: 500px; top: -200px; right: -200px; }
         .bg-shape-2 { width: 400px; height: 400px; bottom: -150px; left: -150px; background: #10b981; }
 
-        /* حاوية البطاقة */
         .login-wrapper {
             width: 100%;
             max-width: 420px;
@@ -53,24 +51,23 @@
             -webkit-backdrop-filter: blur(20px);
             border-radius: 32px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255,255,255,0.5);
-            padding: 36px 28px;
-            position: relative;
+            padding: 40px 32px;
         }
 
         .logo-area {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 32px;
         }
         .logo-area img {
-            width: 64px;
-            height: 64px;
+            width: 72px;
+            height: 72px;
             object-fit: contain;
-            border-radius: 16px;
+            border-radius: 18px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         .logo-area h1 {
-            font-size: 27px;
+            font-size: 28px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.3px;
@@ -81,14 +78,13 @@
             font-weight: 500;
         }
 
-        /* حقول الإدخال */
         .input-group {
-            margin-bottom: 18px;
+            margin-bottom: 20px;
             position: relative;
         }
         .input-group .icon {
             position: absolute;
-            right: 14px;
+            right: 16px;
             top: 50%;
             transform: translateY(-50%);
             color: #94a3b8;
@@ -97,7 +93,7 @@
         }
         .input-group input {
             width: 100%;
-            padding: 14px 46px 14px 16px;
+            padding: 14px 48px 14px 16px;
             border: 1px solid rgba(203, 213, 225, 0.8);
             border-radius: 16px;
             font-family: 'Cairo', sans-serif;
@@ -116,7 +112,6 @@
         }
         .input-group input::placeholder { color: #94a3b8; }
 
-        /* زر تسجيل الدخول */
         .login-btn {
             background: linear-gradient(135deg, #3b82f6, #2563eb);
             color: white;
@@ -129,7 +124,7 @@
             font-size: 18px;
             cursor: pointer;
             transition: 0.3s;
-            margin-top: 6px;
+            margin-top: 8px;
             letter-spacing: 0.3px;
             box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
         }
@@ -146,43 +141,6 @@
             box-shadow: none;
         }
 
-        /* رسالة الخطأ داخل البطاقة */
-        .error-box {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 14px;
-            padding: 12px 16px;
-            margin-top: 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #dc2626;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: 0.3s;
-            pointer-events: none;
-        }
-        .error-box.show {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-        .error-box i.fa-times-circle {
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        .error-box .error-close {
-            margin-right: auto;
-            cursor: pointer;
-            color: #dc2626;
-            opacity: 0.7;
-            background: none;
-            border: none;
-            font-size: 16px;
-        }
-
-        /* رابط إنشاء متجر */
         .signup-link {
             margin-top: 24px;
             text-align: center;
@@ -196,24 +154,11 @@
         }
         .signup-link a:hover { text-decoration: underline; }
 
-        /* شريط تحميل رفيع */
-        #loading-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 3px;
-            background: #3b82f6;
-            width: 0%;
-            z-index: 9999;
-            transition: width 0.3s ease;
-        }
-
-        /* تجاوب مع الجوال */
         @media (max-width: 480px) {
-            .login-card { padding: 28px 20px; border-radius: 28px; }
-            .logo-area img { width: 56px; height: 56px; }
+            .login-card { padding: 32px 24px; border-radius: 28px; }
+            .logo-area img { width: 60px; height: 60px; }
             .logo-area h1 { font-size: 24px; }
-            .input-group input { padding: 12px 42px 12px 14px; font-size: 15px; }
+            .input-group input { padding: 12px 44px 12px 14px; font-size: 15px; }
             .login-btn { padding: 12px; font-size: 17px; }
         }
     </style>
@@ -221,7 +166,6 @@
 <body>
     <div class="bg-shape bg-shape-1"></div>
     <div class="bg-shape bg-shape-2"></div>
-    <div id="loading-bar"></div>
 
     <div class="login-wrapper">
         <div class="login-card">
@@ -240,12 +184,6 @@
                 <input type="password" id="password" placeholder="كلمة المرور" autocomplete="current-password" />
             </div>
             
-            <div class="error-box" id="errorBox">
-                <i class="fas fa-times-circle"></i>
-                <span id="errorText"></span>
-                <button class="error-close" onclick="hideError()">&times;</button>
-            </div>
-
             <button class="login-btn" id="loginBtn">تسجيل الدخول</button>
             
             <div class="signup-link">
@@ -258,25 +196,21 @@
     <script src="./js/supabase.js"></script>
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
+    <script src="./js/toast.js"></script>
 
     <script>
         (function() {
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
-            const errorBox = document.getElementById('errorBox');
-            const errorText = document.getElementById('errorText');
-            const loadingBar = document.getElementById('loading-bar');
 
-            window.showLoading = () => { loadingBar.style.width = '80%'; };
-            window.hideLoading = () => { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); };
-            window.showError = (msg) => {
-                errorText.textContent = msg;
-                errorBox.classList.add('show');
-            };
-            window.hideError = () => {
-                errorBox.classList.remove('show');
-            };
+            function showError(msg) {
+                if (window.Toast) {
+                    Toast.error(msg);
+                } else {
+                    alert(msg);
+                }
+            }
 
             if (!window.App) {
                 showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
@@ -303,10 +237,8 @@
                     return;
                 }
 
-                hideError();
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'جاري الدخول...';
-                showLoading();
 
                 try {
                     const result = await App.login(email, password);
@@ -321,17 +253,12 @@
                 } finally {
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'تسجيل الدخول';
-                    hideLoading();
                 }
             }
 
             loginBtn.addEventListener('click', performLogin);
             passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performLogin(); });
             emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') passInput.focus(); });
-
-            // إخفاء الخطأ عند بدء الكتابة
-            emailInput.addEventListener('input', hideError);
-            passInput.addEventListener('input', hideError);
 
             emailInput.focus();
 
