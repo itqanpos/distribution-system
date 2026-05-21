@@ -1,3 +1,7 @@
+/* =============================================
+   pos.js - نقطة البيع (إصدار نهائي محدث)
+   مع إيصال حراري مبسط ودعم تعديل الفاتورة الأصلية
+   ============================================= */
 'use strict';
 
 const Utils = {
@@ -170,7 +174,7 @@ const POS = {
                 if (inv && inv.type === 'sale' && inv.status !== 'voided') {
                     this.state.cart = (inv.items || []).map(item => ({...item}));
                     this.state.selectedCustomerId = inv.customer_id;
-                    this.state.editingInvoiceId = inv.id; // تعيين معرف الفاتورة الأصلية
+                    this.state.editingInvoiceId = inv.id;
                     if (inv.customer_id) {
                         const cust = this.cache.customerMap.get(String(inv.customer_id));
                         if (cust) {
@@ -465,7 +469,6 @@ const POS = {
                 notes: this.el.paymentNotes?.value || ''
             };
 
-            // إذا كنا نعدل فاتورة، نمرر معرف الفاتورة الأصلية
             if (this.state.editingInvoiceId) {
                 invoice.original_invoice_id = this.state.editingInvoiceId;
             }
@@ -495,7 +498,7 @@ const POS = {
             );
 
             this.resetCart();
-            this.state.editingInvoiceId = null; // إعادة التعيين
+            this.state.editingInvoiceId = null;
             if (window.Toast) Toast.success('تم البيع بنجاح');
         } catch (error) {
             console.error('خطأ في الدفع:', error);
@@ -619,14 +622,82 @@ const POS = {
         } catch (err) { console.error(err); if (window.Toast) Toast.error('فشل استرجاع الفاتورة'); }
     },
 
+    // ========== إيصال حراري مبسط ==========
     showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
-        let settings = {}; try { settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); } catch(e) {}
-        const companyName = settings?.company?.name || 'حسابي'; const companyPhone = settings?.company?.phone || ''; const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
-        let itemsRows = '';
-        for (const item of items) { const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2); itemsRows += `<tr><td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td><td>${item.quantity}</td><td>${Utils.formatMoney(item.price)}</td><td>${Utils.formatMoney(lineTotal)}</td></tr>`; }
-        const newBalance = customer?.balance || 0; const usedBalance = invoice.used_customer_balance || 0;
-        const paymentInfoHTML = customer && customer.name !== 'نقدي' ? `<div class="payment-info-box"><div class="payment-row"><span>الرصيد السابق:</span> <span>${Utils.formatMoney(oldBalance)}</span></div>${usedBalance > 0 ? `<div class="payment-row"><span>تم خصم من الرصيد:</span> <span>${Utils.formatMoney(usedBalance)}</span></div>` : ''}<div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(invoice.paid)}</span></div><div class="payment-row"><span>الرصيد الحالي:</span> <span>${Utils.formatMoney(newBalance)}</span></div></div>` : '';
-        this.el.receiptPrintArea.innerHTML = `<div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div><div class="divider"></div><p><strong>العميل:</strong> ${Utils.escapeHTML(customer?.name || 'نقدي')}</p><p><strong>رقم الفاتورة:</strong> ${invoice.invoice_number || invoice.id?.substring(0,8)}</p><p><strong>التاريخ:</strong> ${Utils.formatDate(invoice.date)}</p><div class="divider"></div><table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${itemsRows}</tbody></table><div class="totals"><p><strong>الإجمالي:</strong> ${Utils.formatMoney(totals.subtotal)}</p>${totals.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(totals.discount)}</p>` : ''}<p><strong>الصافي:</strong> ${Utils.formatMoney(totals.net)}</p></div>${paymentInfoHTML}<div class="divider"></div><div class="footer">${Utils.escapeHTML(footerMsg)}</div>`;
+        let settings = {};
+        try { settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); } catch(e) {}
+        const companyName = settings?.company?.name || 'حسابي';
+        const companyPhone = settings?.company?.phone || '';
+        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+        const format = (v) => {
+            const num = Number(v);
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+
+        // بناء سطور الأصناف
+        let itemsLines = '';
+        for (const item of items) {
+            const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
+            itemsLines += `${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}  ${item.quantity}  ${format(item.price)}\n`;
+        }
+
+        // تفاصيل الدفع
+        let paymentLines = '';
+        paymentLines += `نقدى:           ${format(invoice.cash_paid || 0)}\n`;
+        paymentLines += `تحويل:          ${format(invoice.transfer_paid || 0)}\n`;
+        if (invoice.used_customer_balance > 0) {
+            paymentLines += `من رصيد عميل:   ${format(invoice.used_customer_balance)}\n`;
+        }
+        paymentLines += `المدفوع:        ${format(invoice.paid)}\n`;
+        
+        // المتبقي أو الفائض
+        const diff = Utils.round((invoice.paid || 0) - totals.net, 2);
+        if (diff > 0) {
+            paymentLines += `فائض:           ${format(diff)}\n`;
+        } else if (diff < 0) {
+            paymentLines += `متبقى:          ${format(-diff)}\n`;
+        }
+
+        // حركة الرصيد (فقط إذا كان العميل حقيقي)
+        let balanceLines = '';
+        if (customer && customer.name !== 'نقدي') {
+            const newBalance = customer.balance || 0;
+            const used = invoice.used_customer_balance || 0;
+            balanceLines += `الرصيد السابق:  ${format(oldBalance)}\n`;
+            if (used > 0) {
+                balanceLines += `خصم من رصيد:  -${format(used)}\n`;
+            }
+            if (diff > 0) {
+                balanceLines += `اضافة للرصيد: +${format(diff)}\n`;
+            }
+            balanceLines += `الرصيد الحالى:  ${format(newBalance)}\n`;
+        }
+
+        // تجميع الإيصال كاملاً
+        const receiptText = [
+            companyName,
+            companyPhone ? `هاتف: ${companyPhone}` : '',
+            '------------------------------',
+            `العميل: ${customer?.name || 'نقدى'}`,
+            `رقم الفاتورة: ${invoice.invoice_number || invoice.id?.substring(0,8)}`,
+            `التاريخ: ${Utils.formatDate(invoice.date)}`,
+            '------------------------------',
+            itemsLines.trim(),
+            '------------------------------',
+            `الاجمالى:       ${format(totals.subtotal)}`,
+            totals.discount > 0 ? `الخصم:           ${format(totals.discount)}` : '',
+            `الصافى:         ${format(totals.net)}`,
+            '------------------------------',
+            paymentLines.trim(),
+            balanceLines ? '------------------------------' : '',
+            balanceLines.trim(),
+            balanceLines ? '------------------------------' : '',
+            footerMsg
+        ].filter(line => line !== '').join('\n');
+
+        // عرض في منطقة الطباعة
+        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Cairo', 'Courier New', monospace; font-size: 13px; line-height: 1.5; text-align: right; direction: rtl; white-space: pre-wrap; margin: 0; background: white;">${Utils.escapeHTML(receiptText)}</pre>`;
+        
         this.showModal('receiptModal');
     },
 
