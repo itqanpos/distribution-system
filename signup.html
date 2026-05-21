@@ -23,7 +23,6 @@
             position: relative;
             overflow: hidden;
         }
-        /* خلفية زخرفية */
         .bg-shape {
             position: absolute;
             border-radius: 50%;
@@ -53,7 +52,6 @@
             border-radius: 32px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255,255,255,0.5);
             padding: 36px 28px;
-            position: relative;
         }
 
         .logo-area {
@@ -66,13 +64,12 @@
             object-fit: contain;
             border-radius: 16px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
         .logo-area h1 {
             font-size: 27px;
             font-weight: 800;
             color: #0f172a;
-            letter-spacing: -0.3px;
         }
         .logo-area .subtitle {
             color: #64748b;
@@ -154,41 +151,6 @@
             box-shadow: none;
         }
 
-        .error-box {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 14px;
-            padding: 12px 16px;
-            margin-top: 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #dc2626;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: 0.3s;
-            pointer-events: none;
-        }
-        .error-box.show {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-        .error-box i.fa-times-circle {
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        .error-box .error-close {
-            margin-right: auto;
-            cursor: pointer;
-            color: #dc2626;
-            opacity: 0.7;
-            background: none;
-            border: none;
-            font-size: 16px;
-        }
-
         .login-link {
             margin-top: 24px;
             text-align: center;
@@ -201,17 +163,6 @@
             text-decoration: none;
         }
         .login-link a:hover { text-decoration: underline; }
-
-        #loading-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 3px;
-            background: #10b981;
-            width: 0%;
-            z-index: 9999;
-            transition: width 0.3s ease;
-        }
 
         @media (max-width: 480px) {
             .signup-card { padding: 28px 20px; border-radius: 28px; }
@@ -226,7 +177,6 @@
 <body>
     <div class="bg-shape bg-shape-1"></div>
     <div class="bg-shape bg-shape-2"></div>
-    <div id="loading-bar"></div>
 
     <div class="signup-wrapper">
         <div class="signup-card">
@@ -264,12 +214,6 @@
                 </select>
             </div>
 
-            <div class="error-box" id="errorBox">
-                <i class="fas fa-times-circle"></i>
-                <span id="errorText"></span>
-                <button class="error-close" onclick="hideError()">&times;</button>
-            </div>
-
             <button class="signup-btn" id="signupBtn">إنشاء متجرك مجاناً</button>
             
             <div class="login-link">
@@ -280,6 +224,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <script src="./js/toast.js"></script>
 
     <script>
         (function() {
@@ -290,19 +235,14 @@
             const phoneInput = document.getElementById('phone');
             const roleSelect = document.getElementById('role');
             const signupBtn = document.getElementById('signupBtn');
-            const errorBox = document.getElementById('errorBox');
-            const errorText = document.getElementById('errorText');
-            const loadingBar = document.getElementById('loading-bar');
 
-            window.showLoading = () => { loadingBar.style.width = '80%'; };
-            window.hideLoading = () => { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); };
-            window.showError = (msg) => {
-                errorText.textContent = msg;
-                errorBox.classList.add('show');
-            };
-            window.hideError = () => {
-                errorBox.classList.remove('show');
-            };
+            function showError(msg) {
+                if (window.Toast) {
+                    Toast.error(msg);
+                } else {
+                    alert(msg);
+                }
+            }
 
             if (!window.App) {
                 showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
@@ -323,10 +263,8 @@
                 if (!email) { showError('يرجى إدخال البريد الإلكتروني'); return; }
                 if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
 
-                hideError();
                 signupBtn.disabled = true;
                 signupBtn.textContent = 'جاري إنشاء المتجر...';
-                showLoading();
 
                 try {
                     const result = await App.signup(email, password, fullName, role, tenantName, phone);
@@ -343,18 +281,11 @@
                 } finally {
                     signupBtn.disabled = false;
                     signupBtn.textContent = 'إنشاء متجرك مجاناً';
-                    hideLoading();
                 }
             }
 
             signupBtn.addEventListener('click', performSignup);
             roleSelect.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSignup(); });
-
-            // إخفاء الخطأ عند الكتابة
-            fullNameInput.addEventListener('input', hideError);
-            tenantNameInput.addEventListener('input', hideError);
-            emailInput.addEventListener('input', hideError);
-            passInput.addEventListener('input', hideError);
 
             fullNameInput.focus();
         })();
