@@ -1,10 +1,9 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار احترافي)
-   تم التحديث: توحيد Toast، إصلاح تعليق الفواتير، تحسين الأداء
+   pos.js - نقطة البيع (إصدار محدث)
+   تم الإصلاح: تصفية العملاء بدقة، تحسين التحميل
    ============================================= */
 'use strict';
 
-// ========== الأدوات المساعدة ==========
 const Utils = {
     formatMoney: (amount, currency = 'ج.م') => Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
     formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return dateStr; } },
@@ -134,20 +133,25 @@ const POS = {
 
     async loadProductsAndCustomers() {
         try {
+            let customers = [];
             if (this.state.isDBReady) {
                 this.state.products = await DB.getProducts() || [];
-                this.state.customers = await DB.getParties('customer') || [];
+                customers = await DB.getParties('customer') || [];
             } else if (Utils.hasLocalDB()) {
                 this.state.products = await localDB.getAll('products') || [];
-                this.state.customers = (await localDB.getAll('parties') || []).filter(p => p.type === 'customer');
+                customers = await localDB.getAll('parties') || [];
             } else {
                 this.state.products = [];
-                this.state.customers = [];
+                customers = [];
             }
+            // ✅ تصفية صارمة للعملاء فقط لتجنب ظهور الموردين
+            this.state.customers = customers.filter(p => p.type === 'customer');
             this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
             this.buildCache();
         } catch (e) {
             console.error('فشل تحميل البيانات:', e);
+            this.state.products = [];
+            this.state.customers = [];
             if (window.Toast) Toast.error('فشل تحميل البيانات');
         }
     },
@@ -164,6 +168,7 @@ const POS = {
         if (!dropdown) return;
 
         let filtered = this.state.customers;
+        // تبدأ دائمًا من العملاء فقط (هذه القائمة أصبحت مضمونة)
         if (term && term !== 'نقدي (بدون عميل)') {
             filtered = filtered.filter(c => c.name?.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
         }
@@ -401,10 +406,7 @@ const POS = {
             const method = this.el.paymentMethod?.value || 'cash';
             if (method === 'cash') cashPaid = +this.el.cashAmount?.value || 0;
             else if (method === 'transfer') transferPaid = +this.el.transferAmount?.value || 0;
-            else if (method === 'mixed') {
-                cashPaid = +this.el.cashAmount?.value || 0;
-                transferPaid = +this.el.transferAmount?.value || 0;
-            }
+            else if (method === 'mixed') { cashPaid = +this.el.cashAmount?.value || 0; transferPaid = +this.el.transferAmount?.value || 0; }
             const usedBalance = this.state.usedCustomerBalance || 0;
             const totalPaid = Utils.round(cashPaid + transferPaid + usedBalance, 2);
             const diff = Utils.round(totalPaid - totals.net, 2);
@@ -431,7 +433,6 @@ const POS = {
                 notes: this.el.paymentNotes?.value || ''
             };
 
-            // استخدام InvoiceService إن وُجدت، وإلا استخدام DB مباشرة
             let result;
             if (window.InvoiceService && window.InvoiceService.createSaleInvoice) {
                 result = await InvoiceService.createSaleInvoice(invoice);
@@ -441,13 +442,9 @@ const POS = {
                 throw new Error('خدمة الفواتير غير متاحة');
             }
 
-            if (!result || !result.success) {
-                throw new Error(result?.error || 'فشل غير معروف');
-            }
+            if (!result || !result.success) throw new Error(result?.error || 'فشل غير معروف');
 
             this.closeModal('paymentModal');
-
-            // تحديث المخزون محلياً بدلاً من إعادة تحميل كل شيء
             this._updateLocalStockAfterSale();
             this.buildCache();
 
@@ -484,15 +481,13 @@ const POS = {
     },
 
     _updateLocalStockAfterSale() {
-        // تحديث المخزون محلياً بناءً على ما تم بيعه
         for (const item of this.state.cart) {
             const product = this.cache.productMap.get(String(item.productId));
             if (!product?.units) continue;
             const baseUnit = product.units[0];
             let reduction;
-            if (item.unitName === baseUnit.name) {
-                reduction = item.quantity;
-            } else {
+            if (item.unitName === baseUnit.name) reduction = item.quantity;
+            else {
                 const unit = product.units.find(u => u.name === item.unitName);
                 reduction = item.quantity / (unit?.factor || 1);
             }
@@ -517,10 +512,7 @@ const POS = {
     },
 
     async holdInvoice() {
-        if (!this.state.cart.length) {
-            if (window.Toast) Toast.info('السلة فارغة');
-            return;
-        }
+        if (!this.state.cart.length) { if (window.Toast) Toast.info('السلة فارغة'); return; }
         const totals = this.calculateTotals();
         const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
         const invoice = {
@@ -531,7 +523,6 @@ const POS = {
             paid: 0, remaining: totals.net, status: 'held', notes: 'فاتورة معلقة'
         };
         try {
-            // استخدام DB.saveInvoice التي تمت إضافتها إلى supabase.js
             if (this.state.isDBReady && DB.saveInvoice) {
                 await DB.saveInvoice(invoice);
             } else if (Utils.hasLocalDB()) {
@@ -539,10 +530,7 @@ const POS = {
             }
             if (window.Toast) Toast.success(`تم تعليق الفاتورة ${invoiceNumber}`);
             this.resetCart();
-        } catch (error) {
-            console.error(error);
-            if (window.Toast) Toast.error('فشل تعليق الفاتورة');
-        }
+        } catch (error) { console.error(error); if (window.Toast) Toast.error('فشل تعليق الفاتورة'); }
     },
 
     async loadHeldInvoices() {
@@ -568,18 +556,12 @@ const POS = {
         try {
             if (this.state.isDBReady) {
                 inv = await DB.getInvoiceById(id);
-                if (inv) {
-                    // حذف الفاتورة المعلقة بعد تحميلها
-                    try { await supabase.from('invoices').delete().eq('id', id); } catch {}
-                }
+                if (inv) { try { await supabase.from('invoices').delete().eq('id', id); } catch {} }
             } else if (Utils.hasLocalDB()) {
                 inv = await localDB.getById('invoices', id);
                 if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
             }
-            if (!inv) {
-                if (window.Toast) Toast.error('الفاتورة غير موجودة');
-                return;
-            }
+            if (!inv) { if (window.Toast) Toast.error('الفاتورة غير موجودة'); return; }
             this.state.cart = inv.items.map(item => ({...item}));
             this.state.selectedCustomerId = inv.customer_id;
             if (inv.customer_id) {
@@ -595,10 +577,7 @@ const POS = {
             this.renderCart();
             this.closeModal('heldInvoicesModal');
             if (window.Toast) Toast.success('تم تحميل الفاتورة المعلقة');
-        } catch (err) {
-            console.error(err);
-            if (window.Toast) Toast.error('فشل استرجاع الفاتورة');
-        }
+        } catch (err) { console.error(err); if (window.Toast) Toast.error('فشل استرجاع الفاتورة'); }
     },
 
     showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
@@ -616,10 +595,7 @@ const POS = {
         const content = this.el.receiptPrintArea.innerHTML;
         const settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); const companyName = settings?.company?.name || 'حسابي';
         const printWindow = window.open('', '_blank', 'width=400,height=600');
-        if (!printWindow) {
-            if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة');
-            return;
-        }
+        if (!printWindow) { if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
         printWindow.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma;direction:rtl;text-align:right;padding:20px;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
         printWindow.document.close(); printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
@@ -643,11 +619,7 @@ const POS = {
         if (!saved) return;
         try {
             const held = JSON.parse(saved);
-            // لا تسترجع إذا مر أكثر من ساعتين
-            if (held.timestamp && (Date.now() - held.timestamp) > 2 * 60 * 60 * 1000) {
-                localStorage.removeItem('pos_held_cart');
-                return;
-            }
+            if (held.timestamp && (Date.now() - held.timestamp) > 2 * 60 * 60 * 1000) { localStorage.removeItem('pos_held_cart'); return; }
             this.state.cart = held.cart || [];
             this.state.selectedCustomerId = held.customerId;
             this.state.discountType = held.discountType || 'amount';
