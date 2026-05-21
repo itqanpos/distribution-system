@@ -4,33 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الفواتير · حسابي</title>
-    
-    <link rel="icon" href="./icons/icon-192x192.png">
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/pos.css">
     <link rel="stylesheet" href="./css/invoices.css">
-    
+
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <!-- المكونات الجديدة -->
-    <script src="./js/toast.js"></script>
-    <script src="./js/modal.js"></script>
+
+    <style>
+        #loading-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; width: 0%; z-index: 9999;
+            transition: width 0.3s ease;
+        }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    </style>
 </head>
 <body>
+    <div id="loading-bar"></div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- الشريط العلوي -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -45,19 +49,19 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="./pos.html"><i class="fas fa-plus"></i> فاتورة جديدة</a>
-                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث</a>
-                    <a href="#" id="printReportBtn"><i class="fas fa-print"></i> طباعة التقرير الحالي</a>
+                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
                     <div class="dropdown-divider"></div>
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -80,79 +84,153 @@
         </ul>
     </aside>
 
-    <main class="main-content">
+    <!-- محتوى صفحة الفواتير -->
+    <main class="invoices-content">
         <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-file-invoice"></i> الفواتير</h1></div>
-            <div><a href="./pos.html" class="btn btn-primary"><i class="fas fa-plus"></i> فاتورة بيع جديدة</a></div>
+            <h2>الفواتير</h2>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="newInvoiceBtn">
+                    <i class="fas fa-plus"></i> فاتورة جديدة
+                </button>
+            </div>
         </div>
 
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card"><div class="stat-icon" style="color:#16a34a;"><i class="fas fa-shopping-cart"></i></div><div class="stat-content"><div class="stat-title">إجمالي المبيعات</div><div class="stat-value" id="totalSales">0.00 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon" style="color:#dc2626;"><i class="fas fa-undo-alt"></i></div><div class="stat-content"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value" id="totalReturns">0.00 ج.م</div></div></div>
-            <div class="stat-card"><div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div><div class="stat-content"><div class="stat-title">عدد الفواتير</div><div class="stat-value" id="invoiceCount">0</div></div></div>
-            <div class="stat-card"><div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div><div class="stat-content"><div class="stat-title">غير مدفوعة</div><div class="stat-value" id="totalUnpaid">0.00 ج.م</div></div></div>
-        </div>
-
+        <!-- فلترة -->
         <div class="filter-bar">
-            <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل..."></div>
-            <div class="filter-group"><label>النوع:</label><select id="typeFilter"><option value="all">الكل</option><option value="sale">بيع</option><option value="return">مرتجع</option></select></div>
-            <div class="filter-group"><label>الحالة:</label><select id="statusFilter"><option value="all">الكل</option><option value="paid">مدفوعة</option><option value="partial">جزئية</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select></div>
-            <button class="btn btn-outline" id="refreshBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
+            <div class="filter-group">
+                <select id="filterType">
+                    <option value="all">كل الأنواع</option>
+                    <option value="sale">مبيعات</option>
+                    <option value="purchase">مشتريات</option>
+                    <option value="return">مرتجع</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <select id="filterStatus">
+                    <option value="all">كل الحالات</option>
+                    <option value="paid">مدفوعة</option>
+                    <option value="partial">جزئية</option>
+                    <option value="unpaid">غير مدفوعة</option>
+                    <option value="held">معلقة</option>
+                    <option value="voided">ملغاة</option>
+                </select>
+            </div>
+            <div class="filter-group search-group">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل...">
+            </div>
+            <button class="btn btn-outline" id="resetFiltersBtn">
+                <i class="fas fa-redo"></i> إعادة
+            </button>
         </div>
 
-        <div class="table-container">
-            <table>
-                <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>النوع</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-                <tbody id="invoicesBody"></tbody>
-            </table>
+        <!-- جدول الفواتير -->
+        <div class="table-card">
+            <div class="table-responsive">
+                <table id="invoicesTable">
+                    <thead>
+                        <tr>
+                            <th>رقم الفاتورة</th>
+                            <th>التاريخ</th>
+                            <th>النوع</th>
+                            <th>العميل / المورد</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>الحالة</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesTableBody">
+                        <tr>
+                            <td colspan="9" style="text-align:center;padding:40px;color:var(--gray-400);">
+                                <i class="fas fa-spinner fa-spin"></i> جاري تحميل الفواتير...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination"></div>
         </div>
     </main>
 
-    <div class="modal" id="receiptModal">
-        <div class="modal-content receipt-modal-content">
-            <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
-            <div id="receiptPrintArea"></div>
-            <div class="receipt-actions">
-                <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-cancel" id="cancelReceiptModalBtn">إغلاق</button>
+    <!-- مودال تفاصيل الفاتورة -->
+    <div class="modal" id="invoiceDetailsModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>تفاصيل الفاتورة</h2>
+                <button id="closeDetailsModalBtn">&times;</button>
+            </div>
+            <div id="invoiceDetailsContent"></div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="voidInvoiceBtn" style="display:none;">
+                    <i class="fas fa-ban"></i> إلغاء الفاتورة
+                </button>
+                <button class="btn btn-primary" id="printInvoiceBtn">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
             </div>
         </div>
     </div>
 
-    <div class="modal" id="editInvoiceModal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header"><h2>تعديل الفاتورة</h2><button id="closeEditModalBtn">&times;</button></div>
-            <form id="editInvoiceForm">
-                <input type="hidden" id="editInvoiceId">
-                <div class="form-section"><div class="section-title"><i class="fas fa-info-circle"></i> بيانات الفاتورة</div>
-                    <div class="form-row">
-                        <div class="form-group flex-1"><label>التاريخ</label><input type="date" id="editInvoiceDate" required></div>
-                        <div class="form-group flex-1"><label>الحالة</label><select id="editInvoiceStatus"><option value="paid">مدفوعة</option><option value="partial">مدفوعة جزئيا</option><option value="unpaid">غير مدفوعة</option><option value="held">معلقة</option></select></div>
-                    </div>
-                    <div class="form-group"><label>ملاحظات</label><textarea id="editInvoiceNotes" rows="2"></textarea></div>
-                </div>
-                <div class="form-section"><div class="section-title"><i class="fas fa-boxes"></i> الأصناف</div>
-                    <div id="editItemsContainer"></div>
-                    <button type="button" class="btn btn-outline btn-full" id="addEditItemBtn"><i class="fas fa-plus-circle"></i> إضافة صنف</button>
-                    <div class="total-display"><span>الإجمالي</span><span id="editTotalAmount">0.00 ج.م</span></div>
-                </div>
-                <div class="form-section"><div class="section-title"><i class="fas fa-money-bill-wave"></i> تفاصيل الدفع</div>
-                    <div class="form-row">
-                        <div class="form-group flex-1"><label>المبلغ المدفوع</label><input type="number" id="editPaidAmount" min="0" step="0.01" value="0" oninput="Invoices.updateEditRemaining()"></div>
-                        <div class="form-group flex-1"><label>طريقة الدفع</label><select id="editPaymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="credit">آجل</option></select></div>
-                    </div>
-                    <div class="remaining-display"><span>المتبقي</span><span id="editRemainingAmount">0.00 ج.م</span></div>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التعديلات</button>
-                    <button type="button" class="btn btn-cancel" id="cancelEditModalBtn">إلغاء</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <!-- التوست -->
+    <div id="toast" class="toast"></div>
 
-    <div class="toast" id="toast"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="./js/toast.js"></script>
 
-    <script src="./js/invoices.js"></script>
+    <script>
+        (function() {
+            const loadingBar = document.getElementById('loading-bar');
+            function showLoading() { loadingBar.style.width = '80%'; }
+            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
+
+            async function initApp() {
+                if (!window.App) {
+                    if (window.Toast) Toast.error('خطأ في تحميل التطبيق');
+                    else alert('خطأ في تحميل التطبيق');
+                    return;
+                }
+
+                showLoading();
+
+                try {
+                    const authorized = await App.requireAuth();
+                    if (!authorized) { hideLoading(); return; }
+
+                    const roleOk = await App.requireRole(['admin', 'rep']);
+                    if (!roleOk) { hideLoading(); return; }
+
+                    App.initUserInterface();
+
+                    const script = document.createElement('script');
+                    script.src = './js/invoices.js';
+                    script.onload = function() {
+                        if (window.InvoicesPage) {
+                            window.InvoicesPage.init();
+                        } else {
+                            if (window.Toast) Toast.error('فشل تهيئة صفحة الفواتير');
+                            console.error('InvoicesPage غير معرف');
+                        }
+                        hideLoading();
+                    };
+                    script.onerror = function() {
+                        if (window.Toast) Toast.error('فشل تحميل ملفات الصفحة');
+                        hideLoading();
+                    };
+                    document.body.appendChild(script);
+                } catch (e) {
+                    console.error('خطأ في التهيئة:', e);
+                    if (window.Toast) Toast.error('حدث خطأ غير متوقع');
+                    hideLoading();
+                }
+            }
+
+            initApp();
+        })();
+    </script>
 </body>
 </html>
