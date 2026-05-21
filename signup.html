@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>إنشاء حساب · حسابي</title>
+    <title>إنشاء متجر · حسابي</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,52 +14,36 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
-            background: linear-gradient(135deg, #dbeafe 0%, #f0f4f8 50%, #e0e7ff 100%);
+            background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 50%, #e0f2fe 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
             position: relative;
-            overflow-x: hidden;
+            overflow: hidden;
         }
-        body::before {
-            content: '';
+        .circle-1, .circle-2 {
             position: absolute;
-            top: -50px;
-            left: -50px;
-            width: 200px;
-            height: 200px;
-            background: rgba(16, 185, 129, 0.08);
             border-radius: 50%;
+            background: rgba(16, 185, 129, 0.06);
+            z-index: 0;
         }
-        body::after {
-            content: '';
-            position: absolute;
-            bottom: -80px;
-            right: -60px;
-            width: 300px;
-            height: 300px;
-            background: rgba(59, 130, 246, 0.06);
-            border-radius: 50%;
-        }
+        .circle-1 { width: 400px; height: 400px; top: -150px; right: -150px; }
+        .circle-2 { width: 300px; height: 300px; bottom: -100px; left: -100px; background: rgba(59, 130, 246, 0.04); }
 
         .signup-card {
             background: white;
             border-radius: 24px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.02);
             padding: 36px 28px;
             width: 100%;
-            max-width: 460px;
+            max-width: 480px;
             position: relative;
             z-index: 2;
-            animation: fadeInUp 0.6s ease;
+            animation: fadeIn 0.5s ease;
         }
-
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .logo-area {
             text-align: center;
@@ -70,17 +54,23 @@
             height: 64px;
             object-fit: contain;
             border-radius: 16px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+            margin-bottom: 12px;
         }
         .logo-area h1 {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 800;
-            color: #1e293b;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .logo-area p {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .input-group {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
             position: relative;
         }
         .input-group i {
@@ -105,13 +95,11 @@
         .input-group input:focus,
         .input-group select:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: #10b981;
             background: white;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
-        .input-group input::placeholder {
-            color: #94a3b8;
-        }
+        .input-group input::placeholder { color: #94a3b8; }
         .input-group select {
             appearance: none;
             -webkit-appearance: none;
@@ -141,26 +129,21 @@
             box-shadow: 0 10px 25px rgba(5, 150, 105, 0.3);
             transform: translateY(-1px);
         }
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
         .error-message {
             color: #ef4444;
-            font-size: 13px;
+            font-size: 14px;
             margin-top: 8px;
             display: none;
             text-align: center;
             background: #fef2f2;
-            padding: 8px;
+            padding: 10px;
             border-radius: 10px;
         }
 
         .login-link {
-            margin-top: 20px;
+            margin-top: 24px;
             text-align: center;
             font-size: 15px;
             color: #64748b;
@@ -170,21 +153,34 @@
             font-weight: 700;
             text-decoration: none;
         }
-        .login-link a:hover {
-            text-decoration: underline;
+        .login-link a:hover { text-decoration: underline; }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 16px;
+            color: #94a3b8;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
+    <div class="circle-1"></div>
+    <div class="circle-2"></div>
+
     <div class="signup-card">
         <div class="logo-area">
             <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
-            <h1>إنشاء حساب</h1>
+            <h1>أنشئ متجرك الخاص</h1>
+            <p>نسخة تجريبية مجانية – بدون بطاقة ائتمان</p>
         </div>
         
         <div class="input-group">
             <i class="fas fa-user"></i>
-            <input type="text" id="fullName" placeholder="الاسم الكامل" autocomplete="name" />
+            <input type="text" id="fullName" placeholder="اسمك الكامل" autocomplete="name" />
+        </div>
+        <div class="input-group">
+            <i class="fas fa-store"></i>
+            <input type="text" id="tenantName" placeholder="اسم المتجر (مطلوب)" />
         </div>
         <div class="input-group">
             <i class="fas fa-envelope"></i>
@@ -199,20 +195,19 @@
             <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)" autocomplete="tel" />
         </div>
         <div class="input-group">
-            <i class="fas fa-store"></i>
-            <input type="text" id="tenantName" placeholder="اسم المتجر (اختياري)" />
-        </div>
-        <div class="input-group">
             <i class="fas fa-user-tag"></i>
             <select id="role">
-                <option value="admin">مدير</option>
+                <option value="admin">مدير المتجر</option>
                 <option value="rep">مندوب مبيعات</option>
             </select>
         </div>
         <div class="error-message" id="errorMsg"></div>
-        <button class="btn" id="signupBtn">إنشاء حساب</button>
+        <button class="btn" id="signupBtn">إنشاء المتجر مجاناً</button>
         <div class="login-link">
-            لديك حساب بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
+            لديك متجر بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
+        </div>
+        <div class="footer-text">
+            نظام نقاط بيع سحابي – متعدد المستأجرين
         </div>
     </div>
 
@@ -222,16 +217,16 @@
     <script>
         (function() {
             const fullNameInput = document.getElementById('fullName');
+            const tenantNameInput = document.getElementById('tenantName');
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const phoneInput = document.getElementById('phone');
-            const tenantNameInput = document.getElementById('tenantName');
             const roleSelect = document.getElementById('role');
             const signupBtn = document.getElementById('signupBtn');
             const errorMsg = document.getElementById('errorMsg');
 
             if (!window.App) {
-                errorMsg.textContent = 'خطأ في تحميل التطبيق. تأكد من اتصالك بالإنترنت.';
+                errorMsg.textContent = 'تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.';
                 errorMsg.style.display = 'block';
                 signupBtn.disabled = true;
                 return;
@@ -239,35 +234,37 @@
 
             async function performSignup() {
                 const fullName = fullNameInput.value.trim();
+                const tenantName = tenantNameInput.value.trim();
                 const email = emailInput.value.trim();
                 const password = passInput.value;
                 const phone = phoneInput.value.trim();
-                const tenantName = tenantNameInput.value.trim();
                 const role = roleSelect.value;
 
-                if (!fullName) { showError('يرجى إدخال الاسم الكامل'); return; }
+                if (!fullName) { showError('يرجى إدخال اسمك الكامل'); return; }
+                if (!tenantName) { showError('يرجى اختيار اسم لمتجرك'); return; }
                 if (!email) { showError('يرجى إدخال البريد الإلكتروني'); return; }
                 if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
 
                 signupBtn.disabled = true;
-                signupBtn.textContent = 'جاري إنشاء الحساب...';
+                signupBtn.textContent = 'جاري إنشاء المتجر...';
                 errorMsg.style.display = 'none';
 
                 try {
                     const result = await App.signup(email, password, fullName, role, tenantName, phone);
                     if (result.success) {
-                        // نجاح – ننتظر لحظة ثم ننتقل للوحة التحكم أو نقطة البيع
-                        alert('تم إنشاء الحساب بنجاح. سيتم توجيهك الآن.');
-                        window.location.href = role === 'rep' ? './pos.html' : './dashboard.html';
+                        // توجيه المستخدم إلى الصفحة المناسبة بعد لحظة
+                        setTimeout(() => {
+                            window.location.href = role === 'rep' ? './pos.html' : './dashboard.html';
+                        }, 500);
                     } else {
-                        showError(result.message || 'فشل إنشاء الحساب');
+                        showError(result.message || 'فشل إنشاء المتجر');
                     }
                 } catch (e) {
                     showError('حدث خطأ غير متوقع');
                     console.error(e);
                 } finally {
                     signupBtn.disabled = false;
-                    signupBtn.textContent = 'إنشاء حساب';
+                    signupBtn.textContent = 'إنشاء المتجر مجاناً';
                 }
             }
 
@@ -278,7 +275,6 @@
             }
 
             signupBtn.addEventListener('click', performSignup);
-            // السماح بالضغط على Enter في آخر حقل
             roleSelect.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSignup(); });
 
             fullNameInput.focus();
