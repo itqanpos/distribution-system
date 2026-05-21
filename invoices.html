@@ -53,6 +53,8 @@
                     <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <div class="more-dropdown" id="moreDropdown">
+                    <a href="#" id="printSalesReportBtn"><i class="fas fa-print"></i> طباعة تقرير المبيعات</a>
+                    <div class="dropdown-divider"></div>
                     <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
                     <div class="dropdown-divider"></div>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
@@ -81,8 +83,6 @@
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
-            <div class="menu-section">أدوات</div>
-            <li><a class="menu-item" href="#" id="printSalesReportBtn"><i class="fas fa-print"></i><span>طباعة تقرير المبيعات</span></a></li>
         </ul>
     </aside>
 
@@ -97,7 +97,7 @@
             </div>
         </div>
 
-        <!-- بطاقات إحصائية (كروت) -->
+        <!-- بطاقات إحصائية -->
         <div class="stats-grid" id="invoiceStatsGrid">
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
@@ -198,7 +198,6 @@
         </div>
     </div>
 
-    <!-- التوست -->
     <div id="toast" class="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -238,7 +237,6 @@
                             window.InvoicesPage.init();
                         } else {
                             if (window.Toast) Toast.error('فشل تهيئة صفحة الفواتير');
-                            console.error('InvoicesPage غير معرف');
                         }
                         hideLoading();
                     };
