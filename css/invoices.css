@@ -1,7 +1,3 @@
-/* =============================================
-   invoices.css - صفحة الفواتير
-   ============================================= */
-
 .invoices-content {
     padding: 20px 16px;
     padding-bottom: calc(20px + var(--safe-bottom));
@@ -26,7 +22,6 @@
     color: var(--gray-900);
 }
 
-/* بطاقات إحصائية */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -198,7 +193,6 @@ tr.row-return td:first-child { border-right: 3px solid #8b5cf6; }
 .action-btn.edit-btn:hover { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
 .action-btn.danger:hover { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
 
-/* مودال كبير */
 .modal-lg {
     max-width: 700px !important;
 }
