@@ -92,11 +92,15 @@
             </div>
         </div>
 
+        <!-- قسم المبيعات اليومية (كروت بدلاً من رسم بياني) -->
+        <div class="section-header">
+            <h3>المبيعات اليومية (آخر 7 أيام)</h3>
+        </div>
+        <div class="daily-sales-grid" id="dailySalesCards">
+            <div class="daily-card skeleton">---</div>
+        </div>
+
         <div class="dashboard-charts">
-            <div class="chart-card">
-                <h3>المبيعات اليومية (آخر 7 أيام)</h3>
-                <canvas id="salesChart" height="250"></canvas>
-            </div>
             <div class="chart-card">
                 <h3>أفضل المنتجات مبيعاً</h3>
                 <div id="topProductsList" class="simple-list"></div>
@@ -119,7 +123,7 @@
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/toast.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <!-- لا حاجة لتحميل Chart.js بعد الآن -->
 
     <script>
         (function() {
@@ -143,7 +147,6 @@
                         return;
                     }
 
-                    // السماح للمدير والمندوب
                     const roleOk = await App.requireRole(['admin', 'rep']);
                     if (!roleOk) {
                         hideLoading();
@@ -152,7 +155,6 @@
 
                     App.initUserInterface();
 
-                    // تحميل سكربت الداشبورد
                     const script = document.createElement('script');
                     script.src = './js/dashboard.js';
                     script.onload = function() {
