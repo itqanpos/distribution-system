@@ -86,7 +86,6 @@
     <!-- محتوى لوحة التحكم -->
     <main class="dashboard-content">
         <div class="stats-grid" id="statsGrid">
-            <!-- بطاقة مؤقتة لحين تحميل البيانات -->
             <div class="stat-card skeleton">
                 <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
                 <div class="stat-info"><div class="stat-label">جاري التحميل...</div><div class="stat-value">---</div></div>
@@ -130,8 +129,8 @@
 
             async function initApp() {
                 if (!window.App) {
-                    console.error('App غير معرف');
-                    alert('خطأ في تحميل التطبيق');
+                    if (window.Toast) Toast.error('خطأ في تحميل التطبيق');
+                    else alert('خطأ في تحميل التطبيق');
                     return;
                 }
 
@@ -139,9 +138,17 @@
 
                 try {
                     const authorized = await App.requireAuth();
-                    if (!authorized) return;
+                    if (!authorized) {
+                        hideLoading();
+                        return;
+                    }
 
-                    if (!App.requireRole(['admin'])) return;
+                    // السماح للمدير والمندوب
+                    const roleOk = await App.requireRole(['admin', 'rep']);
+                    if (!roleOk) {
+                        hideLoading();
+                        return;
+                    }
 
                     App.initUserInterface();
 
@@ -152,17 +159,19 @@
                         if (window.Dashboard) {
                             window.Dashboard.init();
                         } else {
+                            if (window.Toast) Toast.error('فشل تهيئة لوحة التحكم');
                             console.error('Dashboard غير معرف');
                         }
                         hideLoading();
                     };
                     script.onerror = function() {
-                        alert('فشل تحميل لوحة التحكم');
+                        if (window.Toast) Toast.error('فشل تحميل ملفات لوحة التحكم');
                         hideLoading();
                     };
                     document.body.appendChild(script);
                 } catch (e) {
                     console.error('خطأ في التهيئة:', e);
+                    if (window.Toast) Toast.error('حدث خطأ غير متوقع');
                     hideLoading();
                 }
             }
