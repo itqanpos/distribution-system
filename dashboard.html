@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>لوحة التحكم · حسابي</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/pos.css">
+    <link rel="stylesheet" href="./css/dashboard.css">
+
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+
+    <style>
+        #loading-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; width: 0%; z-index: 9999;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-bar"></div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- الشريط العلوي -->
+    <nav class="navbar" id="mainNavbar">
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+                </div>
+                <div class="logo-text"><h2>حسابي</h2></div>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- القائمة الجانبية -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
+        </div>
+        <ul class="menu">
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item active" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <!-- محتوى لوحة التحكم -->
+    <main class="dashboard-content">
+        <div class="stats-grid" id="statsGrid">
+            <!-- بطاقة مؤقتة لحين تحميل البيانات -->
+            <div class="stat-card skeleton">
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-info"><div class="stat-label">جاري التحميل...</div><div class="stat-value">---</div></div>
+            </div>
+        </div>
+
+        <div class="dashboard-charts">
+            <div class="chart-card">
+                <h3>المبيعات اليومية (آخر 7 أيام)</h3>
+                <canvas id="salesChart" height="250"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>أفضل المنتجات مبيعاً</h3>
+                <div id="topProductsList" class="simple-list"></div>
+            </div>
+        </div>
+
+        <div class="recent-invoices">
+            <h3>آخر الفواتير</h3>
+            <div id="recentInvoicesTable" class="table-responsive">
+                <p style="text-align:center;padding:20px;color:var(--gray-400);">جاري تحميل البيانات...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- التوست -->
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+    <script>
+        (function() {
+            const loadingBar = document.getElementById('loading-bar');
+            function showLoading() { loadingBar.style.width = '80%'; }
+            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
+
+            async function initApp() {
+                if (!window.App) {
+                    console.error('App غير معرف');
+                    alert('خطأ في تحميل التطبيق');
+                    return;
+                }
+
+                showLoading();
+
+                try {
+                    const authorized = await App.requireAuth();
+                    if (!authorized) return;
+
+                    if (!App.requireRole(['admin'])) return;
+
+                    App.initUserInterface();
+
+                    // تحميل سكربت الداشبورد
+                    const script = document.createElement('script');
+                    script.src = './js/dashboard.js';
+                    script.onload = function() {
+                        if (window.Dashboard) {
+                            window.Dashboard.init();
+                        } else {
+                            console.error('Dashboard غير معرف');
+                        }
+                        hideLoading();
+                    };
+                    script.onerror = function() {
+                        alert('فشل تحميل لوحة التحكم');
+                        hideLoading();
+                    };
+                    document.body.appendChild(script);
+                } catch (e) {
+                    console.error('خطأ في التهيئة:', e);
+                    hideLoading();
+                }
+            }
+
+            initApp();
+        })();
+    </script>
+</body>
+</html>
