@@ -1,6 +1,6 @@
 /* =============================================
    supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
-   الإصدار 2.6 - توافق مع المخطط الجديد، إصلاحات الإعدادات والمتسلسلات
+   الإصدار 2.6 - متوافق مع المخطط الجديد، إصلاحات شاملة
    ============================================= */
 (function() {
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
@@ -177,32 +177,38 @@
     // ==================== المصادقة والصلاحيات ====================
     window.App = {
         async getCurrentUser() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    setCurrentUser(null);
+                    return null;
+                }
+                const user = session.user;
+                
+                const { data: profile } = await supabaseClient
+                    .from('profiles')
+                    .select('*, tenants(plan)')
+                    .eq('id', user.id)
+                    .single();
+                if (!profile) {
+                    setCurrentUser(null);
+                    return null;
+                }
+                const fullUser = {
+                    id: user.id,
+                    email: user.email,
+                    fullName: profile.full_name,
+                    role: profile.role,
+                    tenant_id: profile.tenant_id,
+                    plan: profile.tenants?.plan
+                };
+                setCurrentUser(fullUser);
+                return fullUser;
+            } catch (error) {
+                console.error('❌ فشل جلب المستخدم:', error);
                 setCurrentUser(null);
                 return null;
             }
-            const user = session.user;
-            
-            const { data: profile } = await supabaseClient
-                .from('profiles')
-                .select('*, tenants(plan)')
-                .eq('id', user.id)
-                .single();
-            if (!profile) {
-                setCurrentUser(null);
-                return null;
-            }
-            const fullUser = {
-                id: user.id,
-                email: user.email,
-                fullName: profile.full_name,
-                role: profile.role,
-                tenant_id: profile.tenant_id,
-                plan: profile.tenants?.plan
-            };
-            setCurrentUser(fullUser);
-            return fullUser;
         },
 
         async getTenantId() {
@@ -318,17 +324,25 @@
                 return true;
             }
 
-            const user = await this.getCurrentUser();
-            if (!user) {
+            try {
+                const user = await this.getCurrentUser();
+                if (!user) {
+                    if (window.location.pathname.indexOf('index.html') === -1) {
+                        window.location.href = './index.html';
+                    }
+                    return false;
+                }
+                if (user.role !== 'super_admin' && user.tenant_id) {
+                    await this.checkTenantStatus(user.tenant_id);
+                }
+                return true;
+            } catch (error) {
+                console.error('فشل التحقق من الجلسة:', error);
                 if (window.location.pathname.indexOf('index.html') === -1) {
                     window.location.href = './index.html';
                 }
                 return false;
             }
-            if (user.role !== 'super_admin' && user.tenant_id) {
-                await this.checkTenantStatus(user.tenant_id);
-            }
-            return true;
         },
 
         async checkTenantStatus(tenantId) {
@@ -492,7 +506,7 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('invoices')
-                    .select('id, date, type, customer_id, total, paid, remaining, status')
+                    .select('id, invoice_number, date, type, customer_id, customer_name, total, paid, remaining, status')
                     .order('date', { ascending: false });
                 if (error) throw error;
                 return data;
@@ -500,8 +514,8 @@
                 const local = getLocalDB();
                 if (local) {
                     const all = await local.getAll('invoices');
-                    return all.map(({ id, date, type, customer_id, total, paid, remaining, status }) =>
-                        ({ id, date, type, customer_id, total, paid, remaining, status })
+                    return all.map(({ id, invoice_number, date, type, customer_id, customer_name, total, paid, remaining, status }) =>
+                        ({ id, invoice_number, date, type, customer_id, customer_name, total, paid, remaining, status })
                     );
                 }
                 return [];
@@ -627,7 +641,7 @@
             });
         },
 
-        // دوال الإعدادات متوافقة مع المخطط الجديد (settings.tenant_id كمفتاح)
+        // متوافقة مع المخطط الجديد (settings.tenant_id كمفتاح أساسي)
         async getSettings() {
             const tenantId = await App.getTenantId();
             if (!tenantId) return {};
@@ -709,14 +723,12 @@
             const year = new Date().getFullYear().toString().slice(-2);
             const seqName = `inv_${year}`;
 
-            // استدعاء RPC أو التعامل المباشر
             const { data, error } = await supabaseClient.rpc('next_sequence', {
                 p_tenant_id: tenantId,
                 p_name: seqName
             });
 
             if (error) {
-                // Fallback: التعامل المباشر مع جدول sequences
                 const { data: seqData, error: seqError } = await supabaseClient
                     .from('sequences')
                     .select('value')
@@ -725,7 +737,6 @@
                     .single();
 
                 if (seqError && seqError.code === 'PGRST116') {
-                    // إنشاء صف جديد
                     const { data: newSeq, error: insertError } = await supabaseClient
                         .from('sequences')
                         .insert({ tenant_id: tenantId, name: seqName, value: 1 })
@@ -746,7 +757,7 @@
                 return `${year}-${String(newValue).padStart(4, '0')}`;
             }
 
-            return data; // RPC يجب أن يرجع الرقم كاملاً
+            return data;
         }
     };
 
