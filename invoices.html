@@ -81,6 +81,8 @@
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+            <div class="menu-section">أدوات</div>
+            <li><a class="menu-item" href="#" id="printSalesReportBtn"><i class="fas fa-print"></i><span>طباعة تقرير المبيعات</span></a></li>
         </ul>
     </aside>
 
@@ -92,6 +94,26 @@
                 <button class="btn btn-primary" id="newInvoiceBtn">
                     <i class="fas fa-plus"></i> فاتورة جديدة
                 </button>
+            </div>
+        </div>
+
+        <!-- بطاقات إحصائية (كروت) -->
+        <div class="stats-grid" id="invoiceStatsGrid">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+                <div class="stat-info"><div class="stat-label">إجمالي الفواتير</div><div class="stat-value" id="statTotalInvoices">---</div></div>
+            </div>
+            <div class="stat-card sales">
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-info"><div class="stat-label">إجمالي المبيعات</div><div class="stat-value" id="statTotalSales">---</div></div>
+            </div>
+            <div class="stat-card orders">
+                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-info"><div class="stat-label">المدفوعة</div><div class="stat-value" id="statPaid">---</div></div>
+            </div>
+            <div class="stat-card customers">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-info"><div class="stat-label">غير المدفوعة</div><div class="stat-value" id="statUnpaid">---</div></div>
             </div>
         </div>
 
@@ -165,6 +187,9 @@
             <div class="modal-actions">
                 <button class="btn btn-danger" id="voidInvoiceBtn" style="display:none;">
                     <i class="fas fa-ban"></i> إلغاء الفاتورة
+                </button>
+                <button class="btn btn-primary" id="editInvoiceBtn" style="display:none;">
+                    <i class="fas fa-edit"></i> تعديل الفاتورة
                 </button>
                 <button class="btn btn-primary" id="printInvoiceBtn">
                     <i class="fas fa-print"></i> طباعة
