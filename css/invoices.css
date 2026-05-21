@@ -26,6 +26,39 @@
     color: var(--gray-900);
 }
 
+/* بطاقات إحصائية */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.stat-card {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 14px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-100);
+}
+.stat-card.sales .stat-icon { background: #dcfce7; color: #16a34a; }
+.stat-card.orders .stat-icon { background: #e0f2fe; color: #0284c7; }
+.stat-card.customers .stat-icon { background: #fef9c3; color: #ca8a04; }
+.stat-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    background: var(--primary-light);
+    color: var(--primary);
+    flex-shrink: 0;
+}
+.stat-info { flex: 1; min-width: 0; }
+.stat-label { font-size: 0.7rem; color: var(--gray-500); margin-bottom: 2px; white-space: nowrap; }
+.stat-value { font-size: 1.2rem; font-weight: 700; color: var(--gray-900); white-space: nowrap; }
+
 .filter-bar {
     display: flex;
     gap: 10px;
@@ -146,10 +179,10 @@ tr.row-return td:first-child { border-right: 3px solid #8b5cf6; }
 
 .action-btns {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 .action-btn {
-    width: 32px; height: 32px;
+    width: 30px; height: 30px;
     border-radius: 8px;
     border: 1px solid var(--gray-200);
     background: white;
@@ -157,11 +190,12 @@ tr.row-return td:first-child { border-right: 3px solid #8b5cf6; }
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     transition: all var(--transition);
     color: var(--gray-600);
 }
 .action-btn:hover { background: var(--gray-50); border-color: var(--primary); color: var(--primary); }
+.action-btn.edit-btn:hover { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
 .action-btn.danger:hover { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
 
 /* مودال كبير */
@@ -250,4 +284,5 @@ tr.row-return td:first-child { border-right: 3px solid #8b5cf6; }
     .filter-bar { flex-direction: column; }
     .filter-group { min-width: 100%; }
     .page-header { flex-direction: column; align-items: flex-start; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
