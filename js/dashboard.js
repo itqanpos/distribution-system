@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم
+   dashboard.js - لوحة التحكم (بدون رسم بياني)
    ============================================= */
 'use strict';
 
@@ -11,7 +11,6 @@ const Dashboard = {
             totalCustomers: 0,
             totalProducts: 0
         },
-        salesChart: null,
         recentInvoices: []
     },
 
@@ -61,9 +60,12 @@ const Dashboard = {
 
     async loadData() {
         try {
-            await this.loadStats();
-            await this.loadSalesChart();
-            await this.loadRecentInvoices();
+            await Promise.all([
+                this.loadStats(),
+                this.loadDailySalesCards(),
+                this.loadTopProducts(),
+                this.loadRecentInvoices()
+            ]);
         } catch (e) {
             console.error('فشل تحميل بيانات الداشبورد:', e);
             if (window.Toast) Toast.error('فشل تحميل بعض البيانات');
@@ -135,110 +137,84 @@ const Dashboard = {
         `).join('');
     },
 
-    async loadSalesChart() {
-        const canvas = document.getElementById('salesChart');
-        if (!canvas) return;
+    async loadDailySalesCards() {
+        const container = document.getElementById('dailySalesCards');
+        if (!container) return;
 
         try {
             const invoices = await window.DB.getInvoicesLight().catch(() => []);
             const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
 
-            // تجميع المبيعات حسب اليوم لآخر 7 أيام
+            // آخر 7 أيام
             const days = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
-                days.push(d.toISOString().split('T')[0]);
+                days.push({
+                    dateStr: d.toISOString().split('T')[0],
+                    label: d.toLocaleDateString('ar-EG', { weekday: 'short' }),
+                    fullDate: d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'numeric' })
+                });
             }
 
-            const dailyTotals = days.map(day => {
-                return salesInvoices
-                    .filter(inv => inv.date === day)
-                    .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0);
-            });
+            const dailyTotals = days.map(day => ({
+                ...day,
+                total: salesInvoices
+                    .filter(inv => inv.date === day.dateStr)
+                    .reduce((sum, inv) => sum + (parseFloat(inv.total) || 0), 0)
+            }));
 
-            const labels = days.map(day => {
-                const d = new Date(day);
-                return d.toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric' });
-            });
+            const formatMoney = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
 
-            if (this.state.salesChart) {
-                this.state.salesChart.destroy();
-            }
+            container.innerHTML = dailyTotals.map(d => `
+                <div class="daily-card">
+                    <div class="daily-day">${d.label}</div>
+                    <div class="daily-date">${d.fullDate}</div>
+                    <div class="daily-amount ${d.total === 0 ? 'zero' : ''}">${formatMoney(d.total)}</div>
+                </div>
+            `).join('');
 
-            this.state.salesChart = new Chart(canvas, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'المبيعات (ج.م)',
-                        data: dailyTotals,
-                        backgroundColor: 'rgba(37, 99, 235, 0.7)',
-                        borderRadius: 8,
-                        borderColor: '#2563eb',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { callback: v => v.toLocaleString() }
-                        }
-                    }
-                }
-            });
-
-            // تحميل أفضل المنتجات
-            this.loadTopProducts(salesInvoices);
         } catch (e) {
-            console.error('فشل تحميل المخطط:', e);
+            console.error('فشل تحميل كروت المبيعات اليومية:', e);
+            container.innerHTML = '<div class="daily-card skeleton">بيانات غير متاحة</div>';
         }
     },
 
-    async loadTopProducts(fullInvoices) {
+    async loadTopProducts() {
         const listEl = document.getElementById('topProductsList');
         if (!listEl) return;
 
-        // إذا لم تُمرر fullInvoices، جلب كامل
-        if (!fullInvoices) {
-            try {
-                fullInvoices = await window.DB.getInvoices().catch(() => []);
-            } catch { fullInvoices = []; }
-        }
+        try {
+            const invoices = await window.DB.getInvoices().catch(() => []);
+            const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
 
-        const salesInvoices = fullInvoices.filter(i => i.type === 'sale' && i.status !== 'voided');
-
-        // تجميع كميات المنتجات من items (jsonb)
-        const productCounts = {};
-        for (const inv of salesInvoices) {
-            const items = Array.isArray(inv.items) ? inv.items : [];
-            for (const item of items) {
-                const name = item.productName || 'منتج';
-                productCounts[name] = (productCounts[name] || 0) + (parseFloat(item.quantity) || 0);
+            const productCounts = {};
+            for (const inv of salesInvoices) {
+                const items = Array.isArray(inv.items) ? inv.items : [];
+                for (const item of items) {
+                    const name = item.productName || 'منتج';
+                    productCounts[name] = (productCounts[name] || 0) + (parseFloat(item.quantity) || 0);
+                }
             }
+
+            const sorted = Object.entries(productCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            if (sorted.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">لا توجد بيانات</p>';
+                return;
+            }
+
+            listEl.innerHTML = sorted.map(([name, qty]) => `
+                <div class="product-simple-item">
+                    <span class="prod-name">${name}</span>
+                    <span class="prod-qty">${qty.toLocaleString()} قطعة</span>
+                </div>
+            `).join('');
+        } catch (e) {
+            console.error('فشل تحميل أفضل المنتجات:', e);
         }
-
-        const sorted = Object.entries(productCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
-
-        if (sorted.length === 0) {
-            listEl.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">لا توجد بيانات</p>';
-            return;
-        }
-
-        listEl.innerHTML = sorted.map(([name, qty]) => `
-            <div class="product-simple-item">
-                <span class="prod-name">${name}</span>
-                <span class="prod-qty">${qty.toLocaleString()} قطعة</span>
-            </div>
-        `).join('');
     },
 
     async loadRecentInvoices() {
