@@ -1,0 +1,191 @@
+/* =============================================
+   dashboard.css - لوحة التحكم
+   ============================================= */
+
+.dashboard-content {
+    padding: 20px 16px;
+    padding-bottom: calc(20px + var(--safe-bottom));
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow-y: auto;
+    height: calc(100vh - 56px - var(--safe-top));
+    -webkit-overflow-scrolling: touch;
+}
+
+/* شبكة البطاقات الإحصائية */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+    border: 1px solid var(--gray-100);
+    cursor: default;
+}
+.stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.stat-card.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.stat-icon {
+    width: 48px; height: 48px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    background: var(--primary-light);
+    color: var(--primary);
+    flex-shrink: 0;
+}
+.stat-card.sales .stat-icon { background: #dcfce7; color: #16a34a; }
+.stat-card.orders .stat-icon { background: #e0f2fe; color: #0284c7; }
+.stat-card.customers .stat-icon { background: #fef9c3; color: #ca8a04; }
+.stat-card.inventory .stat-icon { background: #fce7f3; color: #db2777; }
+
+.stat-info {
+    flex: 1;
+    min-width: 0;
+}
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    white-space: nowrap;
+}
+
+/* مخططات */
+.dashboard-charts {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.chart-card {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-100);
+}
+.chart-card h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 12px;
+}
+
+.simple-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.product-simple-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+.product-simple-item:last-child { border-bottom: none; }
+.product-simple-item .prod-name {
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--gray-800);
+}
+.product-simple-item .prod-qty {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+}
+
+/* جدول آخر الفواتير */
+.recent-invoices {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-100);
+}
+.recent-invoices h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 12px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+th, td {
+    padding: 10px 12px;
+    text-align: right;
+    border-bottom: 1px solid var(--gray-100);
+    white-space: nowrap;
+}
+th {
+    background: var(--gray-50);
+    font-weight: 600;
+    color: var(--gray-600);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+tr:hover td {
+    background: #f8fafc;
+}
+
+.badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+.badge.paid { background: #dcfce7; color: #16a34a; }
+.badge.partial { background: #fef9c3; color: #ca8a04; }
+.badge.unpaid { background: #fee2e2; color: #dc2626; }
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* تجاوب */
+@media (max-width: 768px) {
+    .dashboard-charts {
+        grid-template-columns: 1fr;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .stat-value {
+        font-size: 1.2rem;
+    }
+    .dashboard-content {
+        padding: 12px 10px;
+    }
+}
