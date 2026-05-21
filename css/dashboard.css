@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.css - لوحة التحكم
+   dashboard.css - لوحة التحكم (بدون رسم بياني)
    ============================================= */
 
 .dashboard-content {
@@ -73,10 +73,68 @@
     white-space: nowrap;
 }
 
-/* مخططات */
+/* عنوان القسم */
+.section-header {
+    margin-bottom: 12px;
+}
+.section-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+/* كروت المبيعات اليومية */
+.daily-sales-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.daily-card {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 14px 12px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-100);
+    transition: all var(--transition);
+}
+.daily-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.daily-card.skeleton {
+    background: #f0f0f0;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-400);
+}
+.daily-day {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+}
+.daily-date {
+    font-size: 0.7rem;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+}
+.daily-amount {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+.daily-amount.zero {
+    color: var(--gray-400);
+}
+
+/* المخططات (أفضل المنتجات) */
 .dashboard-charts {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr;
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -176,11 +234,11 @@ tr:hover td {
 
 /* تجاوب */
 @media (max-width: 768px) {
-    .dashboard-charts {
-        grid-template-columns: 1fr;
-    }
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+    .daily-sales-grid {
+        grid-template-columns: repeat(4, 1fr);
     }
     .stat-value {
         font-size: 1.2rem;
