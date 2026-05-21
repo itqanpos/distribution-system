@@ -1,6 +1,3 @@
-/* =============================================
-   invoices.js - صفحة الفواتير
-   ============================================= */
 'use strict';
 
 const InvoicesPage = {
@@ -49,7 +46,6 @@ const InvoicesPage = {
     },
 
     bindEvents() {
-        // القائمة الجانبية
         this.el.menuToggle?.addEventListener('click', () => {
             this.el.sidebar?.classList.toggle('open');
             this.el.sidebarOverlay?.classList.toggle('show');
@@ -79,26 +75,21 @@ const InvoicesPage = {
             else window.location.href = './index.html';
         });
 
-        // زر طباعة تقرير المبيعات
         this.el.printSalesReportBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             this.printSalesReport();
-            this.el.sidebar?.classList.remove('open');
-            this.el.sidebarOverlay?.classList.remove('show');
+            this.el.moreDropdown?.classList.remove('show');
         });
 
-        // الفلاتر
         this.el.filterType?.addEventListener('change', () => this.applyFilters());
         this.el.filterStatus?.addEventListener('change', () => this.applyFilters());
         this.el.searchInput?.addEventListener('input', () => this.applyFilters());
         this.el.resetBtn?.addEventListener('click', () => this.resetFilters());
 
-        // فاتورة جديدة
         this.el.newInvoiceBtn?.addEventListener('click', () => {
             window.location.href = './pos.html';
         });
 
-        // مودال التفاصيل
         this.el.closeDetailsBtn?.addEventListener('click', () => this.closeDetailsModal());
         this.el.printBtn?.addEventListener('click', () => this.printCurrentInvoice());
         this.el.voidBtn?.addEventListener('click', () => this.voidCurrentInvoice());
@@ -151,12 +142,8 @@ const InvoicesPage = {
 
         let filtered = [...this.state.invoices];
 
-        if (type !== 'all') {
-            filtered = filtered.filter(i => i.type === type);
-        }
-        if (status !== 'all') {
-            filtered = filtered.filter(i => i.status === status);
-        }
+        if (type !== 'all') filtered = filtered.filter(i => i.type === type);
+        if (status !== 'all') filtered = filtered.filter(i => i.status === status);
         if (search) {
             filtered = filtered.filter(i =>
                 (i.invoice_number && i.invoice_number.toLowerCase().includes(search)) ||
@@ -164,7 +151,6 @@ const InvoicesPage = {
             );
         }
 
-        // الترتيب حسب created_at (الأحدث أولاً) تم في getInvoicesLight
         this.state.filteredInvoices = filtered;
         this.state.currentPage = 1;
         this.renderTable();
@@ -326,7 +312,6 @@ const InvoicesPage = {
             </div>
         `;
 
-        // أزرار المودال
         if (this.el.voidBtn) {
             this.el.voidBtn.style.display = (invoice.status !== 'voided') ? 'flex' : 'none';
         }
@@ -370,15 +355,11 @@ const InvoicesPage = {
 
     confirmVoid(id) {
         this.viewInvoice(id).then(() => {
-            setTimeout(() => {
-                this.el.voidBtn?.click();
-            }, 500);
+            setTimeout(() => this.el.voidBtn?.click(), 500);
         });
     },
 
-    // فتح الفاتورة في نقطة البيع للتعديل
     editInvoice(id) {
-        // تخزين معرف الفاتورة في localStorage لتستقبله نقطة البيع
         localStorage.setItem('edit_invoice_id', id);
         window.location.href = './pos.html';
     },
@@ -391,12 +372,9 @@ const InvoicesPage = {
     },
 
     printCurrentInvoice() {
-        const invoice = this.state.selectedInvoice;
-        if (!invoice) return;
         window.print();
     },
 
-    // طباعة تقرير المبيعات كامل
     printSalesReport() {
         const salesInvoices = this.state.invoices.filter(i => i.type === 'sale');
         const formatMoney = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
