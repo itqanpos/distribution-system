@@ -14,7 +14,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
-            background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 50%, #e0f2fe 100%);
+            background: linear-gradient(145deg, #ecfdf5 0%, #ffffff 50%, #e0f2fe 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -23,47 +23,58 @@
             position: relative;
             overflow: hidden;
         }
-        .circle-1, .circle-2 {
+        /* خلفية زخرفية */
+        .bg-shape {
             position: absolute;
             border-radius: 50%;
-            background: rgba(16, 185, 129, 0.06);
+            opacity: 0.06;
+            background: #10b981;
             z-index: 0;
         }
-        .circle-1 { width: 400px; height: 400px; top: -150px; right: -150px; }
-        .circle-2 { width: 300px; height: 300px; bottom: -100px; left: -100px; background: rgba(59, 130, 246, 0.04); }
+        .bg-shape-1 { width: 500px; height: 500px; top: -200px; right: -200px; }
+        .bg-shape-2 { width: 400px; height: 400px; bottom: -150px; left: -150px; background: #3b82f6; }
+
+        .signup-wrapper {
+            width: 100%;
+            max-width: 460px;
+            position: relative;
+            z-index: 1;
+            animation: slideUp 0.6s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .signup-card {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.02);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 32px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255,255,255,0.5);
             padding: 36px 28px;
-            width: 100%;
-            max-width: 480px;
             position: relative;
-            z-index: 2;
-            animation: fadeIn 0.5s ease;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .logo-area {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
         }
         .logo-area img {
             width: 64px;
             height: 64px;
             object-fit: contain;
             border-radius: 16px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
-            margin-bottom: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            margin-bottom: 14px;
         }
         .logo-area h1 {
-            font-size: 26px;
+            font-size: 27px;
             font-weight: 800;
             color: #0f172a;
-            margin-bottom: 6px;
+            letter-spacing: -0.3px;
         }
-        .logo-area p {
+        .logo-area .subtitle {
             color: #64748b;
             font-size: 14px;
             font-weight: 500;
@@ -73,30 +84,34 @@
             margin-bottom: 18px;
             position: relative;
         }
-        .input-group i {
+        .input-group .icon {
             position: absolute;
             right: 14px;
             top: 50%;
             transform: translateY(-50%);
             color: #94a3b8;
-            font-size: 15px;
+            font-size: 16px;
+            pointer-events: none;
         }
         .input-group input,
         .input-group select {
             width: 100%;
-            padding: 12px 44px 12px 14px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            padding: 14px 46px 14px 16px;
+            border: 1px solid rgba(203, 213, 225, 0.8);
+            border-radius: 16px;
             font-family: 'Cairo', sans-serif;
-            font-size: 15px;
-            background: #f8fafc;
+            font-size: 16px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             transition: 0.3s;
+            color: #1e293b;
         }
         .input-group input:focus,
         .input-group select:focus {
             outline: none;
             border-color: #10b981;
-            background: white;
+            background: rgba(255,255,255,0.95);
             box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
         .input-group input::placeholder { color: #94a3b8; }
@@ -105,16 +120,16 @@
             -webkit-appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat;
-            background-position: left 12px center;
+            background-position: left 14px center;
             background-size: 18px;
-            padding-left: 40px;
+            padding-left: 44px;
         }
 
-        .btn {
+        .signup-btn {
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             border: none;
-            border-radius: 14px;
+            border-radius: 16px;
             padding: 14px;
             width: 100%;
             font-family: 'Cairo', sans-serif;
@@ -123,23 +138,55 @@
             cursor: pointer;
             transition: 0.3s;
             margin-top: 8px;
+            letter-spacing: 0.3px;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
         }
-        .btn:hover {
+        .signup-btn:hover {
             background: linear-gradient(135deg, #059669, #047857);
-            box-shadow: 0 10px 25px rgba(5, 150, 105, 0.3);
+            box-shadow: 0 12px 28px rgba(5, 150, 105, 0.35);
             transform: translateY(-1px);
         }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        .signup-btn:active { transform: scale(0.98); }
+        .signup-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
 
-        .error-message {
-            color: #ef4444;
-            font-size: 14px;
-            margin-top: 8px;
-            display: none;
-            text-align: center;
+        .error-box {
             background: #fef2f2;
-            padding: 10px;
-            border-radius: 10px;
+            border: 1px solid #fecaca;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #dc2626;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: 0.3s;
+            pointer-events: none;
+        }
+        .error-box.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .error-box i.fa-times-circle {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .error-box .error-close {
+            margin-right: auto;
+            cursor: pointer;
+            color: #dc2626;
+            opacity: 0.7;
+            background: none;
+            border: none;
+            font-size: 16px;
         }
 
         .login-link {
@@ -155,59 +202,79 @@
         }
         .login-link a:hover { text-decoration: underline; }
 
-        .footer-text {
-            text-align: center;
-            margin-top: 16px;
-            color: #94a3b8;
-            font-size: 12px;
+        #loading-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #10b981;
+            width: 0%;
+            z-index: 9999;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 480px) {
+            .signup-card { padding: 28px 20px; border-radius: 28px; }
+            .logo-area img { width: 56px; height: 56px; }
+            .logo-area h1 { font-size: 24px; }
+            .input-group input,
+            .input-group select { padding: 12px 42px 12px 14px; font-size: 15px; }
+            .signup-btn { padding: 12px; font-size: 17px; }
         }
     </style>
 </head>
 <body>
-    <div class="circle-1"></div>
-    <div class="circle-2"></div>
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+    <div id="loading-bar"></div>
 
-    <div class="signup-card">
-        <div class="logo-area">
-            <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
-            <h1>أنشئ متجرك الخاص</h1>
-            <p>نسخة تجريبية مجانية – بدون بطاقة ائتمان</p>
-        </div>
-        
-        <div class="input-group">
-            <i class="fas fa-user"></i>
-            <input type="text" id="fullName" placeholder="اسمك الكامل" autocomplete="name" />
-        </div>
-        <div class="input-group">
-            <i class="fas fa-store"></i>
-            <input type="text" id="tenantName" placeholder="اسم المتجر (مطلوب)" />
-        </div>
-        <div class="input-group">
-            <i class="fas fa-envelope"></i>
-            <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" />
-        </div>
-        <div class="input-group">
-            <i class="fas fa-lock"></i>
-            <input type="password" id="password" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" />
-        </div>
-        <div class="input-group">
-            <i class="fas fa-phone"></i>
-            <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)" autocomplete="tel" />
-        </div>
-        <div class="input-group">
-            <i class="fas fa-user-tag"></i>
-            <select id="role">
-                <option value="admin">مدير المتجر</option>
-                <option value="rep">مندوب مبيعات</option>
-            </select>
-        </div>
-        <div class="error-message" id="errorMsg"></div>
-        <button class="btn" id="signupBtn">إنشاء المتجر مجاناً</button>
-        <div class="login-link">
-            لديك متجر بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
-        </div>
-        <div class="footer-text">
-            نظام نقاط بيع سحابي – متعدد المستأجرين
+    <div class="signup-wrapper">
+        <div class="signup-card">
+            <div class="logo-area">
+                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
+                <h1>أنشئ متجرك الخاص</h1>
+                <p class="subtitle">نسخة تجريبية مجانية – بدون بطاقة ائتمان</p>
+            </div>
+            
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-user"></i></span>
+                <input type="text" id="fullName" placeholder="اسمك الكامل" autocomplete="name" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-store"></i></span>
+                <input type="text" id="tenantName" placeholder="اسم المتجر (مطلوب)" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-envelope"></i></span>
+                <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-lock"></i></span>
+                <input type="password" id="password" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-phone"></i></span>
+                <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)" autocomplete="tel" />
+            </div>
+            <div class="input-group">
+                <span class="icon"><i class="fas fa-user-tag"></i></span>
+                <select id="role">
+                    <option value="admin">مدير المتجر</option>
+                    <option value="rep">مندوب مبيعات</option>
+                </select>
+            </div>
+
+            <div class="error-box" id="errorBox">
+                <i class="fas fa-times-circle"></i>
+                <span id="errorText"></span>
+                <button class="error-close" onclick="hideError()">&times;</button>
+            </div>
+
+            <button class="signup-btn" id="signupBtn">إنشاء متجرك مجاناً</button>
+            
+            <div class="login-link">
+                لديك متجر بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
+            </div>
         </div>
     </div>
 
@@ -223,11 +290,22 @@
             const phoneInput = document.getElementById('phone');
             const roleSelect = document.getElementById('role');
             const signupBtn = document.getElementById('signupBtn');
-            const errorMsg = document.getElementById('errorMsg');
+            const errorBox = document.getElementById('errorBox');
+            const errorText = document.getElementById('errorText');
+            const loadingBar = document.getElementById('loading-bar');
+
+            window.showLoading = () => { loadingBar.style.width = '80%'; };
+            window.hideLoading = () => { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); };
+            window.showError = (msg) => {
+                errorText.textContent = msg;
+                errorBox.classList.add('show');
+            };
+            window.hideError = () => {
+                errorBox.classList.remove('show');
+            };
 
             if (!window.App) {
-                errorMsg.textContent = 'تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.';
-                errorMsg.style.display = 'block';
+                showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
                 signupBtn.disabled = true;
                 return;
             }
@@ -245,14 +323,14 @@
                 if (!email) { showError('يرجى إدخال البريد الإلكتروني'); return; }
                 if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
 
+                hideError();
                 signupBtn.disabled = true;
                 signupBtn.textContent = 'جاري إنشاء المتجر...';
-                errorMsg.style.display = 'none';
+                showLoading();
 
                 try {
                     const result = await App.signup(email, password, fullName, role, tenantName, phone);
                     if (result.success) {
-                        // توجيه المستخدم إلى الصفحة المناسبة بعد لحظة
                         setTimeout(() => {
                             window.location.href = role === 'rep' ? './pos.html' : './dashboard.html';
                         }, 500);
@@ -264,18 +342,19 @@
                     console.error(e);
                 } finally {
                     signupBtn.disabled = false;
-                    signupBtn.textContent = 'إنشاء المتجر مجاناً';
+                    signupBtn.textContent = 'إنشاء متجرك مجاناً';
+                    hideLoading();
                 }
-            }
-
-            function showError(msg) {
-                errorMsg.textContent = '';
-                errorMsg.appendChild(document.createTextNode(msg));
-                errorMsg.style.display = 'block';
             }
 
             signupBtn.addEventListener('click', performSignup);
             roleSelect.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSignup(); });
+
+            // إخفاء الخطأ عند الكتابة
+            fullNameInput.addEventListener('input', hideError);
+            tenantNameInput.addEventListener('input', hideError);
+            emailInput.addEventListener('input', hideError);
+            passInput.addEventListener('input', hideError);
 
             fullNameInput.focus();
         })();
