@@ -1,134 +1,71 @@
 /* =============================================
-   invoices.js - الفواتير (إصدار فائق السرعة)
+   invoices.js - صفحة الفواتير
    ============================================= */
 'use strict';
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') =>
-            Number(amount).toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }) + ' ' + currency,
-        formatDate: (dateStr) => {
-            if (!dateStr) return '';
-            try {
-                return new Date(dateStr).toLocaleDateString('ar-EG', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            } catch (e) {
-                return dateStr;
-            }
-        },
-        escapeHTML: (str) => {
-            const d = document.createElement('div');
-            d.appendChild(document.createTextNode(str));
-            return d.innerHTML;
-        },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () =>
-            !!(window.localDB && typeof localDB.getAll === 'function')
-    };
-}
-
-const Invoices = {
-    invoices: [],
-    customers: [],
-    products: [],
-    currentFilteredInvoices: [],
-
-    init() {
-        this.cacheElements();
-        this.bindEvents();
-        if (window.App) {
-            if (!App.requireAuth()) return;
-            App.initUserInterface();
-        }
-        this.initSidebarUser();
-        this.loadData();
+const InvoicesPage = {
+    state: {
+        invoices: [],
+        filteredInvoices: [],
+        currentPage: 1,
+        pageSize: 15,
+        filters: { type: 'all', status: 'all', search: '' },
+        selectedInvoice: null
     },
 
-    cacheElements() {
+    init() {
+        this.cacheDOM();
+        this.bindEvents();
+        this.loadInvoices();
+    },
+
+    cacheDOM() {
         this.el = {
-            menuToggle: document.getElementById('menuToggle'),
+            tableBody: document.getElementById('invoicesTableBody'),
+            filterType: document.getElementById('filterType'),
+            filterStatus: document.getElementById('filterStatus'),
+            searchInput: document.getElementById('searchInput'),
+            resetBtn: document.getElementById('resetFiltersBtn'),
+            newInvoiceBtn: document.getElementById('newInvoiceBtn'),
+            detailsModal: document.getElementById('invoiceDetailsModal'),
+            detailsContent: document.getElementById('invoiceDetailsContent'),
+            closeDetailsBtn: document.getElementById('closeDetailsModalBtn'),
+            voidBtn: document.getElementById('voidInvoiceBtn'),
+            printBtn: document.getElementById('printInvoiceBtn'),
+            pagination: document.getElementById('pagination'),
             sidebar: document.getElementById('sidebar'),
             sidebarOverlay: document.getElementById('sidebarOverlay'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            searchInput: document.getElementById('searchInput'),
-            typeFilter: document.getElementById('typeFilter'),
-            statusFilter: document.getElementById('statusFilter'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            invoicesBody: document.getElementById('invoicesBody'),
-            statsGrid: document.getElementById('statsGrid'),
-            receiptModal: document.getElementById('receiptModal'),
-            receiptPrintArea: document.getElementById('receiptPrintArea'),
-            printReceiptBtn: document.getElementById('printReceiptBtn'),
-            cancelReceiptModalBtn: document.getElementById('cancelReceiptModalBtn'),
-            closeReceiptModalBtn: document.getElementById('closeReceiptModalBtn'),
-            editInvoiceModal: document.getElementById('editInvoiceModal'),
-            closeEditModalBtn: document.getElementById('closeEditModalBtn'),
-            cancelEditModalBtn: document.getElementById('cancelEditModalBtn'),
-            editInvoiceForm: document.getElementById('editInvoiceForm'),
-            editInvoiceId: document.getElementById('editInvoiceId'),
-            editInvoiceDate: document.getElementById('editInvoiceDate'),
-            editInvoiceStatus: document.getElementById('editInvoiceStatus'),
-            editInvoiceNotes: document.getElementById('editInvoiceNotes'),
-            editItemsContainer: document.getElementById('editItemsContainer'),
-            addEditItemBtn: document.getElementById('addEditItemBtn'),
-            editTotalAmount: document.getElementById('editTotalAmount'),
-            editPaidAmount: document.getElementById('editPaidAmount'),
-            editPaymentMethod: document.getElementById('editPaymentMethod'),
-            editRemainingAmount: document.getElementById('editRemainingAmount'),
+            menuToggle: document.getElementById('menuToggle'),
             moreMenuBtn: document.getElementById('moreMenuBtn'),
             moreDropdown: document.getElementById('moreDropdown'),
-            refreshDataBtn: document.getElementById('refreshDataBtn'),
-            printReportBtn: document.getElementById('printReportBtn'),
-            sidebarAvatar: document.getElementById('sidebarAvatar'),
-            sidebarUserName: document.getElementById('sidebarUserName'),
-            toast: document.getElementById('toast')
+            logoutBtn: document.getElementById('logoutBtn')
         };
     },
 
     bindEvents() {
         // القائمة الجانبية
         this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
+            this.el.sidebar?.classList.toggle('open');
             this.el.sidebarOverlay?.classList.toggle('show');
         });
         this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
+            this.el.sidebar?.classList.remove('open');
+            this.el.sidebarOverlay?.classList.remove('show');
         });
         document.querySelectorAll('.menu-item').forEach(link => {
             link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
+                this.el.sidebar?.classList.remove('open');
                 this.el.sidebarOverlay?.classList.remove('show');
             });
         });
-
-        // زر النقاط الثلاث والقائمة المنسدلة
         this.el.moreMenuBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.el.moreDropdown?.classList.toggle('show');
         });
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.nav-actions'))
+            if (!e.target.closest('.nav-actions')) {
                 this.el.moreDropdown?.classList.remove('show');
-        });
-
-        this.el.refreshDataBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.loadData();
-            this.toast('تم تحديث البيانات');
-            this.el.moreDropdown?.classList.remove('show');
-        });
-        this.el.printReportBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.printReport();
-            this.el.moreDropdown?.classList.remove('show');
+            }
         });
         this.el.logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
@@ -136,491 +73,272 @@ const Invoices = {
             else window.location.href = './index.html';
         });
 
-        // البحث والتصفية
-        this.el.searchInput?.addEventListener('input', () => this.renderTable());
-        this.el.typeFilter?.addEventListener('change', () => this.renderTable());
-        this.el.statusFilter?.addEventListener('change', () => this.renderTable());
-        this.el.refreshBtn?.addEventListener('click', () => this.loadData());
+        // الفلاتر
+        this.el.filterType?.addEventListener('change', () => this.applyFilters());
+        this.el.filterStatus?.addEventListener('change', () => this.applyFilters());
+        this.el.searchInput?.addEventListener('input', () => this.applyFilters());
+        this.el.resetBtn?.addEventListener('click', () => this.resetFilters());
 
-        // مودال الإيصال
-        this.el.closeReceiptModalBtn?.addEventListener('click', () =>
-            this.closeModal('receiptModal')
-        );
-        this.el.cancelReceiptModalBtn?.addEventListener('click', () =>
-            this.closeModal('receiptModal')
-        );
-        this.el.printReceiptBtn?.addEventListener('click', () =>
-            this.printReceipt()
-        );
-
-        // مودال التعديل
-        this.el.closeEditModalBtn?.addEventListener('click', () =>
-            this.closeModal('editInvoiceModal')
-        );
-        this.el.cancelEditModalBtn?.addEventListener('click', () =>
-            this.closeModal('editInvoiceModal')
-        );
-        this.el.editInvoiceForm?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.saveEdit();
+        // فاتورة جديدة
+        this.el.newInvoiceBtn?.addEventListener('click', () => {
+            window.location.href = './pos.html';
         });
-        this.el.addEditItemBtn?.addEventListener('click', () =>
-            this.addEditItem()
-        );
-        this.el.editPaidAmount?.addEventListener('input', () =>
-            this.updateEditRemaining()
-        );
+
+        // مودال التفاصيل
+        this.el.closeDetailsBtn?.addEventListener('click', () => this.closeDetailsModal());
+        this.el.printBtn?.addEventListener('click', () => this.printCurrentInvoice());
+        this.el.voidBtn?.addEventListener('click', () => this.voidCurrentInvoice());
+        this.el.detailsModal?.addEventListener('click', (e) => {
+            if (e.target === this.el.detailsModal) this.closeDetailsModal();
+        });
     },
 
-    initSidebarUser() {
-        const user = window.App?.getCurrentUser?.();
-        if (user) {
-            if (this.el.sidebarAvatar)
-                this.el.sidebarAvatar.textContent = user.avatar || 'U';
-            if (this.el.sidebarUserName)
-                this.el.sidebarUserName.textContent =
-                    user.fullName || user.email || 'مدير النظام';
-        }
-    },
-
-    async loadData() {
+    async loadInvoices() {
         try {
-            if (Utils.isDBReady()) {
-                this.invoices = (await DB.getInvoices()) || [];
-                this.customers = (await DB.getParties('customer')) || [];
-                this.products = (await DB.getProducts()) || [];
-            } else if (Utils.hasLocalDB()) {
-                this.invoices = (await localDB.getAll('invoices')) || [];
-                const allParties = (await localDB.getAll('parties')) || [];
-                this.customers = allParties.filter(p => p.type === 'customer');
-                this.products = (await localDB.getAll('products')) || [];
-            } else {
-                this.invoices = [];
-                this.customers = [];
-                this.products = [];
-            }
-            this.updateStats();
-            this.renderTable();
-        } catch (error) {
-            console.error('فشل تحميل الفواتير:', error);
-            this.el.invoicesBody.innerHTML =
-                '<tr><td colspan="9" class="empty-message">فشل تحميل البيانات</td></tr>';
+            const invoices = await window.DB.getInvoicesLight().catch(() => []);
+            this.state.invoices = invoices;
+            this.applyFilters();
+        } catch (e) {
+            console.error('فشل تحميل الفواتير:', e);
+            if (window.Toast) Toast.error('فشل تحميل الفواتير');
+            this.showEmptyState();
         }
     },
 
-    updateStats() {
-        let salesTotal = 0, returnsTotal = 0, unpaidTotal = 0;
-        for (const inv of this.invoices) {
-            if (inv.type === 'sale') salesTotal += inv.total || 0;
-            else if (inv.type === 'return') returnsTotal += inv.total || 0;
-            if (inv.status === 'unpaid' || inv.status === 'partial')
-                unpaidTotal += inv.remaining || 0;
+    applyFilters() {
+        const type = this.el.filterType?.value || 'all';
+        const status = this.el.filterStatus?.value || 'all';
+        const search = (this.el.searchInput?.value || '').trim().toLowerCase();
+
+        this.state.filters = { type, status, search };
+
+        let filtered = [...this.state.invoices];
+
+        if (type !== 'all') {
+            filtered = filtered.filter(i => i.type === type);
         }
-        const statValues = this.el.statsGrid.querySelectorAll('.stat-value');
-        if (statValues.length >= 4) {
-            statValues[0].textContent = Utils.formatMoney(salesTotal);
-            statValues[1].textContent = Utils.formatMoney(returnsTotal);
-            statValues[2].textContent = this.invoices.length;
-            statValues[3].textContent = Utils.formatMoney(unpaidTotal);
+        if (status !== 'all') {
+            filtered = filtered.filter(i => i.status === status);
         }
+        if (search) {
+            filtered = filtered.filter(i =>
+                (i.invoice_number && i.invoice_number.toLowerCase().includes(search)) ||
+                (i.customer_name && i.customer_name.toLowerCase().includes(search))
+            );
+        }
+
+        // ترتيب حسب التاريخ تنازلياً
+        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        this.state.filteredInvoices = filtered;
+        this.state.currentPage = 1;
+        this.renderTable();
+    },
+
+    resetFilters() {
+        if (this.el.filterType) this.el.filterType.value = 'all';
+        if (this.el.filterStatus) this.el.filterStatus.value = 'all';
+        if (this.el.searchInput) this.el.searchInput.value = '';
+        this.applyFilters();
     },
 
     renderTable() {
-        const term = this.el.searchInput.value.trim().toLowerCase();
-        const typeFilter = this.el.typeFilter.value;
-        const statusFilter = this.el.statusFilter.value;
+        const { filteredInvoices, currentPage, pageSize } = this.state;
+        const totalPages = Math.ceil(filteredInvoices.length / pageSize);
+        const start = (currentPage - 1) * pageSize;
+        const pageData = filteredInvoices.slice(start, start + pageSize);
 
-        let filtered = this.invoices.filter(inv => {
-            const idMatch = (inv.invoice_number || inv.id || '')
-                .toLowerCase()
-                .includes(term);
-            const nameMatch = (inv.customer_name || '')
-                .toLowerCase()
-                .includes(term);
-            const matchSearch = !term || idMatch || nameMatch;
-            const matchType = typeFilter === 'all' || inv.type === typeFilter;
-            const matchStatus =
-                statusFilter === 'all' || inv.status === statusFilter;
-            return matchSearch && matchType && matchStatus;
-        });
+        if (!this.el.tableBody) return;
 
-        filtered.sort((a, b) => {
-            const dateComp = (b.date || '').localeCompare(a.date || '');
-            if (dateComp !== 0) return dateComp;
-            const aNum =
-                parseInt((a.invoice_number || '').split('-').pop()) || 0;
-            const bNum =
-                parseInt((b.invoice_number || '').split('-').pop()) || 0;
-            return bNum - aNum;
-        });
-
-        this.currentFilteredInvoices = filtered;
-
-        if (!filtered.length) {
-            this.el.invoicesBody.innerHTML =
-                '<tr><td colspan="9" class="empty-message">لا توجد فواتير مطابقة</td></tr>';
+        if (pageData.length === 0) {
+            this.showEmptyState();
             return;
         }
 
-        // تجميع الصفوف في نص واحد (تسريع DOM)
-        let rowsHTML = '';
-        for (const inv of filtered) {
-            const statusBadge = this.getStatusBadge(inv.status);
-            const typeBadge =
-                inv.type === 'sale'
-                    ? '<span class="type-badge type-sale">بيع</span>'
-                    : inv.type === 'return'
-                    ? '<span class="type-badge type-return">مرتجع</span>'
-                    : `<span class="type-badge">${inv.type}</span>`;
-            const customerName =
-                inv.customer_name ||
-                this.customers.find(c => c.id === inv.customer_id)?.name ||
-                'نقدي';
-            const invNumber =
-                inv.invoice_number || inv.id?.substring(0, 8);
-            rowsHTML += `
-                <tr>
-                    <td>${Utils.escapeHTML(invNumber)}</td>
-                    <td>${Utils.formatDate(inv.date)}</td>
-                    <td>${typeBadge}</td>
-                    <td>${Utils.escapeHTML(customerName)}</td>
-                    <td>${Utils.formatMoney(inv.total)}</td>
-                    <td>${Utils.formatMoney(inv.paid)}</td>
-                    <td>${Utils.formatMoney(inv.remaining)}</td>
-                    <td>${statusBadge}</td>
-                    <td class="action-icons">
-                        <i class="fas fa-eye" title="عرض الإيصال" onclick="Invoices.viewReceipt('${inv.id}')"></i>
-                        <i class="fas fa-edit" title="تعديل" onclick="Invoices.editInvoice('${inv.id}')"></i>
-                    </td>
-                </tr>`;
-        }
-        this.el.invoicesBody.innerHTML = rowsHTML;
+        const formatMoney = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+        const typeLabels = { sale: 'مبيعات', purchase: 'مشتريات', return: 'مرتجع' };
+        const statusLabels = { paid: 'مدفوعة', partial: 'جزئية', unpaid: 'غير مدفوعة', held: 'معلقة', voided: 'ملغاة' };
+
+        this.el.tableBody.innerHTML = pageData.map(inv => `
+            <tr class="row-${inv.type || 'sale'}">
+                <td><strong>${inv.invoice_number || inv.id?.substring(0, 8) || '-'}</strong></td>
+                <td>${inv.date || '-'}</td>
+                <td><span class="type-badge ${inv.type || 'sale'}">${typeLabels[inv.type] || inv.type}</span></td>
+                <td>${inv.customer_name || '-'}</td>
+                <td>${formatMoney(inv.total)}</td>
+                <td>${formatMoney(inv.paid || 0)}</td>
+                <td>${formatMoney(inv.remaining || 0)}</td>
+                <td><span class="badge ${inv.status || 'unpaid'}">${statusLabels[inv.status] || inv.status}</span></td>
+                <td>
+                    <div class="action-btns">
+                        <button class="action-btn" onclick="InvoicesPage.viewInvoice('${inv.id}')" title="عرض التفاصيل">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${inv.status !== 'voided' ? `
+                        <button class="action-btn danger" onclick="InvoicesPage.confirmVoid('${inv.id}')" title="إلغاء الفاتورة">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        this.renderPagination(totalPages);
     },
 
-    getStatusBadge(status) {
-        const map = {
-            paid: '<span class="badge badge-success">مدفوعة</span>',
-            partial: '<span class="badge badge-warning">جزئية</span>',
-            unpaid: '<span class="badge badge-danger">غير مدفوعة</span>',
-            held: '<span class="badge badge-info">معلقة</span>'
-        };
-        return map[status] || `<span class="badge">${status}</span>`;
+    showEmptyState() {
+        if (!this.el.tableBody) return;
+        this.el.tableBody.innerHTML = `
+            <tr>
+                <td colspan="9">
+                    <div class="empty-state">
+                        <i class="fas fa-file-invoice"></i>
+                        <p>لا توجد فواتير</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        if (this.el.pagination) this.el.pagination.innerHTML = '';
     },
 
-    // ========== طباعة تقرير الفواتير ==========
-    printReport() {
-        const settings = JSON.parse(
-            localStorage.getItem('app_settings') || '{}'
-        );
-        const companyName = settings?.company?.name || 'حسابي';
-        const filtered = this.currentFilteredInvoices;
-        if (!filtered.length) {
-            alert('لا توجد فواتير لطباعتها');
+    renderPagination(totalPages) {
+        if (!this.el.pagination) return;
+        if (totalPages <= 1) {
+            this.el.pagination.innerHTML = '';
             return;
         }
 
-        let rowsHTML = '';
-        for (const inv of filtered) {
-            const customerName =
-                inv.customer_name ||
-                this.customers.find(c => c.id === inv.customer_id)?.name ||
-                'نقدي';
-            rowsHTML += `
-                <tr>
-                    <td>${inv.invoice_number || inv.id?.substring(0, 8)}</td>
-                    <td>${Utils.formatDate(inv.date)}</td>
-                    <td>${Utils.escapeHTML(customerName)}</td>
-                    <td>${Utils.formatMoney(inv.total)}</td>
-                    <td>${inv.status === 'paid' ? 'مدفوعة' : 'غير مدفوعة'}</td>
-                </tr>`;
-        }
-
-        const reportHTML = `
-            <html>
-            <head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma;direction:rtl;text-align:right;padding:20px;color:#000;}h1{text-align:center;}table{width:100%;border-collapse:collapse;margin-top:10px;}th,td{padding:5px 8px;border:1px solid #ddd;}th{background:#f5f5f5;}</style></head>
-            <body><h1>${Utils.escapeHTML(companyName)} - تقرير الفواتير</h1><table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>${rowsHTML}</tbody></table></body></html>`;
-
-        const pw = window.open('', '_blank', 'width=800,height=600');
-        if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(reportHTML);
-        pw.document.close();
-        pw.focus();
-        setTimeout(() => { pw.print(); pw.close(); }, 500);
-    },
-
-    // ========== عرض الإيصال (معلومات الدفع في الأسفل) ==========
-    viewReceipt(id) {
-        const inv = this.invoices.find(i => i.id === id);
-        if (!inv) return;
-
-        const customer = this.customers.find(c => c.id === inv.customer_id) || {
-            name: inv.customer_name || 'نقدي',
-            balance: 0
-        };
-        const settings = JSON.parse(
-            localStorage.getItem('app_settings') || '{}'
-        );
-        const companyName = settings?.company?.name || 'حسابي';
-        const companyPhone = settings?.company?.phone || '';
-        const footerMsg =
-            settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
-
-        let itemsRowsHTML = '';
-        for (const item of inv.items || []) {
-            const lineTotal = (item.price || 0) * (item.quantity || 0);
-            itemsRowsHTML += `
-                <tr>
-                    <td>${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</td>
-                    <td>${item.quantity}</td>
-                    <td>${Utils.formatMoney(item.price)}</td>
-                    <td>${Utils.formatMoney(lineTotal)}</td>
-                </tr>`;
-        }
-
-        const paymentInfoHTML =
-            customer && customer.name !== 'نقدي'
-                ? `<div class="payment-info-box">
-                    <div class="payment-row"><span>الرصيد الحالي للعميل:</span> <span>${Utils.formatMoney(customer.balance)}</span></div>
-                    <div class="payment-row"><span>المدفوع:</span> <span>${Utils.formatMoney(inv.paid)}</span></div>
-                    <div class="payment-row"><span>المتبقي:</span> <span>${Utils.formatMoney(inv.remaining)}</span></div>
-                </div>`
-                : '';
-
-        this.el.receiptPrintArea.innerHTML = `
-            <div class="company-name">${Utils.escapeHTML(companyName)}</div>
-            <div class="company-info">${companyPhone ? 'هاتف: ' + Utils.escapeHTML(companyPhone) : ''}</div>
-            <div class="divider"></div>
-            <p style="font-size:13px;"><strong>العميل:</strong> ${Utils.escapeHTML(customer.name)}</p>
-            <p style="font-size:13px;"><strong>رقم الفاتورة:</strong> ${inv.invoice_number || inv.id?.substring(0, 8)}</p>
-            <p style="font-size:13px;"><strong>التاريخ:</strong> ${Utils.formatDate(inv.date)}</p>
-            <div class="divider"></div>
-            <table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${itemsRowsHTML}</tbody></table>
-            <div class="totals"><p><strong>الإجمالي:</strong> ${Utils.formatMoney(inv.subtotal || inv.total)}</p>${inv.discount > 0 ? `<p><strong>الخصم:</strong> ${Utils.formatMoney(inv.discount)}</p>` : ''}<p><strong>الصافي:</strong> ${Utils.formatMoney(inv.total)}</p></div>
-            ${paymentInfoHTML}
-            <div class="divider"></div>
-            <div class="footer">${Utils.escapeHTML(footerMsg)}</div>`;
-        this.showModal('receiptModal');
-    },
-
-    printReceipt() {
-        const content = this.el.receiptPrintArea.innerHTML;
-        const settings = JSON.parse(
-            localStorage.getItem('app_settings') || '{}'
-        );
-        const companyName = settings?.company?.name || 'حسابي';
-        const pw = window.open('', '_blank', 'width=400,height=600');
-        if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma;direction:rtl;text-align:right;padding:20px;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
-        pw.document.close();
-        pw.focus();
-        setTimeout(() => { pw.print(); pw.close(); }, 500);
-    },
-
-    // ========== تعديل الفاتورة ==========
-    editInvoice(id) {
-        const inv = this.invoices.find(i => i.id === id);
-        if (!inv) return;
-        this.editOriginalInvoice = inv;
-        this.el.editInvoiceId.value = inv.id;
-        this.el.editInvoiceDate.value = inv.date || Utils.getToday();
-        this.el.editInvoiceStatus.value = inv.status || 'paid';
-        this.el.editInvoiceNotes.value = inv.notes || '';
-        this.el.editPaidAmount.value = inv.paid || 0;
-        this.el.editPaymentMethod.value = inv.payment_method || 'cash';
-        this.editCustomerId = inv.customer_id;
-        this.editItems = (inv.items || []).map(item => ({ ...item }));
-        this.renderEditItems();
-        this.updateEditTotal();
-        this.showModal('editInvoiceModal');
-    },
-
-    renderEditItems() {
-        const container = this.el.editItemsContainer;
         let html = '';
-        this.editItems.forEach((item, idx) => {
-            html += `
-                <div class="edit-item-row">
-                    <input type="text" class="item-product" value="${Utils.escapeHTML(item.productName)}" list="productDatalist" onchange="Invoices.onEditItemProduct(this, ${idx})">
-                    <select class="item-unit" onchange="Invoices.onEditItemUnit(this, ${idx})">
-                        ${this.getUnitsOptions(item.productName, item.unitName)}
-                    </select>
-                    <input type="number" class="item-qty" value="${item.quantity}" min="0.001" step="0.001" oninput="Invoices.updateEditTotal()">
-                    <input type="number" class="item-price" value="${item.price}" step="0.01" oninput="Invoices.updateEditTotal()">
-                    <button type="button" class="remove-btn" onclick="Invoices.removeEditItem(${idx})"><i class="fas fa-times"></i></button>
-                </div>`;
-        });
-        container.innerHTML = html;
+        html += `<button ${this.state.currentPage === 1 ? 'disabled' : ''} onclick="InvoicesPage.goToPage(${this.state.currentPage - 1})">«</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="${i === this.state.currentPage ? 'active' : ''}" onclick="InvoicesPage.goToPage(${i})">${i}</button>`;
+        }
+        html += `<button ${this.state.currentPage === totalPages ? 'disabled' : ''} onclick="InvoicesPage.goToPage(${this.state.currentPage + 1})">»</button>`;
+        this.el.pagination.innerHTML = html;
     },
 
-    getUnitsOptions(productName, selectedUnit) {
-        const product = this.products.find(p => p.name === productName);
-        if (!product) return `<option value="${selectedUnit}">${selectedUnit}</option>`;
-        return product.units.map(u => `<option value="${u.name}" ${u.name === selectedUnit ? 'selected' : ''}>${u.name}</option>`).join('');
+    goToPage(page) {
+        const totalPages = Math.ceil(this.state.filteredInvoices.length / this.state.pageSize);
+        if (page < 1 || page > totalPages) return;
+        this.state.currentPage = page;
+        this.renderTable();
     },
 
-    onEditItemProduct(input, idx) {
-        const productName = input.value.trim();
-        const product = this.products.find(p => p.name === productName);
-        if (product) {
-            this.editItems[idx].productName = productName;
-            const unitSelect = input.parentElement.querySelector('.item-unit');
-            unitSelect.innerHTML = product.units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
-            if (product.units.length > 0) {
-                unitSelect.value = product.units[0].name;
-                this.editItems[idx].unitName = product.units[0].name;
-                const priceInput = input.parentElement.querySelector('.item-price');
-                priceInput.value = product.units[0].price || 0;
-                this.editItems[idx].price = product.units[0].price || 0;
+    async viewInvoice(id) {
+        try {
+            const invoice = await window.DB.getInvoiceById(id);
+            if (!invoice) {
+                if (window.Toast) Toast.error('الفاتورة غير موجودة');
+                return;
             }
+            this.state.selectedInvoice = invoice;
+            this.showDetailsModal(invoice);
+        } catch (e) {
+            console.error('فشل جلب تفاصيل الفاتورة:', e);
+            if (window.Toast) Toast.error('فشل تحميل التفاصيل');
         }
-        this.updateEditTotal();
     },
 
-    onEditItemUnit(select, idx) {
-        const unitName = select.value;
-        const product = this.products.find(p => p.name === this.editItems[idx].productName);
-        if (product) {
-            const unit = product.units.find(u => u.name === unitName);
-            if (unit) {
-                const priceInput = select.parentElement.querySelector('.item-price');
-                priceInput.value = unit.price || 0;
-                this.editItems[idx].price = unit.price || 0;
-            }
-        }
-        this.editItems[idx].unitName = unitName;
-        this.updateEditTotal();
-    },
+    showDetailsModal(invoice) {
+        if (!this.el.detailsContent) return;
 
-    removeEditItem(idx) {
-        this.editItems.splice(idx, 1);
-        this.renderEditItems();
-        this.updateEditTotal();
-    },
+        const formatMoney = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+        const typeLabels = { sale: 'مبيعات', purchase: 'مشتريات', return: 'مرتجع' };
+        const statusLabels = { paid: 'مدفوعة', partial: 'جزئية', unpaid: 'غير مدفوعة', held: 'معلقة', voided: 'ملغاة' };
 
-    addEditItem() {
-        this.editItems.push({ productName: '', unitName: '', quantity: 1, price: 0 });
-        this.renderEditItems();
-        this.updateEditTotal();
-    },
+        const items = Array.isArray(invoice.items) ? invoice.items : [];
+        let itemsRows = items.map(item => `
+            <tr>
+                <td>${item.productName || '-'}</td>
+                <td>${item.unitName || '-'}</td>
+                <td>${item.quantity || 0}</td>
+                <td>${formatMoney(item.price || 0)}</td>
+                <td>${formatMoney((item.quantity || 0) * (item.price || 0))}</td>
+            </tr>
+        `).join('');
 
-    updateEditTotal() {
-        let total = 0;
-        const rows = this.el.editItemsContainer.querySelectorAll('.edit-item-row');
-        for (const row of rows) {
-            const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
-            const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
-            total += qty * price;
-        }
-        this.el.editTotalAmount.textContent = Utils.formatMoney(total);
-        this.updateEditRemaining();
-    },
+        this.el.detailsContent.innerHTML = `
+            <div class="detail-section">
+                <h4>معلومات الفاتورة</h4>
+                <div class="detail-row"><span>رقم الفاتورة:</span> <span><strong>${invoice.invoice_number || '-'}</strong></span></div>
+                <div class="detail-row"><span>التاريخ:</span> <span>${invoice.date || '-'}</span></div>
+                <div class="detail-row"><span>النوع:</span> <span>${typeLabels[invoice.type] || invoice.type}</span></div>
+                <div class="detail-row"><span>الحالة:</span> <span class="badge ${invoice.status}">${statusLabels[invoice.status] || invoice.status}</span></div>
+                <div class="detail-row"><span>العميل / المورد:</span> <span>${invoice.customer_name || invoice.supplier_name || '-'}</span></div>
+                <div class="detail-row"><span>ملاحظات:</span> <span>${invoice.notes || '-'}</span></div>
+            </div>
+            <div class="detail-section">
+                <h4>العناصر</h4>
+                <table class="detail-items-table">
+                    <thead>
+                        <tr><th>المنتج</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+                    </thead>
+                    <tbody>${itemsRows || '<tr><td colspan="5" style="text-align:center;">لا توجد عناصر</td></tr>'}</tbody>
+                </table>
+            </div>
+            <div class="detail-section">
+                <h4>المبالغ</h4>
+                <div class="detail-row"><span>الإجمالي:</span> <span>${formatMoney(invoice.total)}</span></div>
+                <div class="detail-row"><span>الخصم:</span> <span>${formatMoney(invoice.discount || 0)}</span></div>
+                <div class="detail-row"><span>المدفوع:</span> <span>${formatMoney(invoice.paid || 0)}</span></div>
+                <div class="detail-row"><span>المتبقي:</span> <span>${formatMoney(invoice.remaining || 0)}</span></div>
+            </div>
+        `;
 
-    updateEditRemaining() {
-        const totalText = this.el.editTotalAmount.textContent;
-        const total = parseFloat(totalText.replace(/[^0-9.-]+/g, '')) || 0;
-        const paid = parseFloat(this.el.editPaidAmount.value) || 0;
-        this.el.editRemainingAmount.textContent = Utils.formatMoney(Math.max(0, total - paid));
-    },
-
-    async saveEdit() {
-        const id = this.el.editInvoiceId.value;
-        const date = this.el.editInvoiceDate.value;
-        const status = this.el.editInvoiceStatus.value;
-        const notes = this.el.editInvoiceNotes.value.trim();
-        const paid = parseFloat(this.el.editPaidAmount.value) || 0;
-        const paymentMethod = this.el.editPaymentMethod.value;
-
-        const items = [];
-        const rows = this.el.editItemsContainer.querySelectorAll('.edit-item-row');
-        for (const row of rows) {
-            const productName = row.querySelector('.item-product')?.value.trim();
-            const unitName = row.querySelector('.item-unit')?.value;
-            const quantity = parseFloat(row.querySelector('.item-qty')?.value) || 0;
-            const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
-            if (productName && unitName && quantity > 0) {
-                items.push({ productName, unitName, quantity, price });
-            }
+        // إظهار أو إخفاء زر الإلغاء
+        if (this.el.voidBtn) {
+            this.el.voidBtn.style.display = (invoice.status !== 'voided') ? 'flex' : 'none';
         }
 
-        if (items.length === 0) { alert('يجب إضافة صنف واحد على الأقل'); return; }
+        this.el.detailsModal?.classList.add('open');
+    },
 
-        const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-        const discount = this.editOriginalInvoice.discount || 0;
-        const total = subtotal - discount;
-        const remaining = Math.max(0, total - paid);
+    closeDetailsModal() {
+        this.el.detailsModal?.classList.remove('open');
+        this.state.selectedInvoice = null;
+    },
 
-        const updatedInvoice = {
-            ...this.editOriginalInvoice,
-            date, status, notes, paid, payment_method: paymentMethod,
-            items, subtotal, total, remaining
-        };
+    async voidCurrentInvoice() {
+        const invoice = this.state.selectedInvoice;
+        if (!invoice) return;
+
+        const confirmed = confirm(`هل أنت متأكد من إلغاء الفاتورة ${invoice.invoice_number || invoice.id}؟`);
+        if (!confirmed) return;
 
         try {
-            await this.reverseOldInvoice(this.editOriginalInvoice);
-            await this.applyNewInvoice(updatedInvoice);
-
-            if (Utils.isDBReady()) await DB.saveInvoice(updatedInvoice);
-            else if (Utils.hasLocalDB()) await localDB.put('invoices', updatedInvoice);
-
-            this.closeModal('editInvoiceModal');
-            await this.loadData();
-            this.showToast('تم تعديل الفاتورة بنجاح');
-        } catch (err) {
-            console.error('فشل تعديل الفاتورة:', err);
-            alert('حدث خطأ أثناء تعديل الفاتورة');
+            if (window.InvoiceService && window.InvoiceService.voidInvoice) {
+                await InvoiceService.voidInvoice(invoice.id);
+            } else {
+                // Fallback
+                const { error } = await supabase
+                    .from('invoices')
+                    .update({ status: 'voided' })
+                    .eq('id', invoice.id);
+                if (error) throw error;
+            }
+            if (window.Toast) Toast.success('تم إلغاء الفاتورة بنجاح');
+            this.closeDetailsModal();
+            this.loadInvoices();
+        } catch (e) {
+            console.error('فشل إلغاء الفاتورة:', e);
+            if (window.Toast) Toast.error('فشل إلغاء الفاتورة');
         }
     },
 
-    async reverseOldInvoice(invoice) {
-        for (const item of invoice.items || []) {
-            const product = this.products.find(p => p.name === item.productName);
-            if (product) {
-                const unit = product.units.find(u => u.name === item.unitName);
-                if (unit) {
-                    const factor = unit.factor || 1;
-                    product.units[0].stock += item.quantity * factor;
-                    if (Utils.isDBReady()) await DB.saveProduct(product);
-                    else if (Utils.hasLocalDB()) await localDB.put('products', product);
-                }
-            }
-        }
-        if (invoice.customer_id) {
-            const customer = this.customers.find(c => c.id === invoice.customer_id);
-            if (customer) {
-                customer.balance += invoice.total - invoice.paid;
-                if (Utils.isDBReady()) await DB.saveParty(customer);
-                else if (Utils.hasLocalDB()) await localDB.put('parties', customer);
-            }
-        }
+    confirmVoid(id) {
+        this.viewInvoice(id).then(() => {
+            setTimeout(() => {
+                this.el.voidBtn?.click();
+            }, 500);
+        });
     },
 
-    async applyNewInvoice(invoice) {
-        for (const item of invoice.items || []) {
-            const product = this.products.find(p => p.name === item.productName);
-            if (product) {
-                const unit = product.units.find(u => u.name === item.unitName);
-                if (unit) {
-                    const factor = unit.factor || 1;
-                    product.units[0].stock = Math.max(0, product.units[0].stock - item.quantity * factor);
-                    if (Utils.isDBReady()) await DB.saveProduct(product);
-                    else if (Utils.hasLocalDB()) await localDB.put('products', product);
-                }
-            }
-        }
-        if (invoice.customer_id) {
-            const customer = this.customers.find(c => c.id === invoice.customer_id);
-            if (customer) {
-                customer.balance -= invoice.total - invoice.paid;
-                if (Utils.isDBReady()) await DB.saveParty(customer);
-                else if (Utils.hasLocalDB()) await localDB.put('parties', customer);
-            }
-        }
-    },
-
-    showModal(id) { const m = this.el[id]; if (m) m.classList.add('open'); },
-    closeModal(id) { const m = this.el[id]; if (m) m.classList.remove('open'); },
-    showToast(msg) { const t = this.el.toast; if (!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(this._toastTimer); this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000); }
+    printCurrentInvoice() {
+        const invoice = this.state.selectedInvoice;
+        if (!invoice) return;
+        window.print();
+    }
 };
 
-window.Invoices = Invoices;
-document.addEventListener('DOMContentLoaded', () => Invoices.init());
+window.InvoicesPage = InvoicesPage;
