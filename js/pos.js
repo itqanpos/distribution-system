@@ -1,7 +1,3 @@
-/* =============================================
-   pos.js - نقطة البيع (إصدار محدث)
-   تم الإصلاح: تصفية العملاء بدقة، تحسين التحميل
-   ============================================= */
 'use strict';
 
 const Utils = {
@@ -22,7 +18,8 @@ const POS = {
         selectedProduct: null, selectedUnit: null, selectedCustomerId: null,
         isDBReady: false, isProcessing: false,
         subtotal: 0, discount: 0, discountType: 'amount', discountValue: 0, netTotal: 0,
-        usedCustomerBalance: 0
+        usedCustomerBalance: 0,
+        editingInvoiceId: null // لتتبع الفاتورة الأصلية التي يتم تعديلها
     },
     cache: { productMap: new Map(), customerMap: new Map() },
     el: {},
@@ -128,6 +125,7 @@ const POS = {
         await this.loadProductsAndCustomers();
         this.buildCache();
         this.restoreCartFromStorage();
+        this.loadInvoiceForEdit(); // تحميل فاتورة للتعديل إن وجدت
         if (!this.state.products.length && window.Toast) Toast.info('لا توجد منتجات. أضف منتجات أولاً.');
     },
 
@@ -144,7 +142,6 @@ const POS = {
                 this.state.products = [];
                 customers = [];
             }
-            // ✅ تصفية صارمة للعملاء فقط لتجنب ظهور الموردين
             this.state.customers = customers.filter(p => p.type === 'customer');
             this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
             this.buildCache();
@@ -162,13 +159,48 @@ const POS = {
         for (const c of this.state.customers) { this.cache.customerMap.set(String(c.id), c); this.cache.customerMap.set(c.id, c); }
     },
 
+    // دالة تحميل فاتورة للتعديل
+    loadInvoiceForEdit() {
+        const invoiceId = localStorage.getItem('edit_invoice_id');
+        if (!invoiceId) return;
+        localStorage.removeItem('edit_invoice_id');
+
+        if (this.state.isDBReady && window.DB.getInvoiceById) {
+            window.DB.getInvoiceById(invoiceId).then(inv => {
+                if (inv && inv.type === 'sale' && inv.status !== 'voided') {
+                    this.state.cart = (inv.items || []).map(item => ({...item}));
+                    this.state.selectedCustomerId = inv.customer_id;
+                    this.state.editingInvoiceId = inv.id; // تعيين معرف الفاتورة الأصلية
+                    if (inv.customer_id) {
+                        const cust = this.cache.customerMap.get(String(inv.customer_id));
+                        if (cust) {
+                            if (this.el.customerSearchInput) {
+                                this.el.customerSearchInput.value = cust.name || '';
+                            }
+                            this.updateCustomerDisplay();
+                        }
+                    } else {
+                        if (this.el.customerSearchInput) {
+                            this.el.customerSearchInput.value = 'نقدي (بدون عميل)';
+                        }
+                    }
+                    this.renderCart();
+                    if (window.Toast) Toast.info('تم تحميل الفاتورة للتعديل');
+                } else {
+                    if (window.Toast) Toast.error('الفاتورة غير قابلة للتعديل');
+                }
+            }).catch(() => {
+                if (window.Toast) Toast.error('فشل تحميل الفاتورة للتعديل');
+            });
+        }
+    },
+
     filterCustomers() {
         const term = this.el.customerSearchInput?.value.trim().toLowerCase() || '';
         const dropdown = this.el.customerDropdown;
         if (!dropdown) return;
 
         let filtered = this.state.customers;
-        // تبدأ دائمًا من العملاء فقط (هذه القائمة أصبحت مضمونة)
         if (term && term !== 'نقدي (بدون عميل)') {
             filtered = filtered.filter(c => c.name?.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
         }
@@ -433,6 +465,11 @@ const POS = {
                 notes: this.el.paymentNotes?.value || ''
             };
 
+            // إذا كنا نعدل فاتورة، نمرر معرف الفاتورة الأصلية
+            if (this.state.editingInvoiceId) {
+                invoice.original_invoice_id = this.state.editingInvoiceId;
+            }
+
             let result;
             if (window.InvoiceService && window.InvoiceService.createSaleInvoice) {
                 result = await InvoiceService.createSaleInvoice(invoice);
@@ -458,6 +495,7 @@ const POS = {
             );
 
             this.resetCart();
+            this.state.editingInvoiceId = null; // إعادة التعيين
             if (window.Toast) Toast.success('تم البيع بنجاح');
         } catch (error) {
             console.error('خطأ في الدفع:', error);
@@ -505,6 +543,7 @@ const POS = {
 
     resetCart() {
         this.state.cart = []; this.state.selectedCustomerId = null; this.state.discountValue = 0; this.state.discountType = 'amount'; this.state.usedCustomerBalance = 0;
+        this.state.editingInvoiceId = null;
         if (this.el.discountValue) this.el.discountValue.value = 0;
         if (this.el.discountType) this.el.discountType.value = 'amount';
         if (this.el.customerSearchInput) { this.el.customerSearchInput.value = ''; this.updateCustomerDisplay(); }
