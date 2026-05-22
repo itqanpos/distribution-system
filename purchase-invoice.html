@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>فاتورة شراء · حسابي</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/pos.css">
+    <link rel="stylesheet" href="./css/purchase-invoice.css">
+
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+
+    <style>
+        #loading-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #f59e0b; width: 0%; z-index: 9999;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-bar"></div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- الشريط العلوي -->
+    <nav class="navbar" id="mainNavbar">
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+                </div>
+                <div class="logo-text"><h2>حسابي</h2></div>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- القائمة الجانبية -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
+        </div>
+        <ul class="menu">
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
+            <li><a class="menu-item active" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
+            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
+            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <!-- حاوية فاتورة الشراء -->
+    <div class="purchase-container">
+        <div class="top-search-area">
+            <div class="supplier-box">
+                <div class="search-header" style="position: relative;">
+                    <i class="fas fa-truck" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                    <input type="text" id="supplierSearchInput" placeholder="🔍 بحث عن مورد..." autocomplete="off" style="padding-right: 35px;">
+                    <div id="supplierDropdown" class="search-dropdown"></div>
+                </div>
+            </div>
+            <div class="search-header">
+                <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off" style="padding-right: 35px;">
+                <div id="productDropdown" class="search-dropdown"></div>
+            </div>
+        </div>
+
+        <div class="cart-main-area">
+            <div class="cart-items" id="cartItemsContainer">
+                <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>التكلفة</span><span>الإجمالي</span><span></span></div>
+                <div class="empty-cart-message">السلة فارغة</div>
+            </div>
+            
+            <div class="cart-footer">
+                <div class="cart-summary">
+                    <div class="summary-stats">
+                        <div class="stat-item"><div class="label">الأصناف</div><div class="value" id="itemTypesCount">0</div></div>
+                        <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
+                    </div>
+                    <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
+                    <div class="summary-row"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-warning btn-lg" id="savePurchaseBtn"><i class="fas fa-save"></i> حفظ فاتورة الشراء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال اختيار الوحدة والتكلفة -->
+    <div class="modal" id="unitCostModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
+            <div class="form-group"><label>اختر الوحدة</label><div id="unitButtons" class="unit-selector"></div></div>
+            <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
+            <div class="form-group"><label>تكلفة الشراء</label><input type="number" id="selectedCost" min="0" step="0.01"></div>
+            <small id="stockInfo"></small>
+            <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="./js/services/purchaseService.js"></script>
+
+    <script>
+        (function() {
+            const loadingBar = document.getElementById('loading-bar');
+            function showLoading() { loadingBar.style.width = '80%'; }
+            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
+
+            async function initApp() {
+                if (!window.App) {
+                    if (window.Toast) Toast.error('خطأ في تحميل التطبيق');
+                    else alert('خطأ في تحميل التطبيق');
+                    return;
+                }
+
+                showLoading();
+
+                try {
+                    const authorized = await App.requireAuth();
+                    if (!authorized) { hideLoading(); return; }
+
+                    const roleOk = await App.requireRole(['admin']);
+                    if (!roleOk) { hideLoading(); return; }
+
+                    App.initUserInterface();
+
+                    const script = document.createElement('script');
+                    script.src = './js/purchase-invoice.js';
+                    script.onload = function() {
+                        if (window.PurchaseInvoice) {
+                            window.PurchaseInvoice.init();
+                        } else {
+                            if (window.Toast) Toast.error('فشل تهيئة صفحة الشراء');
+                        }
+                        hideLoading();
+                    };
+                    script.onerror = function() {
+                        if (window.Toast) Toast.error('فشل تحميل ملفات الصفحة');
+                        hideLoading();
+                    };
+                    document.body.appendChild(script);
+                } catch (e) {
+                    console.error('خطأ في التهيئة:', e);
+                    if (window.Toast) Toast.error('حدث خطأ غير متوقع');
+                    hideLoading();
+                }
+            }
+
+            initApp();
+        })();
+    </script>
+</body>
+</html>
