@@ -99,7 +99,7 @@ const PurchaseInvoice = {
     },
 
     async loadInitialData() {
-        this.state.isDBReady = !!(window.DB && window.supabase);
+        this.state.isDBReady = Utils.isDBReady();
         await this.loadSuppliersAndProducts();
         this.buildCache();
     },
@@ -113,9 +113,15 @@ const PurchaseInvoice = {
                 this.state.products = await localDB.getAll('products') || [];
                 this.state.suppliers = (await localDB.getAll('parties') || []).filter(p => p.type === 'supplier');
             }
+            if (this.state.products.length === 0) {
+                console.warn('لم يتم تحميل أي منتجات');
+            }
+            if (this.state.suppliers.length === 0) {
+                console.warn('لم يتم تحميل أي موردين');
+            }
             this.buildCache();
         } catch (e) {
-            console.error(e);
+            console.error('فشل تحميل المنتجات والموردين', e);
             if (window.Toast) Toast.error('فشل تحميل البيانات');
         }
     },
@@ -123,8 +129,14 @@ const PurchaseInvoice = {
     buildCache() {
         this.cache.productMap.clear();
         this.cache.supplierMap.clear();
-        for (const p of this.state.products) { this.cache.productMap.set(String(p.id), p); }
-        for (const s of this.state.suppliers) { this.cache.supplierMap.set(String(s.id), s); }
+        for (const p of this.state.products) {
+            this.cache.productMap.set(String(p.id), p);
+            this.cache.productMap.set(p.id, p);
+        }
+        for (const s of this.state.suppliers) {
+            this.cache.supplierMap.set(String(s.id), s);
+            this.cache.supplierMap.set(s.id, s);
+        }
     },
 
     filterSuppliers() {
@@ -207,7 +219,7 @@ const PurchaseInvoice = {
         const existing = this.state.cart.find(i => i.productId === product.id && i.unitName === unit.name);
         if (existing) {
             existing.quantity = Utils.round(existing.quantity + qty, 3);
-            existing.cost = cost; // تحديث التكلفة
+            existing.cost = cost;
         } else {
             this.state.cart.push({
                 productId: product.id,
@@ -249,7 +261,6 @@ const PurchaseInvoice = {
             container.appendChild(row);
         });
 
-        // أحداث التعديل
         container.addEventListener('change', (e) => {
             if (e.target.classList.contains('cart-qty-input')) {
                 const idx = +e.target.dataset.idx;
@@ -271,7 +282,6 @@ const PurchaseInvoice = {
                 this.renderCart();
             }
         });
-
         this.updateTotals();
     },
 
@@ -280,7 +290,6 @@ const PurchaseInvoice = {
         for (const item of this.state.cart) subtotal += Utils.round(item.cost * item.quantity);
         subtotal = Utils.round(subtotal, 2);
         this.state.netTotal = subtotal;
-
         if (this.el.subtotal) this.el.subtotal.textContent = Utils.formatMoney(subtotal);
         if (this.el.netTotal) this.el.netTotal.textContent = Utils.formatMoney(subtotal);
         if (this.el.itemTypesCount) this.el.itemTypesCount.textContent = this.state.cart.length;
@@ -357,4 +366,4 @@ const PurchaseInvoice = {
 };
 
 window.PurchaseInvoice = PurchaseInvoice;
-window.addEventListener('DOMContentLoaded', () => PurchaseInvoice.init());
+// لا حاجة لحدث DOMContentLoaded لأننا نستدعي init() يدويًا بعد التحميل
