@@ -4,43 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>فاتورة شراء · حسابي</title>
-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
     <link rel="stylesheet" href="./css/purchase-invoice.css">
-
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-
+    <meta name="theme-color" content="#f59e0b">
     <style>
-        #loading-bar {
-            position: fixed; top: 0; left: 0; height: 3px;
-            background: #f59e0b; width: 0%; z-index: 9999;
-            transition: width 0.3s ease;
-        }
+        #loading-bar { position: fixed; top: 0; left: 0; height: 3px; background: #f59e0b; width: 0%; z-index: 9999; transition: width 0.3s ease; }
     </style>
 </head>
 <body>
     <div id="loading-bar"></div>
-
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- الشريط العلوي -->
+    <!-- الشريط العلوي والقائمة الجانبية (كما هي دون تغيير) -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                     <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
                 </div>
                 <div class="logo-text"><h2>حسابي</h2></div>
@@ -48,9 +37,7 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
                     <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
                     <div class="dropdown-divider"></div>
@@ -59,8 +46,6 @@
             </div>
         </div>
     </nav>
-
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -105,7 +90,6 @@
                 <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>التكلفة</span><span>الإجمالي</span><span></span></div>
                 <div class="empty-cart-message">السلة فارغة</div>
             </div>
-            
             <div class="cart-footer">
                 <div class="cart-summary">
                     <div class="summary-stats">
@@ -143,11 +127,29 @@
     <script src="./js/toast.js"></script>
     <script src="./js/services/purchaseService.js"></script>
 
+    <!-- تعريف Utils (مطلوب لـ escapeHTML وغيرها) -->
+    <script>
+        window.Utils = {
+            formatMoney: (amount, currency = 'ج.م') => Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
+            formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return dateStr; } },
+            getToday: () => new Date().toISOString().split('T')[0],
+            escapeHTML: (str) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; },
+            debounce: (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; },
+            round: (value, decimals = 3) => Number(Math.round(value + 'e' + decimals) + 'e-' + decimals),
+            generateUUID: () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
+            isDBReady: () => !!(window.DB && window.supabase),
+            hasLocalDB: () => !!(window.localDB)
+        };
+    </script>
+
+    <!-- سكربت الصفحة الأساسي -->
+    <script src="./js/purchase-invoice.js"></script>
+
     <script>
         (function() {
             const loadingBar = document.getElementById('loading-bar');
-            function showLoading() { loadingBar.style.width = '80%'; }
-            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
+            window.showLoading = () => { loadingBar.style.width = '80%'; };
+            window.hideLoading = () => { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); };
 
             async function initApp() {
                 if (!window.App) {
@@ -155,40 +157,25 @@
                     else alert('خطأ في تحميل التطبيق');
                     return;
                 }
-
                 showLoading();
-
                 try {
                     const authorized = await App.requireAuth();
                     if (!authorized) { hideLoading(); return; }
-
                     const roleOk = await App.requireRole(['admin']);
                     if (!roleOk) { hideLoading(); return; }
-
                     App.initUserInterface();
-
-                    const script = document.createElement('script');
-                    script.src = './js/purchase-invoice.js';
-                    script.onload = function() {
-                        if (window.PurchaseInvoice) {
-                            window.PurchaseInvoice.init();
-                        } else {
-                            if (window.Toast) Toast.error('فشل تهيئة صفحة الشراء');
-                        }
-                        hideLoading();
-                    };
-                    script.onerror = function() {
-                        if (window.Toast) Toast.error('فشل تحميل ملفات الصفحة');
-                        hideLoading();
-                    };
-                    document.body.appendChild(script);
+                    if (window.PurchaseInvoice) {
+                        window.PurchaseInvoice.init();
+                    } else {
+                        if (window.Toast) Toast.error('فشل تهيئة صفحة الشراء');
+                    }
                 } catch (e) {
-                    console.error('خطأ في التهيئة:', e);
+                    console.error(e);
                     if (window.Toast) Toast.error('حدث خطأ غير متوقع');
+                } finally {
                     hideLoading();
                 }
             }
-
             initApp();
         })();
     </script>
