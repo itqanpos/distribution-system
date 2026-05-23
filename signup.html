@@ -4,213 +4,425 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>إنشاء متجر جديد · حسابي</title>
-    
+
+    <!-- PWA Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-dark: #4338ca;
-            --secondary: #10b981;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #06b6d4;
             --accent: #f59e0b;
-            --bg-start: #0f172a;
-            --bg-mid: #1e293b;
-            --bg-end: #0f172a;
-            --card-bg: rgba(255, 255, 255, 0.92);
-            --text: #1e293b;
-            --text-light: #64748b;
-            --input-bg: rgba(255,255,255,0.8);
-            --shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-            --radius: 28px;
-            --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            --bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.06);
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --input-bg: rgba(255, 255, 255, 0.08);
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            --radius: 24px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: 'Cairo', sans-serif;
-            background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
-            min-height: 100vh; min-height: 100dvh;
-            display: flex; align-items: center; justify-content: center;
-            padding: 20px; position: relative; overflow-x: hidden;
-        }
-        
-        .animated-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
-        .shape {
-            position: absolute; border-radius: 50%; filter: blur(60px);
-            opacity: 0.12; animation: float 20s infinite ease-in-out;
-        }
-        .shape1 { width: 500px; height: 500px; background: var(--primary); top: -150px; right: -150px; }
-        .shape2 { width: 400px; height: 400px; background: var(--secondary); bottom: -120px; left: -120px; animation-delay: -7s; }
-        .shape3 { width: 300px; height: 300px; background: var(--accent); top: 50%; left: 10%; animation-delay: -14s; }
-        @keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-            25% { transform: translateY(-30px) rotate(5deg) scale(1.05); }
-            50% { transform: translateY(20px) rotate(-3deg) scale(0.95); }
-            75% { transform: translateY(-15px) rotate(2deg) scale(1.02); }
+            background: var(--bg);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
         }
 
-        .grid-bg {
-            position: absolute; inset: 0;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
-            animation: moveGrid 15s linear infinite;
+        /* خلفية النجوم */
+        .stars {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
         }
-        @keyframes moveGrid { 0% { transform: translate(0, 0); } 100% { transform: translate(-60px, -60px); } }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) ease-in-out infinite;
+            animation-delay: var(--delay);
+            opacity: 0;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.5); }
+        }
+
+        /* هالات متحركة */
+        .aura {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+            z-index: 0;
+            pointer-events: none;
+            animation: rotateAura 30s linear infinite;
+        }
+        .aura-1 {
+            background: var(--primary);
+            top: -150px;
+            right: -150px;
+        }
+        .aura-2 {
+            background: var(--secondary);
+            bottom: -150px;
+            left: -150px;
+            animation-direction: reverse;
+        }
+        @keyframes rotateAura {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
 
         .container {
-            width: 100%; max-width: 500px; position: relative; z-index: 2;
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            z-index: 2;
             animation: cardEntry 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
         }
         @keyframes cardEntry {
-            0% { opacity: 0; transform: translateY(40px) scale(0.96); }
-            100% { opacity: 1; transform: translateY(0) scale(1); }
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .card {
             background: var(--card-bg);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: var(--radius); box-shadow: var(--shadow);
-            padding: 40px 32px; border: 1px solid rgba(255,255,255,0.2);
-            transition: var(--transition); overflow: hidden;
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 40px 32px;
+            box-shadow: var(--shadow);
         }
-        .card:hover { box-shadow: 0 30px 60px -12px rgba(0,0,0,0.35); }
 
+        /* الخطوات */
         .stepper {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 36px; position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 36px;
+            position: relative;
         }
         .step {
-            width: 44px; height: 44px; border-radius: 50%;
-            background: #f1f5f9; color: #94a3b8;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 18px; transition: var(--transition);
-            position: relative; z-index: 1;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.06);
+            border: 2px solid rgba(255,255,255,0.15);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            transition: var(--transition);
+            position: relative;
+            z-index: 1;
         }
-        .step.active { background: var(--primary); color: white; transform: scale(1.1); }
-        .step.done { background: var(--secondary); color: white; }
-        .step i { font-size: 16px; }
-        .stepper::before {
-            content: ''; position: absolute; top: 50%; left: 10%; right: 10%;
-            height: 2px; background: #e2e8f0; transform: translateY(-50%); z-index: 0;
+        .step.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(99,102,241,0.4);
+        }
+        .step.done {
+            background: var(--secondary);
+            border-color: var(--secondary);
+            color: white;
+        }
+        .stepper-line {
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-50%);
+            z-index: 0;
         }
         .stepper-progress {
-            position: absolute; top: 50%; left: 10%; height: 2px;
-            background: var(--primary); transform: translateY(-50%); z-index: 0;
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            height: 2px;
+            background: var(--primary);
+            transform: translateY(-50%);
+            z-index: 0;
             transition: width 0.4s ease;
         }
 
-        .step-content { display: none; }
-        .step-content.active { display: block; animation: fadeSlideIn 0.5s ease; }
+        .step-content {
+            display: none;
+        }
+        .step-content.active {
+            display: block;
+            animation: fadeSlideIn 0.5s ease;
+        }
         @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateX(20px); }
             to { opacity: 1; transform: translateX(0); }
         }
 
         .section-title {
-            text-align: center; margin-bottom: 28px;
+            text-align: center;
+            margin-bottom: 24px;
         }
-        .section-title h2 { font-size: 24px; font-weight: 800; color: var(--text); }
-        .section-title p { color: var(--text-light); font-size: 14px; margin-top: 4px; }
+        .section-title h2 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .section-title p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 4px;
+        }
 
-        .input-group { position: relative; margin-bottom: 20px; }
-        .input-group input, .input-group select {
-            width: 100%; padding: 16px 52px 16px 20px;
-            border: 2px solid transparent; border-radius: 18px;
-            font-family: 'Cairo', sans-serif; font-size: 16px;
+        /* تنبيه */
+        .alert {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 12px 16px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            backdrop-filter: blur(8px);
+        }
+        .alert.show { display: flex; }
+        .alert a {
+            color: #f87171;
+            font-weight: 700;
+            text-decoration: none;
+            margin-right: auto;
+            cursor: pointer;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 15px 48px 15px 18px;
             background: var(--input-bg);
-            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-            color: var(--text); transition: var(--transition);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 16px;
+            color: var(--text);
+            transition: var(--transition);
+            outline: none;
         }
-        .input-group input:focus, .input-group select:focus {
-            outline: none; border-color: var(--primary);
-            background: rgba(255,255,255,0.95);
-            box-shadow: 0 0 0 4px rgba(79,70,229,0.1), 0 8px 16px -8px rgba(79,70,229,0.2);
+        .input-group select option {
+            background: #1e293b;
+            color: #f1f5f9;
         }
-        .input-group input::placeholder { color: #94a3b8; }
+        .input-group input:focus,
+        .input-group select:focus {
+            border-color: var(--primary);
+            background: rgba(255,255,255,0.12);
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+        }
+        .input-group input::placeholder { color: #64748b; }
         .input-icon {
-            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
-            color: #94a3b8; font-size: 18px; transition: var(--transition); pointer-events: none;
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 18px;
+            transition: var(--transition);
+            pointer-events: none;
         }
         .input-group input:focus ~ .input-icon,
-        .input-group input:not(:placeholder-shown) ~ .input-icon { color: var(--primary); }
+        .input-group input:not(:placeholder-shown) ~ .input-icon,
+        .input-group select:focus ~ .input-icon {
+            color: var(--primary);
+        }
 
         .btn {
-            background: linear-gradient(135deg, var(--primary), #6366f1);
-            color: white; border: none; border-radius: 18px;
-            padding: 16px; width: 100%;
-            font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 18px;
-            cursor: pointer; transition: var(--transition); margin-top: 8px;
-            letter-spacing: 0.3px; position: relative; overflow: hidden;
-            box-shadow: 0 8px 24px -8px rgba(79,70,229,0.4);
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 16px;
+            width: 100%;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            font-size: 18px;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 8px;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -8px rgba(99,102,241,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         .btn:hover {
-            box-shadow: 0 14px 32px -8px rgba(79,70,229,0.5);
+            box-shadow: 0 16px 35px -8px rgba(99,102,241,0.6);
             transform: translateY(-2px);
         }
-        .btn:active { transform: scale(0.97); }
-        .btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 10px 25px -8px rgba(99,102,241,0.3);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            box-shadow: none;
+            flex: 1;
+        }
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(99,102,241,0.05);
+            box-shadow: none;
+        }
         .btn .spinner {
-            display: none; width: 22px; height: 22px;
-            border: 3px solid rgba(255,255,255,0.3); border-top-color: white;
-            border-radius: 50%; animation: spin 0.8s linear infinite;
-            margin-left: 10px; vertical-align: middle;
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .btn.loading .btn-text { display: none; }
         .btn.loading .spinner { display: inline-block; }
 
-        .nav-buttons { display: flex; gap: 12px; }
-        .btn-outline {
-            background: transparent; border: 2px solid #e2e8f0; color: var(--text);
-            box-shadow: none; flex: 1;
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
         }
-        .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: #f8fafc; }
 
-        .plan-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        /* بطاقات الخطط */
+        .plan-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
         .plan-card {
-            background: white; border: 2px solid #e2e8f0; border-radius: 20px;
-            padding: 20px; text-align: center; cursor: pointer; transition: var(--transition);
+            background: rgba(255,255,255,0.04);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 18px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
         }
-        .plan-card:hover { border-color: var(--primary); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
-        .plan-card.selected { border-color: var(--primary); background: #f5f3ff; }
-        .plan-card i { font-size: 28px; color: var(--primary); margin-bottom: 8px; }
-        .plan-card .plan-name { font-weight: 700; font-size: 18px; }
-        .plan-card .plan-price { color: var(--text-light); font-size: 14px; }
+        .plan-card:hover {
+            border-color: var(--primary);
+            background: rgba(99,102,241,0.05);
+        }
+        .plan-card.selected {
+            border-color: var(--primary);
+            background: rgba(99,102,241,0.1);
+            box-shadow: 0 0 20px rgba(99,102,241,0.2);
+        }
+        .plan-card i {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        .plan-card .plan-name {
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--text);
+        }
+        .plan-card .plan-price {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .plan-card .plan-features {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 6px;
+        }
 
-        .login-link { text-align: center; margin-top: 24px; color: var(--text-light); font-size: 15px; }
-        .login-link a { color: var(--primary); font-weight: 700; text-decoration: none; }
+        .login-link {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+        .login-link a {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .login-link a:hover { color: #818cf8; }
 
         @media (max-width: 480px) {
-            .card { padding: 32px 20px; border-radius: 24px; }
-            .stepper { margin-bottom: 28px; }
-            .step { width: 38px; height: 38px; font-size: 16px; }
-            .input-group input { padding: 14px 44px 14px 16px; font-size: 15px; }
-            .btn { padding: 14px; font-size: 16px; }
+            .card { padding: 30px 20px; border-radius: 20px; }
             .plan-cards { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="animated-bg">
-        <div class="shape shape1"></div>
-        <div class="shape shape2"></div>
-        <div class="shape shape3"></div>
-        <div class="grid-bg"></div>
-    </div>
+    <div class="stars" id="starsContainer"></div>
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
 
     <div class="container">
         <div class="card">
+            <!-- الخطوات -->
             <div class="stepper">
+                <div class="stepper-line"></div>
                 <div class="stepper-progress" id="stepperProgress" style="width: 0%;"></div>
                 <div class="step active" id="step1">1</div>
                 <div class="step" id="step2">2</div>
                 <div class="step" id="step3"><i class="fas fa-crown"></i></div>
+            </div>
+
+            <!-- رسالة خطأ الاتصال -->
+            <div class="alert" id="connectionAlert">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="alertMsg">تعذر الاتصال بالخادم</span>
+                <a onclick="location.reload()">إعادة المحاولة</a>
             </div>
 
             <!-- الخطوة 1: حساب المستخدم -->
@@ -239,7 +451,7 @@
                     <input type="password" id="passwordConfirm" placeholder="تأكيد كلمة المرور">
                     <span class="input-icon"><i class="fas fa-check-circle"></i></span>
                 </div>
-                <button class="btn" id="nextStep1">التالي <i class="fas fa-arrow-left mr-1"></i></button>
+                <button class="btn" id="nextStep1">التالي <i class="fas fa-arrow-left"></i></button>
             </div>
 
             <!-- الخطوة 2: بيانات المتجر -->
@@ -265,7 +477,7 @@
                 </div>
                 <div class="nav-buttons">
                     <button class="btn btn-outline" id="prevStep2">السابق</button>
-                    <button class="btn" id="nextStep2" style="flex:2;">التالي <i class="fas fa-arrow-left mr-1"></i></button>
+                    <button class="btn" id="nextStep2" style="flex:2;">التالي <i class="fas fa-arrow-left"></i></button>
                 </div>
             </div>
 
@@ -280,18 +492,18 @@
                         <i class="fas fa-gift"></i>
                         <div class="plan-name">مجانية</div>
                         <div class="plan-price">0 ج / شهريًا</div>
-                        <small style="color:#64748b;">حتى 50 فاتورة</small>
+                        <div class="plan-features">حتى 50 فاتورة شهريًا</div>
                     </div>
                     <div class="plan-card" data-plan="pro">
                         <i class="fas fa-rocket"></i>
                         <div class="plan-name">احترافية</div>
                         <div class="plan-price">$9.99 / شهريًا</div>
-                        <small style="color:#64748b;">غير محدود + دعم فني</small>
+                        <div class="plan-features">غير محدود + دعم فني</div>
                     </div>
                 </div>
                 <div class="nav-buttons">
                     <button class="btn btn-outline" id="prevStep3">السابق</button>
-                    <button class="btn" id="submitBtn" style="flex:2;">إنشاء المتجر <i class="fas fa-check mr-1"></i></button>
+                    <button class="btn" id="submitBtn" style="flex:2;">إنشاء المتجر <i class="fas fa-check"></i></button>
                 </div>
             </div>
         </div>
@@ -300,25 +512,44 @@
         </div>
     </div>
 
+    <!-- الاعتماديات -->
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/core/db-local.js"></script>
-    <script src="./js/core/supabase.js"></script>
-    <script src="./js/core/sync.js"></script>
-    <script src="./js/core/toast.js"></script>
+    <script src="./js/supabase.js"></script>
 
     <script>
-        (function() {
+        (() => {
+            // ========== إنشاء النجوم ==========
+            const starsContainer = document.getElementById('starsContainer');
+            for (let i = 0; i < 70; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.cssText = `
+                    left: ${Math.random() * 100}%;
+                    top: ${Math.random() * 100}%;
+                    width: ${Math.random() * 3 + 1}px;
+                    height: ${Math.random() * 3 + 1}px;
+                    --duration: ${Math.random() * 3 + 2}s;
+                    --delay: ${Math.random() * 4}s;
+                `;
+                starsContainer.appendChild(star);
+            }
+
+            // ========== حالة التطبيق ==========
             let currentStep = 1;
             let selectedPlan = 'free';
 
-            // عناصر الـ DOM
-            const step1 = document.getElementById('step1');
-            const step2 = document.getElementById('step2');
-            const step3 = document.getElementById('step3');
+            // ========== عناصر DOM ==========
+            const step1El = document.getElementById('step1');
+            const step2El = document.getElementById('step2');
+            const step3El = document.getElementById('step3');
             const content1 = document.getElementById('content1');
             const content2 = document.getElementById('content2');
             const content3 = document.getElementById('content3');
             const stepperProgress = document.getElementById('stepperProgress');
+            const alertBox = document.getElementById('connectionAlert');
+            const alertMsg = document.getElementById('alertMsg');
 
             const nextStep1 = document.getElementById('nextStep1');
             const prevStep2 = document.getElementById('prevStep2');
@@ -326,26 +557,35 @@
             const prevStep3 = document.getElementById('prevStep3');
             const submitBtn = document.getElementById('submitBtn');
 
-            const planCards = document.querySelectorAll('.plan-card');
+            // ========== دوال مساعدة ==========
+            function showAlert(message, showRetry = true) {
+                alertMsg.textContent = message;
+                alertBox.classList.add('show');
+                if (!showRetry) alertBox.querySelector('a').style.display = 'none';
+                else alertBox.querySelector('a').style.display = '';
+            }
+            function hideAlert() { alertBox.classList.remove('show'); }
+
+            function showToast(msg, type = 'error') {
+                if (window.Toast) {
+                    Toast[type]?.(msg) || Toast.error(msg);
+                } else {
+                    alert(msg);
+                }
+            }
 
             function showStep(n) {
-                // تحديث stepper
-                step1.classList.remove('active', 'done');
-                step2.classList.remove('active', 'done');
-                step3.classList.remove('active', 'done');
-                if (n > 1) step1.classList.add('done');
-                if (n > 2) step2.classList.add('done');
-                if (n === 1) step1.classList.add('active');
-                else if (n === 2) step2.classList.add('active');
-                else if (n === 3) step3.classList.add('active');
+                // تحديث الخطوات
+                [step1El, step2El, step3El].forEach(el => el.classList.remove('active', 'done'));
+                if (n > 1) step1El.classList.add('done');
+                if (n > 2) step2El.classList.add('done');
+                const activeStep = [step1El, step2El, step3El][n-1];
+                if (activeStep) activeStep.classList.add('active');
 
                 // تحديث المحتوى
-                content1.classList.remove('active');
-                content2.classList.remove('active');
-                content3.classList.remove('active');
-                if (n === 1) content1.classList.add('active');
-                else if (n === 2) content2.classList.add('active');
-                else if (n === 3) content3.classList.add('active');
+                [content1, content2, content3].forEach(el => el.classList.remove('active'));
+                const activeContent = [content1, content2, content3][n-1];
+                if (activeContent) activeContent.classList.add('active');
 
                 // شريط التقدم
                 const progress = (n - 1) * 50;
@@ -355,15 +595,59 @@
             }
 
             // اختيار الخطة
-            planCards.forEach(card => {
+            document.querySelectorAll('.plan-card').forEach(card => {
                 card.addEventListener('click', () => {
-                    planCards.forEach(c => c.classList.remove('selected'));
+                    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
                     card.classList.add('selected');
                     selectedPlan = card.dataset.plan;
                 });
             });
 
-            // الخطوة 1 -> 2
+            // ========== انتظار النواة ==========
+            function waitForApp(timeoutMs = 8000) {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const check = () => {
+                        if (window.App && window.App.signup && window.App.getCurrentUser) {
+                            resolve();
+                        } else if (Date.now() - start > timeoutMs) {
+                            reject(new Error('انتهت مهلة الاتصال'));
+                        } else {
+                            setTimeout(check, 200);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            // تعطيل كل الأزرار حتى تجهز النواة
+            function disableAllButtons(disabled = true) {
+                document.querySelectorAll('.btn').forEach(b => b.disabled = disabled);
+            }
+
+            async function init() {
+                disableAllButtons(true);
+                try {
+                    await waitForApp();
+                    hideAlert();
+                    disableAllButtons(false);
+                } catch (err) {
+                    showAlert('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+                    disableAllButtons(true);
+                }
+            }
+            init();
+
+            // مستمع الاتصال
+            window.addEventListener('online', () => {
+                hideAlert();
+                init();
+            });
+            window.addEventListener('offline', () => {
+                showAlert('أنت غير متصل بالإنترنت', false);
+            });
+
+            // ========== التنقل بين الخطوات ==========
             nextStep1.addEventListener('click', () => {
                 const fullName = document.getElementById('fullName').value.trim();
                 const email = document.getElementById('email').value.trim();
@@ -371,31 +655,29 @@
                 const passwordConfirm = document.getElementById('passwordConfirm').value;
 
                 if (!fullName || !email || !password) {
-                    return Toast.warning('جميع الحقول الأساسية مطلوبة');
+                    return showToast('جميع الحقول الأساسية مطلوبة', 'warning');
                 }
                 if (password !== passwordConfirm) {
-                    return Toast.warning('كلمتا المرور غير متطابقتين');
+                    return showToast('كلمتا المرور غير متطابقتين', 'warning');
                 }
                 if (password.length < 6) {
-                    return Toast.warning('كلمة المرور 6 أحرف على الأقل');
+                    return showToast('كلمة المرور 6 أحرف على الأقل', 'warning');
                 }
                 showStep(2);
             });
 
-            // الخطوة 2 -> 3
             nextStep2.addEventListener('click', () => {
                 const storeName = document.getElementById('storeName').value.trim();
                 if (!storeName) {
-                    return Toast.warning('يرجى إدخال اسم المتجر');
+                    return showToast('يرجى إدخال اسم المتجر', 'warning');
                 }
                 showStep(3);
             });
 
-            // رجوع
             prevStep2.addEventListener('click', () => showStep(1));
             prevStep3.addEventListener('click', () => showStep(2));
 
-            // تقديم النموذج
+            // ========== إنشاء المتجر ==========
             submitBtn.addEventListener('click', async () => {
                 const fullName = document.getElementById('fullName').value.trim();
                 const email = document.getElementById('email').value.trim();
@@ -404,8 +686,16 @@
                 const storeName = document.getElementById('storeName').value.trim();
                 const businessType = document.getElementById('businessType').value;
 
-                if (!window.App) {
-                    return Toast.error('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+                // تحقق إضافي من النواة
+                if (!window.App || !window.App.signup) {
+                    showAlert('الاتصال غير متاح، جارٍ المحاولة...');
+                    try {
+                        await waitForApp(4000);
+                        hideAlert();
+                    } catch (e) {
+                        showAlert('فشل الاتصال. الرجاء التحقق من الإنترنت.');
+                        return;
+                    }
                 }
 
                 submitBtn.classList.add('loading');
@@ -414,31 +704,27 @@
                 try {
                     const result = await App.signup(email, password, fullName, 'admin', storeName, phone);
                     if (result.success) {
-                        Toast.success('تم إنشاء المتجر بنجاح!');
-                        // يمكن هنا حفظ خطة المستخدم إذا أردت (مؤقتًا نحفظ في الإعدادات لاحقًا)
+                        showToast('تم إنشاء المتجر بنجاح!', 'success');
+                        // يمكن حفظ الخطة المختارة لاحقًا
                         if (selectedPlan !== 'free') {
-                            // في المستقبل: توجيه لصفحة الدفع
                             console.log('الخطة المختارة:', selectedPlan);
+                            // TODO: توجيه لصفحة الدفع عند الحاجة
                         }
                         setTimeout(() => {
                             window.location.href = './dashboard.html';
                         }, 1500);
                     } else {
-                        Toast.error(result.message || 'فشل إنشاء المتجر');
+                        showToast(result.message || 'فشل إنشاء المتجر');
                     }
                 } catch (e) {
-                    Toast.error('حدث خطأ غير متوقع');
-                    console.error(e);
+                    showToast(e.message || 'حدث خطأ غير متوقع');
                 } finally {
                     submitBtn.classList.remove('loading');
                     submitBtn.disabled = false;
                 }
             });
 
-            // بداية
-            showStep(1);
-
-            // خدمة العمال
+            // ========== Service Worker ==========
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./service-worker.js').catch(() => {});
             }
