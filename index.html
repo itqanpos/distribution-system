@@ -59,79 +59,40 @@
             padding: 40px 32px;
         }
 
-        .logo-area {
-            text-align: center;
-            margin-bottom: 32px;
-        }
+        .logo-area { text-align: center; margin-bottom: 32px; }
         .logo-area img {
-            width: 72px;
-            height: 72px;
-            object-fit: contain;
-            border-radius: 18px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            width: 72px; height: 72px; object-fit: contain;
+            border-radius: 18px; box-shadow: 0 8px 20px rgba(0,0,0,0.08);
             margin-bottom: 16px;
         }
-        .logo-area h1 {
-            font-size: 28px;
-            font-weight: 800;
-            color: #0f172a;
-            letter-spacing: -0.3px;
-        }
-        .logo-area .subtitle {
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 500;
-        }
+        .logo-area h1 { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
+        .logo-area .subtitle { color: #64748b; font-size: 14px; font-weight: 500; }
 
-        .input-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
+        .input-group { margin-bottom: 20px; position: relative; }
         .input-group .icon {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-            font-size: 16px;
-            pointer-events: none;
+            position: absolute; right: 16px; top: 50%;
+            transform: translateY(-50%); color: #94a3b8; font-size: 16px; pointer-events: none;
         }
         .input-group input {
-            width: 100%;
-            padding: 14px 48px 14px 16px;
-            border: 1px solid rgba(203, 213, 225, 0.8);
-            border-radius: 16px;
-            font-family: 'Cairo', sans-serif;
-            font-size: 16px;
+            width: 100%; padding: 14px 48px 14px 16px;
+            border: 1px solid rgba(203, 213, 225, 0.8); border-radius: 16px;
+            font-family: 'Cairo', sans-serif; font-size: 16px;
             background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            transition: 0.3s;
-            color: #1e293b;
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            transition: 0.3s; color: #1e293b;
         }
         .input-group input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            background: rgba(255,255,255,0.95);
+            outline: none; border-color: #3b82f6; background: rgba(255,255,255,0.95);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
         .input-group input::placeholder { color: #94a3b8; }
 
         .login-btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            padding: 14px;
-            width: 100%;
-            font-family: 'Cairo', sans-serif;
-            font-weight: 700;
-            font-size: 18px;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 8px;
-            letter-spacing: 0.3px;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+            background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;
+            border: none; border-radius: 16px; padding: 14px; width: 100%;
+            font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 18px;
+            cursor: pointer; transition: 0.3s; margin-top: 8px;
+            letter-spacing: 0.3px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
         }
         .login-btn:hover {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -139,24 +100,10 @@
             transform: translateY(-1px);
         }
         .login-btn:active { transform: scale(0.98); }
-        .login-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        .signup-link {
-            margin-top: 24px;
-            text-align: center;
-            font-size: 15px;
-            color: #64748b;
-        }
-        .signup-link a {
-            color: #3b82f6;
-            font-weight: 700;
-            text-decoration: none;
-        }
+        .signup-link { margin-top: 24px; text-align: center; font-size: 15px; color: #64748b; }
+        .signup-link a { color: #3b82f6; font-weight: 700; text-decoration: none; }
         .signup-link a:hover { text-decoration: underline; }
 
         @media (max-width: 480px) {
@@ -192,16 +139,17 @@
             <button class="login-btn" id="loginBtn">تسجيل الدخول</button>
             
             <div class="signup-link">
-                ليس لديك متجر؟ <a href="./signup.html" rel="noopener">أنشئ متجرك الآن</a>
+                ليس لديك متجر؟ <a href="./signup.html">أنشئ متجرك الآن</a>
             </div>
         </div>
     </div>
 
+    <!-- ترتيب التحميل حاسم -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="./js/toast.js"></script>
+    <script src="./js/core/db-local.js"></script>
+    <script src="./js/core/supabase.js"></script>
+    <script src="./js/core/sync.js"></script>
+    <script src="./js/core/toast.js"></script>
 
     <script>
         (function() {
@@ -210,15 +158,17 @@
             const loginBtn = document.getElementById('loginBtn');
 
             function showError(msg) {
-                if (window.Toast) { Toast.error(msg); } else { alert(msg); }
+                window.Toast?.error(msg) || alert(msg);
             }
 
+            // تحقق مبكر من وجود النواة
             if (!window.App) {
                 showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
                 loginBtn.disabled = true;
                 return;
             }
 
+            // إعادة توجيه المستخدم المسجل دخوله تلقائياً
             App.getCurrentUser().then(user => {
                 if (user) {
                     let target = './dashboard.html';
@@ -257,11 +207,12 @@
             }
 
             loginBtn.addEventListener('click', performLogin);
-            passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performLogin(); });
-            emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') passInput.focus(); });
+            passInput.addEventListener('keypress', e => { if (e.key === 'Enter') performLogin(); });
+            emailInput.addEventListener('keypress', e => { if (e.key === 'Enter') passInput.focus(); });
 
             emailInput.focus();
 
+            // تسجيل Service Worker للدعم الكامل offline
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./service-worker.js').catch(() => {});
             }
