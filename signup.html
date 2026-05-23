@@ -2,73 +2,299 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>إنشاء متجر جديد · حسابي</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --bg-start: #0f172a;
+            --bg-mid: #1e293b;
+            --bg-end: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --text: #1e293b;
+            --text-light: #64748b;
+            --input-bg: rgba(255,255,255,0.8);
+            --shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            --radius: 28px;
+            --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Cairo', sans-serif; background: linear-gradient(145deg, #f0f4ff, #ffffff);
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            padding: 20px;
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; position: relative; overflow-x: hidden;
         }
-        .signup-card {
-            background: rgba(255,255,255,0.8); backdrop-filter: blur(20px); border-radius: 32px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.08); padding: 40px 32px; width: 100%; max-width: 420px;
+        
+        .animated-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+        .shape {
+            position: absolute; border-radius: 50%; filter: blur(60px);
+            opacity: 0.12; animation: float 20s infinite ease-in-out;
         }
-        h1 { text-align: center; font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 32px; }
-        .input-group { margin-bottom: 20px; position: relative; }
-        .input-group .icon {
-            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-            color: #94a3b8; font-size: 16px;
+        .shape1 { width: 500px; height: 500px; background: var(--primary); top: -150px; right: -150px; }
+        .shape2 { width: 400px; height: 400px; background: var(--secondary); bottom: -120px; left: -120px; animation-delay: -7s; }
+        .shape3 { width: 300px; height: 300px; background: var(--accent); top: 50%; left: 10%; animation-delay: -14s; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+            25% { transform: translateY(-30px) rotate(5deg) scale(1.05); }
+            50% { transform: translateY(20px) rotate(-3deg) scale(0.95); }
+            75% { transform: translateY(-15px) rotate(2deg) scale(1.02); }
         }
+
+        .grid-bg {
+            position: absolute; inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: moveGrid 15s linear infinite;
+        }
+        @keyframes moveGrid { 0% { transform: translate(0, 0); } 100% { transform: translate(-60px, -60px); } }
+
+        .container {
+            width: 100%; max-width: 500px; position: relative; z-index: 2;
+            animation: cardEntry 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+        }
+        @keyframes cardEntry {
+            0% { opacity: 0; transform: translateY(40px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius); box-shadow: var(--shadow);
+            padding: 40px 32px; border: 1px solid rgba(255,255,255,0.2);
+            transition: var(--transition); overflow: hidden;
+        }
+        .card:hover { box-shadow: 0 30px 60px -12px rgba(0,0,0,0.35); }
+
+        .stepper {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 36px; position: relative;
+        }
+        .step {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: #f1f5f9; color: #94a3b8;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 18px; transition: var(--transition);
+            position: relative; z-index: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .step.active { background: var(--primary); color: white; transform: scale(1.1); }
+        .step.done { background: var(--secondary); color: white; }
+        .step i { font-size: 16px; }
+        .stepper::before {
+            content: ''; position: absolute; top: 50%; left: 10%; right: 10%;
+            height: 2px; background: #e2e8f0; transform: translateY(-50%); z-index: 0;
+        }
+        .stepper-progress {
+            position: absolute; top: 50%; left: 10%; height: 2px;
+            background: var(--primary); transform: translateY(-50%); z-index: 0;
+            transition: width 0.4s ease;
+        }
+
+        .step-content { display: none; }
+        .step-content.active { display: block; animation: fadeSlideIn 0.5s ease; }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .section-title {
+            text-align: center; margin-bottom: 28px;
+        }
+        .section-title h2 { font-size: 24px; font-weight: 800; color: var(--text); }
+        .section-title p { color: var(--text-light); font-size: 14px; margin-top: 4px; }
+
+        .input-group { position: relative; margin-bottom: 20px; }
         .input-group input, .input-group select {
-            width: 100%; padding: 14px 48px 14px 16px;
-            border: 1px solid #cbd5e1; border-radius: 16px;
-            font-family: 'Cairo', sans-serif; font-size: 16px; background: rgba(255,255,255,0.7);
+            width: 100%; padding: 16px 52px 16px 20px;
+            border: 2px solid transparent; border-radius: 18px;
+            font-family: 'Cairo', sans-serif; font-size: 16px;
+            background: var(--input-bg);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            color: var(--text); transition: var(--transition);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
-        .input-group input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
+        .input-group input:focus, .input-group select:focus {
+            outline: none; border-color: var(--primary);
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 0 4px rgba(79,70,229,0.1), 0 8px 16px -8px rgba(79,70,229,0.2);
+        }
+        .input-group input::placeholder { color: #94a3b8; }
+        .input-icon {
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8; font-size: 18px; transition: var(--transition); pointer-events: none;
+        }
+        .input-group input:focus ~ .input-icon,
+        .input-group input:not(:placeholder-shown) ~ .input-icon { color: var(--primary); }
+
         .btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;
-            border: none; border-radius: 16px; padding: 14px; width: 100%;
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            color: white; border: none; border-radius: 18px;
+            padding: 16px; width: 100%;
             font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 18px;
-            cursor: pointer; transition: 0.3s; margin-top: 8px;
+            cursor: pointer; transition: var(--transition); margin-top: 8px;
+            letter-spacing: 0.3px; position: relative; overflow: hidden;
+            box-shadow: 0 8px 24px -8px rgba(79,70,229,0.4);
         }
-        .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(37,99,235,0.3); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .login-link { text-align: center; margin-top: 24px; color: #64748b; }
-        .login-link a { color: #3b82f6; font-weight: 700; text-decoration: none; }
+        .btn:hover {
+            box-shadow: 0 14px 32px -8px rgba(79,70,229,0.5);
+            transform: translateY(-2px);
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        .btn .spinner {
+            display: none; width: 22px; height: 22px;
+            border: 3px solid rgba(255,255,255,0.3); border-top-color: white;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin-left: 10px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn.loading .btn-text { display: none; }
+        .btn.loading .spinner { display: inline-block; }
+
+        .nav-buttons { display: flex; gap: 12px; }
+        .btn-outline {
+            background: transparent; border: 2px solid #e2e8f0; color: var(--text);
+            box-shadow: none; flex: 1;
+        }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: #f8fafc; }
+
+        .plan-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .plan-card {
+            background: white; border: 2px solid #e2e8f0; border-radius: 20px;
+            padding: 20px; text-align: center; cursor: pointer; transition: var(--transition);
+        }
+        .plan-card:hover { border-color: var(--primary); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+        .plan-card.selected { border-color: var(--primary); background: #f5f3ff; }
+        .plan-card i { font-size: 28px; color: var(--primary); margin-bottom: 8px; }
+        .plan-card .plan-name { font-weight: 700; font-size: 18px; }
+        .plan-card .plan-price { color: var(--text-light); font-size: 14px; }
+
+        .login-link { text-align: center; margin-top: 24px; color: var(--text-light); font-size: 15px; }
+        .login-link a { color: var(--primary); font-weight: 700; text-decoration: none; }
+
+        @media (max-width: 480px) {
+            .card { padding: 32px 20px; border-radius: 24px; }
+            .stepper { margin-bottom: 28px; }
+            .step { width: 38px; height: 38px; font-size: 16px; }
+            .input-group input { padding: 14px 44px 14px 16px; font-size: 15px; }
+            .btn { padding: 14px; font-size: 16px; }
+            .plan-cards { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <div class="signup-card">
-        <h1>إنشاء متجر جديد</h1>
-        <div class="input-group">
-            <span class="icon"><i class="fas fa-user"></i></span>
-            <input type="text" id="fullName" placeholder="الاسم الكامل" autocomplete="name">
+    <div class="animated-bg">
+        <div class="shape shape1"></div>
+        <div class="shape shape2"></div>
+        <div class="shape shape3"></div>
+        <div class="grid-bg"></div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="stepper">
+                <div class="stepper-progress" id="stepperProgress" style="width: 0%;"></div>
+                <div class="step active" id="step1">1</div>
+                <div class="step" id="step2">2</div>
+                <div class="step" id="step3"><i class="fas fa-crown"></i></div>
+            </div>
+
+            <!-- الخطوة 1: حساب المستخدم -->
+            <div class="step-content active" id="content1">
+                <div class="section-title">
+                    <h2>أنشئ حسابك</h2>
+                    <p>أدخل بياناتك الشخصية لإنشاء حساب إداري</p>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="fullName" placeholder="الاسم الكامل" autocomplete="name">
+                    <span class="input-icon"><i class="fas fa-user"></i></span>
+                </div>
+                <div class="input-group">
+                    <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email">
+                    <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                </div>
+                <div class="input-group">
+                    <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)" autocomplete="tel">
+                    <span class="input-icon"><i class="fas fa-phone"></i></span>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" placeholder="كلمة المرور" autocomplete="new-password">
+                    <span class="input-icon"><i class="fas fa-lock"></i></span>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="passwordConfirm" placeholder="تأكيد كلمة المرور">
+                    <span class="input-icon"><i class="fas fa-check-circle"></i></span>
+                </div>
+                <button class="btn" id="nextStep1">التالي <i class="fas fa-arrow-left mr-1"></i></button>
+            </div>
+
+            <!-- الخطوة 2: بيانات المتجر -->
+            <div class="step-content" id="content2">
+                <div class="section-title">
+                    <h2>بيانات المتجر</h2>
+                    <p>أدخل معلومات متجرك الأساسية</p>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="storeName" placeholder="اسم المتجر">
+                    <span class="input-icon"><i class="fas fa-store"></i></span>
+                </div>
+                <div class="input-group">
+                    <select id="businessType">
+                        <option value="">نوع النشاط التجاري</option>
+                        <option value="retail">تجارة تجزئة</option>
+                        <option value="wholesale">تجارة جملة</option>
+                        <option value="service">خدمات</option>
+                        <option value="restaurant">مطاعم وكافيهات</option>
+                        <option value="other">أخرى</option>
+                    </select>
+                    <span class="input-icon"><i class="fas fa-briefcase"></i></span>
+                </div>
+                <div class="nav-buttons">
+                    <button class="btn btn-outline" id="prevStep2">السابق</button>
+                    <button class="btn" id="nextStep2" style="flex:2;">التالي <i class="fas fa-arrow-left mr-1"></i></button>
+                </div>
+            </div>
+
+            <!-- الخطوة 3: الخطة -->
+            <div class="step-content" id="content3">
+                <div class="section-title">
+                    <h2>اختر الباقة</h2>
+                    <p>يمكنك الترقية لاحقًا من داخل النظام</p>
+                </div>
+                <div class="plan-cards">
+                    <div class="plan-card selected" data-plan="free">
+                        <i class="fas fa-gift"></i>
+                        <div class="plan-name">مجانية</div>
+                        <div class="plan-price">0 ج / شهريًا</div>
+                        <small style="color:#64748b;">حتى 50 فاتورة</small>
+                    </div>
+                    <div class="plan-card" data-plan="pro">
+                        <i class="fas fa-rocket"></i>
+                        <div class="plan-name">احترافية</div>
+                        <div class="plan-price">$9.99 / شهريًا</div>
+                        <small style="color:#64748b;">غير محدود + دعم فني</small>
+                    </div>
+                </div>
+                <div class="nav-buttons">
+                    <button class="btn btn-outline" id="prevStep3">السابق</button>
+                    <button class="btn" id="submitBtn" style="flex:2;">إنشاء المتجر <i class="fas fa-check mr-1"></i></button>
+                </div>
+            </div>
         </div>
-        <div class="input-group">
-            <span class="icon"><i class="fas fa-envelope"></i></span>
-            <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email">
-        </div>
-        <div class="input-group">
-            <span class="icon"><i class="fas fa-phone"></i></span>
-            <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)">
-        </div>
-        <div class="input-group">
-            <span class="icon"><i class="fas fa-store"></i></span>
-            <input type="text" id="storeName" placeholder="اسم المتجر">
-        </div>
-        <div class="input-group">
-            <span class="icon"><i class="fas fa-lock"></i></span>
-            <input type="password" id="password" placeholder="كلمة المرور" autocomplete="new-password">
-        </div>
-        <div class="input-group">
-            <span class="icon"><i class="fas fa-lock"></i></span>
-            <input type="password" id="passwordConfirm" placeholder="تأكيد كلمة المرور">
-        </div>
-        <button class="btn" id="signupBtn">إنشاء المتجر</button>
         <div class="login-link">
             لديك حساب بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
         </div>
@@ -77,46 +303,145 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/core/db-local.js"></script>
     <script src="./js/core/supabase.js"></script>
+    <script src="./js/core/sync.js"></script>
     <script src="./js/core/toast.js"></script>
+
     <script>
         (function() {
-            const btn = document.getElementById('signupBtn');
-            btn.addEventListener('click', async () => {
+            let currentStep = 1;
+            let selectedPlan = 'free';
+
+            // عناصر الـ DOM
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            const content1 = document.getElementById('content1');
+            const content2 = document.getElementById('content2');
+            const content3 = document.getElementById('content3');
+            const stepperProgress = document.getElementById('stepperProgress');
+
+            const nextStep1 = document.getElementById('nextStep1');
+            const prevStep2 = document.getElementById('prevStep2');
+            const nextStep2 = document.getElementById('nextStep2');
+            const prevStep3 = document.getElementById('prevStep3');
+            const submitBtn = document.getElementById('submitBtn');
+
+            const planCards = document.querySelectorAll('.plan-card');
+
+            function showStep(n) {
+                // تحديث stepper
+                step1.classList.remove('active', 'done');
+                step2.classList.remove('active', 'done');
+                step3.classList.remove('active', 'done');
+                if (n > 1) step1.classList.add('done');
+                if (n > 2) step2.classList.add('done');
+                if (n === 1) step1.classList.add('active');
+                else if (n === 2) step2.classList.add('active');
+                else if (n === 3) step3.classList.add('active');
+
+                // تحديث المحتوى
+                content1.classList.remove('active');
+                content2.classList.remove('active');
+                content3.classList.remove('active');
+                if (n === 1) content1.classList.add('active');
+                else if (n === 2) content2.classList.add('active');
+                else if (n === 3) content3.classList.add('active');
+
+                // شريط التقدم
+                const progress = (n - 1) * 50;
+                stepperProgress.style.width = progress + '%';
+
+                currentStep = n;
+            }
+
+            // اختيار الخطة
+            planCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    planCards.forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectedPlan = card.dataset.plan;
+                });
+            });
+
+            // الخطوة 1 -> 2
+            nextStep1.addEventListener('click', () => {
                 const fullName = document.getElementById('fullName').value.trim();
                 const email = document.getElementById('email').value.trim();
-                const phone = document.getElementById('phone').value.trim();
-                const storeName = document.getElementById('storeName').value.trim();
                 const password = document.getElementById('password').value;
                 const passwordConfirm = document.getElementById('passwordConfirm').value;
 
-                if (!fullName || !email || !storeName || !password) {
-                    return Toast.warning('جميع الحقول مطلوبة');
+                if (!fullName || !email || !password) {
+                    return Toast.warning('جميع الحقول الأساسية مطلوبة');
                 }
                 if (password !== passwordConfirm) {
                     return Toast.warning('كلمتا المرور غير متطابقتين');
                 }
                 if (password.length < 6) {
-                    return Toast.warning('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+                    return Toast.warning('كلمة المرور 6 أحرف على الأقل');
+                }
+                showStep(2);
+            });
+
+            // الخطوة 2 -> 3
+            nextStep2.addEventListener('click', () => {
+                const storeName = document.getElementById('storeName').value.trim();
+                if (!storeName) {
+                    return Toast.warning('يرجى إدخال اسم المتجر');
+                }
+                showStep(3);
+            });
+
+            // رجوع
+            prevStep2.addEventListener('click', () => showStep(1));
+            prevStep3.addEventListener('click', () => showStep(2));
+
+            // تقديم النموذج
+            submitBtn.addEventListener('click', async () => {
+                const fullName = document.getElementById('fullName').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const phone = document.getElementById('phone').value.trim();
+                const password = document.getElementById('password').value;
+                const storeName = document.getElementById('storeName').value.trim();
+                const businessType = document.getElementById('businessType').value;
+
+                if (!window.App) {
+                    return Toast.error('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
                 }
 
-                btn.disabled = true;
-                btn.textContent = 'جاري الإنشاء...';
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
 
                 try {
                     const result = await App.signup(email, password, fullName, 'admin', storeName, phone);
                     if (result.success) {
-                        Toast.success('تم إنشاء المتجر بنجاح! جاري تسجيل الدخول...');
-                        setTimeout(() => window.location.href = './dashboard.html', 1500);
+                        Toast.success('تم إنشاء المتجر بنجاح!');
+                        // يمكن هنا حفظ خطة المستخدم إذا أردت (مؤقتًا نحفظ في الإعدادات لاحقًا)
+                        if (selectedPlan !== 'free') {
+                            // في المستقبل: توجيه لصفحة الدفع
+                            console.log('الخطة المختارة:', selectedPlan);
+                        }
+                        setTimeout(() => {
+                            window.location.href = './dashboard.html';
+                        }, 1500);
                     } else {
-                        Toast.error(result.message);
+                        Toast.error(result.message || 'فشل إنشاء المتجر');
                     }
                 } catch (e) {
                     Toast.error('حدث خطأ غير متوقع');
+                    console.error(e);
                 } finally {
-                    btn.disabled = false;
-                    btn.textContent = 'إنشاء المتجر';
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
                 }
             });
+
+            // بداية
+            showStep(1);
+
+            // خدمة العمال
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+            }
         })();
     </script>
 </body>
