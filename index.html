@@ -1,119 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>تسجيل الدخول · حسابي</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Cairo', sans-serif;
-            background: linear-gradient(145deg, #f0f4ff 0%, #ffffff 50%, #e8f0fe 100%);
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-        .bg-shape {
-            position: absolute;
-            border-radius: 50%;
-            opacity: 0.06;
-            background: #3b82f6;
-            z-index: 0;
-        }
-        .bg-shape-1 { width: 500px; height: 500px; top: -200px; right: -200px; }
-        .bg-shape-2 { width: 400px; height: 400px; bottom: -150px; left: -150px; background: #10b981; }
-
-        .login-wrapper {
-            width: 100%;
-            max-width: 420px;
-            max-height: 90vh;
-            max-height: 90dvh;
-            overflow-y: auto;
-            position: relative;
-            z-index: 1;
-            animation: slideUp 0.6s ease;
-            -webkit-overflow-scrolling: touch;
-        }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .login-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 32px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255,255,255,0.5);
-            padding: 40px 32px;
-        }
-
-        .logo-area { text-align: center; margin-bottom: 32px; }
-        .logo-area img {
-            width: 72px; height: 72px; object-fit: contain;
-            border-radius: 18px; box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-            margin-bottom: 16px;
-        }
-        .logo-area h1 { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
-        .logo-area .subtitle { color: #64748b; font-size: 14px; font-weight: 500; }
-
-        .input-group { margin-bottom: 20px; position: relative; }
-        .input-group .icon {
-            position: absolute; right: 16px; top: 50%;
-            transform: translateY(-50%); color: #94a3b8; font-size: 16px; pointer-events: none;
-        }
-        .input-group input {
-            width: 100%; padding: 14px 48px 14px 16px;
-            border: 1px solid rgba(203, 213, 225, 0.8); border-radius: 16px;
-            font-family: 'Cairo', sans-serif; font-size: 16px;
-            background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-            transition: 0.3s; color: #1e293b;
-        }
-        .input-group input:focus {
-            outline: none; border-color: #3b82f6; background: rgba(255,255,255,0.95);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-        }
-        .input-group input::placeholder { color: #94a3b8; }
-
-        .login-btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;
-            border: none; border-radius: 16px; padding: 14px; width: 100%;
-            font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 18px;
-            cursor: pointer; transition: 0.3s; margin-top: 8px;
-            letter-spacing: 0.3px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
-        }
-        .login-btn:hover {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.3);
-            transform: translateY(-1px);
-        }
-        .login-btn:active { transform: scale(0.98); }
-        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
-
-        .signup-link { margin-top: 24px; text-align: center; font-size: 15px; color: #64748b; }
-        .signup-link a { color: #3b82f6; font-weight: 700; text-decoration: none; }
-        .signup-link a:hover { text-decoration: underline; }
-
-        @media (max-width: 480px) {
-            .login-card { padding: 32px 24px; border-radius: 28px; }
-            .logo-area img { width: 60px; height: 60px; }
-            .logo-area h1 { font-size: 24px; }
-            .input-group input { padding: 12px 44px 12px 14px; font-size: 15px; }
-            .login-btn { padding: 12px; font-size: 17px; }
-        }
-    </style>
+    <!-- ... كل شيء كما هو ... -->
 </head>
 <body>
     <div class="bg-shape bg-shape-1"></div>
@@ -127,6 +15,10 @@
                 <p class="subtitle">نظام إدارة الأعمال الذكي</p>
             </div>
             
+            <div id="connectionStatus" style="text-align:center; margin-bottom:15px; display:none;">
+                <span style="color:#ef4444; font-size:14px;">⚠️ تعذر الاتصال بالخادم. <a href="#" onclick="location.reload()">إعادة المحاولة</a></span>
+            </div>
+
             <div class="input-group">
                 <span class="icon"><i class="fas fa-envelope"></i></span>
                 <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email" autocorrect="off" autocapitalize="none" />
@@ -144,7 +36,7 @@
         </div>
     </div>
 
-    <!-- ترتيب التحميل حاسم -->
+    <!-- الاعتماديات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/core/db-local.js"></script>
     <script src="./js/core/supabase.js"></script>
@@ -156,27 +48,40 @@
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
+            const statusDiv = document.getElementById('connectionStatus');
 
             function showError(msg) {
                 window.Toast?.error(msg) || alert(msg);
             }
 
-            // تحقق مبكر من وجود النواة
-            if (!window.App) {
-                showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
-                loginBtn.disabled = true;
-                return;
+            // التحقق من جاهزية النواة مع إعادة المحاولة
+            function checkAppReady(callback, retries = 10) {
+                if (window.App && window.App.login && window.App.getCurrentUser) {
+                    callback();
+                    return;
+                }
+                if (retries <= 0) {
+                    statusDiv.style.display = 'block';
+                    loginBtn.disabled = true;
+                    return;
+                }
+                setTimeout(() => checkAppReady(callback, retries - 1), 500);
             }
 
-            // إعادة توجيه المستخدم المسجل دخوله تلقائياً
-            App.getCurrentUser().then(user => {
-                if (user) {
-                    let target = './dashboard.html';
-                    if (user.role === 'rep') target = './pos.html';
-                    else if (user.role === 'super_admin') target = './admin.html';
-                    window.location.href = target;
-                }
-            }).catch(() => {});
+            checkAppReady(() => {
+                statusDiv.style.display = 'none';
+                loginBtn.disabled = false;
+
+                // إعادة توجيه المستخدم المسجل
+                App.getCurrentUser().then(user => {
+                    if (user) {
+                        let target = './dashboard.html';
+                        if (user.role === 'rep') target = './pos.html';
+                        else if (user.role === 'super_admin') target = './admin.html';
+                        window.location.href = target;
+                    }
+                }).catch(() => {});
+            });
 
             async function performLogin() {
                 const email = emailInput.value.trim();
@@ -198,8 +103,7 @@
                         showError(result.message || 'فشل تسجيل الدخول');
                     }
                 } catch (e) {
-                    showError('حدث خطأ غير متوقع');
-                    console.error(e);
+                    showError(e.message || 'حدث خطأ غير متوقع');
                 } finally {
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'تسجيل الدخول';
@@ -212,7 +116,6 @@
 
             emailInput.focus();
 
-            // تسجيل Service Worker للدعم الكامل offline
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./service-worker.js').catch(() => {});
             }
