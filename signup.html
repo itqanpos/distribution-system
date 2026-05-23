@@ -2,293 +2,121 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>إنشاء متجر · حسابي</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء متجر جديد · حسابي</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Cairo', sans-serif;
-            background: linear-gradient(145deg, #ecfdf5 0%, #ffffff 50%, #e0f2fe 100%);
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-family: 'Cairo', sans-serif; background: linear-gradient(145deg, #f0f4ff, #ffffff);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
             padding: 20px;
-            position: relative;
-            overflow: hidden;
         }
-        .bg-shape {
-            position: absolute;
-            border-radius: 50%;
-            opacity: 0.06;
-            background: #10b981;
-            z-index: 0;
-        }
-        .bg-shape-1 { width: 500px; height: 500px; top: -200px; right: -200px; }
-        .bg-shape-2 { width: 400px; height: 400px; bottom: -150px; left: -150px; background: #3b82f6; }
-
-        .signup-wrapper {
-            width: 100%;
-            max-width: 480px;
-            max-height: 90vh;
-            max-height: 90dvh;
-            overflow-y: auto;
-            position: relative;
-            z-index: 1;
-            animation: slideUp 0.6s ease;
-            -webkit-overflow-scrolling: touch;
-        }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         .signup-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 32px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255,255,255,0.5);
-            padding: 36px 28px;
+            background: rgba(255,255,255,0.8); backdrop-filter: blur(20px); border-radius: 32px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.08); padding: 40px 32px; width: 100%; max-width: 420px;
         }
-
-        .logo-area {
-            text-align: center;
-            margin-bottom: 28px;
-        }
-        .logo-area img {
-            width: 64px;
-            height: 64px;
-            object-fit: contain;
-            border-radius: 16px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-            margin-bottom: 12px;
-        }
-        .logo-area h1 {
-            font-size: 27px;
-            font-weight: 800;
-            color: #0f172a;
-        }
-        .logo-area .subtitle {
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .input-group {
-            margin-bottom: 18px;
-            position: relative;
-        }
+        h1 { text-align: center; font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 32px; }
+        .input-group { margin-bottom: 20px; position: relative; }
         .input-group .icon {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-            font-size: 16px;
-            pointer-events: none;
+            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8; font-size: 16px;
         }
-        .input-group input,
-        .input-group select {
-            width: 100%;
-            padding: 14px 46px 14px 16px;
-            border: 1px solid rgba(203, 213, 225, 0.8);
-            border-radius: 16px;
-            font-family: 'Cairo', sans-serif;
-            font-size: 16px;
-            background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            transition: 0.3s;
-            color: #1e293b;
+        .input-group input, .input-group select {
+            width: 100%; padding: 14px 48px 14px 16px;
+            border: 1px solid #cbd5e1; border-radius: 16px;
+            font-family: 'Cairo', sans-serif; font-size: 16px; background: rgba(255,255,255,0.7);
         }
-        .input-group input:focus,
-        .input-group select:focus {
-            outline: none;
-            border-color: #10b981;
-            background: rgba(255,255,255,0.95);
-            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        .input-group input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;
+            border: none; border-radius: 16px; padding: 14px; width: 100%;
+            font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 18px;
+            cursor: pointer; transition: 0.3s; margin-top: 8px;
         }
-        .input-group input::placeholder { color: #94a3b8; }
-        .input-group select {
-            appearance: none;
-            -webkit-appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: left 14px center;
-            background-size: 18px;
-            padding-left: 44px;
-        }
-
-        .signup-btn {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            padding: 14px;
-            width: 100%;
-            font-family: 'Cairo', sans-serif;
-            font-weight: 700;
-            font-size: 18px;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 8px;
-            letter-spacing: 0.3px;
-            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
-        }
-        .signup-btn:hover {
-            background: linear-gradient(135deg, #059669, #047857);
-            box-shadow: 0 12px 28px rgba(5, 150, 105, 0.35);
-            transform: translateY(-1px);
-        }
-        .signup-btn:active { transform: scale(0.98); }
-        .signup-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .login-link {
-            margin-top: 24px;
-            text-align: center;
-            font-size: 15px;
-            color: #64748b;
-        }
-        .login-link a {
-            color: #3b82f6;
-            font-weight: 700;
-            text-decoration: none;
-        }
-        .login-link a:hover { text-decoration: underline; }
-
-        @media (max-width: 480px) {
-            .signup-card { padding: 28px 20px; border-radius: 28px; }
-            .logo-area img { width: 56px; height: 56px; }
-            .logo-area h1 { font-size: 24px; }
-            .input-group input,
-            .input-group select { padding: 12px 42px 12px 14px; font-size: 15px; }
-            .signup-btn { padding: 12px; font-size: 17px; }
-        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(37,99,235,0.3); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-link { text-align: center; margin-top: 24px; color: #64748b; }
+        .login-link a { color: #3b82f6; font-weight: 700; text-decoration: none; }
     </style>
 </head>
 <body>
-    <div class="bg-shape bg-shape-1"></div>
-    <div class="bg-shape bg-shape-2"></div>
-
-    <div class="signup-wrapper">
-        <div class="signup-card">
-            <div class="logo-area">
-                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';">
-                <h1>أنشئ متجرك الخاص</h1>
-                <p class="subtitle">نسخة تجريبية مجانية – بدون بطاقة ائتمان</p>
-            </div>
-            
-            <div class="input-group">
-                <span class="icon"><i class="fas fa-user"></i></span>
-                <input type="text" id="fullName" placeholder="اسمك الكامل" autocomplete="name" autocorrect="off" />
-            </div>
-            <div class="input-group">
-                <span class="icon"><i class="fas fa-store"></i></span>
-                <input type="text" id="tenantName" placeholder="اسم المتجر (مطلوب)" autocomplete="organization" />
-            </div>
-            <div class="input-group">
-                <span class="icon"><i class="fas fa-envelope"></i></span>
-                <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email" autocorrect="off" autocapitalize="none" />
-            </div>
-            <div class="input-group">
-                <span class="icon"><i class="fas fa-lock"></i></span>
-                <input type="password" id="password" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" />
-            </div>
-            <div class="input-group">
-                <span class="icon"><i class="fas fa-phone"></i></span>
-                <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)" autocomplete="tel" inputmode="tel" />
-            </div>
-            <div class="input-group">
-                <span class="icon"><i class="fas fa-user-tag"></i></span>
-                <select id="role">
-                    <option value="admin">مدير المتجر</option>
-                    <option value="rep">مندوب مبيعات</option>
-                </select>
-            </div>
-
-            <button class="signup-btn" id="signupBtn">إنشاء متجرك مجاناً</button>
-            
-            <div class="login-link">
-                لديك متجر بالفعل؟ <a href="./index.html" rel="noopener">تسجيل الدخول</a>
-            </div>
+    <div class="signup-card">
+        <h1>إنشاء متجر جديد</h1>
+        <div class="input-group">
+            <span class="icon"><i class="fas fa-user"></i></span>
+            <input type="text" id="fullName" placeholder="الاسم الكامل" autocomplete="name">
+        </div>
+        <div class="input-group">
+            <span class="icon"><i class="fas fa-envelope"></i></span>
+            <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email">
+        </div>
+        <div class="input-group">
+            <span class="icon"><i class="fas fa-phone"></i></span>
+            <input type="tel" id="phone" placeholder="رقم الهاتف (اختياري)">
+        </div>
+        <div class="input-group">
+            <span class="icon"><i class="fas fa-store"></i></span>
+            <input type="text" id="storeName" placeholder="اسم المتجر">
+        </div>
+        <div class="input-group">
+            <span class="icon"><i class="fas fa-lock"></i></span>
+            <input type="password" id="password" placeholder="كلمة المرور" autocomplete="new-password">
+        </div>
+        <div class="input-group">
+            <span class="icon"><i class="fas fa-lock"></i></span>
+            <input type="password" id="passwordConfirm" placeholder="تأكيد كلمة المرور">
+        </div>
+        <button class="btn" id="signupBtn">إنشاء المتجر</button>
+        <div class="login-link">
+            لديك حساب بالفعل؟ <a href="./index.html">تسجيل الدخول</a>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <script src="./js/toast.js"></script>
-
+    <script src="./js/core/db-local.js"></script>
+    <script src="./js/core/supabase.js"></script>
+    <script src="./js/core/toast.js"></script>
     <script>
         (function() {
-            const fullNameInput = document.getElementById('fullName');
-            const tenantNameInput = document.getElementById('tenantName');
-            const emailInput = document.getElementById('email');
-            const passInput = document.getElementById('password');
-            const phoneInput = document.getElementById('phone');
-            const roleSelect = document.getElementById('role');
-            const signupBtn = document.getElementById('signupBtn');
+            const btn = document.getElementById('signupBtn');
+            btn.addEventListener('click', async () => {
+                const fullName = document.getElementById('fullName').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const phone = document.getElementById('phone').value.trim();
+                const storeName = document.getElementById('storeName').value.trim();
+                const password = document.getElementById('password').value;
+                const passwordConfirm = document.getElementById('passwordConfirm').value;
 
-            function showError(msg) {
-                if (window.Toast) { Toast.error(msg); } else { alert(msg); }
-            }
+                if (!fullName || !email || !storeName || !password) {
+                    return Toast.warning('جميع الحقول مطلوبة');
+                }
+                if (password !== passwordConfirm) {
+                    return Toast.warning('كلمتا المرور غير متطابقتين');
+                }
+                if (password.length < 6) {
+                    return Toast.warning('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+                }
 
-            if (!window.App) {
-                showError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
-                signupBtn.disabled = true;
-                return;
-            }
-
-            async function performSignup() {
-                const fullName = fullNameInput.value.trim();
-                const tenantName = tenantNameInput.value.trim();
-                const email = emailInput.value.trim();
-                const password = passInput.value;
-                const phone = phoneInput.value.trim();
-                const role = roleSelect.value;
-
-                if (!fullName) { showError('يرجى إدخال اسمك الكامل'); return; }
-                if (!tenantName) { showError('يرجى اختيار اسم لمتجرك'); return; }
-                if (!email) { showError('يرجى إدخال البريد الإلكتروني'); return; }
-                if (!password || password.length < 6) { showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
-
-                signupBtn.disabled = true;
-                signupBtn.textContent = 'جاري إنشاء المتجر...';
+                btn.disabled = true;
+                btn.textContent = 'جاري الإنشاء...';
 
                 try {
-                    const result = await App.signup(email, password, fullName, role, tenantName, phone);
+                    const result = await App.signup(email, password, fullName, 'admin', storeName, phone);
                     if (result.success) {
-                        setTimeout(() => {
-                            window.location.href = role === 'rep' ? './pos.html' : './dashboard.html';
-                        }, 500);
+                        Toast.success('تم إنشاء المتجر بنجاح! جاري تسجيل الدخول...');
+                        setTimeout(() => window.location.href = './dashboard.html', 1500);
                     } else {
-                        showError(result.message || 'فشل إنشاء المتجر');
+                        Toast.error(result.message);
                     }
                 } catch (e) {
-                    showError('حدث خطأ غير متوقع');
-                    console.error(e);
+                    Toast.error('حدث خطأ غير متوقع');
                 } finally {
-                    signupBtn.disabled = false;
-                    signupBtn.textContent = 'إنشاء متجرك مجاناً';
+                    btn.disabled = false;
+                    btn.textContent = 'إنشاء المتجر';
                 }
-            }
-
-            signupBtn.addEventListener('click', performSignup);
-            roleSelect.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSignup(); });
-
-            fullNameInput.focus();
+            });
         })();
     </script>
 </body>
