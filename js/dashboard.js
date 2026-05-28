@@ -1,7 +1,5 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (إصدار مُحسَّن)
-   الإصلاحات: معالجة الأخطاء، الأداء، الأمان،
-   دعم Offline، حدود زمنية، مرونة القوائم
+   dashboard.js - لوحة التحكم (متوافق مع HTML/CSS)
    ============================================= */
 'use strict';
 
@@ -12,13 +10,8 @@ const Dashboard = {
         user: null
     },
 
-    /**
-     * نقطة البداية – تُستدعى بعد تحقق المصادقة
-     */
     async init() {
-        // انتظار قصير لضمان تجهيز DOM والنواة
         if (!window.DB || !window.App) {
-            console.warn('النواة غير جاهزة، إعادة المحاولة...');
             setTimeout(() => this.init(), 300);
             return;
         }
@@ -28,7 +21,6 @@ const Dashboard = {
         await this.loadData();
     },
 
-    /* ========== معلومات المستخدم ========== */
     async loadUserInfo() {
         try {
             const user = await App.getCurrentUser();
@@ -44,16 +36,14 @@ const Dashboard = {
         }
     },
 
-    /* ========== القوائم والتفاعلات ========== */
     bindSidebar() {
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
         const moreBtn = document.getElementById('moreMenuBtn');
         const dropdown = document.getElementById('moreDropdown');
-        const logoutBtn = document.getElementById('logoutBtn');
+        const logoutBtn = document.getElementById('logoutDropdown');
 
-        // فتح/إغلاق الشريط الجانبي
         menuToggle?.addEventListener('click', () => {
             sidebar?.classList.toggle('open');
             overlay?.classList.toggle('show');
@@ -63,7 +53,6 @@ const Dashboard = {
             overlay?.classList.remove('show');
         });
 
-        // إغلاق الشريط عند النقر على أي رابط
         document.querySelectorAll('.menu-item').forEach(link => {
             link.addEventListener('click', () => {
                 sidebar?.classList.remove('open');
@@ -71,7 +60,6 @@ const Dashboard = {
             });
         });
 
-        // القائمة المنسدلة للنقاط الثلاث
         moreBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             dropdown?.classList.toggle('show');
@@ -82,7 +70,6 @@ const Dashboard = {
             }
         });
 
-        // تسجيل الخروج
         logoutBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.App && App.logout) App.logout();
@@ -90,7 +77,6 @@ const Dashboard = {
         });
     },
 
-    /* ========== تحميل كل البيانات ========== */
     async loadData() {
         const tasks = [
             this.loadStats().catch(e => console.error('stats:', e)),
@@ -99,10 +85,8 @@ const Dashboard = {
             this.loadRecentInvoices().catch(e => console.error('recent inv:', e))
         ];
         await Promise.allSettled(tasks);
-        // يمكن إضافة Toast واحد إذا فشل الكل
     },
 
-    /* ========== الإحصائيات العامة ========== */
     async loadStats() {
         const [invoices, parties, products] = await Promise.all([
             window.DB.getInvoicesLight().catch(() => []),
@@ -143,25 +127,14 @@ const Dashboard = {
         `).join('');
     },
 
-    /* ========== كروت المبيعات اليومية (آخر 7 أيام) ========== */
     async loadDailySalesCards() {
         const container = document.getElementById('dailySalesCards');
         if (!container) return;
 
         try {
-            // نجلب الفواتير الخفيفة و نقتصر على آخر 30 يوم فقط لتحسين الأداء
             const invoices = await window.DB.getInvoicesLight().catch(() => []);
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - 30);
-            const cutoffStr = cutoff.toISOString().split('T')[0];
+            const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
 
-            const salesInvoices = invoices.filter(i =>
-                i.type === 'sale' &&
-                i.status !== 'voided' &&
-                i.date >= cutoffStr    // تاريخ بصيغة YYYY-MM-DD
-            );
-
-            // بناء آخر 7 أيام
             const days = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date();
@@ -194,18 +167,16 @@ const Dashboard = {
         }
     },
 
-    /* ========== أفضل المنتجات مبيعاً (آخر 1000 فاتورة) ========== */
     async loadTopProducts() {
         const listEl = document.getElementById('topProductsList');
         if (!listEl) return;
 
         try {
-            // نجلب الفواتير الكاملة (ضروري للعناصر) لكن نحدد الرقم لتخفيف الحمل
             const invoices = await window.DB.getInvoices().catch(() => []);
             const salesInvoices = invoices
                 .filter(i => i.type === 'sale' && i.status !== 'voided')
-                .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')) // الأحدث أولاً
-                .slice(0, 1000);  // آخر 1000 فاتورة فقط
+                .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+                .slice(0, 1000);
 
             const productCounts = {};
             for (const inv of salesInvoices) {
@@ -237,7 +208,6 @@ const Dashboard = {
         }
     },
 
-    /* ========== آخر 10 فواتير ========== */
     async loadRecentInvoices() {
         const container = document.getElementById('recentInvoicesTable');
         if (!container) return;
@@ -289,7 +259,6 @@ const Dashboard = {
         }
     },
 
-    /* ========== أدوات مساعدة ========== */
     _escapeHTML(str) {
         const div = document.createElement('div');
         div.textContent = str;
@@ -297,5 +266,4 @@ const Dashboard = {
     }
 };
 
-// تهيئة عند جاهزية الصفحة (يُستدعى من dashboard.html)
 window.Dashboard = Dashboard;
