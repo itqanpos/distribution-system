@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -14,16 +14,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/pos.css">
+
     <link rel="stylesheet" href="./css/dashboard.css">
 
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
+    <meta name="theme-color" content="#0f172a">
 
     <style>
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
-            background: #3b82f6; width: 0%; z-index: 9999;
+            background: var(--primary); width: 0%; z-index: 9999;
             transition: width 0.3s ease;
         }
     </style>
@@ -52,9 +52,18 @@
                     <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <div class="dropdown-header">
+                        <div class="dropdown-avatar" id="dropdownAvatar">U</div>
+                        <div>
+                            <div class="dropdown-name" id="dropdownName">مستخدم</div>
+                            <div class="dropdown-email" id="dropdownEmail">user@example.com</div>
+                        </div>
+                    </div>
                     <div class="dropdown-divider"></div>
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="./settings.html" class="dropdown-item"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="#" class="dropdown-item" id="themeToggleDropdown"><i class="fas fa-palette"></i> تغيير المظهر</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item logout" id="logoutDropdown"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
@@ -75,8 +84,6 @@
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
@@ -92,7 +99,6 @@
             </div>
         </div>
 
-        <!-- قسم المبيعات اليومية (كروت بدلاً من رسم بياني) -->
         <div class="section-header">
             <h3>المبيعات اليومية (آخر 7 أيام)</h3>
         </div>
@@ -110,12 +116,11 @@
         <div class="recent-invoices">
             <h3>آخر الفواتير</h3>
             <div id="recentInvoicesTable" class="table-responsive">
-                <p style="text-align:center;padding:20px;color:var(--gray-400);">جاري تحميل البيانات...</p>
+                <p style="text-align:center;padding:20px;color:var(--text-muted);">جاري تحميل البيانات...</p>
             </div>
         </div>
     </main>
 
-    <!-- التوست -->
     <div id="toast" class="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -123,7 +128,7 @@
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/toast.js"></script>
-    <!-- لا حاجة لتحميل Chart.js بعد الآن -->
+    <script src="./js/dashboard.js"></script>
 
     <script>
         (function() {
@@ -133,8 +138,7 @@
 
             async function initApp() {
                 if (!window.App) {
-                    if (window.Toast) Toast.error('خطأ في تحميل التطبيق');
-                    else alert('خطأ في تحميل التطبيق');
+                    window.Toast?.error('خطأ في تحميل التطبيق');
                     return;
                 }
 
@@ -142,38 +146,46 @@
 
                 try {
                     const authorized = await App.requireAuth();
-                    if (!authorized) {
-                        hideLoading();
-                        return;
-                    }
+                    if (!authorized) { hideLoading(); return; }
 
                     const roleOk = await App.requireRole(['admin', 'rep']);
-                    if (!roleOk) {
-                        hideLoading();
-                        return;
-                    }
+                    if (!roleOk) { hideLoading(); return; }
 
                     App.initUserInterface();
 
-                    const script = document.createElement('script');
-                    script.src = './js/dashboard.js';
-                    script.onload = function() {
-                        if (window.Dashboard) {
-                            window.Dashboard.init();
-                        } else {
-                            if (window.Toast) Toast.error('فشل تهيئة لوحة التحكم');
-                            console.error('Dashboard غير معرف');
-                        }
-                        hideLoading();
-                    };
-                    script.onerror = function() {
-                        if (window.Toast) Toast.error('فشل تحميل ملفات لوحة التحكم');
-                        hideLoading();
-                    };
-                    document.body.appendChild(script);
+                    // تحميل بيانات القائمة المنسدلة
+                    const user = await App.getCurrentUser();
+                    if (user) {
+                        const avatar = (user.fullName || 'U')[0].toUpperCase();
+                        document.getElementById('sidebarAvatar').textContent = avatar;
+                        document.getElementById('dropdownAvatar').textContent = avatar;
+                        document.getElementById('sidebarUserName').textContent = user.fullName || user.email;
+                        document.getElementById('dropdownName').textContent = user.fullName || user.email;
+                        document.getElementById('dropdownEmail').textContent = user.email || '';
+                    }
+
+                    // ربط تغيير المظهر
+                    document.getElementById('themeToggleDropdown')?.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const html = document.documentElement;
+                        const current = html.getAttribute('data-theme') || 'dark';
+                        const next = current === 'dark' ? 'light' : 'dark';
+                        html.setAttribute('data-theme', next);
+                        localStorage.setItem('app_theme', next);
+                        document.getElementById('moreDropdown').classList.remove('show');
+                    });
+
+                    // بدء لوحة التحكم
+                    if (window.Dashboard) {
+                        await window.Dashboard.init();
+                    } else {
+                        console.error('Dashboard غير معرف');
+                        window.Toast?.error('فشل تهيئة لوحة التحكم');
+                    }
                 } catch (e) {
                     console.error('خطأ في التهيئة:', e);
-                    if (window.Toast) Toast.error('حدث خطأ غير متوقع');
+                    window.Toast?.error('حدث خطأ غير متوقع');
+                } finally {
                     hideLoading();
                 }
             }
