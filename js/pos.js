@@ -1,6 +1,11 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار نهائي محدث)
-   مع إيصال حراري مبسط ودعم تعديل الفاتورة الأصلية
+   pos.js - نقطة البيع (إصدار نهائي مع إيصال حراري محسن)
+   التحسينات:
+   - إصلاح ومعايرة أبعاد الإيصال الحراري 80mm
+   - تحسين محاذاة النصوص والأعمدة
+   - دعم أفضل للغة العربية والطباعة الحرارية
+   - إضافة إعدادات للتحكم في مظهر الإيصال
+   - معاينة مطابقة للطباعة الفعلية
    ============================================= */
 'use strict';
 
@@ -489,12 +494,14 @@ const POS = {
             this.buildCache();
 
             const customerObj = customer || { name: 'نقدي', balance: 0 };
-            this.showReceiptModal(
+            // استدعاء الإيصال المحسن
+            this.showReceiptModalEnhanced(
                 { ...invoice, invoice_number: result.invoice_number || invoice.invoice_number },
                 customerObj,
                 this.state.cart,
                 totals,
-                customer?.balance || 0
+                oldBalance,
+                { cashPaid, transferPaid, usedBalance, diff }
             );
 
             this.resetCart();
@@ -622,95 +629,209 @@ const POS = {
         } catch (err) { console.error(err); if (window.Toast) Toast.error('فشل استرجاع الفاتورة'); }
     },
 
-    // ========== إيصال حراري مبسط ==========
-    showReceiptModal(invoice, customer, items, totals, oldBalance = 0) {
+    // ========== إيصال حراري محسن 80mm ==========
+    /**
+     * عرض إيصال محسن يحاكي ورق 80mm
+     * @param {object} invoice بيانات الفاتورة
+     * @param {object} customer بيانات العميل
+     * @param {array} items الأصناف
+     * @param {object} totals المجاميع
+     * @param {number} oldBalance رصيد العميل السابق
+     * @param {object} payment تفاصيل الدفع { cashPaid, transferPaid, usedBalance, diff }
+     */
+    showReceiptModalEnhanced(invoice, customer, items, totals, oldBalance = 0, payment = {}) {
+        // جلب الإعدادات
         let settings = {};
         try { settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); } catch(e) {}
+        
         const companyName = settings?.company?.name || 'حسابي';
         const companyPhone = settings?.company?.phone || '';
         const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
-        const format = (v) => {
-            const num = Number(v);
-            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        };
+        const receiptWidth = settings?.print?.receipt_width || '80mm'; // 80mm افتراضي
+        const fontSize = settings?.print?.font_size || '12px';
 
-        // بناء سطور الأصناف
-        let itemsLines = '';
+        const format = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        // بناء قائمة الأصناف بتنسيق عمودي محسن
+        let itemsHTML = '';
         for (const item of items) {
             const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
-            itemsLines += `${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}  ${item.quantity}  ${format(item.price)}\n`;
+            itemsHTML += `
+                <div class="receipt-item-row">
+                    <div class="receipt-item-name">${Utils.escapeHTML(item.productName)} - ${Utils.escapeHTML(item.unitName)}</div>
+                    <div class="receipt-item-details">
+                        <span>${item.quantity} x ${format(item.price)}</span>
+                        <span class="receipt-item-total">${format(lineTotal)}</span>
+                    </div>
+                </div>`;
         }
 
         // تفاصيل الدفع
-        let paymentLines = '';
-        paymentLines += `نقدى:           ${format(invoice.cash_paid || 0)}\n`;
-        paymentLines += `تحويل:          ${format(invoice.transfer_paid || 0)}\n`;
-        if (invoice.used_customer_balance > 0) {
-            paymentLines += `من رصيد عميل:   ${format(invoice.used_customer_balance)}\n`;
+        let paymentHTML = '';
+        const cashPaid = payment.cashPaid || 0;
+        const transferPaid = payment.transferPaid || 0;
+        const usedBalance = payment.usedBalance || 0;
+        const diff = payment.diff || 0;
+        const totalPaid = Utils.round(cashPaid + transferPaid + usedBalance, 2);
+
+        paymentHTML += `<div class="receipt-row"><span>نقدى</span><span>${format(cashPaid)}</span></div>`;
+        paymentHTML += `<div class="receipt-row"><span>تحويل</span><span>${format(transferPaid)}</span></div>`;
+        if (usedBalance > 0) {
+            paymentHTML += `<div class="receipt-row"><span>من رصيد عميل</span><span>${format(usedBalance)}</span></div>`;
         }
-        paymentLines += `المدفوع:        ${format(invoice.paid)}\n`;
+        paymentHTML += `<div class="receipt-row total"><span>المدفوع</span><span>${format(totalPaid)}</span></div>`;
         
-        // المتبقي أو الفائض
-        const diff = Utils.round((invoice.paid || 0) - totals.net, 2);
         if (diff > 0) {
-            paymentLines += `فائض:           ${format(diff)}\n`;
+            paymentHTML += `<div class="receipt-row"><span>فائض</span><span>${format(diff)}</span></div>`;
         } else if (diff < 0) {
-            paymentLines += `متبقى:          ${format(-diff)}\n`;
+            paymentHTML += `<div class="receipt-row"><span>متبقى</span><span>${format(-diff)}</span></div>`;
         }
 
-        // حركة الرصيد (فقط إذا كان العميل حقيقي)
-        let balanceLines = '';
+        // الرصيد
+        let balanceHTML = '';
         if (customer && customer.name !== 'نقدي') {
             const newBalance = customer.balance || 0;
-            const used = invoice.used_customer_balance || 0;
-            balanceLines += `الرصيد السابق:  ${format(oldBalance)}\n`;
-            if (used > 0) {
-                balanceLines += `خصم من رصيد:  -${format(used)}\n`;
-            }
-            if (diff > 0) {
-                balanceLines += `اضافة للرصيد: +${format(diff)}\n`;
-            }
-            balanceLines += `الرصيد الحالى:  ${format(newBalance)}\n`;
+            balanceHTML += `<div class="receipt-row"><span>الرصيد السابق</span><span>${format(oldBalance)}</span></div>`;
+            if (usedBalance > 0) balanceHTML += `<div class="receipt-row"><span>خصم من رصيد</span><span>-${format(usedBalance)}</span></div>`;
+            if (diff > 0) balanceHTML += `<div class="receipt-row"><span>اضافة للرصيد</span><span>+${format(diff)}</span></div>`;
+            balanceHTML += `<div class="receipt-row total"><span>الرصيد الحالى</span><span>${format(newBalance)}</span></div>`;
         }
 
-        // تجميع الإيصال كاملاً
-        const receiptText = [
-            companyName,
-            companyPhone ? `هاتف: ${companyPhone}` : '',
-            '------------------------------',
-            `العميل: ${customer?.name || 'نقدى'}`,
-            `رقم الفاتورة: ${invoice.invoice_number || invoice.id?.substring(0,8)}`,
-            `التاريخ: ${Utils.formatDate(invoice.date)}`,
-            '------------------------------',
-            itemsLines.trim(),
-            '------------------------------',
-            `الاجمالى:       ${format(totals.subtotal)}`,
-            totals.discount > 0 ? `الخصم:           ${format(totals.discount)}` : '',
-            `الصافى:         ${format(totals.net)}`,
-            '------------------------------',
-            paymentLines.trim(),
-            balanceLines ? '------------------------------' : '',
-            balanceLines.trim(),
-            balanceLines ? '------------------------------' : '',
-            footerMsg
-        ].filter(line => line !== '').join('\n');
+        // بناء الإيصال كامل
+        const receiptHTML = `
+        <div class="thermal-receipt" style="width:${receiptWidth}; font-size:${fontSize};">
+            <div class="receipt-header">
+                <div class="company-name">${Utils.escapeHTML(companyName)}</div>
+                ${companyPhone ? `<div class="company-phone">هاتف: ${Utils.escapeHTML(companyPhone)}</div>` : ''}
+            </div>
+            <hr class="receipt-divider" />
+            <div class="receipt-row"><span>العميل</span><span>${Utils.escapeHTML(customer?.name || 'نقدى')}</span></div>
+            <div class="receipt-row"><span>رقم الفاتورة</span><span>${Utils.escapeHTML(invoice.invoice_number || invoice.id?.substring(0,8))}</span></div>
+            <div class="receipt-row"><span>التاريخ</span><span>${Utils.formatDate(invoice.date)}</span></div>
+            <hr class="receipt-divider" />
+            <div class="receipt-items">
+                ${itemsHTML}
+            </div>
+            <hr class="receipt-divider" />
+            <div class="receipt-row"><span>الاجمالى</span><span>${format(totals.subtotal)}</span></div>
+            ${totals.discount > 0 ? `<div class="receipt-row"><span>الخصم</span><span>${format(totals.discount)}</span></div>` : ''}
+            <div class="receipt-row total"><span>الصافى</span><span>${format(totals.net)}</span></div>
+            <hr class="receipt-divider" />
+            <div class="receipt-payment">
+                ${paymentHTML}
+            </div>
+            ${balanceHTML ? `<hr class="receipt-divider" /><div class="receipt-balance">${balanceHTML}</div>` : ''}
+            <hr class="receipt-divider" />
+            <div class="receipt-footer">${Utils.escapeHTML(footerMsg)}</div>
+        </div>`;
 
-        // عرض في منطقة الطباعة
-        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Cairo', 'Courier New', monospace; font-size: 13px; line-height: 1.5; text-align: right; direction: rtl; white-space: pre-wrap; margin: 0; background: white;">${Utils.escapeHTML(receiptText)}</pre>`;
-        
+        this.el.receiptPrintArea.innerHTML = receiptHTML;
         this.showModal('receiptModal');
     },
 
     printReceiptFromModal() {
-        const content = this.el.receiptPrintArea.innerHTML;
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); const companyName = settings?.company?.name || 'حسابي';
+        const receiptContent = this.el.receiptPrintArea.innerHTML;
+        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        const companyName = settings?.company?.name || 'حسابي';
+
         const printWindow = window.open('', '_blank', 'width=400,height=600');
-        if (!printWindow) { if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
-        printWindow.document.write(`<html><head><meta charset="UTF-8"><style>body{font-family:'Segoe UI',Tahoma;direction:rtl;text-align:right;padding:20px;background:white;width:80mm;margin:0 auto;}.company-name{text-align:center;font-size:18px;font-weight:bold;}.divider{border-top:1px dashed #000;margin:10px 0;}table{width:100%;border-collapse:collapse;font-size:13px;}th,td{padding:3px 4px;border-bottom:1px dotted #ddd;}th{background:#f5f5f5;font-size:11px;}.totals{font-size:14px;margin-top:8px;}.footer{text-align:center;margin-top:12px;font-size:13px;font-weight:bold;}</style></head><body><div class="company-name">${Utils.escapeHTML(companyName)}</div><div class="divider"></div>${content}</body></html>`);
-        printWindow.document.close(); printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        if (!printWindow) {
+            if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة');
+            return;
+        }
+
+        // نسخ CSS الإيصال الحراري لاستخدامها في نافذة الطباعة
+        const receiptStyles = `
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+                    direction: rtl;
+                    text-align: right;
+                    background: white;
+                    display: flex;
+                    justify-content: center;
+                    padding: 10px;
+                }
+                .thermal-receipt {
+                    width: 80mm;
+                    max-width: 80mm;
+                    font-size: 12px;
+                    color: #000;
+                    line-height: 1.6;
+                }
+                .receipt-header {
+                    text-align: center;
+                    margin-bottom: 10px;
+                }
+                .company-name {
+                    font-size: 16px;
+                    font-weight: bold;
+                    margin-bottom: 2px;
+                }
+                .company-phone {
+                    font-size: 11px;
+                }
+                .receipt-divider {
+                    border: none;
+                    border-top: 1px dashed #000;
+                    margin: 8px 0;
+                }
+                .receipt-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 2px 0;
+                }
+                .receipt-row.total {
+                    font-weight: bold;
+                    font-size: 13px;
+                }
+                .receipt-item-row {
+                    margin: 4px 0;
+                }
+                .receipt-item-name {
+                    font-weight: bold;
+                    font-size: 11px;
+                }
+                .receipt-item-details {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 10px;
+                    color: #444;
+                }
+                .receipt-item-total {
+                    font-weight: bold;
+                }
+                .receipt-footer {
+                    text-align: center;
+                    margin-top: 10px;
+                    font-weight: bold;
+                }
+                @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        `;
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8">${receiptStyles}</head>
+            <body>
+                ${receiptContent}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            // لا نغلق النافذة تلقائياً ليدقق المستخدم
+            // printWindow.close();
+        }, 300);
     },
 
+    // ========== حفظ واستعادة السلة ==========
     saveCartToStorage() {
         if (this.state.cart.length) {
             localStorage.setItem('pos_held_cart', JSON.stringify({
