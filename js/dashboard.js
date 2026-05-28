@@ -1,13 +1,11 @@
 /* =============================================
-   dashboard.js - لوحة التحكم (متوافق مع HTML/CSS)
+   dashboard.js - لوحة تحكم متكاملة
    ============================================= */
 'use strict';
 
 const Dashboard = {
     state: {
-        stats: { totalSales: 0, totalOrders: 0, totalCustomers: 0, totalProducts: 0 },
-        recentInvoices: [],
-        user: null
+        stats: { totalSales: 0, totalOrders: 0, totalCustomers: 0, totalProducts: 0 }
     },
 
     async init() {
@@ -17,23 +15,7 @@ const Dashboard = {
         }
 
         this.bindSidebar();
-        await this.loadUserInfo();
         await this.loadData();
-    },
-
-    async loadUserInfo() {
-        try {
-            const user = await App.getCurrentUser();
-            if (user) {
-                this.state.user = user;
-                const avatar = document.getElementById('sidebarAvatar');
-                const nameEl = document.getElementById('sidebarUserName');
-                if (avatar) avatar.textContent = (user.fullName || 'U')[0].toUpperCase();
-                if (nameEl) nameEl.textContent = user.fullName || 'المستخدم';
-            }
-        } catch (e) {
-            console.warn('فشل تحميل بيانات المستخدم:', e);
-        }
     },
 
     bindSidebar() {
@@ -78,30 +60,32 @@ const Dashboard = {
     },
 
     async loadData() {
-        const tasks = [
-            this.loadStats().catch(e => console.error('stats:', e)),
-            this.loadDailySalesCards().catch(e => console.error('daily:', e)),
-            this.loadTopProducts().catch(e => console.error('top products:', e)),
-            this.loadRecentInvoices().catch(e => console.error('recent inv:', e))
-        ];
-        await Promise.allSettled(tasks);
+        await Promise.allSettled([
+            this.loadStats(),
+            this.loadDailySales(),
+            this.loadTopProducts(),
+            this.loadRecentInvoices()
+        ]);
     },
 
     async loadStats() {
-        const [invoices, parties, products] = await Promise.all([
-            window.DB.getInvoicesLight().catch(() => []),
-            window.DB.getParties().catch(() => []),
-            window.DB.getProducts().catch(() => [])
-        ]);
+        try {
+            const [invoices, parties, products] = await Promise.all([
+                window.DB.getInvoicesLight().catch(() => []),
+                window.DB.getParties().catch(() => []),
+                window.DB.getProducts().catch(() => [])
+            ]);
 
-        const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
-        const totalSales = salesInvoices.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
-        const totalOrders = salesInvoices.length;
-        const totalCustomers = parties.filter(p => p.type === 'customer').length;
-        const totalProducts = products.length;
+            const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
+            this.state.stats.totalSales = salesInvoices.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
+            this.state.stats.totalOrders = salesInvoices.length;
+            this.state.stats.totalCustomers = parties.filter(p => p.type === 'customer').length;
+            this.state.stats.totalProducts = products.length;
 
-        this.state.stats = { totalSales, totalOrders, totalCustomers, totalProducts };
-        this.renderStats();
+            this.renderStats();
+        } catch (e) {
+            console.error('فشل تحميل الإحصائيات:', e);
+        }
     },
 
     renderStats() {
@@ -127,13 +111,13 @@ const Dashboard = {
         `).join('');
     },
 
-    async loadDailySalesCards() {
+    async loadDailySales() {
         const container = document.getElementById('dailySalesCards');
         if (!container) return;
 
         try {
             const invoices = await window.DB.getInvoicesLight().catch(() => []);
-            const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
+            const sales = invoices.filter(i => i.type === 'sale' && i.status !== 'voided');
 
             const days = [];
             for (let i = 6; i >= 0; i--) {
@@ -149,9 +133,7 @@ const Dashboard = {
             const fmt = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
             const dailyTotals = days.map(day => ({
                 ...day,
-                total: salesInvoices
-                    .filter(inv => inv.date === day.dateStr)
-                    .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)
+                total: sales.filter(inv => inv.date === day.dateStr).reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)
             }));
 
             container.innerHTML = dailyTotals.map(d => `
@@ -162,7 +144,7 @@ const Dashboard = {
                 </div>
             `).join('');
         } catch (e) {
-            console.error('فشل تحميل كروت المبيعات:', e);
+            console.error('فشل تحميل المبيعات اليومية:', e);
             container.innerHTML = '<div class="daily-card skeleton">خطأ في التحميل</div>';
         }
     },
@@ -173,26 +155,21 @@ const Dashboard = {
 
         try {
             const invoices = await window.DB.getInvoices().catch(() => []);
-            const salesInvoices = invoices
-                .filter(i => i.type === 'sale' && i.status !== 'voided')
-                .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
-                .slice(0, 1000);
+            const salesInvoices = invoices.filter(i => i.type === 'sale' && i.status !== 'voided').slice(-1000);
 
-            const productCounts = {};
+            const counts = {};
             for (const inv of salesInvoices) {
                 const items = Array.isArray(inv.items) ? inv.items : [];
                 for (const item of items) {
                     const name = item.productName || 'منتج';
-                    productCounts[name] = (productCounts[name] || 0) + (Number(item.quantity) || 0);
+                    counts[name] = (counts[name] || 0) + (Number(item.quantity) || 0);
                 }
             }
 
-            const sorted = Object.entries(productCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5);
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
             if (sorted.length === 0) {
-                listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">لا توجد بيانات</p>';
+                listEl.innerHTML = '<p class="text-center muted">لا توجد بيانات</p>';
                 return;
             }
 
@@ -204,7 +181,7 @@ const Dashboard = {
             `).join('');
         } catch (e) {
             console.error('فشل تحميل أفضل المنتجات:', e);
-            listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">فشل تحميل البيانات</p>';
+            listEl.innerHTML = '<p class="text-center muted">فشل تحميل البيانات</p>';
         }
     },
 
@@ -214,12 +191,10 @@ const Dashboard = {
 
         try {
             const invoices = await window.DB.getInvoicesLight().catch(() => []);
-            const recent = invoices
-                .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
-                .slice(0, 10);
+            const recent = invoices.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 10);
 
             if (recent.length === 0) {
-                container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">لا توجد فواتير</p>';
+                container.innerHTML = '<p class="text-center muted">لا توجد فواتير</p>';
                 return;
             }
 
@@ -232,30 +207,28 @@ const Dashboard = {
             };
 
             container.innerHTML = `
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th></tr>
-                        </thead>
-                        <tbody>
-                            ${recent.map(inv => {
-                                const s = statusMap[inv.status] || { label: inv.status || 'غير معروف', cls: 'unpaid' };
-                                return `
-                                <tr>
-                                    <td>${inv.invoice_number || inv.id?.substring(0, 8) || '-'}</td>
-                                    <td>${inv.date || '-'}</td>
-                                    <td>${inv.customer_name || 'نقدي'}</td>
-                                    <td>${fmt(inv.total)}</td>
-                                    <td><span class="badge ${s.cls}">${s.label}</span></td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                <table>
+                    <thead>
+                        <tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th></tr>
+                    </thead>
+                    <tbody>
+                        ${recent.map(inv => {
+                            const s = statusMap[inv.status] || { label: inv.status || 'غير معروف', cls: 'unpaid' };
+                            return `
+                            <tr>
+                                <td>${inv.invoice_number || inv.id?.substring(0, 8) || '-'}</td>
+                                <td>${inv.date || '-'}</td>
+                                <td>${inv.customer_name || 'نقدي'}</td>
+                                <td>${fmt(inv.total)}</td>
+                                <td><span class="badge ${s.cls}">${s.label}</span></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
             `;
         } catch (e) {
             console.error('فشل تحميل الفواتير:', e);
-            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">فشل تحميل البيانات</p>';
+            container.innerHTML = '<p class="text-center muted">فشل تحميل البيانات</p>';
         }
     },
 
