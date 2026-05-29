@@ -20,13 +20,13 @@
     <meta name="theme-color" content="#3b82f6">
 
     <style>
-        /* شريط التحميل */
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
             background: var(--primary); width: 0%; z-index: 9999;
             transition: width 0.3s ease;
         }
-        /* قسم كروت المنتجات – يظهر فقط في الشاشات المتوسطة والكبيرة */
+
+        /* ========== قسم كروت المنتجات (للأجهزة اللوحية فقط) ========== */
         .product-grid-section {
             display: none;
             flex: 1;
@@ -35,12 +35,14 @@
             background: var(--bg-input, #f8fafc);
             border-right: 1px solid var(--border-light, #e2e8f0);
         }
+
         .product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 12px;
             align-content: start;
         }
+
         .product-card {
             background: var(--bg-surface, #fff);
             border: 1px solid var(--border-light, #e2e8f0);
@@ -60,36 +62,63 @@
             transform: translateY(-2px);
         }
         .product-card .card-img {
-            width: 64px; height: 64px;
+            width: 56px; height: 56px;
             border-radius: 12px;
             background: var(--primary-light, #eff6ff);
             display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; color: var(--primary, #2563eb);
+            font-size: 1.8rem; color: var(--primary, #2563eb);
             margin-bottom: 10px;
         }
         .product-card .card-name {
-            font-weight: 700; font-size: 0.9rem;
+            font-weight: 700; font-size: 0.85rem;
             color: var(--text-primary, #0f172a);
-            margin-bottom: 4px;
-            line-height: 1.3;
+            margin-bottom: 4px; line-height: 1.3;
         }
         .product-card .card-price {
-            font-weight: 600; font-size: 0.85rem;
+            font-weight: 600; font-size: 0.8rem;
             color: var(--primary, #2563eb);
         }
         .product-card .card-stock {
             font-size: 0.7rem; color: var(--text-muted, #94a3b8);
             margin-top: 4px;
         }
-        /* تحسينات للأجهزة اللوحية */
+
+        .tablet-search-bar {
+            padding: 8px 12px;
+            background: var(--bg-surface, #fff);
+            border-bottom: 1px solid var(--border-light, #e2e8f0);
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .tablet-search-bar .search-header { flex: 1; position: relative; }
+        .tablet-search-bar input {
+            width: 100%; padding: 10px 35px 10px 12px;
+            border: 1px solid var(--border-medium, #cbd5e1); border-radius: 12px;
+            font-family: inherit; font-size: 14px; background: var(--bg-input, #f8fafc);
+        }
+        .tablet-search-bar .search-icon {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8;
+        }
+        .tablet-search-bar .barcode-btn {
+            background: var(--primary); color: white; border: none;
+            border-radius: 12px; padding: 10px 16px; cursor: pointer;
+            font-family: inherit; font-weight: 600; font-size: 14px;
+            display: flex; align-items: center; gap: 6px; transition: 0.2s;
+        }
+        .tablet-search-bar .barcode-btn:hover { opacity: 0.9; }
+
+        /* ========== تحسينات التخطيط للشاشات اللوحية ========== */
         @media (min-width: 768px) {
             .pos-container {
-                display: flex;
-                flex-direction: row;
+                display: flex !important;
+                flex-direction: row !important;
                 max-width: 1400px;
             }
             .top-search-area {
-                display: none; /* نخفي البحث العلوي لأننا سنستخدم البحث داخل قسم الكروت */
+                display: none !important;
             }
             .cart-main-area {
                 width: 380px;
@@ -97,7 +126,17 @@
                 border-right: 1px solid var(--border-light, #e2e8f0);
             }
             .product-grid-section {
-                display: block;
+                display: block !important;
+            }
+        }
+
+        /* الهاتف: إخفاء قسم الكروت وإظهار البحث */
+        @media (max-width: 767px) {
+            .product-grid-section {
+                display: none !important;
+            }
+            .top-search-area {
+                display: block !important;
             }
         }
     </style>
@@ -156,43 +195,41 @@
         </ul>
     </aside>
 
-    <!-- حاوية نقطة البيع الرئيسية (تتغير إلى row في اللوحي) -->
-    <div class="pos-container" id="posContainer">
-        <!-- منطقة البحث (للهاتف فقط) -->
+    <!-- حاوية نقطة البيع -->
+    <div class="pos-container">
+        <!-- منطقة البحث (تظهر فقط على الهاتف) -->
         <div class="top-search-area" id="topSearchArea">
             <div class="customer-box">
                 <div class="search-header" style="position: relative;">
                     <i class="fas fa-user" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                    <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل (اسم أو هاتف)..." autocomplete="off" style="padding-right: 35px;">
+                    <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." autocomplete="off" style="padding-right: 35px;">
                     <div id="customerDropdown" class="search-dropdown"></div>
                 </div>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
             <div class="search-header" style="position: relative;">
                 <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                <input type="text" id="productSearchInput" placeholder="🔍 بحث أو مسح باركود..." autocomplete="off" style="padding-right: 60px;">
-                <button id="barcodeScannerBtn" title="مسح باركود بالكاميرا" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
+                <input type="text" id="productSearchInput" placeholder="🔍 بحث أو باركود..." autocomplete="off" style="padding-right: 60px;">
+                <button id="barcodeScannerBtn" title="مسح باركود" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
                     <i class="fas fa-camera"></i>
                 </button>
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
 
-        <!-- قسم كروت المنتجات (للأجهزة اللوحية فقط) -->
+        <!-- قسم كروت المنتجات (للأجهزة اللوحية) -->
         <div class="product-grid-section" id="productGridSection">
-            <div style="padding: 8px 12px; background: var(--bg-surface, #fff); border-bottom: 1px solid var(--border-light, #e2e8f0); margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
-                <div class="search-header" style="flex: 1; position: relative;">
-                    <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                    <input type="text" id="tabletProductSearchInput" placeholder="🔍 بحث عن منتج..." autocomplete="off" style="width: 100%; padding: 10px 35px 10px 12px; border: 1px solid var(--border-medium, #cbd5e1); border-radius: 12px; font-family: inherit; font-size: 14px; background: var(--bg-input, #f8fafc);">
+            <div class="tablet-search-bar">
+                <div class="search-header">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="tabletProductSearchInput" placeholder="🔍 بحث عن منتج..." autocomplete="off">
                 </div>
-                <button id="tabletBarcodeBtn" title="مسح باركود" style="background: var(--primary); color: white; border: none; border-radius: 12px; padding: 10px 16px; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px;">
-                    <i class="fas fa-camera"></i> مسح
-                </button>
+                <button class="barcode-btn" id="tabletBarcodeBtn"><i class="fas fa-camera"></i> مسح</button>
             </div>
             <div class="product-grid" id="productGrid"></div>
         </div>
 
-        <!-- السلة (دائماً مرئية) -->
+        <!-- السلة (تظهر دائمًا) -->
         <div class="cart-main-area">
             <div class="cart-items" id="cartItemsContainer">
                 <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>
@@ -220,7 +257,7 @@
         </div>
     </div>
 
-    <!-- المودالات (نفس السابق) -->
+    <!-- المودالات -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -293,7 +330,7 @@
     <!-- التوست -->
     <div id="toast" class="toast"></div>
 
-    <!-- المكتبات -->
+    <!-- المكتبات الأساسية -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
     <script src="./js/db-local.js"></script>
@@ -309,7 +346,7 @@
 
             async function initApp() {
                 if (!window.App) {
-                    console.error('App غير معرف');
+                    console.error('النواة غير محملة');
                     alert('خطأ في تحميل التطبيق');
                     return;
                 }
@@ -327,7 +364,7 @@
                     if (window.POS) {
                         await window.POS.init();
                     } else {
-                        console.error('POS غير معرف');
+                        console.error('POS module not found');
                     }
                 } catch (e) {
                     console.error('خطأ في التهيئة:', e);
