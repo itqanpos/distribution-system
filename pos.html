@@ -1,35 +1,34 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نقطة البيع · حسابي</title>
-    
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/pos.css">
-    
+
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
 
     <style>
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
-            background: #3b82f6; width: 0%; z-index: 9999;
+            background: var(--primary); width: 0%; z-index: 9999;
             transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
     <div id="loading-bar"></div>
-
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- الشريط العلوي -->
@@ -47,14 +46,14 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
+                    <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> فاتورة مرتجع مبيعات</a>
+                    <div class="dropdown-divider"></div>
                     <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة الحالية</a>
                     <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> استرجاع فاتورة معلقة</a>
                     <div class="dropdown-divider"></div>
-                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
@@ -69,18 +68,16 @@
         </div>
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html" rel="noopener"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
             <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html" rel="noopener"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html" rel="noopener"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html" rel="noopener"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html" rel="noopener"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html" rel="noopener"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html" rel="noopener"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html" rel="noopener"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
-            <li><a class="menu-item" href="./customers.html" rel="noopener"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./products.html" rel="noopener"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html" rel="noopener"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
     </aside>
 
@@ -95,9 +92,9 @@
                 </div>
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
-            <div class="search-header">
-                <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                <input type="text" id="productSearchInput" placeholder="🔍 ابحث عن منتج..." autocomplete="off" style="padding-right: 35px;">
+            <div class="search-header" style="position: relative;">
+                <i class="fas fa-barcode" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; cursor: pointer;" id="barcodeScannerBtn" title="مسح باركود"></i>
+                <input type="text" id="productSearchInput" placeholder="🔍 بحث أو مسح باركود..." autocomplete="off" style="padding-right: 35px;">
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
@@ -137,6 +134,7 @@
             <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
             <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
             <small id="stockInfo"></small>
+            <div id="priceLimitMsg" style="color: var(--danger); font-size: 0.8rem; margin-top: 4px; display: none;"></div>
             <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
         </div>
     </div>
@@ -148,7 +146,10 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
-                <div class="summary-row"><span id="currentBalanceLabel">الرصيد الحالي:</span> <span id="currentBalance">0.00 ج.م</span></div>
+                <div class="summary-row">
+                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
+                    <span id="currentBalance" style="font-weight: 700;">0.00 ج.م</span>
+                </div>
             </div>
             <div class="form-group"><label>طريقة الدفع</label>
                 <select id="paymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="mixed">مختلط</option><option value="credit">آجل</option></select>
@@ -156,7 +157,10 @@
             <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
             <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
-            <div class="summary-row"><span id="balanceAfterLabel">الرصيد بعد الدفع:</span> <span id="balanceAfter">0.00 ج.م</span></div>
+            <div class="summary-row">
+                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
+                <span id="balanceAfter" style="font-weight: 700;">0.00 ج.م</span>
+            </div>
             <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
             <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
         </div>
@@ -175,7 +179,19 @@
             <div id="receiptPrintArea"></div>
             <div class="receipt-actions">
                 <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-cancel" id="cancelReceiptModalBtn">إغلاق</button>
+                <button class="btn btn-cancel" id="skipPrintBtn">متابعة بدون طباعة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تأكيد تكرار الصنف -->
+    <div class="modal" id="duplicateProductModal">
+        <div class="modal-content" style="max-width: 360px; text-align: center;">
+            <h3 style="margin-bottom: 12px;">الصنف موجود مسبقاً</h3>
+            <p id="duplicateProductMsg" style="margin-bottom: 20px; color: var(--text-secondary);"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="duplicateIncreaseBtn" style="flex: 1;">زيادة الكمية</button>
+                <button class="btn btn-cancel" id="duplicateCancelBtn" style="flex: 1;">إلغاء</button>
             </div>
         </div>
     </div>
@@ -189,13 +205,11 @@
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/toast.js"></script>
-    <script src="./js/modal.js"></script>
-    <script src="./js/services/invoiceService.js"></script>
+    <script src="./js/pos.js"></script>
 
     <script>
         (function() {
             const loadingBar = document.getElementById('loading-bar');
-            
             function showLoading() { loadingBar.style.width = '80%'; }
             function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
 
@@ -216,30 +230,18 @@
 
                     App.initUserInterface();
 
-                    // تحميل pos.js
-                    const script = document.createElement('script');
-                    script.src = './js/pos.js';
-                    script.onload = function() {
-                        // DOM جاهز، وpos.js عرّف POS
-                        if (window.POS) {
-                            window.POS.init();
-                        } else {
-                            console.error('POS غير معرف بعد تحميل pos.js');
-                        }
-                        hideLoading();
-                    };
-                    script.onerror = function() {
-                        alert('فشل تحميل نقطة البيع');
-                        hideLoading();
-                    };
-                    document.body.appendChild(script);
+                    if (window.POS) {
+                        await window.POS.init();
+                    } else {
+                        console.error('POS غير معرف');
+                    }
                 } catch (e) {
                     console.error('خطأ في التهيئة:', e);
+                } finally {
                     hideLoading();
                 }
             }
 
-            // ابدأ التهيئة فوراً
             initApp();
         })();
     </script>
