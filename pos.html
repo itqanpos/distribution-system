@@ -93,8 +93,11 @@
                 <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
             <div class="search-header" style="position: relative;">
-                <i class="fas fa-barcode" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; cursor: pointer;" id="barcodeScannerBtn" title="مسح باركود"></i>
-                <input type="text" id="productSearchInput" placeholder="🔍 بحث أو مسح باركود..." autocomplete="off" style="padding-right: 35px;">
+                <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" id="productSearchInput" placeholder="🔍 بحث أو مسح باركود..." autocomplete="off" style="padding-right: 60px;">
+                <button id="barcodeScannerBtn" title="مسح باركود بالكاميرا" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
+                    <i class="fas fa-camera"></i>
+                </button>
                 <div id="productDropdown" class="search-dropdown"></div>
             </div>
         </div>
