@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -24,9 +24,7 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
-    <!-- المكونات الجديدة -->
     <script src="./js/toast.js"></script>
-    <script src="./js/modal.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -71,8 +69,6 @@
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
@@ -85,11 +81,10 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
-        <!-- المحتوى الديناميكي -->
         <div class="dashboard-container">
             <section class="hero-section">
                 <div class="hero-content">
-                    <div><h1 id="heroGreeting">مرحباً، محمد 👋</h1><p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p></div>
+                    <div><h1 id="heroGreeting">مرحباً 👋</h1><p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p></div>
                     <div class="hero-actions">
                         <button class="primary-btn" onclick="window.location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
                         <button class="secondary-btn" onclick="window.location.href='./reports.html'"><i class="fas fa-chart-line"></i> التقارير</button>
@@ -116,15 +111,15 @@
 
             <section class="main-grid">
                 <div class="glass-card large-card">
-                    <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select"><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يوم</option></select></div>
+                    <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select" id="chartPeriod"><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يوم</option></select></div>
                     <div class="chart-placeholder"><canvas id="salesChart"></canvas></div>
                 </div>
                 <div class="glass-card">
                     <div class="section-header"><h3>تنبيهات ذكية</h3></div>
                     <div class="insights-list">
-                        <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p>0 منتجات</p></div></div>
+                        <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p id="lowStockAlert">0 منتجات</p></div></div>
                         <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو ملحوظ</p></div></div>
-                        <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p>0 فاتورة غير مدفوعة</p></div></div>
+                        <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p id="unpaidAlert">0 فاتورة غير مدفوعة</p></div></div>
                     </div>
                 </div>
             </section>
@@ -138,7 +133,7 @@
         </div>
     </main>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toast" style="display:none;"></div>
 
     <script src="./js/dashboard.js"></script>
 </body>
