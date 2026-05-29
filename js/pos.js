@@ -1,16 +1,11 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار نهائي مع إيصال حراري محسن)
-   التحسينات:
-   - إصلاح ومعايرة أبعاد الإيصال الحراري 80mm
-   - تحسين محاذاة النصوص والأعمدة
-   - دعم أفضل للغة العربية والطباعة الحرارية
-   - إضافة إعدادات للتحكم في مظهر الإيصال
-   - معاينة مطابقة للطباعة الفعلية
+   pos.js - نقطة البيع (إصدار كامل 3.0)
+   الميزات: باركود، تكرار منتج، حدود سعر، ألوان الرصيد، مرتجع، إيصال محسن، Light/Dark
    ============================================= */
 'use strict';
 
 const Utils = {
-    formatMoney: (amount, currency = 'ج.م') => Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
+    formatMoney: (amount, currency = 'ج.م') => Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
     formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return dateStr; } },
     getToday: () => new Date().toISOString().split('T')[0],
     escapeHTML: (str) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; },
@@ -23,14 +18,26 @@ const Utils = {
 
 const POS = {
     state: {
-        products: [], customers: [], cart: [],
-        selectedProduct: null, selectedUnit: null, selectedCustomerId: null,
-        isDBReady: false, isProcessing: false,
-        subtotal: 0, discount: 0, discountType: 'amount', discountValue: 0, netTotal: 0,
+        products: [],
+        customers: [],
+        cart: [],
+        selectedProduct: null,
+        selectedUnit: null,
+        selectedCustomerId: null,
+        isDBReady: false,
+        isProcessing: false,
+        subtotal: 0,
+        discount: 0,
+        discountType: 'amount',
+        discountValue: 0,
+        netTotal: 0,
         usedCustomerBalance: 0,
-        editingInvoiceId: null // لتتبع الفاتورة الأصلية التي يتم تعديلها
+        editingInvoiceId: null
     },
-    cache: { productMap: new Map(), customerMap: new Map() },
+    cache: {
+        productMap: new Map(),
+        customerMap: new Map()
+    },
     el: {},
 
     init() {
@@ -39,43 +46,89 @@ const POS = {
         this.handleConnectionStatus();
         window.addEventListener('online', () => this.updateOnlineStatus());
         window.addEventListener('offline', () => this.updateOnlineStatus());
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.saveCartToStorage(); });
-        if (window.App) { if (!App.requireAuth()) return; App.initUserInterface(); }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') this.saveCartToStorage();
+        });
+        if (window.App) {
+            App.requireAuth();
+            App.initUserInterface();
+        }
         this.loadInitialData();
         this.initSidebarUser();
     },
 
     cacheDOM() {
         const ids = [
-            'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown', 'holdInvoiceBtn', 'heldInvoicesBtn', 'logoutBtn',
-            'productSearchInput', 'customerSearchInput', 'customerList', 'customerBalanceDisplay', 'productDropdown',
-            'customerDropdown',
-            'cartItemsContainer', 'discountValue', 'discountType', 'itemTypesCount', 'totalPieces', 'subtotal', 'netTotal', 'payBtn',
-            'unitQuantityModal', 'modalProductName', 'unitButtons', 'selectedQuantity', 'selectedPrice', 'stockInfo', 'addToCartBtn', 'closeUnitModalBtn',
-            'paymentModal', 'paySubtotal', 'payDiscount', 'payNet', 'currentBalance', 'paymentMethod', 'cashField', 'transferField', 'cashAmount', 'transferAmount',
-            'remainingDisplay', 'balanceAfterLabel', 'balanceAfter', 'paymentNotes', 'confirmAndPrintBtn', 'closePaymentModalBtn',
+            'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown',
+            'holdInvoiceBtn', 'heldInvoicesBtn', 'logoutBtn', 'returnSaleBtn',
+            'productSearchInput', 'customerSearchInput', 'customerBalanceDisplay',
+            'productDropdown', 'customerDropdown', 'barcodeScannerBtn',
+            'cartItemsContainer', 'discountValue', 'discountType', 'itemTypesCount',
+            'totalPieces', 'subtotal', 'netTotal', 'payBtn',
+            'unitQuantityModal', 'modalProductName', 'unitButtons', 'selectedQuantity',
+            'selectedPrice', 'stockInfo', 'addToCartBtn', 'closeUnitModalBtn', 'priceLimitMsg',
+            'paymentModal', 'paySubtotal', 'payDiscount', 'payNet', 'currentBalance',
+            'paymentMethod', 'cashField', 'transferField', 'cashAmount', 'transferAmount',
+            'remainingDisplay', 'balanceAfterLabel', 'balanceAfter', 'paymentNotes',
+            'confirmAndPrintBtn', 'closePaymentModalBtn',
             'heldInvoicesModal', 'heldInvoicesList', 'closeHeldModalBtn',
-            'receiptModal', 'receiptPrintArea', 'printReceiptBtn', 'cancelReceiptModalBtn', 'closeReceiptModalBtn',
-            'sidebarAvatar', 'sidebarUserName'
+            'receiptModal', 'receiptPrintArea', 'printReceiptBtn', 'skipPrintBtn', 'closeReceiptModalBtn',
+            'sidebarAvatar', 'sidebarUserName',
+            'duplicateProductModal', 'duplicateProductMsg', 'duplicateIncreaseBtn', 'duplicateCancelBtn'
         ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
 
     bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(link => { link.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }); });
+        this.el.menuToggle?.addEventListener('click', () => {
+            this.el.sidebar.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        this.el.sidebarOverlay?.addEventListener('click', () => {
+            this.el.sidebar.classList.remove('open');
+            this.el.sidebarOverlay.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay?.classList.remove('show');
+            });
+        });
 
-        this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+        this.el.moreMenuBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.el.moreDropdown?.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
+        });
         this.el.holdInvoiceBtn?.addEventListener('click', (e) => { e.preventDefault(); this.holdInvoice(); this.el.moreDropdown?.classList.remove('show'); });
         this.el.heldInvoicesBtn?.addEventListener('click', (e) => { e.preventDefault(); this.loadHeldInvoices(); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
+        this.el.returnSaleBtn?.addEventListener('click', (e) => { e.preventDefault(); this.openReturnSale(); this.el.moreDropdown?.classList.remove('show'); });
+        this.el.logoutBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                if (window.App) App.logout();
+                else window.location.href = './index.html';
+            }
+            this.el.moreDropdown?.classList.remove('show');
+        });
 
         const debouncedSearch = Utils.debounce(() => this.filterProducts(), 150);
         this.el.productSearchInput?.addEventListener('input', debouncedSearch);
-        this.el.productDropdown?.addEventListener('click', (e) => { const item = e.target.closest('.dropdown-item'); if (item?.dataset.id) { this.openUnitModal(item.dataset.id); this.hideProductDropdown(); this.el.productSearchInput.value = ''; } });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.search-header')) this.hideProductDropdown(); });
+        this.el.productDropdown?.addEventListener('click', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (item?.dataset.id) {
+                this.handleProductSelection(item.dataset.id);
+                this.hideProductDropdown();
+                this.el.productSearchInput.value = '';
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-header')) this.hideProductDropdown();
+        });
+
+        this.el.barcodeScannerBtn?.addEventListener('click', () => this.startBarcodeScan());
 
         this.el.customerSearchInput?.addEventListener('input', () => this.filterCustomers());
         this.el.customerDropdown?.addEventListener('click', (e) => {
@@ -94,14 +147,20 @@ const POS = {
             }
         });
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.customer-box .search-header')) this.hideCustomerDropdown();
+            if (!e.target.closest('.customer-box')) this.hideCustomerDropdown();
         });
         this.el.customerSearchInput?.addEventListener('focus', () => {
             if (!this.el.customerSearchInput.value.trim()) this.filterCustomers();
         });
 
-        this.el.discountValue?.addEventListener('input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this.updateTotalsAndUI(); });
-        this.el.discountType?.addEventListener('change', () => { this.state.discountType = this.el.discountType.value; this.updateTotalsAndUI(); });
+        this.el.discountValue?.addEventListener('input', () => {
+            this.state.discountValue = +this.el.discountValue.value || 0;
+            this.updateTotalsAndUI();
+        });
+        this.el.discountType?.addEventListener('change', () => {
+            this.state.discountType = this.el.discountType.value;
+            this.updateTotalsAndUI();
+        });
         this.el.payBtn?.addEventListener('click', () => this.openPaymentModal());
 
         this.el.addToCartBtn?.addEventListener('click', () => this.addToCartFromModal());
@@ -111,14 +170,23 @@ const POS = {
         this.el.paymentMethod?.addEventListener('change', () => this.togglePaymentFields());
         this.el.cashAmount?.addEventListener('input', () => this.updatePaymentPreview());
         this.el.transferAmount?.addEventListener('input', () => this.updatePaymentPreview());
+
         this.el.closeHeldModalBtn?.addEventListener('click', () => this.closeModal('heldInvoicesModal'));
         this.el.closeReceiptModalBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
-        this.el.cancelReceiptModalBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
+        this.el.skipPrintBtn?.addEventListener('click', () => this.closeModal('receiptModal'));
         this.el.printReceiptBtn?.addEventListener('click', () => this.printReceiptFromModal());
+
+        this.el.duplicateIncreaseBtn?.addEventListener('click', () => this.handleDuplicateProduct(true));
+        this.el.duplicateCancelBtn?.addEventListener('click', () => {
+            this.closeModal('duplicateProductModal');
+        });
     },
 
     handleConnectionStatus() { this.updateOnlineStatus(); },
-    updateOnlineStatus() { const n = document.getElementById('mainNavbar'); if (n) n.classList.toggle('offline', !navigator.onLine); },
+    updateOnlineStatus() {
+        const n = document.getElementById('mainNavbar');
+        if (n) n.classList.toggle('offline', !navigator.onLine);
+    },
 
     initSidebarUser() {
         window.App?.getCurrentUser?.().then(user => {
@@ -134,7 +202,7 @@ const POS = {
         await this.loadProductsAndCustomers();
         this.buildCache();
         this.restoreCartFromStorage();
-        this.loadInvoiceForEdit(); // تحميل فاتورة للتعديل إن وجدت
+        this.loadInvoiceForEdit();
         if (!this.state.products.length && window.Toast) Toast.info('لا توجد منتجات. أضف منتجات أولاً.');
     },
 
@@ -152,7 +220,9 @@ const POS = {
                 customers = [];
             }
             this.state.customers = customers.filter(p => p.type === 'customer');
-            this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
+            this.state.products.forEach(p => {
+                if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch (e) {}
+            });
             this.buildCache();
         } catch (e) {
             console.error('فشل تحميل البيانات:', e);
@@ -163,12 +233,18 @@ const POS = {
     },
 
     buildCache() {
-        this.cache.productMap.clear(); this.cache.customerMap.clear();
-        for (const p of this.state.products) { this.cache.productMap.set(String(p.id), p); this.cache.productMap.set(p.id, p); }
-        for (const c of this.state.customers) { this.cache.customerMap.set(String(c.id), c); this.cache.customerMap.set(c.id, c); }
+        this.cache.productMap.clear();
+        this.cache.customerMap.clear();
+        for (const p of this.state.products) {
+            this.cache.productMap.set(String(p.id), p);
+            this.cache.productMap.set(p.id, p);
+        }
+        for (const c of this.state.customers) {
+            this.cache.customerMap.set(String(c.id), c);
+            this.cache.customerMap.set(c.id, c);
+        }
     },
 
-    // دالة تحميل فاتورة للتعديل
     loadInvoiceForEdit() {
         const invoiceId = localStorage.getItem('edit_invoice_id');
         if (!invoiceId) return;
@@ -177,7 +253,7 @@ const POS = {
         if (this.state.isDBReady && window.DB.getInvoiceById) {
             window.DB.getInvoiceById(invoiceId).then(inv => {
                 if (inv && inv.type === 'sale' && inv.status !== 'voided') {
-                    this.state.cart = (inv.items || []).map(item => ({...item}));
+                    this.state.cart = (inv.items || []).map(item => ({ ...item }));
                     this.state.selectedCustomerId = inv.customer_id;
                     this.state.editingInvoiceId = inv.id;
                     if (inv.customer_id) {
@@ -222,10 +298,11 @@ const POS = {
         filtered.forEach(c => {
             const bal = c.balance || 0;
             const balanceStr = bal > 0 ? `دائن ${Utils.formatMoney(bal)}` : bal < 0 ? `مدين ${Utils.formatMoney(-bal)}` : 'لا رصيد';
+            const balanceColor = bal > 0 ? 'var(--success)' : bal < 0 ? 'var(--danger)' : 'var(--text-muted)';
             html += `<div class="dropdown-item" data-id="${c.id}">
                         <div class="item-info">
                             <h4>${Utils.escapeHTML(c.name)}</h4>
-                            <small style="color:#94a3b8;">${balanceStr}</small>
+                            <small style="color:${balanceColor}; font-weight: 600;">${balanceStr}</small>
                         </div>
                         <div class="item-price" style="font-size:12px;">${c.phone || ''}</div>
                     </div>`;
@@ -239,28 +316,128 @@ const POS = {
     updateCustomerDisplay() {
         const balanceDiv = this.el.customerBalanceDisplay;
         if (!balanceDiv) return;
-        if (!this.state.selectedCustomerId) { balanceDiv.innerHTML = ''; return; }
+        if (!this.state.selectedCustomerId) {
+            balanceDiv.innerHTML = '';
+            balanceDiv.className = 'customer-balance';
+            return;
+        }
         const customer = this.cache.customerMap.get(this.state.selectedCustomerId);
         if (customer) {
             const bal = customer.balance || 0;
-            balanceDiv.innerHTML = bal > 0 ? `العميل دائن بـ ${Utils.formatMoney(bal)}` : bal < 0 ? `مدين بـ ${Utils.formatMoney(-bal)}` : 'لا رصيد';
+            if (bal > 0) {
+                balanceDiv.innerHTML = `العميل دائن بـ ${Utils.formatMoney(bal)}`;
+                balanceDiv.className = 'customer-balance positive';
+            } else if (bal < 0) {
+                balanceDiv.innerHTML = `مدين بـ ${Utils.formatMoney(-bal)}`;
+                balanceDiv.className = 'customer-balance negative';
+            } else {
+                balanceDiv.innerHTML = 'لا رصيد';
+                balanceDiv.className = 'customer-balance';
+            }
         } else {
             balanceDiv.innerHTML = '';
+            balanceDiv.className = 'customer-balance';
         }
     },
 
-    getSelectedCustomer() { return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null; },
+    getSelectedCustomer() {
+        return this.state.selectedCustomerId ? this.cache.customerMap.get(this.state.selectedCustomerId) : null;
+    },
 
     filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
-        const dropdown = this.el.productDropdown; if (!dropdown) return;
+        const dropdown = this.el.productDropdown;
+        if (!dropdown) return;
         if (!term) { dropdown.classList.remove('show'); return; }
-        if (!this.state.products.length) { dropdown.innerHTML = '<div class="dropdown-item" style="color:#dc2626; text-align:center;">⚠️ لا توجد منتجات</div>'; dropdown.classList.add('show'); return; }
-        const filtered = this.state.products.filter(p => p.name?.toLowerCase().includes(term));
-        dropdown.innerHTML = filtered.length ? filtered.map(p => `<div class="dropdown-item" data-id="${p.id}"><div class="item-info"><h4>${Utils.escapeHTML(p.name)}</h4></div><div class="item-price">${Utils.formatMoney(p.units[0]?.price || 0)}</div></div>`).join('') : '<div class="dropdown-item" style="color:#94a3b8;">لا توجد نتائج</div>';
+        if (!this.state.products.length) {
+            dropdown.innerHTML = '<div class="dropdown-item" style="color:var(--danger); text-align:center;">⚠️ لا توجد منتجات</div>';
+            dropdown.classList.add('show');
+            return;
+        }
+        const filtered = this.state.products.filter(p => p.name?.toLowerCase().includes(term) || p.barcode === term || p.code === term);
+        dropdown.innerHTML = filtered.length ? filtered.map(p => `
+            <div class="dropdown-item" data-id="${p.id}">
+                <div class="item-info"><h4>${Utils.escapeHTML(p.name)}</h4></div>
+                <div class="item-price">${Utils.formatMoney(p.units[0]?.price || 0)}</div>
+            </div>
+        `).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">لا توجد نتائج</div>';
         dropdown.classList.add('show');
     },
+
     hideProductDropdown() { this.el.productDropdown?.classList.remove('show'); },
+
+    handleProductSelection(productId) {
+        const product = this.cache.productMap.get(String(productId));
+        if (!product) return;
+        const existing = this.state.cart.find(i => i.productId === product.id);
+        if (existing) {
+            this.el.duplicateProductMsg.textContent = `الصنف "${product.name}" موجود بالفعل في السلة. هل تريد زيادة الكمية؟`;
+            this.el.duplicateProductModal.dataset.productId = product.id;
+            this.showModal('duplicateProductModal');
+        } else {
+            this.openUnitModal(productId);
+        }
+    },
+
+    handleDuplicateProduct(increase) {
+        const productId = this.el.duplicateProductModal.dataset.productId;
+        this.closeModal('duplicateProductModal');
+        if (increase) {
+            this.openUnitModal(productId);
+        }
+    },
+
+    startBarcodeScan() {
+        if (!('BarcodeDetector' in window)) {
+            window.Toast?.error('ميزة مسح الباركود غير مدعومة في هذا المتصفح. استخدم كاميرا خارجية أو امسح يدوياً.');
+            return;
+        }
+        const video = document.createElement('video');
+        video.setAttribute('playsinline', '');
+        video.style.display = 'none';
+        document.body.appendChild(video);
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+            video.srcObject = stream;
+            video.play();
+            const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'qr_code'] });
+            const scan = async () => {
+                if (video.readyState >= 2) {
+                    try {
+                        const barcodes = await detector.detect(video);
+                        if (barcodes.length > 0) {
+                            const barcode = barcodes[0].rawValue;
+                            stream.getTracks().forEach(t => t.stop());
+                            video.remove();
+                            this.searchByBarcode(barcode);
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                requestAnimationFrame(scan);
+            };
+            requestAnimationFrame(scan);
+            window.Toast?.info('وجه الكاميرا نحو الباركود...');
+        }).catch(err => {
+            window.Toast?.error('تعذر الوصول للكاميرا. تأكد من السماح بالوصول.');
+            video.remove();
+        });
+    },
+
+    searchByBarcode(barcode) {
+        this.el.productSearchInput.value = barcode;
+        const found = this.state.products.find(p => (p.barcode || p.code) === barcode);
+        if (found) {
+            this.handleProductSelection(found.id);
+            this.el.productSearchInput.value = '';
+        } else {
+            this.filterProducts();
+        }
+    },
+
+    openReturnSale() {
+        window.location.href = './sales-returns.html';
+    },
 
     calculateTotals() {
         let subtotal = 0;
@@ -270,7 +447,9 @@ const POS = {
         if (this.state.discountType === 'amount') discount = Math.min(this.state.discountValue, subtotal);
         else discount = Utils.round(subtotal * this.state.discountValue / 100, 2);
         const net = Utils.round(subtotal - discount, 2);
-        this.state.subtotal = subtotal; this.state.discount = discount; this.state.netTotal = net;
+        this.state.subtotal = subtotal;
+        this.state.discount = discount;
+        this.state.netTotal = net;
         return { subtotal, discount, net };
     },
 
@@ -279,18 +458,25 @@ const POS = {
         if (this.el.subtotal) this.el.subtotal.textContent = Utils.formatMoney(subtotal);
         if (this.el.netTotal) this.el.netTotal.textContent = Utils.formatMoney(net);
         if (this.el.itemTypesCount) this.el.itemTypesCount.textContent = this.state.cart.length;
-        let pieces = 0; for (const item of this.state.cart) pieces += item.quantity * (item.factor || 1);
+        let pieces = 0;
+        for (const item of this.state.cart) pieces += item.quantity * (item.factor || 1);
         if (this.el.totalPieces) this.el.totalPieces.textContent = Math.round(pieces);
     },
 
     renderCart() {
-        const container = this.el.cartItemsContainer; if (!container) return;
+        const container = this.el.cartItemsContainer;
+        if (!container) return;
         container.innerHTML = `<div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>`;
-        if (!this.state.cart.length) { container.insertAdjacentHTML('beforeend', '<div class="empty-cart-message">السلة فارغة</div>'); this.updateTotalsAndUI(); return; }
+        if (!this.state.cart.length) {
+            container.insertAdjacentHTML('beforeend', '<div class="empty-cart-message">السلة فارغة</div>');
+            this.updateTotalsAndUI();
+            return;
+        }
 
         let rowsHTML = '';
         this.state.cart.forEach((item, idx) => {
-            const safeName = Utils.escapeHTML(item.productName); const safeUnit = Utils.escapeHTML(item.unitName);
+            const safeName = Utils.escapeHTML(item.productName);
+            const safeUnit = Utils.escapeHTML(item.unitName);
             const lineTotal = Utils.formatMoney(Utils.round(item.price * item.quantity, 2));
             rowsHTML += `
                 <div class="cart-item-row">
@@ -304,11 +490,25 @@ const POS = {
         container.insertAdjacentHTML('beforeend', rowsHTML);
 
         container.addEventListener('change', (e) => {
-            if (e.target.classList.contains('cart-qty-input')) { const idx = +e.target.dataset.idx; const qty = +e.target.value; if (isNaN(qty) || qty <= 0) this.state.cart.splice(idx, 1); else this.state.cart[idx].quantity = qty; this.renderCart(); }
-            else if (e.target.classList.contains('cart-price-input')) { const idx = +e.target.dataset.idx; const price = +e.target.value; if (!isNaN(price) && price >= 0) this.state.cart[idx].price = price; this.renderCart(); }
+            if (e.target.classList.contains('cart-qty-input')) {
+                const idx = +e.target.dataset.idx;
+                const qty = +e.target.value;
+                if (isNaN(qty) || qty <= 0) this.state.cart.splice(idx, 1);
+                else this.state.cart[idx].quantity = qty;
+                this.renderCart();
+            } else if (e.target.classList.contains('cart-price-input')) {
+                const idx = +e.target.dataset.idx;
+                const price = +e.target.value;
+                if (!isNaN(price) && price >= 0) this.state.cart[idx].price = price;
+                this.renderCart();
+            }
         });
         container.addEventListener('click', (e) => {
-            if (e.target.closest('.fa-trash')) { const idx = +e.target.closest('.fa-trash').dataset.idx; this.state.cart.splice(idx, 1); this.renderCart(); }
+            if (e.target.closest('.fa-trash')) {
+                const idx = +e.target.closest('.fa-trash').dataset.idx;
+                this.state.cart.splice(idx, 1);
+                this.renderCart();
+            }
         });
         this.updateTotalsAndUI();
     },
@@ -322,8 +522,12 @@ const POS = {
         this.state.selectedProduct = product;
         this.el.modalProductName.textContent = Utils.escapeHTML(product.name);
         const container = this.el.unitButtons;
-        container.innerHTML = product.units.map((u, idx) => `<button class="unit-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}">${Utils.escapeHTML(u.name)}</button>`).join('');
-        container.querySelectorAll('.unit-btn').forEach(btn => { btn.addEventListener('click', () => { this.selectUnit(+btn.dataset.index); }); });
+        container.innerHTML = product.units.map((u, idx) => `
+            <button class="unit-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}">${Utils.escapeHTML(u.name)}</button>
+        `).join('');
+        container.querySelectorAll('.unit-btn').forEach(btn => {
+            btn.addEventListener('click', () => { this.selectUnit(+btn.dataset.index); });
+        });
         this.state.selectedUnit = product.units[0];
         this.updateUnitModalInfo();
         this.showModal('unitQuantityModal');
@@ -332,51 +536,82 @@ const POS = {
     selectUnit(index) {
         if (!this.state.selectedProduct?.units) return;
         this.state.selectedUnit = this.state.selectedProduct.units[index];
-        this.el.unitButtons.querySelectorAll('.unit-btn').forEach((btn, i) => { btn.classList.toggle('active', i === index); });
+        this.el.unitButtons.querySelectorAll('.unit-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i === index);
+        });
         this.updateUnitModalInfo();
     },
 
     updateUnitModalInfo() {
-        const product = this.state.selectedProduct; const unit = this.state.selectedUnit; if (!product || !unit) return;
-        const baseUnit = product.units[0]; const baseStock = baseUnit.stock || 0; const factor = unit.factor || 1;
+        const product = this.state.selectedProduct;
+        const unit = this.state.selectedUnit;
+        if (!product || !unit) return;
+        const baseUnit = product.units[0];
+        const baseStock = baseUnit.stock || 0;
+        const factor = unit.factor || 1;
         let availableStock;
-        if (unit === baseUnit) { availableStock = Math.floor(baseStock); }
-        else { const wholeBase = Math.floor(baseStock); const remainderPieces = Math.round((baseStock - wholeBase) * factor); availableStock = wholeBase * factor + remainderPieces; }
+        if (unit === baseUnit) {
+            availableStock = Math.floor(baseStock);
+        } else {
+            const wholeBase = Math.floor(baseStock);
+            const remainderPieces = Math.round((baseStock - wholeBase) * factor);
+            availableStock = wholeBase * factor + remainderPieces;
+        }
         const maxAvailable = Math.max(0, availableStock);
         this.el.selectedPrice.value = unit.price || 0;
         this.el.selectedQuantity.max = maxAvailable;
         this.el.selectedQuantity.value = maxAvailable > 0 ? 1 : 0;
-        this.el.stockInfo.textContent = unit === baseUnit ? `المخزون المتاح: ${maxAvailable} ${baseUnit.name}` : `المخزون المتاح: ${maxAvailable} ${unit.name}`;
+        this.el.stockInfo.textContent = unit === baseUnit ?
+            `المخزون المتاح: ${maxAvailable} ${baseUnit.name}` :
+            `المخزون المتاح: ${maxAvailable} ${unit.name}`;
+
+        if (unit.minPrice || unit.maxPrice) {
+            this.el.priceLimitMsg.style.display = 'block';
+            this.el.priceLimitMsg.textContent = `السعر المسموح: ${unit.minPrice || 0} - ${unit.maxPrice || 'غير محدود'} ج.م`;
+        } else {
+            this.el.priceLimitMsg.style.display = 'none';
+        }
     },
 
     async addToCartFromModal() {
         const qty = +this.el.selectedQuantity?.value || 0;
-        if (qty <= 0 || qty > (+this.el.selectedQuantity?.max || 0)) {
-            if (typeof ModalConfirm !== 'undefined') {
-                await ModalConfirm.show({ title: 'خطأ', message: 'كمية غير متاحة', icon: 'warn', confirmText: 'حسناً', type: 'danger' });
-            } else if (window.Toast) Toast.error('كمية غير متاحة');
+        const maxQty = +this.el.selectedQuantity?.max || 0;
+        if (qty <= 0 || qty > maxQty) {
+            window.Toast?.error('كمية غير متاحة');
             return;
         }
         const price = +this.el.selectedPrice?.value || 0;
         if (price < 0) {
-            if (window.Toast) Toast.error('السعر لا يمكن أن يكون سالباً');
+            window.Toast?.error('السعر لا يمكن أن يكون سالباً');
             return;
         }
         const unit = this.state.selectedUnit;
         if (unit) {
             if (unit.minPrice > 0 && price < unit.minPrice) {
-                if (window.Toast) Toast.error(`لا يمكن البيع بأقل من السعر الأدنى: ${Utils.formatMoney(unit.minPrice)}`);
+                window.Toast?.error(`لا يمكن البيع بأقل من السعر الأدنى: ${Utils.formatMoney(unit.minPrice)}`);
                 return;
             }
             if (unit.maxPrice > 0 && price > unit.maxPrice) {
-                if (window.Toast) Toast.error(`لا يمكن البيع بأعلى من السعر الأقصى: ${Utils.formatMoney(unit.maxPrice)}`);
+                window.Toast?.error(`لا يمكن البيع بأعلى من السعر الأقصى: ${Utils.formatMoney(unit.maxPrice)}`);
                 return;
             }
         }
         const existing = this.state.cart.find(i => i.productId === this.state.selectedProduct.id && i.unitName === unit.name);
-        if (existing) existing.quantity = Utils.round(existing.quantity + qty, 3);
-        else this.state.cart.push({ productId: this.state.selectedProduct.id, productName: this.state.selectedProduct.name, unitName: unit.name, quantity: qty, price, factor: unit.factor || 1, isBaseUnit: unit === this.state.selectedProduct.units[0] });
-        this.renderCart(); this.closeModal('unitQuantityModal');
+        if (existing) {
+            existing.quantity = Utils.round(existing.quantity + qty, 3);
+        } else {
+            this.state.cart.push({
+                productId: this.state.selectedProduct.id,
+                productName: this.state.selectedProduct.name,
+                unitName: unit.name,
+                quantity: qty,
+                price: price,
+                factor: unit.factor || 1,
+                isBaseUnit: unit === this.state.selectedProduct.units[0]
+            });
+        }
+        this.renderCart();
+        this.closeModal('unitQuantityModal');
     },
 
     showModal(id) { const m = this.el[id]; if (m) m.classList.add('open'); },
@@ -396,9 +631,11 @@ const POS = {
         this.el.currentBalance.textContent = Utils.formatMoney(Math.abs(bal));
         this.el.currentBalance.classList.toggle('text-success', bal >= 0);
         this.el.currentBalance.classList.toggle('text-danger', bal < 0);
-        this.el.cashAmount.value = ''; this.el.transferAmount.value = '';
+        this.el.cashAmount.value = '';
+        this.el.transferAmount.value = '';
         this.el.paymentMethod.value = 'cash';
-        this.togglePaymentFields(); this.updatePaymentPreview();
+        this.togglePaymentFields();
+        this.updatePaymentPreview();
         this.showModal('paymentModal');
     },
 
@@ -453,6 +690,7 @@ const POS = {
             const diff = Utils.round(totalPaid - totals.net, 2);
 
             const customer = this.getSelectedCustomer();
+            const oldBalance = customer?.balance || 0;
             const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
 
             const invoice = {
@@ -461,7 +699,7 @@ const POS = {
                 date: Utils.getToday(),
                 customer_id: this.state.selectedCustomerId || null,
                 customer_name: customer?.name || 'نقدي',
-                items: this.state.cart.map(item => ({...item})),
+                items: this.state.cart.map(item => ({ ...item })),
                 subtotal: totals.subtotal,
                 discount: totals.discount,
                 total: totals.net,
@@ -479,9 +717,7 @@ const POS = {
             }
 
             let result;
-            if (window.InvoiceService && window.InvoiceService.createSaleInvoice) {
-                result = await InvoiceService.createSaleInvoice(invoice);
-            } else if (this.state.isDBReady) {
+            if (this.state.isDBReady) {
                 result = await DB.createSaleInvoice(invoice);
             } else {
                 throw new Error('خدمة الفواتير غير متاحة');
@@ -494,7 +730,6 @@ const POS = {
             this.buildCache();
 
             const customerObj = customer || { name: 'نقدي', balance: 0 };
-            // استدعاء الإيصال المحسن
             this.showReceiptModalEnhanced(
                 { ...invoice, invoice_number: result.invoice_number || invoice.invoice_number },
                 customerObj,
@@ -509,15 +744,7 @@ const POS = {
             if (window.Toast) Toast.success('تم البيع بنجاح');
         } catch (error) {
             console.error('خطأ في الدفع:', error);
-            if (typeof ModalConfirm !== 'undefined') {
-                await ModalConfirm.show({
-                    title: 'خطأ في الدفع',
-                    message: error.message || 'حدث خطأ غير متوقع',
-                    icon: 'warn',
-                    confirmText: 'حسناً',
-                    type: 'danger'
-                });
-            } else if (window.Toast) {
+            if (window.Toast) {
                 Toast.error(error.message || 'حدث خطأ غير متوقع');
             } else {
                 alert('خطأ: ' + (error.message || 'حدث خطأ غير متوقع'));
@@ -552,24 +779,43 @@ const POS = {
     },
 
     resetCart() {
-        this.state.cart = []; this.state.selectedCustomerId = null; this.state.discountValue = 0; this.state.discountType = 'amount'; this.state.usedCustomerBalance = 0;
+        this.state.cart = [];
+        this.state.selectedCustomerId = null;
+        this.state.discountValue = 0;
+        this.state.discountType = 'amount';
+        this.state.usedCustomerBalance = 0;
         this.state.editingInvoiceId = null;
         if (this.el.discountValue) this.el.discountValue.value = 0;
         if (this.el.discountType) this.el.discountType.value = 'amount';
-        if (this.el.customerSearchInput) { this.el.customerSearchInput.value = ''; this.updateCustomerDisplay(); }
+        if (this.el.customerSearchInput) {
+            this.el.customerSearchInput.value = '';
+            this.updateCustomerDisplay();
+        }
         this.renderCart();
     },
 
     async holdInvoice() {
-        if (!this.state.cart.length) { if (window.Toast) Toast.info('السلة فارغة'); return; }
+        if (!this.state.cart.length) {
+            if (window.Toast) Toast.info('السلة فارغة');
+            return;
+        }
         const totals = this.calculateTotals();
         const invoiceNumber = this.state.isDBReady ? await DB.generateInvoiceNumber() : this.generateLocalInvoiceNumber();
         const invoice = {
-            id: Utils.generateUUID(), invoice_number: invoiceNumber, type: 'sale', date: Utils.getToday(),
-            customer_id: this.state.selectedCustomerId || null, customer_name: this.getSelectedCustomer()?.name || 'نقدي',
-            items: this.state.cart.map(item => ({...item})),
-            subtotal: totals.subtotal, discount: totals.discount, total: totals.net,
-            paid: 0, remaining: totals.net, status: 'held', notes: 'فاتورة معلقة'
+            id: Utils.generateUUID(),
+            invoice_number: invoiceNumber,
+            type: 'sale',
+            date: Utils.getToday(),
+            customer_id: this.state.selectedCustomerId || null,
+            customer_name: this.getSelectedCustomer()?.name || 'نقدي',
+            items: this.state.cart.map(item => ({ ...item })),
+            subtotal: totals.subtotal,
+            discount: totals.discount,
+            total: totals.net,
+            paid: 0,
+            remaining: totals.net,
+            status: 'held',
+            notes: 'فاتورة معلقة'
         };
         try {
             if (this.state.isDBReady && DB.saveInvoice) {
@@ -579,7 +825,10 @@ const POS = {
             }
             if (window.Toast) Toast.success(`تم تعليق الفاتورة ${invoiceNumber}`);
             this.resetCart();
-        } catch (error) { console.error(error); if (window.Toast) Toast.error('فشل تعليق الفاتورة'); }
+        } catch (error) {
+            console.error(error);
+            if (window.Toast) Toast.error('فشل تعليق الفاتورة');
+        }
     },
 
     async loadHeldInvoices() {
@@ -588,14 +837,22 @@ const POS = {
             if (this.state.isDBReady) invoices = (await DB.getInvoices()).filter(i => i.type === 'sale' && i.status === 'held');
             else if (Utils.hasLocalDB()) invoices = (await localDB.getAll('invoices')).filter(i => i.type === 'sale' && i.status === 'held');
         } catch (e) { console.error(e); }
-        const container = this.el.heldInvoicesList; if (!container) return;
-        if (!invoices.length) { container.innerHTML = '<p style="text-align:center; padding:20px;">لا توجد فواتير معلقة</p>'; }
-        else {
+        const container = this.el.heldInvoicesList;
+        if (!container) return;
+        if (!invoices.length) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-muted);">لا توجد فواتير معلقة</p>';
+        } else {
             container.innerHTML = invoices.map(inv => {
-                const customer = this.cache.customerMap.get(String(inv.customer_id)); const name = customer?.name || 'نقدي';
-                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;"><div><strong>${Utils.escapeHTML(inv.invoice_number || inv.id?.substring(0,8))}</strong><br>${Utils.escapeHTML(name)} - ${Utils.formatMoney(inv.total)}</div><div><i class="fas fa-play"></i></div></div>`;
+                const customer = this.cache.customerMap.get(String(inv.customer_id));
+                const name = customer?.name || 'نقدي';
+                return `<div class="held-invoice-item" data-id="${inv.id}" style="padding:15px; border:1px solid var(--border-light); border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between;">
+                    <div><strong>${Utils.escapeHTML(inv.invoice_number || inv.id?.substring(0,8))}</strong><br>${Utils.escapeHTML(name)} - ${Utils.formatMoney(inv.total)}</div>
+                    <div><i class="fas fa-play"></i></div>
+                </div>`;
             }).join('');
-            container.querySelectorAll('.held-invoice-item').forEach(item => { item.addEventListener('click', () => this.resumeInvoice(item.dataset.id)); });
+            container.querySelectorAll('.held-invoice-item').forEach(item => {
+                item.addEventListener('click', () => this.resumeInvoice(item.dataset.id));
+            });
         }
         this.showModal('heldInvoicesModal');
     },
@@ -605,13 +862,13 @@ const POS = {
         try {
             if (this.state.isDBReady) {
                 inv = await DB.getInvoiceById(id);
-                if (inv) { try { await supabase.from('invoices').delete().eq('id', id); } catch {} }
+                if (inv) { try { await supabase.from('invoices').delete().eq('id', id); } catch (e) {} }
             } else if (Utils.hasLocalDB()) {
-                inv = await localDB.getById('invoices', id);
+                inv = await localDB.get('invoices', id);
                 if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
             }
             if (!inv) { if (window.Toast) Toast.error('الفاتورة غير موجودة'); return; }
-            this.state.cart = inv.items.map(item => ({...item}));
+            this.state.cart = inv.items.map(item => ({ ...item }));
             this.state.selectedCustomerId = inv.customer_id;
             if (inv.customer_id) {
                 const cust = this.cache.customerMap.get(String(inv.customer_id));
@@ -626,33 +883,24 @@ const POS = {
             this.renderCart();
             this.closeModal('heldInvoicesModal');
             if (window.Toast) Toast.success('تم تحميل الفاتورة المعلقة');
-        } catch (err) { console.error(err); if (window.Toast) Toast.error('فشل استرجاع الفاتورة'); }
+        } catch (err) {
+            console.error(err);
+            if (window.Toast) Toast.error('فشل استرجاع الفاتورة');
+        }
     },
 
-    // ========== إيصال حراري محسن 80mm ==========
-    /**
-     * عرض إيصال محسن يحاكي ورق 80mm
-     * @param {object} invoice بيانات الفاتورة
-     * @param {object} customer بيانات العميل
-     * @param {array} items الأصناف
-     * @param {object} totals المجاميع
-     * @param {number} oldBalance رصيد العميل السابق
-     * @param {object} payment تفاصيل الدفع { cashPaid, transferPaid, usedBalance, diff }
-     */
     showReceiptModalEnhanced(invoice, customer, items, totals, oldBalance = 0, payment = {}) {
-        // جلب الإعدادات
         let settings = {};
-        try { settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); } catch(e) {}
-        
+        try { settings = JSON.parse(localStorage.getItem('app_settings') || '{}'); } catch (e) {}
+
         const companyName = settings?.company?.name || 'حسابي';
         const companyPhone = settings?.company?.phone || '';
         const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
-        const receiptWidth = settings?.print?.receipt_width || '80mm'; // 80mm افتراضي
+        const receiptWidth = settings?.print?.receipt_width || '80mm';
         const fontSize = settings?.print?.font_size || '12px';
 
         const format = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        
-        // بناء قائمة الأصناف بتنسيق عمودي محسن
+
         let itemsHTML = '';
         for (const item of items) {
             const lineTotal = Utils.round((item.price || 0) * (item.quantity || 0), 2);
@@ -666,7 +914,6 @@ const POS = {
                 </div>`;
         }
 
-        // تفاصيل الدفع
         let paymentHTML = '';
         const cashPaid = payment.cashPaid || 0;
         const transferPaid = payment.transferPaid || 0;
@@ -676,18 +923,11 @@ const POS = {
 
         paymentHTML += `<div class="receipt-row"><span>نقدى</span><span>${format(cashPaid)}</span></div>`;
         paymentHTML += `<div class="receipt-row"><span>تحويل</span><span>${format(transferPaid)}</span></div>`;
-        if (usedBalance > 0) {
-            paymentHTML += `<div class="receipt-row"><span>من رصيد عميل</span><span>${format(usedBalance)}</span></div>`;
-        }
+        if (usedBalance > 0) paymentHTML += `<div class="receipt-row"><span>من رصيد عميل</span><span>${format(usedBalance)}</span></div>`;
         paymentHTML += `<div class="receipt-row total"><span>المدفوع</span><span>${format(totalPaid)}</span></div>`;
-        
-        if (diff > 0) {
-            paymentHTML += `<div class="receipt-row"><span>فائض</span><span>${format(diff)}</span></div>`;
-        } else if (diff < 0) {
-            paymentHTML += `<div class="receipt-row"><span>متبقى</span><span>${format(-diff)}</span></div>`;
-        }
+        if (diff > 0) paymentHTML += `<div class="receipt-row"><span>فائض</span><span>${format(diff)}</span></div>`;
+        else if (diff < 0) paymentHTML += `<div class="receipt-row"><span>متبقى</span><span>${format(-diff)}</span></div>`;
 
-        // الرصيد
         let balanceHTML = '';
         if (customer && customer.name !== 'نقدي') {
             const newBalance = customer.balance || 0;
@@ -697,7 +937,6 @@ const POS = {
             balanceHTML += `<div class="receipt-row total"><span>الرصيد الحالى</span><span>${format(newBalance)}</span></div>`;
         }
 
-        // بناء الإيصال كامل
         const receiptHTML = `
         <div class="thermal-receipt" style="width:${receiptWidth}; font-size:${fontSize};">
             <div class="receipt-header">
@@ -709,17 +948,13 @@ const POS = {
             <div class="receipt-row"><span>رقم الفاتورة</span><span>${Utils.escapeHTML(invoice.invoice_number || invoice.id?.substring(0,8))}</span></div>
             <div class="receipt-row"><span>التاريخ</span><span>${Utils.formatDate(invoice.date)}</span></div>
             <hr class="receipt-divider" />
-            <div class="receipt-items">
-                ${itemsHTML}
-            </div>
+            <div class="receipt-items">${itemsHTML}</div>
             <hr class="receipt-divider" />
             <div class="receipt-row"><span>الاجمالى</span><span>${format(totals.subtotal)}</span></div>
             ${totals.discount > 0 ? `<div class="receipt-row"><span>الخصم</span><span>${format(totals.discount)}</span></div>` : ''}
             <div class="receipt-row total"><span>الصافى</span><span>${format(totals.net)}</span></div>
             <hr class="receipt-divider" />
-            <div class="receipt-payment">
-                ${paymentHTML}
-            </div>
+            <div class="receipt-payment">${paymentHTML}</div>
             ${balanceHTML ? `<hr class="receipt-divider" /><div class="receipt-balance">${balanceHTML}</div>` : ''}
             <hr class="receipt-divider" />
             <div class="receipt-footer">${Utils.escapeHTML(footerMsg)}</div>
@@ -740,98 +975,37 @@ const POS = {
             return;
         }
 
-        // نسخ CSS الإيصال الحراري لاستخدامها في نافذة الطباعة
         const receiptStyles = `
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body {
                     font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
-                    direction: rtl;
-                    text-align: right;
-                    background: white;
-                    display: flex;
-                    justify-content: center;
+                    direction: rtl; text-align: right;
+                    background: white; display: flex; justify-content: center;
                     padding: 10px;
                 }
-                .thermal-receipt {
-                    width: 80mm;
-                    max-width: 80mm;
-                    font-size: 12px;
-                    color: #000;
-                    line-height: 1.6;
-                }
-                .receipt-header {
-                    text-align: center;
-                    margin-bottom: 10px;
-                }
-                .company-name {
-                    font-size: 16px;
-                    font-weight: bold;
-                    margin-bottom: 2px;
-                }
-                .company-phone {
-                    font-size: 11px;
-                }
-                .receipt-divider {
-                    border: none;
-                    border-top: 1px dashed #000;
-                    margin: 8px 0;
-                }
-                .receipt-row {
-                    display: flex;
-                    justify-content: space-between;
-                    margin: 2px 0;
-                }
-                .receipt-row.total {
-                    font-weight: bold;
-                    font-size: 13px;
-                }
-                .receipt-item-row {
-                    margin: 4px 0;
-                }
-                .receipt-item-name {
-                    font-weight: bold;
-                    font-size: 11px;
-                }
-                .receipt-item-details {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 10px;
-                    color: #444;
-                }
-                .receipt-item-total {
-                    font-weight: bold;
-                }
-                .receipt-footer {
-                    text-align: center;
-                    margin-top: 10px;
-                    font-weight: bold;
-                }
-                @media print {
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                }
+                .thermal-receipt { width: 80mm; max-width: 80mm; font-size: 12px; color: #000; line-height: 1.6; }
+                .receipt-header { text-align: center; margin-bottom: 10px; }
+                .company-name { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
+                .company-phone { font-size: 11px; }
+                .receipt-divider { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+                .receipt-row { display: flex; justify-content: space-between; margin: 2px 0; }
+                .receipt-row.total { font-weight: bold; font-size: 13px; }
+                .receipt-item-row { margin: 4px 0; }
+                .receipt-item-name { font-weight: bold; font-size: 11px; }
+                .receipt-item-details { display: flex; justify-content: space-between; font-size: 10px; color: #444; }
+                .receipt-item-total { font-weight: bold; }
+                .receipt-footer { text-align: center; margin-top: 10px; font-weight: bold; }
+                @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
             </style>
         `;
 
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8">${receiptStyles}</head>
-            <body>
-                ${receiptContent}
-            </body>
-            </html>
-        `);
+        printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">${receiptStyles}</head><body>${receiptContent}</body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-            // لا نغلق النافذة تلقائياً ليدقق المستخدم
-            // printWindow.close();
-        }, 300);
+        setTimeout(() => { printWindow.print(); }, 300);
     },
 
-    // ========== حفظ واستعادة السلة ==========
     saveCartToStorage() {
         if (this.state.cart.length) {
             localStorage.setItem('pos_held_cart', JSON.stringify({
@@ -845,12 +1019,16 @@ const POS = {
             localStorage.removeItem('pos_held_cart');
         }
     },
+
     restoreCartFromStorage() {
         const saved = localStorage.getItem('pos_held_cart');
         if (!saved) return;
         try {
             const held = JSON.parse(saved);
-            if (held.timestamp && (Date.now() - held.timestamp) > 2 * 60 * 60 * 1000) { localStorage.removeItem('pos_held_cart'); return; }
+            if (held.timestamp && (Date.now() - held.timestamp) > 2 * 60 * 60 * 1000) {
+                localStorage.removeItem('pos_held_cart');
+                return;
+            }
             this.state.cart = held.cart || [];
             this.state.selectedCustomerId = held.customerId;
             this.state.discountType = held.discountType || 'amount';
@@ -863,7 +1041,7 @@ const POS = {
                     this.updateCustomerDisplay();
                 }
             }
-        } catch {}
+        } catch (e) {}
         localStorage.removeItem('pos_held_cart');
     }
 };
