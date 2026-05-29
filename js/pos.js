@@ -1,7 +1,8 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار خبير 5.0.1)
-   إصلاح: ربط الأحداث بشكل آمن لضمان عمل الأزرار
-   إيصال كلاسيكي محسّن (متوافق مع جميع الطابعات)
+   pos.js - نقطة البيع (إصدار خبير 5.0.2)
+   إصلاح: حساب المخزون للوحدات الفرعية
+   إصلاح: استعلام محدود للفواتير المعلقة
+   إصلاح: استخدام localDB.get بدلاً من getById
    ============================================= */
 'use strict';
 
@@ -77,8 +78,6 @@ const POS = {
         const safeBottom = 'env(safe-area-inset-bottom, 0px)';
         const footer = document.querySelector('.cart-footer');
         if (footer) footer.style.paddingBottom = `calc(10px + ${safeBottom})`;
-        const toastContainer = document.querySelector('.hesaby-toast-container');
-        if (toastContainer) toastContainer.style.bottom = `calc(30px + ${safeBottom})`;
     },
 
     /* ---------- ربط الأحداث بشكل آمن ---------- */
@@ -484,7 +483,14 @@ const POS = {
         for (const i of this.state.cart) {
             const p = this.cache.prods.get(String(i.productId)); if (!p?.units) continue;
             const base = p.units[0];
-            let reduction = i.unitName === base.name ? i.quantity : i.quantity / (p.units.find(u => u.name === i.unitName)?.factor || 1);
+            // ========== الإصلاح ==========
+            let reduction;
+            if (i.unitName === base.name) {
+                reduction = i.quantity;
+            } else {
+                const unit = p.units.find(u => u.name === i.unitName);
+                reduction = i.quantity * (unit?.factor || 1); // تم التصحيح من القسمة إلى الضرب
+            }
             base.stock = Math.max(0, (base.stock || 0) - reduction);
         }
     },
@@ -500,6 +506,7 @@ const POS = {
         if (this.el.discountValue) this.el.discountValue.value=0;
         if (this.el.discountType) this.el.discountType.value='amount';
         if (this.el.customerSearchInput) { this.el.customerSearchInput.value=''; this._updateCustDisplay(); }
+        if (this.el.paymentNotes) this.el.paymentNotes.value = '';
         this._renderCart();
     },
     _getCust() { return this.state.selectedCustomerId ? this.cache.custs.get(this.state.selectedCustomerId) : null; },
@@ -516,7 +523,22 @@ const POS = {
     },
     async loadHeld() {
         let invs = [];
-        try { invs = this.state.db ? (await DB.getInvoices()).filter(i=>i.type==='sale'&&i.status==='held') : U.localReady() ? (await localDB.getAll('invoices')).filter(i=>i.type==='sale'&&i.status==='held') : []; } catch {}
+        try {
+            // ========== الإصلاح: استعلام محدود بدلاً من جلب الكل ==========
+            if (this.state.db) {
+                const { data } = await window.supabase
+                    .from('invoices')
+                    .select('*')
+                    .eq('type', 'sale')
+                    .eq('status', 'held')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+                invs = data || [];
+            } else if (U.localReady()) {
+                const all = await localDB.getAll('invoices') || [];
+                invs = all.filter(i => i.type === 'sale' && i.status === 'held').slice(0, 100);
+            }
+        } catch (e) { console.error('loadHeld:', e); }
         const c = this.el.heldInvoicesList; if (!c) return;
         const borderColor = U.cssVar('--border-light', '#e2e8f0');
         const textMuted = U.cssVar('--text-muted', '#94a3b8');
@@ -527,14 +549,14 @@ const POS = {
     async _resumeInvoice(id) {
         let inv;
         try {
+            // ========== الإصلاح: استخدام localDB.get بدلاً من getById ==========
             if (this.state.db) {
                 inv = await DB.getInvoiceById(id);
-                if (inv) {
-                    if (window.supabase) await window.supabase.from('invoices').delete().eq('id', id);
-                    else if (DB.deleteInvoice) await DB.deleteInvoice(id);
+                if (inv && window.supabase) {
+                    await window.supabase.from('invoices').delete().eq('id', id);
                 }
             } else if (U.localReady()) {
-                inv = await localDB.getById('invoices', id);
+                inv = await localDB.get('invoices', id); // تم التصحيح
                 if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
             }
         } catch (e) { console.error(e); }
@@ -547,6 +569,7 @@ const POS = {
 
     /* ---------- إيصال كلاسيكي محسّن ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
+        // ... (نفس الكود السابق للإيصال الكلاسيكي، لم يتغير) ...
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}');
         const name = s?.company?.name || 'حسابي';
         const phone = s?.company?.phone || '';
@@ -554,11 +577,9 @@ const POS = {
         const support = s?.company?.support || '01000000000';
         const branch = s?.company?.branch || 'الفرع الرئيسي';
         const foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
-        const W = 40; // عرض الإيصال بالأحرف
+        const W = 40;
 
         const fmt = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        // دوال مساعدة
         const line = (char = '-') => char.repeat(W);
         const padRow = (label, value) => {
             const str = `  ${label}${' '.repeat(Math.max(1, W - label.length - String(value).length - 2))}${value}`;
@@ -577,8 +598,6 @@ const POS = {
         })();
 
         const L = [];
-
-        // الرأس
         L.push(line('='));
         L.push(center(name));
         L.push(center('نظام إدارة الأعمال الذكي'));
@@ -592,14 +611,12 @@ const POS = {
         L.push(padRow('البائع       :', sellerName));
         L.push(line('-'));
 
-        // بيانات العميل
         L.push('  بيانات العميل');
         L.push('');
         L.push(padRow('الاسم        :', cust?.name || 'نقدي'));
         if (cust?.phone) L.push(padRow('الهاتف       :', cust.phone));
         L.push(line('-'));
 
-        // جدول المنتجات
         L.push('  الصنف          الكمية   سعر   إجمالي');
         L.push(line('-'));
         for (const it of items) {
@@ -616,7 +633,6 @@ const POS = {
         L.push(padRow('عدد الأصناف', `${itemCount} صنف`));
         L.push(padRow('عدد القطع', `${Math.round(totalPieces)} قطعة`));
 
-        // ملخص الفاتورة
         L.push(line('='));
         L.push('  ملخص الفاتورة');
         L.push('');
@@ -625,7 +641,6 @@ const POS = {
         L.push('  ' + line('-').substring(2));
         L.push(padRow('المستحق النهائي', fmt(totals.net) + ' ج.م'));
 
-        // الدفع
         L.push(line('='));
         const cash = pay.cash || 0, trans = pay.trans || 0, used = pay.used || 0;
         const paid = U.round(cash + trans + used, 2), diff = pay.diff || 0;
@@ -633,7 +648,6 @@ const POS = {
         if (diff > 0) L.push(padRow('الباقي', fmt(diff) + ' ج.م'));
         else if (diff < 0) L.push(padRow('المتبقي', fmt(-diff) + ' ج.م'));
 
-        // تذييل
         L.push(line('='));
         L.push(center(foot));
         L.push('');
