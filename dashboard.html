@@ -24,6 +24,7 @@
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase.js"></script>
+    <!-- المكونات الجديدة -->
     <script src="./js/toast.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -81,6 +82,7 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
+        <!-- المحتوى الديناميكي -->
         <div class="dashboard-container">
             <section class="hero-section">
                 <div class="hero-content">
@@ -118,7 +120,7 @@
                     <div class="section-header"><h3>تنبيهات ذكية</h3></div>
                     <div class="insights-list">
                         <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p id="lowStockAlert">0 منتجات</p></div></div>
-                        <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p>نمو ملحوظ</p></div></div>
+                        <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p id="salesGrowthAlert">نمو ملحوظ</p></div></div>
                         <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p id="unpaidAlert">0 فاتورة غير مدفوعة</p></div></div>
                     </div>
                 </div>
@@ -133,7 +135,7 @@
         </div>
     </main>
 
-    <div class="toast" id="toast" style="display:none;"></div>
+    <div class="toast" id="toast"></div>
 
     <script src="./js/dashboard.js"></script>
 </body>
