@@ -1,184 +1,172 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>المندوبين · حسابي</title>
+    <title>نقطة البيع · حسابي</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/pos.css">
+
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <script src="./js/print.js"></script>
+
     <style>
-        :root {
-            --primary: #1e293b;
-            --secondary: #3b82f6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --light: #f8fafc;
-            --header-height: 65px;
-            --sidebar-width: 260px;
+        #loading-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: var(--primary); width: 0%; z-index: 9999;
+            transition: width 0.3s ease;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #f1f5f9; color: var(--primary); overflow-x: hidden; }
-        .navbar {
-            position: fixed; top: 0; right: 0; left: 0; height: var(--header-height);
-            background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
-            z-index: 1001; border-bottom: 1px solid #e2e8f0;
+
+        /* ========== قسم كروت المنتجات (للأجهزة اللوحية فقط) ========== */
+        .product-grid-section {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            background: var(--bg-input, #f8fafc);
+            border-right: 1px solid var(--border-light, #e2e8f0);
         }
-        .navbar-left { display: flex; align-items: center; gap: 16px; }
-        .menu-toggle {
-            background: none; border: none; font-size: 24px; color: var(--primary);
-            cursor: pointer; width: 40px; height: 40px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            align-content: start;
         }
-        .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-icon {
-            background: linear-gradient(135deg, var(--secondary), #06b6d4); color: white;
-            width: 38px; height: 38px; border-radius: 12px; display: flex;
-            align-items: center; justify-content: center; font-size: 20px;
-        }
-        .logo-text h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
-        .navbar-right { display: flex; align-items: center; gap: 20px; }
-        .user-profile {
-            display: flex; align-items: center; gap: 12px; cursor: pointer;
-            padding: 6px 12px; border-radius: 40px; background: var(--light);
-            position: relative;
-        }
-        .user-avatar {
-            width: 42px; height: 42px; background: linear-gradient(135deg, var(--success), #06b6d4);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; font-size: 18px;
-        }
-        .user-info { text-align: right; }
-        .user-info h4 { font-size: 15px; font-weight: 600; }
-        .user-info p { font-size: 12px; color: #64748b; }
-        .user-dropdown {
-            position: absolute; top: 58px; left: 0; background: white; border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; display: none;
-            z-index: 1050; border: 1px solid #e2e8f0; overflow: hidden;
-        }
-        .user-dropdown.show { display: block; }
-        .user-dropdown a {
-            display: flex; align-items: center; gap: 12px; padding: 14px 18px;
-            color: var(--primary); text-decoration: none; border-bottom: 1px solid #f1f5f9;
-        }
-        .user-dropdown a:hover { background: var(--light); }
-        .sidebar {
-            position: fixed; top: var(--header-height); right: 0; bottom: 0;
-            width: var(--sidebar-width); background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.02);
-            border-left: 1px solid #e2e8f0; transition: width 0.25s; z-index: 999;
-            overflow-y: auto; padding: 20px 0; transform: translateX(100%);
-        }
-        .sidebar.mobile-open { transform: translateX(0); }
-        .menu-section {
-            padding: 20px 20px 8px; color: #94a3b8; font-size: 11px; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
-        }
-        .menu { list-style: none; padding: 0 12px; }
-        .menu-item {
-            display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin: 4px 0;
-            color: var(--primary); text-decoration: none; border-radius: 12px;
-            white-space: nowrap; font-weight: 500; font-size: 15px;
-        }
-        .menu-item i { width: 24px; font-size: 1.2rem; text-align: center; }
-        .menu-item:hover { background: var(--light); color: var(--secondary); }
-        .menu-item.active {
-            background: #eff6ff; color: var(--secondary); font-weight: 600;
-            border-right: 4px solid var(--secondary);
-        }
-        .main-content {
-            margin-top: var(--header-height); padding: 28px 32px;
-            min-height: calc(100vh - var(--header-height));
-        }
-        .page-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 32px; flex-wrap: wrap;
-        }
-        .page-title h1 { font-size: 28px; font-weight: 700; }
-        .btn {
-            padding: 12px 24px; border: none; border-radius: 16px; font-weight: 600;
-            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-            background: white; border: 1px solid #cbd5e1; color: var(--primary);
-        }
-        .btn-primary { background: var(--secondary); color: white; border: none; }
-        .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px; margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white; border-radius: 20px; padding: 20px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
+
+        .product-card {
+            background: var(--bg-surface, #fff);
+            border: 1px solid var(--border-light, #e2e8f0);
+            border-radius: 16px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.04));
         }
-        .stat-card .icon { font-size: 26px; margin-bottom: 10px; color: var(--secondary); }
-        .stat-card .value { font-size: 24px; font-weight: 700; }
-        .stat-card .label { color: #64748b; font-size: 13px; }
-        .table-container {
-            background: white; border-radius: 20px; padding: 24px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;
-            overflow-x: auto; margin-bottom: 30px;
+        .product-card:hover {
+            border-color: var(--primary, #2563eb);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
         }
-        .table-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px;
+        .product-card .card-img {
+            width: 56px; height: 56px;
+            border-radius: 12px;
+            background: var(--primary-light, #eff6ff);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; color: var(--primary, #2563eb);
+            margin-bottom: 10px;
         }
-        .search-wrapper {
-            display: flex; align-items: center; background: var(--light);
-            border-radius: 30px; padding: 5px 15px; border: 1px solid #cbd5e1;
+        .product-card .card-name {
+            font-weight: 700; font-size: 0.85rem;
+            color: var(--text-primary, #0f172a);
+            margin-bottom: 4px; line-height: 1.3;
         }
-        .search-wrapper i { color: #94a3b8; margin-left: 8px; }
-        .search-wrapper input {
-            border: none; padding: 10px 0; width: 200px; outline: none; background: transparent;
+        .product-card .card-price {
+            font-weight: 600; font-size: 0.8rem;
+            color: var(--primary, #2563eb);
         }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: right; padding: 14px 12px; color: #475569; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
-        .action-icons i { margin: 0 5px; color: var(--secondary); cursor: pointer; }
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;
+        .product-card .card-stock {
+            font-size: 0.7rem; color: var(--text-muted, #94a3b8);
+            margin-top: 4px;
         }
-        .modal-content {
-            background: white; border-radius: 24px; padding: 25px; width: 90%; max-width: 800px;
-            max-height: 85vh; overflow-y: auto;
+
+        .tablet-search-bar {
+            padding: 8px 12px;
+            background: var(--bg-surface, #fff);
+            border-bottom: 1px solid var(--border-light, #e2e8f0);
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
-        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
-        .form-group input, .form-group select {
-            width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 14px;
+        .tablet-search-bar .search-header { flex: 1; position: relative; }
+        .tablet-search-bar input {
+            width: 100%; padding: 10px 35px 10px 12px;
+            border: 1px solid var(--border-medium, #cbd5e1); border-radius: 12px;
+            font-family: inherit; font-size: 14px; background: var(--bg-input, #f8fafc);
         }
-        @media (max-width: 992px) {
-            .sidebar { transform: translateX(100%); }
-            .sidebar.mobile-open { transform: translateX(0); }
-            .main-content { margin-right: 0 !important; padding: 20px; }
-            .menu-toggle { display: flex; }
-            .user-info { display: none; }
+        .tablet-search-bar .search-icon {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8;
         }
-        @media (min-width: 993px) { .menu-toggle { display: none; } }
+        .tablet-search-bar .barcode-btn {
+            background: var(--primary); color: white; border: none;
+            border-radius: 12px; padding: 10px 16px; cursor: pointer;
+            font-family: inherit; font-weight: 600; font-size: 14px;
+            display: flex; align-items: center; gap: 6px; transition: 0.2s;
+        }
+        .tablet-search-bar .barcode-btn:hover { opacity: 0.9; }
+
+        /* ========== تحسينات التخطيط للشاشات اللوحية ========== */
+        @media (min-width: 768px) {
+            .pos-container {
+                display: flex !important;
+                flex-direction: row !important;
+                max-width: 1400px;
+            }
+            .top-search-area {
+                display: none !important;
+            }
+            .cart-main-area {
+                width: 380px;
+                flex-shrink: 0;
+                border-right: 1px solid var(--border-light, #e2e8f0);
+            }
+            .product-grid-section {
+                display: block !important;
+            }
+        }
+
+        /* الهاتف: إخفاء قسم الكروت وإظهار البحث */
+        @media (max-width: 767px) {
+            .product-grid-section {
+                display: none !important;
+            }
+            .top-search-area {
+                display: block !important;
+            }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar">
+    <div id="loading-bar"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- الشريط العلوي -->
+    <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
-                <div class="logo-icon"><i class="fas fa-store"></i></div>
+                <div class="logo-icon">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+                </div>
                 <div class="logo-text"><h2>حسابي</h2></div>
             </div>
         </div>
         <div class="navbar-right">
-            <div class="user-profile" id="userProfileBtn">
-                <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info">
-                    <h4 id="userName">مدير النظام</h4>
-                    <p id="loginTime">اليوم</p>
-                </div>
-                <div class="user-dropdown" id="userDropdown">
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> فاتورة مرتجع مبيعات</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة الحالية</a>
+                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> استرجاع فاتورة معلقة</a>
+                    <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
@@ -186,189 +174,206 @@
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
+        </div>
         <ul class="menu">
             <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span class="menu-text">لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./sales.html"><i class="fas fa-chart-line"></i><span class="menu-text">المبيعات</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span class="menu-text">نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span class="menu-text">الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span class="menu-text">المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-cash-register"></i><span class="menu-text">الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span class="menu-text">المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span class="menu-text">التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span class="menu-text">مرتجعات المشتريات</span></a></li>
-            <div class="menu-section">الإدارة</div>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span class="menu-text">العملاء والموردين</span></a></li>
-            <li><a class="menu-item active" href="./reps.html"><i class="fas fa-users"></i><span class="menu-text">المندوبين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span class="menu-text">المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span class="menu-text">الإعدادات</span></a></li>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
+            <li><a class="menu-item active" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
     </aside>
 
-    <main class="main-content">
-        <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-users" style="color:var(--secondary); margin-left:12px;"></i>المندوبين</h1></div>
-            <div><button class="btn btn-primary" id="addRepBtn"><i class="fas fa-plus"></i> إضافة مندوب</button></div>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card"><div class="icon"><i class="fas fa-users"></i></div><div class="value" id="totalReps">0</div><div class="label">عدد المندوبين</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-money-bill-wave"></i></div><div class="value" id="totalSales">0 ج.م</div><div class="label">إجمالي المبيعات</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-hand-holding-usd"></i></div><div class="value" id="totalCollections">0 ج.م</div><div class="label">إجمالي التحصيلات</div></div>
-            <div class="stat-card"><div class="icon"><i class="fas fa-percent"></i></div><div class="value" id="totalCommission">0 ج.م</div><div class="label">إجمالي العمولات</div></div>
-        </div>
-
-        <div class="table-container">
-            <div class="table-header">
-                <h3>قائمة المندوبين</h3>
-                <div class="search-wrapper"><i class="fas fa-search"></i><input type="text" id="searchRep" placeholder="بحث..."></div>
+    <!-- حاوية نقطة البيع -->
+    <div class="pos-container">
+        <!-- منطقة البحث (تظهر فقط على الهاتف) -->
+        <div class="top-search-area" id="topSearchArea">
+            <div class="customer-box">
+                <div class="search-header" style="position: relative;">
+                    <i class="fas fa-user" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                    <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." autocomplete="off" style="padding-right: 35px;">
+                    <div id="customerDropdown" class="search-dropdown"></div>
+                </div>
+                <div class="customer-balance" id="customerBalanceDisplay"></div>
             </div>
-            <table>
-                <thead><tr><th>الاسم</th><th>الهاتف</th><th>المنطقة</th><th>العمولة %</th><th>المبيعات</th><th>التحصيلات</th><th>العمولة المستحقة</th><th>إجراءات</th></tr></thead>
-                <tbody id="repsBody"></tbody>
-            </table>
+            <div class="search-header" style="position: relative;">
+                <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" id="productSearchInput" placeholder="🔍 بحث أو باركود..." autocomplete="off" style="padding-right: 60px;">
+                <button id="barcodeScannerBtn" title="مسح باركود" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <div id="productDropdown" class="search-dropdown"></div>
+            </div>
         </div>
-    </main>
 
-    <!-- مودال إضافة/تعديل مندوب -->
-    <div class="modal" id="repModal">
-        <div class="modal-content">
-            <div class="modal-header"><h2 id="modalTitle">إضافة مندوب</h2><button id="closeRepModalBtn">&times;</button></div>
-            <form id="repForm">
-                <input type="hidden" id="repId">
-                <div class="form-group"><label>الاسم</label><input type="text" id="repName" required></div>
-                <div class="form-group"><label>الهاتف</label><input type="tel" id="repPhone"></div>
-                <div class="form-group"><label>المنطقة</label><input type="text" id="repArea"></div>
-                <div class="form-group"><label>نسبة العمولة (%)</label><input type="number" id="repCommission" value="0" step="0.1"></div>
-                <button type="submit" class="btn btn-primary">حفظ</button>
-            </form>
+        <!-- قسم كروت المنتجات (للأجهزة اللوحية) -->
+        <div class="product-grid-section" id="productGridSection">
+            <div class="tablet-search-bar">
+                <div class="search-header">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="tabletProductSearchInput" placeholder="🔍 بحث عن منتج..." autocomplete="off">
+                </div>
+                <button class="barcode-btn" id="tabletBarcodeBtn"><i class="fas fa-camera"></i> مسح</button>
+            </div>
+            <div class="product-grid" id="productGrid"></div>
+        </div>
+
+        <!-- السلة (تظهر دائمًا) -->
+        <div class="cart-main-area">
+            <div class="cart-items" id="cartItemsContainer">
+                <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>
+                <div class="empty-cart-message">السلة فارغة</div>
+            </div>
+            
+            <div class="cart-footer">
+                <div class="cart-summary">
+                    <div class="summary-stats">
+                        <div class="stat-item"><div class="label">الأصناف</div><div class="value" id="itemTypesCount">0</div></div>
+                        <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
+                    </div>
+                    <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
+                    <div class="summary-row discount-row">
+                        <span>الخصم:</span>
+                        <input type="number" id="discountValue" value="0" min="0" step="0.01">
+                        <select id="discountType"><option value="amount">ج.م</option><option value="percent">%</option></select>
+                    </div>
+                    <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-success btn-lg" id="payBtn"><i class="fas fa-check"></i> دفع</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- مودال كشف حساب مندوب -->
-    <div class="modal" id="statementModal">
+    <!-- المودالات -->
+    <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="statementTitle">كشف حساب مندوب</h2><button id="closeStatementBtn">&times;</button></div>
-            <div id="statementBody"></div>
-            <div style="margin-top:20px;"><button class="btn" id="printStatementBtn"><i class="fas fa-print"></i> طباعة</button></div>
+            <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
+            <div class="form-group"><label>اختر الوحدة</label><div id="unitButtons" class="unit-selector"></div></div>
+            <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
+            <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
+            <small id="stockInfo"></small>
+            <div id="priceLimitMsg" style="color: var(--danger); font-size: 0.8rem; margin-top: 4px; display: none;"></div>
+            <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
         </div>
     </div>
+
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
+            <div id="paymentDetails">
+                <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
+                <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
+                <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
+                <div class="summary-row">
+                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
+                    <span id="currentBalance" style="font-weight: 700;">0.00 ج.م</span>
+                </div>
+            </div>
+            <div class="form-group"><label>طريقة الدفع</label>
+                <select id="paymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="mixed">مختلط</option><option value="credit">آجل</option></select>
+            </div>
+            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
+            <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
+            <div class="summary-row">
+                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
+                <span id="balanceAfter" style="font-weight: 700;">0.00 ج.م</span>
+            </div>
+            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
+            <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
+        </div>
+    </div>
+
+    <div class="modal" id="heldInvoicesModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
+            <div id="heldInvoicesList"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="receiptModal">
+        <div class="modal-content receipt-modal-content">
+            <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
+            <div id="receiptPrintArea"></div>
+            <div class="receipt-actions">
+                <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-cancel" id="skipPrintBtn">متابعة بدون طباعة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تكرار الصنف -->
+    <div class="modal" id="duplicateProductModal">
+        <div class="modal-content" style="max-width: 360px; text-align: center;">
+            <h3 style="margin-bottom: 12px;">الصنف موجود مسبقاً</h3>
+            <p id="duplicateProductMsg" style="margin-bottom: 20px; color: var(--text-secondary);"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="duplicateIncreaseBtn" style="flex: 1;">زيادة الكمية</button>
+                <button class="btn btn-cancel" id="duplicateCancelBtn" style="flex: 1;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- التوست -->
+    <div id="toast" class="toast"></div>
+
+    <!-- المكتبات الأساسية -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/sync.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="./js/pos.js"></script>
 
     <script>
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
         (function() {
-            const userBtn = document.getElementById('userProfileBtn'), userDropdown = document.getElementById('userDropdown');
-            userBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('show'); });
-            document.addEventListener('click', () => userDropdown.classList.remove('show'));
-            document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('mobile-open'));
-            document.getElementById('logoutBtn').addEventListener('click', (e) => { e.preventDefault(); App.logout(); });
+            const loadingBar = document.getElementById('loading-bar');
+            function showLoading() { loadingBar.style.width = '80%'; }
+            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
 
-            let reps = [], invoices = [], transactions = [];
+            async function initApp() {
+                if (!window.App) {
+                    console.error('النواة غير محملة');
+                    alert('خطأ في تحميل التطبيق');
+                    return;
+                }
 
-            async function loadData() {
-                reps = await DB.getReps();
-                invoices = (await DB.getInvoices()).filter(i => i.type === 'sale');
-                transactions = await DB.getTransactions();
-                renderReps();
-                updateStats();
+                showLoading();
+
+                try {
+                    const authorized = await App.requireAuth();
+                    if (!authorized) return;
+
+                    if (!App.requireRole(['admin', 'rep'])) return;
+
+                    App.initUserInterface();
+
+                    if (window.POS) {
+                        await window.POS.init();
+                    } else {
+                        console.error('POS module not found');
+                    }
+                } catch (e) {
+                    console.error('خطأ في التهيئة:', e);
+                } finally {
+                    hideLoading();
+                }
             }
 
-            function updateStats() {
-                let totalSales = 0, totalCollections = 0, totalCommission = 0;
-                reps.forEach(r => {
-                    const repInvoices = invoices.filter(i => i.rep_id === r.id);
-                    const sales = repInvoices.reduce((s, i) => s + i.total, 0);
-                    const collections = repInvoices.reduce((s, i) => s + i.paid, 0);
-                    const commission = collections * (r.commission || 0) / 100;
-                    totalSales += sales; totalCollections += collections; totalCommission += commission;
-                });
-                document.getElementById('totalReps').textContent = reps.length;
-                document.getElementById('totalSales').textContent = Utils.formatMoney(totalSales);
-                document.getElementById('totalCollections').textContent = Utils.formatMoney(totalCollections);
-                document.getElementById('totalCommission').textContent = Utils.formatMoney(totalCommission);
-            }
-
-            function renderReps() {
-                const term = document.getElementById('searchRep').value.toLowerCase();
-                const filtered = reps.filter(r => r.name.toLowerCase().includes(term) || (r.phone||'').includes(term));
-                const tbody = document.getElementById('repsBody');
-                tbody.innerHTML = filtered.length ? filtered.map(r => {
-                    const repInvoices = invoices.filter(i => i.rep_id === r.id);
-                    const sales = repInvoices.reduce((s, i) => s + i.total, 0);
-                    const collections = repInvoices.reduce((s, i) => s + i.paid, 0);
-                    const commission = collections * (r.commission || 0) / 100;
-                    return `<tr><td>${r.name}</td><td>${r.phone||'-'}</td><td>${r.area||'-'}</td><td>${r.commission||0}%</td><td>${Utils.formatMoney(sales)}</td><td>${Utils.formatMoney(collections)}</td><td>${Utils.formatMoney(commission)}</td><td class="action-icons"><i class="fas fa-file-invoice" onclick="showStatement('${r.id}')"></i><i class="fas fa-edit" onclick="editRep('${r.id}')"></i><i class="fas fa-trash" onclick="deleteRep('${r.id}')"></i></td></tr>`;
-                }).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;">لا يوجد مندوبين</td></tr>';
-            }
-
-            window.showStatement = function(id) {
-                const rep = reps.find(r => r.id === id);
-                if (!rep) return;
-                document.getElementById('statementTitle').textContent = `كشف حساب ${rep.name}`;
-                const repInvoices = invoices.filter(i => i.rep_id === id);
-                const repTrans = transactions.filter(t => t.description && t.description.includes(rep.name));
-                const totalSales = repInvoices.reduce((s, i) => s + i.total, 0);
-                const totalPaid = repInvoices.reduce((s, i) => s + i.paid, 0);
-                const commission = totalPaid * (rep.commission || 0) / 100;
-                let html = `<p><strong>العمولة %:</strong> ${rep.commission||0}%</p><p><strong>إجمالي المبيعات:</strong> ${Utils.formatMoney(totalSales)}</p><p><strong>إجمالي التحصيلات:</strong> ${Utils.formatMoney(totalPaid)}</p><p><strong>العمولة المستحقة:</strong> ${Utils.formatMoney(commission)}</p><h4>الفواتير</h4><table><tr><th>رقم</th><th>تاريخ</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th></tr>${repInvoices.map(i => `<tr><td>${i.id}</td><td>${i.date}</td><td>${i.customer_name}</td><td>${Utils.formatMoney(i.total)}</td><td>${Utils.formatMoney(i.paid)}</td></tr>`).join('')}</table><h4>التحصيلات</h4><table><tr><th>تاريخ</th><th>المبلغ</th><th>البيان</th></tr>${repTrans.map(t => `<tr><td>${t.date}</td><td>${Utils.formatMoney(t.amount)}</td><td>${t.description}</td></tr>`).join('')}</table>`;
-                document.getElementById('statementBody').innerHTML = html;
-                document.getElementById('statementModal').style.display = 'flex';
-            };
-
-            function printStatement() {
-                const win = window.open('', '_blank');
-                win.document.write(`<html dir="rtl"><head><title>كشف حساب</title><style>body{font-family:Segoe UI;}</style></head><body>${document.getElementById('statementBody').innerHTML}</body></html>`);
-                win.document.close(); win.print();
-            }
-
-            function openRepModal() {
-                document.getElementById('modalTitle').textContent = 'إضافة مندوب';
-                document.getElementById('repForm').reset(); document.getElementById('repId').value = '';
-                document.getElementById('repModal').style.display = 'flex';
-            }
-
-            window.editRep = function(id) {
-                const r = reps.find(x => x.id === id);
-                if (!r) return;
-                document.getElementById('modalTitle').textContent = 'تعديل مندوب';
-                document.getElementById('repId').value = r.id; document.getElementById('repName').value = r.name;
-                document.getElementById('repPhone').value = r.phone||''; document.getElementById('repArea').value = r.area||'';
-                document.getElementById('repCommission').value = r.commission||0;
-                document.getElementById('repModal').style.display = 'flex';
-            };
-
-            async function saveRep(e) {
-                e.preventDefault();
-                const id = document.getElementById('repId').value, name = document.getElementById('repName').value.trim();
-                const phone = document.getElementById('repPhone').value.trim(), area = document.getElementById('repArea').value.trim();
-                const commission = parseFloat(document.getElementById('repCommission').value) || 0;
-                if (!name) return alert('الاسم مطلوب');
-                const rep = { name, phone, area, commission };
-                if (id) rep.id = id;
-                await DB.saveRep(rep);
-                document.getElementById('repModal').style.display = 'none';
-                await loadData();
-            }
-
-            async function deleteRep(id) {
-                if (!confirm('حذف المندوب؟')) return;
-                await DB.deleteRep(id);
-                await loadData();
-            }
-
-            document.addEventListener('DOMContentLoaded', async () => {
-                if (!App.requireAuth() || !App.requireRole(['admin'])) return;
-                App.initUserInterface();
-                await loadData();
-                document.getElementById('searchRep').addEventListener('input', renderReps);
-                document.getElementById('addRepBtn').addEventListener('click', openRepModal);
-                document.getElementById('closeRepModalBtn').addEventListener('click', () => document.getElementById('repModal').style.display = 'none');
-                document.getElementById('repForm').addEventListener('submit', saveRep);
-                document.getElementById('closeStatementBtn').addEventListener('click', () => document.getElementById('statementModal').style.display = 'none');
-                document.getElementById('printStatementBtn').addEventListener('click', printStatement);
-            });
+            initApp();
         })();
     </script>
 </body>
