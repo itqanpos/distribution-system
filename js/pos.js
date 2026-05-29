@@ -1,8 +1,7 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار خبير 5.0.2)
-   إصلاح: حساب المخزون للوحدات الفرعية
-   إصلاح: استعلام محدود للفواتير المعلقة
-   إصلاح: استخدام localDB.get بدلاً من getById
+   pos.js - نقطة البيع (إصدار خبير 5.0.3)
+   إصلاح: ربط الأحداث بشكل آمن ومباشر
+   إصلاح: زر الكاميرا والقائمة الجانبية والمزيد
    ============================================= */
 'use strict';
 
@@ -38,7 +37,7 @@ const POS = {
     init() {
         this._cacheDOM();
         this._applySafeArea();
-        this._bind();
+        this._bind(); // ربط الأحداث أولاً
         this._connStatus();
         window.addEventListener('online', () => this._connStatus());
         window.addEventListener('offline', () => this._connStatus());
@@ -49,7 +48,7 @@ const POS = {
     },
 
     _cacheDOM() {
-        const requiredIds = [
+        const ids = [
             'menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown',
             'holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn',
             'productSearchInput','customerSearchInput','customerBalanceDisplay',
@@ -67,11 +66,7 @@ const POS = {
             'sidebarAvatar','sidebarUserName',
             'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn'
         ];
-        requiredIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) this.el[id] = el;
-            else console.warn(`Element with id "${id}" not found in DOM`);
-        });
+        ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
 
     _applySafeArea() {
@@ -80,87 +75,108 @@ const POS = {
         if (footer) footer.style.paddingBottom = `calc(10px + ${safeBottom})`;
     },
 
-    /* ---------- ربط الأحداث بشكل آمن ---------- */
+    /* ---------- ربط الأحداث بشكل آمن ومباشر ---------- */
     _bind() {
-        const on = (id, event, handler) => {
-            const el = this.el[id];
-            if (el) el.addEventListener(event, handler);
-        };
-        const onDocClick = (selector, handler) => {
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest(selector)) handler();
-            });
-        };
-
         // القائمة الجانبية
-        on('menuToggle', 'click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        on('sidebarOverlay', 'click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => {
-            this.el.sidebar?.classList.remove('open');
-            this.el.sidebarOverlay?.classList.remove('show');
-        }));
+        if (this.el.menuToggle && this.el.sidebar && this.el.sidebarOverlay) {
+            this.el.menuToggle.addEventListener('click', () => {
+                this.el.sidebar.classList.toggle('open');
+                this.el.sidebarOverlay.classList.toggle('show');
+            });
+            this.el.sidebarOverlay.addEventListener('click', () => {
+                this.el.sidebar.classList.remove('open');
+                this.el.sidebarOverlay.classList.remove('show');
+            });
+        }
 
-        // القائمة المنسدلة
-        on('moreMenuBtn', 'click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        onDocClick('.nav-actions', () => this.el.moreDropdown?.classList.remove('show'));
+        // إغلاق القائمة الجانبية عند الضغط على أي رابط
+        document.querySelectorAll('.menu-item').forEach(l => {
+            l.addEventListener('click', () => {
+                if (this.el.sidebar) this.el.sidebar.classList.remove('open');
+                if (this.el.sidebarOverlay) this.el.sidebarOverlay.classList.remove('show');
+            });
+        });
+
+        // القائمة المنسدلة (النقاط الثلاث)
+        if (this.el.moreMenuBtn && this.el.moreDropdown) {
+            this.el.moreMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.el.moreDropdown.classList.toggle('show');
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.nav-actions')) {
+                    this.el.moreDropdown.classList.remove('show');
+                }
+            });
+        }
 
         // أزرار القائمة المنسدلة
-        on('returnSaleBtn', 'click', (e) => { e.preventDefault(); this.openReturn(); this.el.moreDropdown?.classList.remove('show'); });
-        on('holdInvoiceBtn', 'click', (e) => { e.preventDefault(); this.holdInvoice(); this.el.moreDropdown?.classList.remove('show'); });
-        on('heldInvoicesBtn', 'click', (e) => { e.preventDefault(); this.loadHeld(); this.el.moreDropdown?.classList.remove('show'); });
-        on('logoutBtn', 'click', (e) => { e.preventDefault(); if (confirm('هل أنت متأكد؟')) App.logout(); });
+        if (this.el.returnSaleBtn) this.el.returnSaleBtn.addEventListener('click', (e) => { e.preventDefault(); this.openReturn(); this.el.moreDropdown?.classList.remove('show'); });
+        if (this.el.holdInvoiceBtn) this.el.holdInvoiceBtn.addEventListener('click', (e) => { e.preventDefault(); this.holdInvoice(); this.el.moreDropdown?.classList.remove('show'); });
+        if (this.el.heldInvoicesBtn) this.el.heldInvoicesBtn.addEventListener('click', (e) => { e.preventDefault(); this.loadHeld(); this.el.moreDropdown?.classList.remove('show'); });
+        if (this.el.logoutBtn) this.el.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); if (confirm('هل أنت متأكد من تسجيل الخروج؟')) App.logout(); this.el.moreDropdown?.classList.remove('show'); });
 
-        // البحث
-        on('productSearchInput', 'input', U.debounce(() => this._filterProducts(), 150));
-        on('productDropdown', 'click', (e) => {
-            const item = e.target.closest('.dropdown-item');
-            if (item?.dataset.id) { this._selectProduct(item.dataset.id); this._hideProdDropdown(); this.el.productSearchInput.value = ''; }
-        });
-        onDocClick('.search-header', () => this._hideProdDropdown());
+        // البحث عن المنتج
+        if (this.el.productSearchInput && this.el.productDropdown) {
+            this.el.productSearchInput.addEventListener('input', U.debounce(() => this._filterProducts(), 150));
+            this.el.productDropdown.addEventListener('click', (e) => {
+                const item = e.target.closest('.dropdown-item');
+                if (item?.dataset.id) { this._selectProduct(item.dataset.id); this._hideProdDropdown(); this.el.productSearchInput.value = ''; }
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-header')) this._hideProdDropdown();
+            });
+        }
 
         // كاميرا الباركود
-        on('barcodeScannerBtn', 'click', () => this._scanBarcode());
+        if (this.el.barcodeScannerBtn) {
+            this.el.barcodeScannerBtn.addEventListener('click', () => this._scanBarcode());
+        }
 
         // بحث العملاء
-        on('customerSearchInput', 'input', () => this._filterCustomers());
-        on('customerSearchInput', 'focus', () => { if (!this.el.customerSearchInput.value.trim()) this._filterCustomers(); });
-        on('customerDropdown', 'click', (e) => {
-            const item = e.target.closest('.dropdown-item');
-            if (item?.dataset.id) {
-                if (item.dataset.id === 'cash') { this.state.selectedCustomerId = null; this.el.customerSearchInput.value = 'نقدي (بدون عميل)'; }
-                else { this.state.selectedCustomerId = item.dataset.id; const c = this.cache.custs.get(item.dataset.id); this.el.customerSearchInput.value = c?.name || ''; }
-                this._updateCustDisplay(); this._hideCustDropdown();
-            }
-        });
-        onDocClick('.customer-box', () => this._hideCustDropdown());
+        if (this.el.customerSearchInput && this.el.customerDropdown) {
+            this.el.customerSearchInput.addEventListener('input', () => this._filterCustomers());
+            this.el.customerSearchInput.addEventListener('focus', () => { if (!this.el.customerSearchInput.value.trim()) this._filterCustomers(); });
+            this.el.customerDropdown.addEventListener('click', (e) => {
+                const item = e.target.closest('.dropdown-item');
+                if (item?.dataset.id) {
+                    if (item.dataset.id === 'cash') { this.state.selectedCustomerId = null; this.el.customerSearchInput.value = 'نقدي (بدون عميل)'; }
+                    else { this.state.selectedCustomerId = item.dataset.id; const c = this.cache.custs.get(item.dataset.id); this.el.customerSearchInput.value = c?.name || ''; }
+                    this._updateCustDisplay(); this._hideCustDropdown();
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.customer-box')) this._hideCustDropdown();
+            });
+        }
 
-        // الخصم
-        on('discountValue', 'input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this._updateTotals(); });
-        on('discountType', 'change', () => { this.state.discountType = this.el.discountType.value; this._updateTotals(); });
-        on('payBtn', 'click', () => this._openPayment());
+        // الخصم والدفع
+        if (this.el.discountValue) this.el.discountValue.addEventListener('input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this._updateTotals(); });
+        if (this.el.discountType) this.el.discountType.addEventListener('change', () => { this.state.discountType = this.el.discountType.value; this._updateTotals(); });
+        if (this.el.payBtn) this.el.payBtn.addEventListener('click', () => this._openPayment());
 
         // مودال الوحدة
-        on('addToCartBtn', 'click', () => this._addToCart());
-        on('closeUnitModalBtn', 'click', () => this._closeModal('unitQuantityModal'));
+        if (this.el.addToCartBtn) this.el.addToCartBtn.addEventListener('click', () => this._addToCart());
+        if (this.el.closeUnitModalBtn) this.el.closeUnitModalBtn.addEventListener('click', () => this._closeModal('unitQuantityModal'));
 
         // مودال الدفع
-        on('confirmAndPrintBtn', 'click', (e) => { e.preventDefault(); this._completePayment(); });
-        on('closePaymentModalBtn', 'click', () => this._closeModal('paymentModal'));
-        on('paymentMethod', 'change', () => this._togglePaymentFields());
-        on('cashAmount', 'input', () => this._previewPayment());
-        on('transferAmount', 'input', () => this._previewPayment());
+        if (this.el.confirmAndPrintBtn) this.el.confirmAndPrintBtn.addEventListener('click', (e) => { e.preventDefault(); this._completePayment(); });
+        if (this.el.closePaymentModalBtn) this.el.closePaymentModalBtn.addEventListener('click', () => this._closeModal('paymentModal'));
+        if (this.el.paymentMethod) this.el.paymentMethod.addEventListener('change', () => this._togglePaymentFields());
+        if (this.el.cashAmount) this.el.cashAmount.addEventListener('input', () => this._previewPayment());
+        if (this.el.transferAmount) this.el.transferAmount.addEventListener('input', () => this._previewPayment());
 
         // الفواتير المعلقة
-        on('closeHeldModalBtn', 'click', () => this._closeModal('heldInvoicesModal'));
+        if (this.el.closeHeldModalBtn) this.el.closeHeldModalBtn.addEventListener('click', () => this._closeModal('heldInvoicesModal'));
 
         // الإيصال
-        on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
-        on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
-        on('printReceiptBtn', 'click', () => this._printReceipt());
+        if (this.el.closeReceiptModalBtn) this.el.closeReceiptModalBtn.addEventListener('click', () => this._closeModal('receiptModal'));
+        if (this.el.skipPrintBtn) this.el.skipPrintBtn.addEventListener('click', () => this._closeModal('receiptModal'));
+        if (this.el.printReceiptBtn) this.el.printReceiptBtn.addEventListener('click', () => this._printReceipt());
 
         // تكرار المنتج
-        on('duplicateIncreaseBtn', 'click', () => this._handleDuplicate(true));
-        on('duplicateCancelBtn', 'click', () => this._closeModal('duplicateProductModal'));
+        if (this.el.duplicateIncreaseBtn) this.el.duplicateIncreaseBtn.addEventListener('click', () => this._handleDuplicate(true));
+        if (this.el.duplicateCancelBtn) this.el.duplicateCancelBtn.addEventListener('click', () => this._closeModal('duplicateProductModal'));
 
         // أحداث السلة (تفويض)
         if (this.el.cartItemsContainer) {
@@ -249,7 +265,7 @@ const POS = {
         });
         dd.innerHTML = html; dd.classList.add('show');
     },
-    _hideCustDropdown() { this.el.customerDropdown?.classList.remove('show'); },
+    _hideCustDropdown() { if (this.el.customerDropdown) this.el.customerDropdown.classList.remove('show'); },
     _updateCustDisplay() {
         const el = this.el.customerBalanceDisplay; if (!el) return;
         if (!this.state.selectedCustomerId) { el.innerHTML = ''; el.className = 'customer-balance'; return; }
@@ -271,7 +287,7 @@ const POS = {
         dd.innerHTML = filtered.length ? filtered.map(p => `<div class="dropdown-item" data-id="${p.id}"><div class="item-info"><h4>${U.escape(p.name)}</h4></div><div class="item-price">${U.fmtMoney(p.units[0]?.price||0)}</div></div>`).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">لا نتائج</div>';
         dd.classList.add('show');
     },
-    _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
+    _hideProdDropdown() { if (this.el.productDropdown) this.el.productDropdown.classList.remove('show'); },
 
     /* ---------- منتج مكرر ---------- */
     _selectProduct(id) {
@@ -425,8 +441,8 @@ const POS = {
     },
     _togglePaymentFields() {
         const m = this.el.paymentMethod?.value || 'cash';
-        this.el.cashField.style.display = (m==='cash'||m==='mixed')?'block':'none';
-        this.el.transferField.style.display = (m==='transfer'||m==='mixed')?'block':'none';
+        if (this.el.cashField) this.el.cashField.style.display = (m==='cash'||m==='mixed')?'block':'none';
+        if (this.el.transferField) this.el.transferField.style.display = (m==='transfer'||m==='mixed')?'block':'none';
         this._previewPayment();
     },
     _previewPayment() {
@@ -439,14 +455,17 @@ const POS = {
         let used = 0; if (cust?.balance>0) used = Math.min(cust.balance, Math.max(0, net - cash - trans));
         this.state.usedBalance = used;
         const paid = U.round(cash+trans+used, 2), diff = U.round(paid-net, 2), newBal = U.round((cust?.balance||0)-used+diff, 2);
-        this.el.remainingDisplay.textContent = diff>=0?`فائض ${U.fmtMoney(diff)}`:`متبقي ${U.fmtMoney(-diff)}`;
-        this.el.balanceAfterLabel.textContent = newBal>=0?'رصيد للعميل بعد الدفع:':'رصيد على العميل بعد الدفع:';
-        this.el.balanceAfter.textContent = U.fmtMoney(Math.abs(newBal));
-        this.el.balanceAfter.classList.toggle('text-success', newBal>=0); this.el.balanceAfter.classList.toggle('text-danger', newBal<0);
+        if (this.el.remainingDisplay) this.el.remainingDisplay.textContent = diff>=0?`فائض ${U.fmtMoney(diff)}`:`متبقي ${U.fmtMoney(-diff)}`;
+        if (this.el.balanceAfterLabel) this.el.balanceAfterLabel.textContent = newBal>=0?'رصيد للعميل بعد الدفع:':'رصيد على العميل بعد الدفع:';
+        if (this.el.balanceAfter) {
+            this.el.balanceAfter.textContent = U.fmtMoney(Math.abs(newBal));
+            this.el.balanceAfter.classList.toggle('text-success', newBal>=0);
+            this.el.balanceAfter.classList.toggle('text-danger', newBal<0);
+        }
     },
     async _completePayment() {
         if (this.state.busy) { window.Toast?.info('جاري المعالجة...'); return; }
-        this.state.busy = true; this.el.confirmAndPrintBtn.disabled = true;
+        this.state.busy = true; if (this.el.confirmAndPrintBtn) this.el.confirmAndPrintBtn.disabled = true;
         try {
             const { sub, disc, net } = this._calcTotals(), m = this.el.paymentMethod?.value||'cash';
             let cash=0, trans=0;
@@ -477,26 +496,18 @@ const POS = {
             this._resetCart(); this.state.editingInv = null;
             window.Toast?.success('تم البيع');
         } catch(e) { console.error(e); window.Toast?.error(e.message); }
-        finally { this.state.busy = false; this.el.confirmAndPrintBtn.disabled = false; }
+        finally { this.state.busy = false; if (this.el.confirmAndPrintBtn) this.el.confirmAndPrintBtn.disabled = false; }
     },
     _updateStock() {
         for (const i of this.state.cart) {
             const p = this.cache.prods.get(String(i.productId)); if (!p?.units) continue;
             const base = p.units[0];
-            // ========== الإصلاح ==========
-            let reduction;
-            if (i.unitName === base.name) {
-                reduction = i.quantity;
-            } else {
-                const unit = p.units.find(u => u.name === i.unitName);
-                reduction = i.quantity * (unit?.factor || 1); // تم التصحيح من القسمة إلى الضرب
-            }
+            let reduction = i.unitName === base.name ? i.quantity : i.quantity * (p.units.find(u => u.name === i.unitName)?.factor || 1);
             base.stock = Math.max(0, (base.stock || 0) - reduction);
         }
     },
     _localInvNum() {
-        const y = new Date().getFullYear().toString().slice(-2);
-        const k = `inv_counter_${y}`;
+        const y = new Date().getFullYear().toString().slice(-2), k = `inv_counter_${y}`;
         let n = (parseInt(localStorage.getItem(k)||'0',10)+1);
         localStorage.setItem(k, String(n));
         return y+'-'+String(n).padStart(4,'0');
@@ -524,15 +535,8 @@ const POS = {
     async loadHeld() {
         let invs = [];
         try {
-            // ========== الإصلاح: استعلام محدود بدلاً من جلب الكل ==========
             if (this.state.db) {
-                const { data } = await window.supabase
-                    .from('invoices')
-                    .select('*')
-                    .eq('type', 'sale')
-                    .eq('status', 'held')
-                    .order('created_at', { ascending: false })
-                    .limit(100);
+                const { data } = await window.supabase.from('invoices').select('*').eq('type', 'sale').eq('status', 'held').order('created_at', { ascending: false }).limit(100);
                 invs = data || [];
             } else if (U.localReady()) {
                 const all = await localDB.getAll('invoices') || [];
@@ -549,14 +553,11 @@ const POS = {
     async _resumeInvoice(id) {
         let inv;
         try {
-            // ========== الإصلاح: استخدام localDB.get بدلاً من getById ==========
             if (this.state.db) {
                 inv = await DB.getInvoiceById(id);
-                if (inv && window.supabase) {
-                    await window.supabase.from('invoices').delete().eq('id', id);
-                }
+                if (inv && window.supabase) await window.supabase.from('invoices').delete().eq('id', id);
             } else if (U.localReady()) {
-                inv = await localDB.get('invoices', id); // تم التصحيح
+                inv = await localDB.get('invoices', id);
                 if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
             }
         } catch (e) { console.error(e); }
@@ -569,94 +570,48 @@ const POS = {
 
     /* ---------- إيصال كلاسيكي محسّن ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
-        // ... (نفس الكود السابق للإيصال الكلاسيكي، لم يتغير) ...
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}');
         const name = s?.company?.name || 'حسابي';
-        const phone = s?.company?.phone || '';
-        const website = s?.company?.website || 'www.hesaby.app';
-        const support = s?.company?.support || '01000000000';
-        const branch = s?.company?.branch || 'الفرع الرئيسي';
         const foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
         const W = 40;
-
         const fmt = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const line = (char = '-') => char.repeat(W);
-        const padRow = (label, value) => {
-            const str = `  ${label}${' '.repeat(Math.max(1, W - label.length - String(value).length - 2))}${value}`;
-            return str.substring(0, W);
-        };
-        const center = (text) => {
-            const spaces = Math.max(0, W - text.length);
-            const left = Math.floor(spaces / 2);
-            return ' '.repeat(left) + text;
-        };
-
+        const padRow = (label, value) => `  ${label}${' '.repeat(Math.max(1, W - label.length - String(value).length - 2))}${value}`.substring(0, W);
+        const center = (text) => { const spaces = Math.max(0, W - text.length); return ' '.repeat(Math.floor(spaces / 2)) + text; };
         const now = new Date();
         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-        const sellerName = (() => {
-            try { return JSON.parse(localStorage.getItem('app_session') || '{}').fullName || '—'; } catch { return '—'; }
-        })();
+        const sellerName = (() => { try { return JSON.parse(localStorage.getItem('app_session') || '{}').fullName || '—'; } catch { return '—'; } })();
 
         const L = [];
-        L.push(line('='));
-        L.push(center(name));
-        L.push(center('نظام إدارة الأعمال الذكي'));
-        L.push(line('='));
-        L.push('  فاتورة مبيعات');
-        L.push('');
+        L.push(line('=')); L.push(center(name)); L.push(center('نظام إدارة الأعمال الذكي')); L.push(line('='));
+        L.push('  فاتورة مبيعات'); L.push('');
         L.push(padRow('رقم الفاتورة :', inv.invoice_number || inv.id?.substring(0, 8)));
         L.push(padRow('التاريخ      :', U.fmtDate(inv.date)));
         L.push(padRow('الوقت        :', timeStr));
-        L.push(padRow('الفرع        :', branch));
         L.push(padRow('البائع       :', sellerName));
-        L.push(line('-'));
-
-        L.push('  بيانات العميل');
-        L.push('');
+        L.push(line('-')); L.push('  بيانات العميل'); L.push('');
         L.push(padRow('الاسم        :', cust?.name || 'نقدي'));
         if (cust?.phone) L.push(padRow('الهاتف       :', cust.phone));
-        L.push(line('-'));
-
-        L.push('  الصنف          الكمية   سعر   إجمالي');
-        L.push(line('-'));
+        L.push(line('-')); L.push('  الصنف          الكمية   سعر   إجمالي'); L.push(line('-'));
         for (const it of items) {
             const name = U.escape(it.productName).substring(0, 14);
-            const qty = String(it.quantity);
-            const price = fmt(it.price);
-            const total = fmt(U.round(it.quantity * it.price, 2));
-            L.push(`  ${name.padEnd(14)} ${qty.padStart(5)} ${price.padStart(7)} ${total.padStart(8)}`);
+            L.push(`  ${name.padEnd(14)} ${String(it.quantity).padStart(5)} ${fmt(it.price).padStart(7)} ${fmt(U.round(it.quantity * it.price, 2)).padStart(8)}`);
         }
-        L.push(line('-'));
-        const itemCount = items.length;
-        let totalPieces = 0;
-        for (const it of items) totalPieces += it.quantity * (it.factor || 1);
-        L.push(padRow('عدد الأصناف', `${itemCount} صنف`));
-        L.push(padRow('عدد القطع', `${Math.round(totalPieces)} قطعة`));
-
-        L.push(line('='));
-        L.push('  ملخص الفاتورة');
-        L.push('');
+        L.push(line('-')); L.push(padRow('عدد الأصناف', `${items.length} صنف`));
+        let pcs = 0; for (const it of items) pcs += it.quantity * (it.factor || 1);
+        L.push(padRow('عدد القطع', `${Math.round(pcs)} قطعة`));
+        L.push(line('=')); L.push('  ملخص الفاتورة'); L.push('');
         L.push(padRow('إجمالي المنتجات', fmt(totals.sub) + ' ج.م'));
         if (totals.disc > 0) L.push(padRow('الخصومات', '-' + fmt(totals.disc) + ' ج.م'));
-        L.push('  ' + line('-').substring(2));
-        L.push(padRow('المستحق النهائي', fmt(totals.net) + ' ج.م'));
-
+        L.push('  ' + line('-').substring(2)); L.push(padRow('المستحق النهائي', fmt(totals.net) + ' ج.م'));
         L.push(line('='));
         const cash = pay.cash || 0, trans = pay.trans || 0, used = pay.used || 0;
-        const paid = U.round(cash + trans + used, 2), diff = pay.diff || 0;
-        L.push(padRow('المدفوع', fmt(paid) + ' ج.م'));
-        if (diff > 0) L.push(padRow('الباقي', fmt(diff) + ' ج.م'));
-        else if (diff < 0) L.push(padRow('المتبقي', fmt(-diff) + ' ج.م'));
+        L.push(padRow('المدفوع', fmt(U.round(cash + trans + used, 2)) + ' ج.م'));
+        if (pay.diff > 0) L.push(padRow('الباقي', fmt(pay.diff) + ' ج.م'));
+        else if (pay.diff < 0) L.push(padRow('المتبقي', fmt(-pay.diff) + ' ج.م'));
+        L.push(line('=')); L.push(center(foot)); L.push(line('='));
 
-        L.push(line('='));
-        L.push(center(foot));
-        L.push('');
-        L.push(center(website));
-        L.push(center('Support: ' + support));
-        L.push(line('='));
-
-        const receiptText = L.join('\n');
-        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.3; text-align: left; direction: ltr; white-space: pre; margin: 0; padding: 8px; background: white; width: 80mm; max-width: 100%;">${U.escape(receiptText)}</pre>`;
+        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.3; text-align: left; direction: ltr; white-space: pre; margin: 0; padding: 8px; background: white; width: 80mm; max-width: 100%;">${U.escape(L.join('\n'))}</pre>`;
         this._showModal('receiptModal');
     },
 
