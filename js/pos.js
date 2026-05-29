@@ -1,12 +1,11 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار 4.1 - بعد الصيانة)
-   يجمع كل الخبرات: باركود، تكرار صنف، حدود سعر،
-   ألوان رصيد، مرتجع، إيصال 80mm، Light/Dark،
-   Offline، مبيعات، تعليق، استرجاع، أداء عالي
+   pos.js - نقطة البيع (إصدار خبير 4.1)
+   إصلاحات: تسرب مستمعات، دوال محلية،
+   Safe Area، منع إضافة مزدوجة، متغيرات CSS آمنة
    ============================================= */
 'use strict';
 
-/* ---------- أدوات مساعدة (محسّنة) ---------- */
+/* ---------- أدوات مساعدة ---------- */
 const U = {
     fmtMoney: (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
     fmtDate: (d) => { if (!d) return ''; try { return new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return d; } },
@@ -16,14 +15,19 @@ const U = {
     round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d),
     uuid: () => (crypto?.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
     dbReady: () => !!(window.DB && window.supabase),
-    localReady: () => !!(window.localDB?.ready)
+    localReady: () => !!(window.localDB?.ready),
+    // متغيرات CSS آمنة مع fallbacks
+    cssVar: (name, fallback = '') => {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+    }
 };
 
 const POS = {
     state: {
         products: [], customers: [], cart: [],
         selectedProduct: null, selectedUnit: null, selectedCustomerId: null,
-        db: false, busy: false,
+        db: false, busy: false, addingItem: false,  // قفل منع الإضافة المزدوجة
         subtotal: 0, discount: 0, discountType: 'amount', discountValue: 0, net: 0,
         usedBalance: 0, editingInv: null
     },
@@ -33,6 +37,7 @@ const POS = {
     /* ---------- التهيئة ---------- */
     init() {
         this._cacheDOM();
+        this._applySafeArea();   // ضبط المساحة الآمنة
         this._bind();
         this._connStatus();
         window.addEventListener('online', () => this._connStatus());
@@ -61,52 +66,19 @@ const POS = {
          'sidebarAvatar','sidebarUserName',
          'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn']
         .forEach(id => this.el[id] = document.getElementById(id));
-        
-        // ربط مستمع الحدث لتفويض السلة مرة واحدة فقط
-        this._bindCartDelegation();
     },
 
-    /* ---------- تفويض أحداث السلة ---------- */
-    _bindCartDelegation() {
-        const container = this.el.cartItemsContainer;
-        if (!container) return;
-
-        // إزالة المستمعين القدامى إن أمكن (للتأكد من عدم التراكم)
-        container.removeEventListener('change', this._cartChangeHandler);
-        container.removeEventListener('click', this._cartClickHandler);
-
-        this._cartChangeHandler = (e) => {
-            const target = e.target;
-            if (target.classList.contains('cart-qty-input')) {
-                const idx = +target.dataset.idx;
-                const qty = +target.value;
-                if (isNaN(qty) || qty <= 0) {
-                    this.state.cart.splice(idx, 1);
-                } else {
-                    this.state.cart[idx].quantity = qty;
-                }
-                this._renderCart();
-            } else if (target.classList.contains('cart-price-input')) {
-                const idx = +target.dataset.idx;
-                const price = +target.value;
-                if (!isNaN(price) && price >= 0) {
-                    this.state.cart[idx].price = price;
-                }
-                this._renderCart();
-            }
-        };
-
-        this._cartClickHandler = (e) => {
-            const trashIcon = e.target.closest('.fa-trash');
-            if (trashIcon) {
-                const idx = +trashIcon.dataset.idx;
-                this.state.cart.splice(idx, 1);
-                this._renderCart();
-            }
-        };
-
-        container.addEventListener('change', this._cartChangeHandler);
-        container.addEventListener('click', this._cartClickHandler);
+    /* إضافة مساحة آمنة للعناصر السفلية */
+    _applySafeArea() {
+        const safeBottom = 'env(safe-area-inset-bottom, 0px)';
+        const footer = document.querySelector('.cart-footer');
+        if (footer) {
+            footer.style.paddingBottom = `calc(10px + ${safeBottom})`;
+        }
+        const toastContainer = document.querySelector('.hesaby-toast-container');
+        if (toastContainer) {
+            toastContainer.style.bottom = `calc(30px + ${safeBottom})`;
+        }
     },
 
     /* ---------- الأحداث ---------- */
@@ -161,6 +133,10 @@ const POS = {
 
         this.el.duplicateIncreaseBtn?.addEventListener('click', () => this._handleDuplicate(true));
         this.el.duplicateCancelBtn?.addEventListener('click', () => this._closeModal('duplicateProductModal'));
+
+        // تفويض حدث واحد للسلة (لإصلاح تسرب المستمعات)
+        this.el.cartItemsContainer?.addEventListener('change', e => this._onCartChange(e));
+        this.el.cartItemsContainer?.addEventListener('click', e => this._onCartClick(e));
     },
 
     /* ---------- اتصال ---------- */
@@ -201,7 +177,11 @@ const POS = {
         } catch (e) { console.error(e); this.state.products = []; this.state.customers = []; window.Toast?.error('فشل تحميل البيانات'); }
     },
 
-    _buildCache() { this.cache.prods.clear(); this.cache.custs.clear(); this.state.products.forEach(p => { this.cache.prods.set(String(p.id), p); this.cache.prods.set(p.id, p); }); this.state.customers.forEach(c => { this.cache.custs.set(String(c.id), c); this.cache.custs.set(c.id, c); }); },
+    _buildCache() {
+        this.cache.prods.clear(); this.cache.custs.clear();
+        this.state.products.forEach(p => { this.cache.prods.set(String(p.id), p); this.cache.prods.set(p.id, p); });
+        this.state.customers.forEach(c => { this.cache.custs.set(String(c.id), c); this.cache.custs.set(c.id, c); });
+    },
 
     _loadEditInvoice() {
         const id = localStorage.getItem('edit_invoice_id'); if (!id) return;
@@ -227,10 +207,13 @@ const POS = {
         const dd = this.el.customerDropdown; if (!dd) return;
         let list = this.state.customers;
         if (term && term !== 'نقدي (بدون عميل)') list = list.filter(c => c.name?.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
+        const safeSuccess = U.cssVar('--success', '#10b981');
+        const safeDanger = U.cssVar('--danger', '#ef4444');
+        const safeMuted = U.cssVar('--text-muted', '#94a3b8');
         let html = `<div class="dropdown-item" data-id="cash"><div class="item-info"><h4>نقدي (بدون عميل)</h4></div></div>`;
         list.forEach(c => {
             const bal = c.balance || 0;
-            const col = bal > 0 ? '#10b981' : bal < 0 ? '#ef4444' : '#64748b'; // ألوان ثابتة
+            const col = bal > 0 ? safeSuccess : bal < 0 ? safeDanger : safeMuted;
             const sign = bal > 0 ? `دائن ${U.fmtMoney(bal)}` : bal < 0 ? `مدين ${U.fmtMoney(-bal)}` : 'لا رصيد';
             html += `<div class="dropdown-item" data-id="${c.id}"><div class="item-info"><h4>${U.escape(c.name)}</h4><small style="color:${col}; font-weight:600;">${sign}</small></div><div class="item-price">${c.phone||''}</div></div>`;
         });
@@ -253,9 +236,9 @@ const POS = {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.productDropdown; if (!dd) return;
         if (!term) { dd.classList.remove('show'); return; }
-        if (!this.state.products.length) { dd.innerHTML = '<div class="dropdown-item" style="color:#ef4444;text-align:center;">⚠️ لا توجد منتجات</div>'; dd.classList.add('show'); return; }
+        if (!this.state.products.length) { dd.innerHTML = '<div class="dropdown-item" style="color:var(--danger);text-align:center;">⚠️ لا توجد منتجات</div>'; dd.classList.add('show'); return; }
         const filtered = this.state.products.filter(p => p.name?.toLowerCase().includes(term) || p.barcode === term || p.code === term);
-        dd.innerHTML = filtered.length ? filtered.map(p => `<div class="dropdown-item" data-id="${p.id}"><div class="item-info"><h4>${U.escape(p.name)}</h4></div><div class="item-price">${U.fmtMoney(p.units[0]?.price||0)}</div></div>`).join('') : '<div class="dropdown-item" style="color:#64748b;">لا نتائج</div>';
+        dd.innerHTML = filtered.length ? filtered.map(p => `<div class="dropdown-item" data-id="${p.id}"><div class="item-info"><h4>${U.escape(p.name)}</h4></div><div class="item-price">${U.fmtMoney(p.units[0]?.price||0)}</div></div>`).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">لا نتائج</div>';
         dd.classList.add('show');
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
@@ -338,6 +321,29 @@ const POS = {
         this._updateTotals();
     },
 
+    /* معالجات أحداث السلة (تفويض) */
+    _onCartChange(e) {
+        if (e.target.classList.contains('cart-qty-input')) {
+            const idx = +e.target.dataset.idx;
+            const q = +e.target.value;
+            if (isNaN(q) || q <= 0) this.state.cart.splice(idx, 1);
+            else this.state.cart[idx].quantity = q;
+            this._renderCart();
+        } else if (e.target.classList.contains('cart-price-input')) {
+            const idx = +e.target.dataset.idx;
+            const p = +e.target.value;
+            if (!isNaN(p) && p >= 0) this.state.cart[idx].price = p;
+            this._renderCart();
+        }
+    },
+    _onCartClick(e) {
+        if (e.target.closest('.fa-trash')) {
+            const idx = +e.target.closest('.fa-trash').dataset.idx;
+            this.state.cart.splice(idx, 1);
+            this._renderCart();
+        }
+    },
+
     /* ---------- مودال الوحدة ---------- */
     _openUnitModal(id) {
         const p = this.cache.prods.get(String(id)); if (!p?.units?.length) { window.Toast?.info('المنتج غير موجود'); return; }
@@ -360,17 +366,22 @@ const POS = {
         if (u.minPrice||u.maxPrice) this.el.priceLimitMsg.textContent = `السعر بين ${u.minPrice||0} - ${u.maxPrice||'∞'} ج.م`;
     },
     _addToCart() {
+        // منع الإضافة المزدوجة السريعة
+        if (this.state.addingItem) return;
+        this.state.addingItem = true;
+
         const q = +this.el.selectedQuantity?.value || 0, max = +this.el.selectedQuantity?.max || 0;
-        if (q<=0||q>max) { window.Toast?.error('كمية غير متاحة'); return; }
+        if (q<=0||q>max) { window.Toast?.error('كمية غير متاحة'); this.state.addingItem = false; return; }
         const pr = +this.el.selectedPrice?.value || 0, u = this.state.selectedUnit;
         if (u) {
-            if (u.minPrice>0 && pr < u.minPrice) { window.Toast?.error(`لا يمكن أقل من ${U.fmtMoney(u.minPrice)}`); return; }
-            if (u.maxPrice>0 && pr > u.maxPrice) { window.Toast?.error(`لا يمكن أعلى من ${U.fmtMoney(u.maxPrice)}`); return; }
+            if (u.minPrice>0 && pr < u.minPrice) { window.Toast?.error(`لا يمكن أقل من ${U.fmtMoney(u.minPrice)}`); this.state.addingItem = false; return; }
+            if (u.maxPrice>0 && pr > u.maxPrice) { window.Toast?.error(`لا يمكن أعلى من ${U.fmtMoney(u.maxPrice)}`); this.state.addingItem = false; return; }
         }
         const exist = this.state.cart.find(i => i.productId===this.state.selectedProduct.id && i.unitName===u.name);
         if (exist) exist.quantity = U.round(exist.quantity + q, 3);
         else this.state.cart.push({ productId: this.state.selectedProduct.id, productName: this.state.selectedProduct.name, unitName: u.name, quantity: q, price: pr, factor: u.factor||1, isBase: u===this.state.selectedProduct.units[0] });
         this._renderCart(); this._closeModal('unitQuantityModal');
+        this.state.addingItem = false;
     },
 
     /* ---------- دفع ---------- */
@@ -442,19 +453,18 @@ const POS = {
     },
     _updateStock() {
         for (const i of this.state.cart) {
-            const p = this.cache.prods.get(String(i.productId));
-            if (!p?.units) continue;
+            const p = this.cache.prods.get(String(i.productId)); if (!p?.units) continue;
             const base = p.units[0];
-            const reduction = i.unitName === base.name ? i.quantity : i.quantity / (p.units.find(u => u.name === i.unitName)?.factor || 1);
+            let reduction = i.unitName === base.name ? i.quantity : i.quantity / (p.units.find(u => u.name === i.unitName)?.factor || 1);
             base.stock = Math.max(0, (base.stock || 0) - reduction);
         }
     },
     _localInvNum() {
         const y = new Date().getFullYear().toString().slice(-2);
-        const k = `inv_counter_${y}`; // تم إصلاح اسم المفتاح ليتوافق مع الإصدارات السابقة
-        let n = (parseInt(localStorage.getItem(k) || '0', 10) + 1);
+        const k = `inv_counter_${y}`; // تم إرجاع الاسم الأصلي لتجنب التعارض
+        let n = (parseInt(localStorage.getItem(k)||'0',10)+1);
         localStorage.setItem(k, String(n));
-        return y + '-' + String(n).padStart(4, '0');
+        return y+'-'+String(n).padStart(4,'0');
     },
     _resetCart() {
         this.state.cart=[]; this.state.selectedCustomerId=null; this.state.discountValue=0; this.state.discountType='amount'; this.state.usedBalance=0; this.state.editingInv=null;
@@ -479,7 +489,9 @@ const POS = {
         let invs = [];
         try { invs = this.state.db ? (await DB.getInvoices()).filter(i=>i.type==='sale'&&i.status==='held') : U.localReady() ? (await localDB.getAll('invoices')).filter(i=>i.type==='sale'&&i.status==='held') : []; } catch {}
         const c = this.el.heldInvoicesList; if (!c) return;
-        c.innerHTML = invs.length ? invs.map(i => `<div class="held-invoice-item" data-id="${i.id}" style="padding:15px;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;"><div><strong>${U.escape(i.invoice_number||i.id?.substring(0,8))}</strong><br>${U.escape(i.customer_name||'نقدي')} - ${U.fmtMoney(i.total)}</div><div><i class="fas fa-play"></i></div></div>`).join('') : '<p style="text-align:center;color:#94a3b8;">لا توجد فواتير معلقة</p>';
+        const borderColor = U.cssVar('--border-light', '#e2e8f0');
+        const textMuted = U.cssVar('--text-muted', '#94a3b8');
+        c.innerHTML = invs.length ? invs.map(i => `<div class="held-invoice-item" data-id="${i.id}" style="padding:15px;border:1px solid ${borderColor};border-radius:12px;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;"><div><strong>${U.escape(i.invoice_number||i.id?.substring(0,8))}</strong><br>${U.escape(i.customer_name||'نقدي')} - ${U.fmtMoney(i.total)}</div><div><i class="fas fa-play"></i></div></div>`).join('') : '<p style="text-align:center;color:'+textMuted+';">لا توجد فواتير معلقة</p>';
         c.querySelectorAll('.held-invoice-item').forEach(el => el.addEventListener('click', () => this._resumeInvoice(el.dataset.id)));
         this._showModal('heldInvoicesModal');
     },
@@ -489,15 +501,15 @@ const POS = {
             if (this.state.db) {
                 inv = await DB.getInvoiceById(id);
                 if (inv) {
-                    // استخدام دالة الحذف المناسبة من DB أو supabase مباشرة مع التحقق
-                    try { await window.DB.deleteInvoice?.(id); } catch { await window.supabase?.from('invoices').delete().eq('id', id); }
+                    // استخدام DB أو supabase بشكل آمن
+                    if (window.supabase) await window.supabase.from('invoices').delete().eq('id', id);
+                    else if (DB.deleteInvoice) await DB.deleteInvoice(id);
                 }
             } else if (U.localReady()) {
-                inv = await localDB.getById('invoices', id); // تم إصلاح استدعاء الدالة
-                if (inv) await localDB.delete('invoices', id);
+                inv = await localDB.getById('invoices', id); // تم إصلاح اسم الدالة
+                if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
             }
-        } catch (e) { console.warn('خطأ أثناء حذف الفاتورة المعلقة', e); }
-
+        } catch (e) { console.error(e); }
         if (!inv) { window.Toast?.error('غير موجودة'); return; }
         this.state.cart = inv.items.map(i=>({...i})); this.state.selectedCustomerId = inv.customer_id;
         if (inv.customer_id) { const c = this.cache.custs.get(String(inv.customer_id)); if (c) this.el.customerSearchInput.value = c.name||''; this._updateCustDisplay(); }
