@@ -1,5 +1,6 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار نهائي 5.0)
+   pos.js - نقطة البيع (إصدار خبير 5.0.1)
+   إصلاح: ربط الأحداث بشكل آمن لضمان عمل الأزرار
    إيصال كلاسيكي محسّن (متوافق مع جميع الطابعات)
    ============================================= */
 'use strict';
@@ -47,23 +48,29 @@ const POS = {
     },
 
     _cacheDOM() {
-        ['menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown',
-         'holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn',
-         'productSearchInput','customerSearchInput','customerBalanceDisplay',
-         'productDropdown','customerDropdown','barcodeScannerBtn',
-         'cartItemsContainer','discountValue','discountType','itemTypesCount',
-         'totalPieces','subtotal','netTotal','payBtn',
-         'unitQuantityModal','modalProductName','unitButtons','selectedQuantity',
-         'selectedPrice','stockInfo','addToCartBtn','closeUnitModalBtn','priceLimitMsg',
-         'paymentModal','paySubtotal','payDiscount','payNet','currentBalance',
-         'paymentMethod','cashField','transferField','cashAmount','transferAmount',
-         'remainingDisplay','balanceAfterLabel','balanceAfter','paymentNotes',
-         'confirmAndPrintBtn','closePaymentModalBtn',
-         'heldInvoicesModal','heldInvoicesList','closeHeldModalBtn',
-         'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
-         'sidebarAvatar','sidebarUserName',
-         'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn']
-        .forEach(id => this.el[id] = document.getElementById(id));
+        const requiredIds = [
+            'menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown',
+            'holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn',
+            'productSearchInput','customerSearchInput','customerBalanceDisplay',
+            'productDropdown','customerDropdown','barcodeScannerBtn',
+            'cartItemsContainer','discountValue','discountType','itemTypesCount',
+            'totalPieces','subtotal','netTotal','payBtn',
+            'unitQuantityModal','modalProductName','unitButtons','selectedQuantity',
+            'selectedPrice','stockInfo','addToCartBtn','closeUnitModalBtn','priceLimitMsg',
+            'paymentModal','paySubtotal','payDiscount','payNet','currentBalance',
+            'paymentMethod','cashField','transferField','cashAmount','transferAmount',
+            'remainingDisplay','balanceAfterLabel','balanceAfter','paymentNotes',
+            'confirmAndPrintBtn','closePaymentModalBtn',
+            'heldInvoicesModal','heldInvoicesList','closeHeldModalBtn',
+            'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
+            'sidebarAvatar','sidebarUserName',
+            'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn'
+        ];
+        requiredIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) this.el[id] = el;
+            else console.warn(`Element with id "${id}" not found in DOM`);
+        });
     },
 
     _applySafeArea() {
@@ -74,29 +81,51 @@ const POS = {
         if (toastContainer) toastContainer.style.bottom = `calc(30px + ${safeBottom})`;
     },
 
-    /* ---------- الأحداث ---------- */
+    /* ---------- ربط الأحداث بشكل آمن ---------- */
     _bind() {
-        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
+        const on = (id, event, handler) => {
+            const el = this.el[id];
+            if (el) el.addEventListener(event, handler);
+        };
+        const onDocClick = (selector, handler) => {
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest(selector)) handler();
+            });
+        };
 
-        this.el.moreMenuBtn?.addEventListener('click', e => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', e => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
-        this.el.holdInvoiceBtn?.addEventListener('click', e => { e.preventDefault(); this.holdInvoice(); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.heldInvoicesBtn?.addEventListener('click', e => { e.preventDefault(); this.loadHeld(); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.returnSaleBtn?.addEventListener('click', e => { e.preventDefault(); this.openReturn(); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.logoutBtn?.addEventListener('click', e => { e.preventDefault(); if (confirm('هل أنت متأكد من تسجيل الخروج؟')) App.logout(); });
+        // القائمة الجانبية
+        on('menuToggle', 'click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
+        on('sidebarOverlay', 'click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
+        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => {
+            this.el.sidebar?.classList.remove('open');
+            this.el.sidebarOverlay?.classList.remove('show');
+        }));
 
-        this.el.productSearchInput?.addEventListener('input', U.debounce(() => this._filterProducts(), 150));
-        this.el.productDropdown?.addEventListener('click', e => {
+        // القائمة المنسدلة
+        on('moreMenuBtn', 'click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
+        onDocClick('.nav-actions', () => this.el.moreDropdown?.classList.remove('show'));
+
+        // أزرار القائمة المنسدلة
+        on('returnSaleBtn', 'click', (e) => { e.preventDefault(); this.openReturn(); this.el.moreDropdown?.classList.remove('show'); });
+        on('holdInvoiceBtn', 'click', (e) => { e.preventDefault(); this.holdInvoice(); this.el.moreDropdown?.classList.remove('show'); });
+        on('heldInvoicesBtn', 'click', (e) => { e.preventDefault(); this.loadHeld(); this.el.moreDropdown?.classList.remove('show'); });
+        on('logoutBtn', 'click', (e) => { e.preventDefault(); if (confirm('هل أنت متأكد؟')) App.logout(); });
+
+        // البحث
+        on('productSearchInput', 'input', U.debounce(() => this._filterProducts(), 150));
+        on('productDropdown', 'click', (e) => {
             const item = e.target.closest('.dropdown-item');
             if (item?.dataset.id) { this._selectProduct(item.dataset.id); this._hideProdDropdown(); this.el.productSearchInput.value = ''; }
         });
-        document.addEventListener('click', e => { if (!e.target.closest('.search-header')) this._hideProdDropdown(); });
-        this.el.barcodeScannerBtn?.addEventListener('click', () => this._scanBarcode());
+        onDocClick('.search-header', () => this._hideProdDropdown());
 
-        this.el.customerSearchInput?.addEventListener('input', () => this._filterCustomers());
-        this.el.customerDropdown?.addEventListener('click', e => {
+        // كاميرا الباركود
+        on('barcodeScannerBtn', 'click', () => this._scanBarcode());
+
+        // بحث العملاء
+        on('customerSearchInput', 'input', () => this._filterCustomers());
+        on('customerSearchInput', 'focus', () => { if (!this.el.customerSearchInput.value.trim()) this._filterCustomers(); });
+        on('customerDropdown', 'click', (e) => {
             const item = e.target.closest('.dropdown-item');
             if (item?.dataset.id) {
                 if (item.dataset.id === 'cash') { this.state.selectedCustomerId = null; this.el.customerSearchInput.value = 'نقدي (بدون عميل)'; }
@@ -104,35 +133,47 @@ const POS = {
                 this._updateCustDisplay(); this._hideCustDropdown();
             }
         });
-        document.addEventListener('click', e => { if (!e.target.closest('.customer-box')) this._hideCustDropdown(); });
-        this.el.customerSearchInput?.addEventListener('focus', () => { if (!this.el.customerSearchInput.value.trim()) this._filterCustomers(); });
+        onDocClick('.customer-box', () => this._hideCustDropdown());
 
-        this.el.discountValue?.addEventListener('input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this._updateTotals(); });
-        this.el.discountType?.addEventListener('change', () => { this.state.discountType = this.el.discountType.value; this._updateTotals(); });
-        this.el.payBtn?.addEventListener('click', () => this._openPayment());
+        // الخصم
+        on('discountValue', 'input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this._updateTotals(); });
+        on('discountType', 'change', () => { this.state.discountType = this.el.discountType.value; this._updateTotals(); });
+        on('payBtn', 'click', () => this._openPayment());
 
-        this.el.addToCartBtn?.addEventListener('click', () => this._addToCart());
-        this.el.closeUnitModalBtn?.addEventListener('click', () => this._closeModal('unitQuantityModal'));
-        this.el.confirmAndPrintBtn?.addEventListener('click', async e => { e.preventDefault(); await this._completePayment(); });
-        this.el.closePaymentModalBtn?.addEventListener('click', () => this._closeModal('paymentModal'));
-        this.el.paymentMethod?.addEventListener('change', () => this._togglePaymentFields());
-        this.el.cashAmount?.addEventListener('input', () => this._previewPayment());
-        this.el.transferAmount?.addEventListener('input', () => this._previewPayment());
+        // مودال الوحدة
+        on('addToCartBtn', 'click', () => this._addToCart());
+        on('closeUnitModalBtn', 'click', () => this._closeModal('unitQuantityModal'));
 
-        this.el.closeHeldModalBtn?.addEventListener('click', () => this._closeModal('heldInvoicesModal'));
-        this.el.closeReceiptModalBtn?.addEventListener('click', () => this._closeModal('receiptModal'));
-        this.el.skipPrintBtn?.addEventListener('click', () => this._closeModal('receiptModal'));
-        this.el.printReceiptBtn?.addEventListener('click', () => this._printReceipt());
+        // مودال الدفع
+        on('confirmAndPrintBtn', 'click', (e) => { e.preventDefault(); this._completePayment(); });
+        on('closePaymentModalBtn', 'click', () => this._closeModal('paymentModal'));
+        on('paymentMethod', 'change', () => this._togglePaymentFields());
+        on('cashAmount', 'input', () => this._previewPayment());
+        on('transferAmount', 'input', () => this._previewPayment());
 
-        this.el.duplicateIncreaseBtn?.addEventListener('click', () => this._handleDuplicate(true));
-        this.el.duplicateCancelBtn?.addEventListener('click', () => this._closeModal('duplicateProductModal'));
+        // الفواتير المعلقة
+        on('closeHeldModalBtn', 'click', () => this._closeModal('heldInvoicesModal'));
 
-        this.el.cartItemsContainer?.addEventListener('change', e => this._onCartChange(e));
-        this.el.cartItemsContainer?.addEventListener('click', e => this._onCartClick(e));
+        // الإيصال
+        on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
+        on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
+        on('printReceiptBtn', 'click', () => this._printReceipt());
+
+        // تكرار المنتج
+        on('duplicateIncreaseBtn', 'click', () => this._handleDuplicate(true));
+        on('duplicateCancelBtn', 'click', () => this._closeModal('duplicateProductModal'));
+
+        // أحداث السلة (تفويض)
+        if (this.el.cartItemsContainer) {
+            this.el.cartItemsContainer.addEventListener('change', e => this._onCartChange(e));
+            this.el.cartItemsContainer.addEventListener('click', e => this._onCartClick(e));
+        }
     },
 
+    /* ---------- اتصال ---------- */
     _connStatus() { const n = document.getElementById('mainNavbar'); if (n) n.classList.toggle('offline', !navigator.onLine); },
 
+    /* ---------- مستخدم ---------- */
     _sidebarUser() {
         window.App?.getCurrentUser?.().then(u => {
             if (u) {
@@ -142,6 +183,7 @@ const POS = {
         }).catch(() => {});
     },
 
+    /* ---------- تحميل البيانات ---------- */
     async _loadData() {
         this.state.db = U.dbReady();
         await this._fetchProdsAndCusts();
@@ -190,6 +232,7 @@ const POS = {
         }
     },
 
+    /* ---------- بحث العملاء ---------- */
     _filterCustomers() {
         const term = this.el.customerSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.customerDropdown; if (!dd) return;
@@ -219,6 +262,7 @@ const POS = {
         }
     },
 
+    /* ---------- بحث المنتجات ---------- */
     _filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.productDropdown; if (!dd) return;
@@ -230,6 +274,7 @@ const POS = {
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
 
+    /* ---------- منتج مكرر ---------- */
     _selectProduct(id) {
         const p = this.cache.prods.get(String(id)); if (!p) return;
         const exist = this.state.cart.find(i => i.productId === p.id);
@@ -245,6 +290,7 @@ const POS = {
         if (inc) this._openUnitModal(id);
     },
 
+    /* ---------- باركود ---------- */
     _scanBarcode() {
         if (!('BarcodeDetector' in window)) { window.Toast?.error('المتصفح لا يدعم مسح الباركود'); return; }
         const video = document.createElement('video'); video.setAttribute('playsinline', ''); video.style.display = 'none';
@@ -268,8 +314,10 @@ const POS = {
         if (found) { this._selectProduct(found.id); this.el.productSearchInput.value = ''; } else this._filterProducts();
     },
 
+    /* ---------- مرتجع ---------- */
     openReturn() { window.location.href = './sales-returns.html'; },
 
+    /* ---------- السلة ---------- */
     _calcTotals() {
         let sub = 0; for (const i of this.state.cart) sub += U.round(i.price * i.quantity);
         sub = U.round(sub, 2);
@@ -326,6 +374,7 @@ const POS = {
         }
     },
 
+    /* ---------- مودال الوحدة ---------- */
     _openUnitModal(id) {
         const p = this.cache.prods.get(String(id)); if (!p?.units?.length) { window.Toast?.info('المنتج غير موجود'); return; }
         this.state.selectedProduct = p; this.state.selectedUnit = p.units[0];
@@ -364,6 +413,7 @@ const POS = {
         this.state.addingItem = false;
     },
 
+    /* ---------- دفع ---------- */
     _openPayment() {
         if (!this.state.cart.length) { window.Toast?.info('السلة فارغة'); return; }
         const { sub, disc, net } = this._calcTotals();
@@ -454,6 +504,7 @@ const POS = {
     },
     _getCust() { return this.state.selectedCustomerId ? this.cache.custs.get(this.state.selectedCustomerId) : null; },
 
+    /* ---------- تعليق واسترجاع ---------- */
     async holdInvoice() {
         if (!this.state.cart.length) { window.Toast?.info('السلة فارغة'); return; }
         const { sub, disc, net } = this._calcTotals();
@@ -494,7 +545,7 @@ const POS = {
         this._renderCart(); this._closeModal('heldInvoicesModal'); window.Toast?.success('تم الاسترجاع');
     },
 
-    /* ---------- إيصال كلاسيكي محسّن (متوافق مع جميع الطابعات) ---------- */
+    /* ---------- إيصال كلاسيكي محسّن ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}');
         const name = s?.company?.name || 'حسابي';
