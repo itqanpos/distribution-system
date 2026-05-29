@@ -1,8 +1,6 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار خبير 4.2)
-   إصلاحات: تسرب مستمعات، دوال محلية،
-   Safe Area، منع إضافة مزدوجة، متغيرات CSS آمنة،
-   إيصال حديث وعملي (يظهر القيم غير الصفرية فقط)
+   pos.js - نقطة البيع (إصدار نهائي 5.0)
+   إيصال كلاسيكي محسّن (متوافق مع جميع الطابعات)
    ============================================= */
 'use strict';
 
@@ -17,7 +15,6 @@ const U = {
     uuid: () => (crypto?.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
     dbReady: () => !!(window.DB && window.supabase),
     localReady: () => !!(window.localDB?.ready),
-    // متغيرات CSS آمنة مع fallbacks
     cssVar: (name, fallback = '') => {
         const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
         return v || fallback;
@@ -28,7 +25,7 @@ const POS = {
     state: {
         products: [], customers: [], cart: [],
         selectedProduct: null, selectedUnit: null, selectedCustomerId: null,
-        db: false, busy: false, addingItem: false,  // قفل منع الإضافة المزدوجة
+        db: false, busy: false, addingItem: false,
         subtotal: 0, discount: 0, discountType: 'amount', discountValue: 0, net: 0,
         usedBalance: 0, editingInv: null
     },
@@ -38,7 +35,7 @@ const POS = {
     /* ---------- التهيئة ---------- */
     init() {
         this._cacheDOM();
-        this._applySafeArea();   // ضبط المساحة الآمنة
+        this._applySafeArea();
         this._bind();
         this._connStatus();
         window.addEventListener('online', () => this._connStatus());
@@ -69,17 +66,12 @@ const POS = {
         .forEach(id => this.el[id] = document.getElementById(id));
     },
 
-    /* إضافة مساحة آمنة للعناصر السفلية */
     _applySafeArea() {
         const safeBottom = 'env(safe-area-inset-bottom, 0px)';
         const footer = document.querySelector('.cart-footer');
-        if (footer) {
-            footer.style.paddingBottom = `calc(10px + ${safeBottom})`;
-        }
+        if (footer) footer.style.paddingBottom = `calc(10px + ${safeBottom})`;
         const toastContainer = document.querySelector('.hesaby-toast-container');
-        if (toastContainer) {
-            toastContainer.style.bottom = `calc(30px + ${safeBottom})`;
-        }
+        if (toastContainer) toastContainer.style.bottom = `calc(30px + ${safeBottom})`;
     },
 
     /* ---------- الأحداث ---------- */
@@ -135,15 +127,12 @@ const POS = {
         this.el.duplicateIncreaseBtn?.addEventListener('click', () => this._handleDuplicate(true));
         this.el.duplicateCancelBtn?.addEventListener('click', () => this._closeModal('duplicateProductModal'));
 
-        // تفويض حدث واحد للسلة (لإصلاح تسرب المستمعات)
         this.el.cartItemsContainer?.addEventListener('change', e => this._onCartChange(e));
         this.el.cartItemsContainer?.addEventListener('click', e => this._onCartClick(e));
     },
 
-    /* ---------- اتصال ---------- */
     _connStatus() { const n = document.getElementById('mainNavbar'); if (n) n.classList.toggle('offline', !navigator.onLine); },
 
-    /* ---------- مستخدم ---------- */
     _sidebarUser() {
         window.App?.getCurrentUser?.().then(u => {
             if (u) {
@@ -153,7 +142,6 @@ const POS = {
         }).catch(() => {});
     },
 
-    /* ---------- تحميل البيانات ---------- */
     async _loadData() {
         this.state.db = U.dbReady();
         await this._fetchProdsAndCusts();
@@ -202,7 +190,6 @@ const POS = {
         }
     },
 
-    /* ---------- بحث العملاء ---------- */
     _filterCustomers() {
         const term = this.el.customerSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.customerDropdown; if (!dd) return;
@@ -232,7 +219,6 @@ const POS = {
         }
     },
 
-    /* ---------- بحث المنتجات ---------- */
     _filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.productDropdown; if (!dd) return;
@@ -244,7 +230,6 @@ const POS = {
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
 
-    /* ---------- منتج مكرر ---------- */
     _selectProduct(id) {
         const p = this.cache.prods.get(String(id)); if (!p) return;
         const exist = this.state.cart.find(i => i.productId === p.id);
@@ -260,7 +245,6 @@ const POS = {
         if (inc) this._openUnitModal(id);
     },
 
-    /* ---------- باركود ---------- */
     _scanBarcode() {
         if (!('BarcodeDetector' in window)) { window.Toast?.error('المتصفح لا يدعم مسح الباركود'); return; }
         const video = document.createElement('video'); video.setAttribute('playsinline', ''); video.style.display = 'none';
@@ -284,10 +268,8 @@ const POS = {
         if (found) { this._selectProduct(found.id); this.el.productSearchInput.value = ''; } else this._filterProducts();
     },
 
-    /* ---------- مرتجع ---------- */
     openReturn() { window.location.href = './sales-returns.html'; },
 
-    /* ---------- السلة ---------- */
     _calcTotals() {
         let sub = 0; for (const i of this.state.cart) sub += U.round(i.price * i.quantity);
         sub = U.round(sub, 2);
@@ -322,7 +304,6 @@ const POS = {
         this._updateTotals();
     },
 
-    /* معالجات أحداث السلة (تفويض) */
     _onCartChange(e) {
         if (e.target.classList.contains('cart-qty-input')) {
             const idx = +e.target.dataset.idx;
@@ -345,7 +326,6 @@ const POS = {
         }
     },
 
-    /* ---------- مودال الوحدة ---------- */
     _openUnitModal(id) {
         const p = this.cache.prods.get(String(id)); if (!p?.units?.length) { window.Toast?.info('المنتج غير موجود'); return; }
         this.state.selectedProduct = p; this.state.selectedUnit = p.units[0];
@@ -367,7 +347,6 @@ const POS = {
         if (u.minPrice||u.maxPrice) this.el.priceLimitMsg.textContent = `السعر بين ${u.minPrice||0} - ${u.maxPrice||'∞'} ج.م`;
     },
     _addToCart() {
-        // منع الإضافة المزدوجة السريعة
         if (this.state.addingItem) return;
         this.state.addingItem = true;
 
@@ -385,7 +364,6 @@ const POS = {
         this.state.addingItem = false;
     },
 
-    /* ---------- دفع ---------- */
     _openPayment() {
         if (!this.state.cart.length) { window.Toast?.info('السلة فارغة'); return; }
         const { sub, disc, net } = this._calcTotals();
@@ -462,7 +440,7 @@ const POS = {
     },
     _localInvNum() {
         const y = new Date().getFullYear().toString().slice(-2);
-        const k = `inv_counter_${y}`; // تم إرجاع الاسم الأصلي لتجنب التعارض
+        const k = `inv_counter_${y}`;
         let n = (parseInt(localStorage.getItem(k)||'0',10)+1);
         localStorage.setItem(k, String(n));
         return y+'-'+String(n).padStart(4,'0');
@@ -476,7 +454,6 @@ const POS = {
     },
     _getCust() { return this.state.selectedCustomerId ? this.cache.custs.get(this.state.selectedCustomerId) : null; },
 
-    /* ---------- تعليق واسترجاع ---------- */
     async holdInvoice() {
         if (!this.state.cart.length) { window.Toast?.info('السلة فارغة'); return; }
         const { sub, disc, net } = this._calcTotals();
@@ -502,12 +479,11 @@ const POS = {
             if (this.state.db) {
                 inv = await DB.getInvoiceById(id);
                 if (inv) {
-                    // استخدام DB أو supabase بشكل آمن
                     if (window.supabase) await window.supabase.from('invoices').delete().eq('id', id);
                     else if (DB.deleteInvoice) await DB.deleteInvoice(id);
                 }
             } else if (U.localReady()) {
-                inv = await localDB.getById('invoices', id); // تم إصلاح اسم الدالة
+                inv = await localDB.getById('invoices', id);
                 if (inv && localDB.delete) await localDB.delete('invoices', id).catch(() => {});
             }
         } catch (e) { console.error(e); }
@@ -518,108 +494,114 @@ const POS = {
         this._renderCart(); this._closeModal('heldInvoicesModal'); window.Toast?.success('تم الاسترجاع');
     },
 
-    /* ---------- إيصال حديث (يظهر القيم غير الصفرية فقط) ---------- */
+    /* ---------- إيصال كلاسيكي محسّن (متوافق مع جميع الطابعات) ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}');
         const name = s?.company?.name || 'حسابي';
         const phone = s?.company?.phone || '';
+        const website = s?.company?.website || 'www.hesaby.app';
+        const support = s?.company?.support || '01000000000';
+        const branch = s?.company?.branch || 'الفرع الرئيسي';
         const foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
-        const width = 32; // عدد الأحرف في العرض (يناسب 80mm مع خط 12px)
+        const W = 40; // عرض الإيصال بالأحرف
 
-        // دالة تنسيق المبلغ مع محاذاة لليمين
-        const fmt = v => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const alignRight = (label, value) => {
-            const lbl = String(label);
-            const val = String(value);
-            const spaces = Math.max(1, width - lbl.length - val.length);
-            return lbl + ' '.repeat(spaces) + val;
+        const fmt = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // دوال مساعدة
+        const line = (char = '-') => char.repeat(W);
+        const padRow = (label, value) => {
+            const str = `  ${label}${' '.repeat(Math.max(1, W - label.length - String(value).length - 2))}${value}`;
+            return str.substring(0, W);
+        };
+        const center = (text) => {
+            const spaces = Math.max(0, W - text.length);
+            const left = Math.floor(spaces / 2);
+            return ' '.repeat(left) + text;
         };
 
-        // بناء الإيصال
-        const lines = [];
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const sellerName = (() => {
+            try { return JSON.parse(localStorage.getItem('app_session') || '{}').fullName || '—'; } catch { return '—'; }
+        })();
+
+        const L = [];
 
         // الرأس
-        lines.push(name);
-        if (phone) lines.push(`هاتف: ${phone}`);
-        lines.push('─'.repeat(width));
+        L.push(line('='));
+        L.push(center(name));
+        L.push(center('نظام إدارة الأعمال الذكي'));
+        L.push(line('='));
+        L.push('  فاتورة مبيعات');
+        L.push('');
+        L.push(padRow('رقم الفاتورة :', inv.invoice_number || inv.id?.substring(0, 8)));
+        L.push(padRow('التاريخ      :', U.fmtDate(inv.date)));
+        L.push(padRow('الوقت        :', timeStr));
+        L.push(padRow('الفرع        :', branch));
+        L.push(padRow('البائع       :', sellerName));
+        L.push(line('-'));
 
-        // معلومات الفاتورة
-        lines.push(alignRight('العميل:', cust?.name || 'نقدى'));
-        lines.push(alignRight('رقم الفاتورة:', inv.invoice_number || inv.id?.substring(0, 8)));
-        lines.push(alignRight('التاريخ:', U.fmtDate(inv.date)));
-        lines.push('─'.repeat(width));
+        // بيانات العميل
+        L.push('  بيانات العميل');
+        L.push('');
+        L.push(padRow('الاسم        :', cust?.name || 'نقدي'));
+        if (cust?.phone) L.push(padRow('الهاتف       :', cust.phone));
+        L.push(line('-'));
 
-        // المنتجات
+        // جدول المنتجات
+        L.push('  الصنف          الكمية   سعر   إجمالي');
+        L.push(line('-'));
         for (const it of items) {
-            const qty = it.quantity;
-            const price = it.price;
-            const total = U.round(qty * price, 2);
-            lines.push(U.escape(it.productName) + ' - ' + U.escape(it.unitName));
-            lines.push(`${qty} × ${fmt(price)} = ${fmt(total)}`);
+            const name = U.escape(it.productName).substring(0, 14);
+            const qty = String(it.quantity);
+            const price = fmt(it.price);
+            const total = fmt(U.round(it.quantity * it.price, 2));
+            L.push(`  ${name.padEnd(14)} ${qty.padStart(5)} ${price.padStart(7)} ${total.padStart(8)}`);
         }
+        L.push(line('-'));
+        const itemCount = items.length;
+        let totalPieces = 0;
+        for (const it of items) totalPieces += it.quantity * (it.factor || 1);
+        L.push(padRow('عدد الأصناف', `${itemCount} صنف`));
+        L.push(padRow('عدد القطع', `${Math.round(totalPieces)} قطعة`));
 
-        lines.push('─'.repeat(width));
-
-        // الإجماليات
-        lines.push(alignRight('الإجمالي:', fmt(totals.sub)));
-        if (totals.disc > 0) {
-            lines.push(alignRight('الخصم:', fmt(totals.disc)));
-        }
-        lines.push(alignRight('الصافي:', fmt(totals.net)));
-        lines.push('─'.repeat(width));
+        // ملخص الفاتورة
+        L.push(line('='));
+        L.push('  ملخص الفاتورة');
+        L.push('');
+        L.push(padRow('إجمالي المنتجات', fmt(totals.sub) + ' ج.م'));
+        if (totals.disc > 0) L.push(padRow('الخصومات', '-' + fmt(totals.disc) + ' ج.م'));
+        L.push('  ' + line('-').substring(2));
+        L.push(padRow('المستحق النهائي', fmt(totals.net) + ' ج.م'));
 
         // الدفع
-        const cash = pay.cash || 0;
-        const trans = pay.trans || 0;
-        const used = pay.used || 0;
-        const paid = U.round(cash + trans + used, 2);
-        const diff = pay.diff || 0;
+        L.push(line('='));
+        const cash = pay.cash || 0, trans = pay.trans || 0, used = pay.used || 0;
+        const paid = U.round(cash + trans + used, 2), diff = pay.diff || 0;
+        L.push(padRow('المدفوع', fmt(paid) + ' ج.م'));
+        if (diff > 0) L.push(padRow('الباقي', fmt(diff) + ' ج.م'));
+        else if (diff < 0) L.push(padRow('المتبقي', fmt(-diff) + ' ج.م'));
 
-        lines.push(alignRight('نقدى:', fmt(cash)));
-        lines.push(alignRight('تحويل:', fmt(trans)));
-        if (used > 0) {
-            lines.push(alignRight('من رصيد عميل:', fmt(used)));
-        }
-        lines.push(alignRight('المدفوع:', fmt(paid)));
+        // تذييل
+        L.push(line('='));
+        L.push(center(foot));
+        L.push('');
+        L.push(center(website));
+        L.push(center('Support: ' + support));
+        L.push(line('='));
 
-        // فائض / متبقي (يظهر فقط إن وجد)
-        if (diff > 0) {
-            lines.push(alignRight('فائض:', fmt(diff)));
-        } else if (diff < 0) {
-            lines.push(alignRight('متبقى:', fmt(-diff)));
-        }
-
-        // حركة الرصيد (فقط إن كان عميلاً حقيقياً)
-        if (cust && cust.name !== 'نقدي') {
-            lines.push('─'.repeat(width));
-            lines.push(alignRight('الرصيد السابق:', fmt(oldBal)));
-            if (used > 0) {
-                lines.push(alignRight('خصم:', '-' + fmt(used)));
-            }
-            if (diff > 0) {
-                lines.push(alignRight('إضافة:', '+' + fmt(diff)));
-            }
-            const newBal = cust.balance || 0;
-            lines.push(alignRight('الرصيد الحالي:', fmt(newBal)));
-        }
-
-        lines.push('─'.repeat(width));
-        lines.push(foot);
-
-        // عرض الإيصال في <pre>
-        const receiptText = lines.join('\n');
-        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; text-align: right; direction: rtl; white-space: pre-wrap; margin: 0; padding: 8px; background: white; width: 80mm; max-width: 100%;">${U.escape(receiptText)}</pre>`;
+        const receiptText = L.join('\n');
+        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.3; text-align: left; direction: ltr; white-space: pre; margin: 0; padding: 8px; background: white; width: 80mm; max-width: 100%;">${U.escape(receiptText)}</pre>`;
         this._showModal('receiptModal');
     },
 
     _printReceipt() {
         const c = this.el.receiptPrintArea.innerHTML;
         const w = window.open('','_blank','width=400,height=600'); if (!w) { window.Toast?.error('اسمح بالنوافذ المنبثقة'); return; }
-        w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;background:white;display:flex;justify-content:center;padding:10px}.thermal-receipt{width:80mm;max-width:80mm;font-size:12px;color:#000;line-height:1.6}.receipt-header{text-align:center;margin-bottom:10px}.company-name{font-size:16px;font-weight:bold}.receipt-divider{border:none;border-top:1px dashed #000;margin:8px 0}.receipt-row{display:flex;justify-content:space-between;margin:2px 0}.receipt-row.total{font-weight:bold;font-size:13px}.receipt-item-row{margin:4px 0}.receipt-item-name{font-weight:bold;font-size:11px}.receipt-item-details{display:flex;justify-content:space-between;font-size:10px;color:#444}.receipt-item-total{font-weight:bold}.receipt-footer{text-align:center;margin-top:10px;font-weight:bold}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${c}</body></html>`);
+        w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;background:white;display:flex;justify-content:center;padding:10px}pre{font-family:'Courier New',monospace;font-size:12px;line-height:1.3;text-align:left;direction:ltr;white-space:pre;width:80mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${c}</body></html>`);
         w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
     },
 
-    /* ---------- حفظ/استعادة ---------- */
     _saveCart() { if (this.state.cart.length) localStorage.setItem('pos_cart', JSON.stringify({cart:this.state.cart, cust:this.state.selectedCustomerId, discType:this.state.discountType, discVal:this.state.discountValue, ts:Date.now()})); else localStorage.removeItem('pos_cart'); },
     _restoreCart() {
         const s = localStorage.getItem('pos_cart'); if (!s) return;
