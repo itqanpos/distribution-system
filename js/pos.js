@@ -1,7 +1,8 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار خبير 4.1)
+   pos.js - نقطة البيع (إصدار خبير 4.2)
    إصلاحات: تسرب مستمعات، دوال محلية،
-   Safe Area، منع إضافة مزدوجة، متغيرات CSS آمنة
+   Safe Area، منع إضافة مزدوجة، متغيرات CSS آمنة،
+   إيصال حديث وعملي (يظهر القيم غير الصفرية فقط)
    ============================================= */
 'use strict';
 
@@ -517,20 +518,100 @@ const POS = {
         this._renderCart(); this._closeModal('heldInvoicesModal'); window.Toast?.success('تم الاسترجاع');
     },
 
-    /* ---------- إيصال ---------- */
+    /* ---------- إيصال حديث (يظهر القيم غير الصفرية فقط) ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
-        const s = JSON.parse(localStorage.getItem('app_settings')||'{}'), name = s?.company?.name||'حسابي', phone = s?.company?.phone||'', foot = s?.print?.footer_message||'شكراً لتعاملكم معنا';
-        const fmt = v => Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-        let itemsH = ''; for (const i of items) itemsH += `<div class="receipt-item-row"><div class="receipt-item-name">${U.escape(i.productName)} - ${U.escape(i.unitName)}</div><div class="receipt-item-details"><span>${i.quantity} x ${fmt(i.price)}</span><span class="receipt-item-total">${fmt(U.round(i.price*i.quantity,2))}</span></div></div>`;
-        let payH = `<div class="receipt-row"><span>نقدى</span><span>${fmt(pay.cash||0)}</span></div><div class="receipt-row"><span>تحويل</span><span>${fmt(pay.trans||0)}</span></div>`;
-        if (pay.used>0) payH += `<div class="receipt-row"><span>من رصيد</span><span>${fmt(pay.used)}</span></div>`;
-        payH += `<div class="receipt-row total"><span>المدفوع</span><span>${fmt(U.round((pay.cash||0)+(pay.trans||0)+(pay.used||0),2))}</span></div>`;
-        if (pay.diff>0) payH += `<div class="receipt-row"><span>فائض</span><span>${fmt(pay.diff)}</span></div>`;
-        else if (pay.diff<0) payH += `<div class="receipt-row"><span>متبقى</span><span>${fmt(-pay.diff)}</span></div>`;
-        let balH = ''; if (cust.name!=='نقدي') { const nb = cust.balance||0; balH = `<div class="receipt-row"><span>الرصيد السابق</span><span>${fmt(oldBal)}</span></div>${pay.used>0?`<div class="receipt-row"><span>خصم</span><span>-${fmt(pay.used)}</span></div>`:''}${pay.diff>0?`<div class="receipt-row"><span>اضافة</span><span>+${fmt(pay.diff)}</span></div>`:''}<div class="receipt-row total"><span>الرصيد الحالى</span><span>${fmt(nb)}</span></div>`; }
-        this.el.receiptPrintArea.innerHTML = `<div class="thermal-receipt"><div class="receipt-header"><div class="company-name">${U.escape(name)}</div>${phone?`<div>هاتف: ${U.escape(phone)}</div>`:''}</div><hr class="receipt-divider"><div class="receipt-row"><span>العميل</span><span>${U.escape(cust.name||'نقدى')}</span></div><div class="receipt-row"><span>رقم الفاتورة</span><span>${U.escape(inv.invoice_number||inv.id?.substring(0,8))}</span></div><div class="receipt-row"><span>التاريخ</span><span>${U.fmtDate(inv.date)}</span></div><hr class="receipt-divider"><div>${itemsH}</div><hr class="receipt-divider"><div class="receipt-row"><span>الاجمالى</span><span>${fmt(totals.sub)}</span></div>${totals.disc>0?`<div class="receipt-row"><span>الخصم</span><span>${fmt(totals.disc)}</span></div>`:''}<div class="receipt-row total"><span>الصافى</span><span>${fmt(totals.net)}</span></div><hr class="receipt-divider"><div>${payH}</div>${balH?`<hr class="receipt-divider"><div>${balH}</div>`:''}<hr class="receipt-divider"><div class="receipt-footer">${U.escape(foot)}</div></div>`;
+        const s = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        const name = s?.company?.name || 'حسابي';
+        const phone = s?.company?.phone || '';
+        const foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
+        const width = 32; // عدد الأحرف في العرض (يناسب 80mm مع خط 12px)
+
+        // دالة تنسيق المبلغ مع محاذاة لليمين
+        const fmt = v => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const alignRight = (label, value) => {
+            const lbl = String(label);
+            const val = String(value);
+            const spaces = Math.max(1, width - lbl.length - val.length);
+            return lbl + ' '.repeat(spaces) + val;
+        };
+
+        // بناء الإيصال
+        const lines = [];
+
+        // الرأس
+        lines.push(name);
+        if (phone) lines.push(`هاتف: ${phone}`);
+        lines.push('─'.repeat(width));
+
+        // معلومات الفاتورة
+        lines.push(alignRight('العميل:', cust?.name || 'نقدى'));
+        lines.push(alignRight('رقم الفاتورة:', inv.invoice_number || inv.id?.substring(0, 8)));
+        lines.push(alignRight('التاريخ:', U.fmtDate(inv.date)));
+        lines.push('─'.repeat(width));
+
+        // المنتجات
+        for (const it of items) {
+            const qty = it.quantity;
+            const price = it.price;
+            const total = U.round(qty * price, 2);
+            lines.push(U.escape(it.productName) + ' - ' + U.escape(it.unitName));
+            lines.push(`${qty} × ${fmt(price)} = ${fmt(total)}`);
+        }
+
+        lines.push('─'.repeat(width));
+
+        // الإجماليات
+        lines.push(alignRight('الإجمالي:', fmt(totals.sub)));
+        if (totals.disc > 0) {
+            lines.push(alignRight('الخصم:', fmt(totals.disc)));
+        }
+        lines.push(alignRight('الصافي:', fmt(totals.net)));
+        lines.push('─'.repeat(width));
+
+        // الدفع
+        const cash = pay.cash || 0;
+        const trans = pay.trans || 0;
+        const used = pay.used || 0;
+        const paid = U.round(cash + trans + used, 2);
+        const diff = pay.diff || 0;
+
+        lines.push(alignRight('نقدى:', fmt(cash)));
+        lines.push(alignRight('تحويل:', fmt(trans)));
+        if (used > 0) {
+            lines.push(alignRight('من رصيد عميل:', fmt(used)));
+        }
+        lines.push(alignRight('المدفوع:', fmt(paid)));
+
+        // فائض / متبقي (يظهر فقط إن وجد)
+        if (diff > 0) {
+            lines.push(alignRight('فائض:', fmt(diff)));
+        } else if (diff < 0) {
+            lines.push(alignRight('متبقى:', fmt(-diff)));
+        }
+
+        // حركة الرصيد (فقط إن كان عميلاً حقيقياً)
+        if (cust && cust.name !== 'نقدي') {
+            lines.push('─'.repeat(width));
+            lines.push(alignRight('الرصيد السابق:', fmt(oldBal)));
+            if (used > 0) {
+                lines.push(alignRight('خصم:', '-' + fmt(used)));
+            }
+            if (diff > 0) {
+                lines.push(alignRight('إضافة:', '+' + fmt(diff)));
+            }
+            const newBal = cust.balance || 0;
+            lines.push(alignRight('الرصيد الحالي:', fmt(newBal)));
+        }
+
+        lines.push('─'.repeat(width));
+        lines.push(foot);
+
+        // عرض الإيصال في <pre>
+        const receiptText = lines.join('\n');
+        this.el.receiptPrintArea.innerHTML = `<pre style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; text-align: right; direction: rtl; white-space: pre-wrap; margin: 0; padding: 8px; background: white; width: 80mm; max-width: 100%;">${U.escape(receiptText)}</pre>`;
         this._showModal('receiptModal');
     },
+
     _printReceipt() {
         const c = this.el.receiptPrintArea.innerHTML;
         const w = window.open('','_blank','width=400,height=600'); if (!w) { window.Toast?.error('اسمح بالنوافذ المنبثقة'); return; }
