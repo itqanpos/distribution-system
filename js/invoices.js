@@ -6,7 +6,7 @@
 const InvoicesPage = {
     state: {
         invoices: [],
-        purchases: [],        // أضفنا المشتريات للإحصائيات
+        purchases: [],
         filteredInvoices: [],
         currentPage: 1,
         pageSize: 15,
@@ -14,17 +14,17 @@ const InvoicesPage = {
         selectedInvoice: null
     },
     el: {},
-    refreshTimer: null,       // لإدارة المؤقت
+    refreshTimer: null,
 
     /* ---------- أدوات مساعدة ---------- */
     _utils: {
         formatMoney: (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
-        escapeHTML: (str) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; },
-        // إصلاح timezone لاستخدام التوقيت المحلي
+        escapeHTML: (str) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(str || '')); return d.innerHTML; },
         today: () => {
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        }
+        },
+        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return dateStr; } }
     },
 
     /* ---------- التهيئة ---------- */
@@ -36,45 +36,48 @@ const InvoicesPage = {
     },
 
     cacheDOM() {
-        const ids = ['tableBody','filterType','filterStatus','searchInput','resetBtn','newInvoiceBtn',
-                      'detailsModal','detailsContent','closeDetailsBtn','voidBtn','editBtn','printBtn',
-                      'pagination','sidebar','sidebarOverlay','menuToggle','moreMenuBtn','moreDropdown',
-                      'logoutBtn','printSalesReportBtn',
-                      'statTotalInvoices','statTotalSales','statPaid','statUnpaid','salesChart','topProductsList'];
-        ids.forEach(id => this.el[id] = document.getElementById(id));
+        const ids = [
+            'tableBody', 'filterType', 'filterStatus', 'searchInput', 'resetBtn', 'newInvoiceBtn',
+            'detailsModal', 'detailsContent', 'closeDetailsBtn', 'voidBtn', 'editBtn', 'printBtn',
+            'pagination', 'sidebar', 'sidebarOverlay', 'menuToggle', 'moreMenuBtn', 'moreDropdown',
+            'logoutBtn', 'printSalesReportBtn',
+            'statTotalInvoices', 'statTotalSales', 'statPaid', 'statUnpaid'
+        ];
+        ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
 
     bindEvents() {
         this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
         this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
         document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
+
         this.el.moreMenuBtn?.addEventListener('click', e => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
         document.addEventListener('click', e => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
         this.el.logoutBtn?.addEventListener('click', e => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
+
+        this.el.printSalesReportBtn?.addEventListener('click', e => { e.preventDefault(); this.printSalesReport(); this.el.moreDropdown?.classList.remove('show'); });
 
         this.el.filterType?.addEventListener('change', () => this.applyFilters());
         this.el.filterStatus?.addEventListener('change', () => this.applyFilters());
         this.el.searchInput?.addEventListener('input', () => this.applyFilters());
         this.el.resetBtn?.addEventListener('click', () => this.resetFilters());
-        this.el.newInvoiceBtn?.addEventListener('click', () => window.location.href = './pos.html');
+
+        this.el.newInvoiceBtn?.addEventListener('click', () => { window.location.href = './pos.html'; });
 
         this.el.closeDetailsBtn?.addEventListener('click', () => this.closeDetailsModal());
         this.el.printBtn?.addEventListener('click', () => this.printCurrentInvoice());
         this.el.voidBtn?.addEventListener('click', () => this.voidCurrentInvoice());
         this.el.editBtn?.addEventListener('click', () => this.editCurrentInvoice());
         this.el.detailsModal?.addEventListener('click', e => { if (e.target === this.el.detailsModal) this.closeDetailsModal(); });
-        this.el.printSalesReportBtn?.addEventListener('click', e => { e.preventDefault(); this.printSalesReport(); this.el.moreDropdown?.classList.remove('show'); });
 
         window.addEventListener('beforeunload', () => this.cleanup());
     },
 
     async initAuth() {
-        // انتظار requireAuth و getCurrentUser
         if (!window.App) return;
         const authenticated = await window.App.requireAuth();
         if (!authenticated) return;
-        await window.App.requireRole(['admin','rep']);
-        // تحديث بيانات المستخدم في الشريط الجانبي
+        await window.App.requireRole(['admin', 'rep']);
         const user = await window.App.getCurrentUser();
         if (user) {
             const avatar = document.getElementById('sidebarAvatar');
@@ -87,12 +90,10 @@ const InvoicesPage = {
 
     /* ---------- تحميل البيانات ---------- */
     async loadData() {
-        // إيقاف أي مؤقت سابق
         if (this.refreshTimer) clearInterval(this.refreshTimer);
         await this.loadInvoices();
-        await this.loadPurchases();   // إضافة لتحميل المشتريات للإحصائيات
+        await this.loadPurchases();
         this.loadStats();
-        // تحديث دوري كل 30 ثانية
         this.refreshTimer = setInterval(() => this.loadInvoices(), 30000);
     },
 
@@ -110,7 +111,6 @@ const InvoicesPage = {
 
     async loadPurchases() {
         try {
-            // استبدال getPurchasesLight الغير موجودة بـ getPurchases
             this.state.purchases = await window.DB.getPurchases().catch(() => []);
         } catch (e) {
             console.error('فشل تحميل المشتريات:', e);
@@ -120,70 +120,19 @@ const InvoicesPage = {
 
     loadStats() {
         const inv = this.state.invoices;
-        const pur = this.state.purchases || [];
         const totalInvoices = inv.length;
-        // إجمالي المبيعات (بيع فقط وغير ملغاة)
         const salesTotal = inv.filter(i => i.type === 'sale' && i.status !== 'voided').reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
         const paidCount = inv.filter(i => i.status === 'paid').length;
         const unpaidCount = inv.filter(i => i.status === 'unpaid' || i.status === 'partial').length;
 
         const fm = this._utils.formatMoney;
-        document.getElementById('statTotalInvoices')?.textContent = totalInvoices;
-        document.getElementById('statTotalSales')?.textContent = fm(salesTotal);
-        document.getElementById('statPaid')?.textContent = paidCount;
-        document.getElementById('statUnpaid')?.textContent = unpaidCount;
-
-        // رسم بياني للمبيعات اليومية
-        this.renderSalesChart();
+        if (this.el.statTotalInvoices) this.el.statTotalInvoices.textContent = totalInvoices;
+        if (this.el.statTotalSales) this.el.statTotalSales.textContent = fm(salesTotal);
+        if (this.el.statPaid) this.el.statPaid.textContent = paidCount;
+        if (this.el.statUnpaid) this.el.statUnpaid.textContent = unpaidCount;
     },
 
-    /* ---------- الرسم البياني (مع فحص Chart.js) ---------- */
-    renderSalesChart() {
-        if (typeof Chart === 'undefined') {
-            console.warn('Chart.js غير محمل');
-            return;
-        }
-        const canvas = this.el.salesChart;
-        if (!canvas) return;
-
-        // تجميع المبيعات اليومية لآخر 7 أيام
-        const inv = this.state.invoices;
-        const sales = inv.filter(i => i.type === 'sale' && i.status !== 'voided');
-        const days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            days.push(d.toISOString().split('T')[0]);
-        }
-        const dailyTotals = days.map(day => sales.filter(inv => inv.date === day).reduce((s, inv) => s + (parseFloat(inv.total) || 0), 0));
-        const labels = days.map(day => new Date(day).toLocaleDateString('ar-EG', { weekday: 'short' }));
-
-        // تدمير الرسم السابق إذا وُجد
-        if (window.salesChartInstance) {
-            window.salesChartInstance.destroy();
-        }
-
-        window.salesChartInstance = new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'المبيعات (ج.م)',
-                    data: dailyTotals,
-                    backgroundColor: 'rgba(37, 99, 235, 0.7)',
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    },
-
-    /* ---------- الفلاتر والبحث ---------- */
+    /* ---------- الفلاتر ---------- */
     applyFilters() {
         const type = this.el.filterType?.value || 'all';
         const status = this.el.filterStatus?.value || 'all';
@@ -198,8 +147,10 @@ const InvoicesPage = {
                 (i.customer_name && i.customer_name.toLowerCase().includes(search))
             );
         }
-        // ترتيب حسب التاريخ تنازلياً باستخدام Date
+
+        // ترتيب حسب التاريخ تنازلياً
         filtered.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+
         this.state.filteredInvoices = filtered;
         this.state.currentPage = 1;
         this.renderTable();
@@ -212,7 +163,7 @@ const InvoicesPage = {
         this.applyFilters();
     },
 
-    /* ---------- عرض الجدول والترقيم ---------- */
+    /* ---------- عرض الجدول ---------- */
     renderTable() {
         const { filteredInvoices, currentPage, pageSize } = this.state;
         const totalPages = Math.ceil(filteredInvoices.length / pageSize);
@@ -242,9 +193,19 @@ const InvoicesPage = {
                 <td><span class="badge ${inv.status || 'unpaid'}">${statusLabels[inv.status] || inv.status}</span></td>
                 <td>
                     <div class="action-btns">
-                        <button class="action-btn" onclick="InvoicesPage.viewInvoice('${inv.id}')" title="عرض"><i class="fas fa-eye"></i></button>
-                        ${inv.type === 'sale' && inv.status !== 'voided' ? `<button class="action-btn edit-btn" onclick="InvoicesPage.editInvoice('${inv.id}')"><i class="fas fa-edit"></i></button>` : ''}
-                        ${inv.status !== 'voided' ? `<button class="action-btn danger" onclick="InvoicesPage.confirmVoid('${inv.id}')"><i class="fas fa-ban"></i></button>` : ''}
+                        <button class="action-btn" onclick="InvoicesPage.viewInvoice('${inv.id}')" title="عرض التفاصيل">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${inv.type === 'sale' && inv.status !== 'voided' ? `
+                        <button class="action-btn edit-btn" onclick="InvoicesPage.editInvoice('${inv.id}')" title="تعديل الفاتورة">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ` : ''}
+                        ${inv.status !== 'voided' ? `
+                        <button class="action-btn danger" onclick="InvoicesPage.confirmVoid('${inv.id}')" title="إلغاء الفاتورة">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
@@ -255,7 +216,16 @@ const InvoicesPage = {
 
     showEmptyState() {
         if (!this.el.tableBody) return;
-        this.el.tableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-file-invoice"></i><p>لا توجد فواتير</p></div></td></tr>';
+        this.el.tableBody.innerHTML = `
+            <tr>
+                <td colspan="9">
+                    <div class="empty-state">
+                        <i class="fas fa-file-invoice"></i>
+                        <p>لا توجد فواتير</p>
+                    </div>
+                </td>
+            </tr>
+        `;
         if (this.el.pagination) this.el.pagination.innerHTML = '';
     },
 
@@ -264,6 +234,7 @@ const InvoicesPage = {
             if (this.el.pagination) this.el.pagination.innerHTML = '';
             return;
         }
+
         let html = '';
         const cp = this.state.currentPage;
         html += `<button ${cp === 1 ? 'disabled' : ''} onclick="InvoicesPage.goToPage(${cp - 1})">«</button>`;
@@ -296,9 +267,11 @@ const InvoicesPage = {
 
     showDetailsModal(invoice) {
         if (!this.el.detailsContent) return;
-        const fm = this._utils.formatMoney, esc = this._utils.escapeHTML;
+        const fm = this._utils.formatMoney;
+        const esc = this._utils.escapeHTML;
         const typeLabels = { sale: 'مبيعات', purchase: 'مشتريات', return: 'مرتجع' };
         const statusLabels = { paid: 'مدفوعة', partial: 'جزئية', unpaid: 'غير مدفوعة', held: 'معلقة', voided: 'ملغاة' };
+
         const items = Array.isArray(invoice.items) ? invoice.items : [];
         let itemsRows = items.map(item => `
             <tr>
@@ -307,7 +280,8 @@ const InvoicesPage = {
                 <td>${item.quantity || 0}</td>
                 <td>${fm(item.price || 0)}</td>
                 <td>${fm((item.quantity || 0) * (item.price || 0))}</td>
-            </tr>`).join('');
+            </tr>
+        `).join('');
 
         this.el.detailsContent.innerHTML = `
             <div class="detail-section">
@@ -360,7 +334,9 @@ const InvoicesPage = {
         }
     },
 
-    confirmVoid(id) { this.viewInvoice(id).then(() => setTimeout(() => this.el.voidBtn?.click(), 500)); },
+    confirmVoid(id) {
+        this.viewInvoice(id).then(() => setTimeout(() => this.el.voidBtn?.click(), 500));
+    },
 
     editInvoice(id) {
         localStorage.setItem('edit_invoice_id', id);
@@ -380,10 +356,39 @@ const InvoicesPage = {
         const sales = this.state.invoices.filter(i => i.type === 'sale');
         const fm = this._utils.formatMoney;
         const totalAll = sales.reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
-        let rows = sales.map(inv => `<tr><td>${inv.invoice_number || inv.id?.substring(0,8)}</td><td>${inv.date || '-'}</td><td>${inv.customer_name || '-'}</td><td>${fm(inv.total)}</td></tr>`).join('');
-        const w = window.open('','_blank','width=800,height=600');
-        if (!w) { if (window.Toast) Toast.error('اسمح بالنوافذ المنبثقة'); return; }
-        w.document.write(`<html dir="rtl"><head><meta charset="UTF-8"><title>تقرير المبيعات</title><style>body{font-family:'Cairo',sans-serif;direction:rtl;padding:20px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px} th{background:#f5f5f5} .total{font-weight:bold;font-size:1.2em;text-align:left;margin-top:20px}</style></head><body><h2>تقرير المبيعات</h2><p>${new Date().toLocaleDateString('ar-EG')}</p><table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table><div class="total">إجمالي المبيعات: ${fm(totalAll)}</div></body></html>`);
+        let rows = sales.map(inv => `
+            <tr>
+                <td>${inv.invoice_number || inv.id?.substring(0,8)}</td>
+                <td>${inv.date || '-'}</td>
+                <td>${inv.customer_name || '-'}</td>
+                <td>${fm(inv.total)}</td>
+            </tr>
+        `).join('');
+
+        const w = window.open('', '_blank', 'width=800,height=600');
+        if (!w) { if (window.Toast) Toast.error('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
+        w.document.write(`
+            <html dir="rtl">
+            <head><meta charset="UTF-8"><title>تقرير المبيعات</title>
+            <style>
+                body{font-family:'Cairo',sans-serif;direction:rtl;padding:20px}
+                table{width:100%;border-collapse:collapse;margin:20px 0}
+                th,td{border:1px solid #ddd;padding:8px;text-align:right}
+                th{background:#f5f5f5}
+                .total{font-weight:bold;font-size:1.2em;text-align:left;margin-top:20px}
+            </style>
+            </head>
+            <body>
+                <h2>تقرير المبيعات</h2>
+                <p>التاريخ: ${new Date().toLocaleDateString('ar-EG')}</p>
+                <table>
+                    <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="total">إجمالي المبيعات: ${fm(totalAll)}</div>
+            </body>
+            </html>
+        `);
         w.document.close();
         w.focus();
         setTimeout(() => w.print(), 300);
@@ -391,10 +396,6 @@ const InvoicesPage = {
 
     cleanup() {
         if (this.refreshTimer) clearInterval(this.refreshTimer);
-        if (window.salesChartInstance) {
-            window.salesChartInstance.destroy();
-            window.salesChartInstance = null;
-        }
     }
 };
 
