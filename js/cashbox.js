@@ -1,320 +1,354 @@
 /* =============================================
-   cashbox.js - الصندوق (إصدار فائق السرعة)
+   cashbox.js - صفحة الصندوق (إصدار محسّن)
    ============================================= */
 'use strict';
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }) + ' ' + currency;
-        },
-        formatDate: (dateStr) => {
-            if (!dateStr) return '';
-            try {
-                return new Date(dateStr).toLocaleDateString('ar-EG', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            } catch (e) {
-                return dateStr;
-            }
-        },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
-    };
-}
+const CashboxPage = {
+    state: {
+        transactions: [],
+        filteredTransactions: [],
+        balance: 0,
+        currentPage: 1,
+        pageSize: 15,
+        filters: { type: 'all', search: '' },
+        loading: false,
+        editingTransaction: null,
+        currentUser: null,
+        balanceMap: new Map() // للتخزين المسبق للرصيد التراكمي
+    },
+    el: {},
+    refreshTimer: null,
+    _toastTimer: null,
 
-const Cashbox = {
-    transactions: [],
-    settings: {},
-    isDBReady: false,
+    /* ---------- أدوات مساعدة ---------- */
+    _utils: {
+        formatMoney: (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
+        escapeHTML: (str) => { const div = document.createElement('div'); div.appendChild(document.createTextNode(str || '')); return div.innerHTML; },
+        today: () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        },
+        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return dateStr; } },
+    },
 
-    init() {
+    /* ---------- التهيئة ---------- */
+    async init() {
         this.cacheElements();
         this.bindEvents();
+        // 1- إصلاح requireAuth (async)
         if (window.App) {
-            if (!App.requireAuth()) return;
+            const ok = await App.requireAuth();
+            if (!ok) return;
             App.initUserInterface();
         }
-        this.initSidebarUser();
-        this.loadData();
+        await this.initSidebarUser();
+        await this.loadData();
+        this.setupPeriodicRefresh();
+        window.addEventListener('online', () => this.loadData());
+        window.addEventListener('beforeunload', () => this.cleanup());
     },
 
     cacheElements() {
-        this.el = {
-            menuToggle: document.getElementById('menuToggle'),
-            sidebar: document.getElementById('sidebar'),
-            sidebarOverlay: document.getElementById('sidebarOverlay'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            searchInput: document.getElementById('searchInput'),
-            typeFilter: document.getElementById('typeFilter'),
-            methodFilter: document.getElementById('methodFilter'),
-            dateFrom: document.getElementById('dateFrom'),
-            dateTo: document.getElementById('dateTo'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            transactionsBody: document.getElementById('transactionsBody'),
-            addTransactionBtn: document.getElementById('addTransactionBtn'),
-            currentBalance: document.getElementById('currentBalance'),
-            totalIncome: document.getElementById('totalIncome'),
-            totalExpense: document.getElementById('totalExpense'),
-            transactionCount: document.getElementById('transactionCount'),
-            transactionModal: document.getElementById('transactionModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            closeModalBtn: document.getElementById('closeModalBtn'),
-            cancelModalBtn: document.getElementById('cancelModalBtn'),
-            transactionForm: document.getElementById('transactionForm'),
-            transactionId: document.getElementById('transactionId'),
-            transType: document.getElementById('transType'),
-            transDate: document.getElementById('transDate'),
-            transAmount: document.getElementById('transAmount'),
-            transMethod: document.getElementById('transMethod'),
-            transDescription: document.getElementById('transDescription'),
-            moreMenuBtn: document.getElementById('moreMenuBtn'),
-            moreDropdown: document.getElementById('moreDropdown'),
-            refreshDataBtn: document.getElementById('refreshDataBtn'),
-            sidebarAvatar: document.getElementById('sidebarAvatar'),
-            sidebarUserName: document.getElementById('sidebarUserName'),
-            toast: document.getElementById('toast')
-        };
+        const ids = [
+            'balanceDisplay', 'searchInput', 'filterType', 'tableBody', 'pagination', 'addTransactionBtn',
+            'transactionModal', 'modalTitle', 'transactionType', 'transactionAmount', 'transactionDescription',
+            'transactionDate', 'saveTransactionBtn', 'closeTransactionModalBtn', 'deleteTransactionBtn',
+            'sidebar', 'sidebarOverlay', 'menuToggle', 'moreMenuBtn', 'moreDropdown', 'logoutBtn',
+            'sidebarAvatar', 'sidebarUserName'
+        ];
+        ids.forEach(id => this.el[id] = document.getElementById(id));
     },
 
     bindEvents() {
-        // القائمة الجانبية
-        this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay?.classList.toggle('show');
-        });
-        this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
-        });
-        document.querySelectorAll('.menu-item').forEach(link => {
-            link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
-                this.el.sidebarOverlay?.classList.remove('show');
-            });
-        });
+        // الشريط الجانبي
+        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
+        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
+        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
+        this.el.moreMenuBtn?.addEventListener('click', e => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
+        document.addEventListener('click', e => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+        this.el.logoutBtn?.addEventListener('click', e => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // زر النقاط الثلاث والقائمة المنسدلة
-        this.el.moreMenuBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.el.moreDropdown?.classList.toggle('show');
-        });
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
-        });
+        // الفلاتر
+        this.el.filterType?.addEventListener('change', () => this.applyFilters());
+        this.el.searchInput?.addEventListener('input', () => this.applyFilters());
 
-        this.el.refreshDataBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.loadData();
-            this.toast('تم تحديث البيانات');
-            this.el.moreDropdown?.classList.remove('show');
-        });
-        this.el.logoutBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (window.App) App.logout();
-            else window.location.href = './index.html';
-        });
+        // فتح مودال إضافة/تعديل
+        this.el.addTransactionBtn?.addEventListener('click', () => this.openTransactionModal());
+        this.el.closeTransactionModalBtn?.addEventListener('click', () => this.closeModal('transactionModal'));
+        this.el.saveTransactionBtn?.addEventListener('click', () => this.saveTransaction());
+        this.el.deleteTransactionBtn?.addEventListener('click', () => this.deleteCurrentTransaction());
 
-        // الفلاتر والبحث
-        this.el.searchInput?.addEventListener('input', () => this.renderTable());
-        this.el.typeFilter?.addEventListener('change', () => this.renderTable());
-        this.el.methodFilter?.addEventListener('change', () => this.renderTable());
-        this.el.dateFrom?.addEventListener('change', () => this.renderTable());
-        this.el.dateTo?.addEventListener('change', () => this.renderTable());
-        this.el.refreshBtn?.addEventListener('click', () => this.loadData());
-
-        this.el.addTransactionBtn?.addEventListener('click', () => this.openModal());
-        this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.transactionForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveTransaction(); });
+        // إغلاق المودال بالنقر خارج المحتوى
+        this.el.transactionModal?.addEventListener('click', e => {
+            if (e.target === this.el.transactionModal) this.closeModal('transactionModal');
+        });
     },
 
-    initSidebarUser() {
-        const user = window.App?.getCurrentUser?.();
-        if (user) {
-            if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U';
-            if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
+    // 2- إصلاح getCurrentUser (async)
+    async initSidebarUser() {
+        const user = await window.App?.getCurrentUser?.();
+        this.state.currentUser = user;
+        if (!user) return;
+        if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = (user.fullName || 'U').charAt(0).toUpperCase();
+        if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام';
+    },
+
+    showToast(msg, type = 'info') {
+        if (window.Toast) {
+            if (type === 'error') Toast.error(msg);
+            else if (type === 'success') Toast.success(msg);
+            else Toast.info(msg);
+        } else {
+            alert(msg);
         }
     },
 
+    /* ---------- تحميل البيانات وحساب الرصيد ---------- */
     async loadData() {
-        this.isDBReady = Utils.isDBReady();
+        if (this.state.loading) return;
+        this.state.loading = true;
         try {
-            if (this.isDBReady) {
-                this.transactions = await DB.getTransactions() || [];
-                this.settings = await DB.getSettings().catch(() => ({}));
-            } else if (Utils.hasLocalDB()) {
-                this.transactions = await localDB.getAll('transactions') || [];
-                const s = await localDB.getById('settings', 'main').catch(() => null);
-                this.settings = s?.data || {};
-            } else {
-                this.transactions = [];
-                this.settings = { financial: { opening_cash_balance: 0 } };
-            }
-            this.updateStats();
-            this.renderTable();
-        } catch (err) {
-            console.error('فشل تحميل بيانات الصندوق:', err);
-            this.el.transactionsBody.innerHTML = '<tr><td colspan="6" class="empty-message">فشل تحميل البيانات</td></tr>';
+            // استخدم DB.getTransactions لجلب كل المعاملات (أو getTransactionsLight لو موجودة)
+            const tx = await window.DB?.getTransactions().catch(() => []);
+            // تأكد من أن amount رقم
+            this.state.transactions = (tx || []).map(t => ({ ...t, amount: Number(t.amount || 0) }));
+            // حساب الرصيد مرة واحدة
+            this.calculateBalance();
+            // بناء خريطة للرصيد التراكمي لتحسين الأداء
+            this.buildBalanceMap();
+            this.applyFilters();
+        } catch (e) {
+            console.error('فشل تحميل المعاملات:', e);
+            this.showToast('فشل تحميل بيانات الصندوق', 'error');
+            this.state.transactions = [];
+            this.applyFilters();
+        } finally {
+            this.state.loading = false;
         }
     },
 
     calculateBalance() {
-        const opening = this.settings?.financial?.opening_cash_balance || 0;
-        let balance = opening;
-        for (const tr of this.transactions) {
-            if (tr.type === 'income') balance += tr.amount;
-            else balance -= tr.amount;
+        // 5- تحويل amount إلى Number لضمان الحساب الصحيح
+        this.state.balance = this.state.transactions.reduce((acc, t) => {
+            return t.type === 'income' ? acc + Number(t.amount) : acc - Number(t.amount);
+        }, 0);
+        if (this.el.balanceDisplay) {
+            this.el.balanceDisplay.textContent = this._utils.formatMoney(this.state.balance);
+            this.el.balanceDisplay.classList.toggle('text-success', this.state.balance >= 0);
+            this.el.balanceDisplay.classList.toggle('text-danger', this.state.balance < 0);
         }
-        return balance;
     },
 
-    updateStats() {
-        let totalInc = 0, totalExp = 0;
-        for (const tr of this.transactions) {
-            if (tr.type === 'income') totalInc += tr.amount;
-            else totalExp += tr.amount;
+    // بناء خريطة الرصيد التراكمي لتسريع حسابات الرصيد في وقت لاحق (مثلاً في التحقق من التعديل)
+    buildBalanceMap() {
+        this.state.balanceMap.clear();
+        let cumulative = 0;
+        const sortedAsc = [...this.state.transactions].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        for (const t of sortedAsc) {
+            if (t.type === 'income') cumulative += t.amount;
+            else cumulative -= t.amount;
+            this.state.balanceMap.set(t.id, cumulative);
         }
-        if (this.el.currentBalance) this.el.currentBalance.textContent = Utils.formatMoney(this.calculateBalance());
-        if (this.el.totalIncome) this.el.totalIncome.textContent = Utils.formatMoney(totalInc);
-        if (this.el.totalExpense) this.el.totalExpense.textContent = Utils.formatMoney(totalExp);
-        if (this.el.transactionCount) this.el.transactionCount.textContent = this.transactions.length;
     },
 
+    /* ---------- الفلاتر ---------- */
+    applyFilters() {
+        const type = this.el.filterType?.value || 'all';
+        const search = (this.el.searchInput?.value || '').trim().toLowerCase();
+
+        let filtered = [...this.state.transactions];
+        if (type !== 'all') filtered = filtered.filter(t => t.type === type);
+        if (search) {
+            filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(search));
+        }
+
+        // 8- إصلاح مقارنة timestamp (رقمي)
+        filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        this.state.filteredTransactions = filtered;
+        this.state.currentPage = 1;
+        this.renderTable();
+    },
+
+    /* ---------- عرض الجدول والترقيم ---------- */
     renderTable() {
-        const term = this.el.searchInput?.value.trim().toLowerCase() || '';
-        const type = this.el.typeFilter?.value || 'all';
-        const method = this.el.methodFilter?.value || 'all';
-        const from = this.el.dateFrom?.value || '';
-        const to = this.el.dateTo?.value || '';
+        const { filteredTransactions, currentPage, pageSize } = this.state;
+        const totalPages = Math.ceil(filteredTransactions.length / pageSize);
+        const start = (currentPage - 1) * pageSize;
+        const pageData = filteredTransactions.slice(start, start + pageSize);
 
-        let filtered = this.transactions.filter(tr => {
-            const matchSearch = !term || (tr.description || '').toLowerCase().includes(term);
-            const matchType = type === 'all' || tr.type === type;
-            const matchMethod = method === 'all' || tr.payment_method === method;
-            const matchDateFrom = !from || tr.date >= from;
-            const matchDateTo = !to || tr.date <= to;
-            return matchSearch && matchType && matchMethod && matchDateFrom && matchDateTo;
-        });
-
-        filtered.sort((a, b) => {
-            if (b.date !== a.date) return (b.date || '').localeCompare(a.date || '');
-            return (b.timestamp || b.created_at || '').localeCompare(a.timestamp || a.created_at || '');
-        });
-
-        if (!filtered.length) {
-            this.el.transactionsBody.innerHTML = '<tr><td colspan="6" class="empty-message">لا توجد معاملات</td></tr>';
+        if (!this.el.tableBody) return;
+        if (!pageData.length) {
+            this.el.tableBody.innerHTML = '<tr><td colspan="5" class="empty-state">لا توجد معاملات</td></tr>';
+            this.renderPagination(0);
             return;
         }
 
-        // حساب الرصيد التراكمي مرة واحدة
-        const balanceMap = new Map();
-        let runningBalance = this.settings?.financial?.opening_cash_balance || 0;
-        const sortedAsc = [...this.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.timestamp || '').localeCompare(b.timestamp || ''));
-        for (const tr of sortedAsc) {
-            if (tr.type === 'income') runningBalance += tr.amount;
-            else runningBalance -= tr.amount;
-            balanceMap.set(tr.id, runningBalance);
-        }
+        const esc = this._utils.escapeHTML;
+        const fm = this._utils.formatMoney;
+        const fmtDate = this._utils.formatDate;
 
-        // تجميع الصفوف دفعة واحدة
-        let rowsHTML = '';
-        for (const tr of filtered) {
-            const typeClass = tr.type === 'income' ? 'income-text' : 'expense-text';
-            const typeText = tr.type === 'income' ? 'إيراد' : 'مصروف';
-            const methodText = tr.payment_method === 'cash' ? 'نقدي' : (tr.payment_method === 'bank' ? 'تحويل' : tr.payment_method || '-');
-            const sign = tr.type === 'income' ? '+' : '-';
-            const balanceAfter = balanceMap.get(tr.id) || 0;
-            rowsHTML += `<tr>
-                <td>${Utils.formatDate(tr.date)}</td>
-                <td class="${typeClass}">${typeText}</td>
-                <td>${tr.description || '-'}</td>
-                <td class="${typeClass}">${sign} ${Utils.formatMoney(tr.amount)}</td>
-                <td>${methodText}</td>
-                <td class="balance-cell">${Utils.formatMoney(balanceAfter)}</td>
-            </tr>`;
-        }
-        this.el.transactionsBody.innerHTML = rowsHTML;
+        this.el.tableBody.innerHTML = pageData.map(t => `
+            <tr>
+                <td>${fmtDate(t.date)}</td>
+                <td>${t.type === 'income' ? 'دخل' : 'مصروف'}</td>
+                <td>${esc(t.description || '-')}</td>
+                <td class="${t.type === 'income' ? 'text-success' : 'text-danger'}">${fm(t.amount)}</td>
+                <td>
+                    <button class="action-btn" onclick="CashboxPage.editTransaction('${t.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn danger" onclick="CashboxPage.deleteTransaction('${t.id}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+
+        this.renderPagination(totalPages);
     },
 
-    openModal(transaction = null) {
-        this.el.modalTitle.textContent = transaction ? 'تعديل معاملة' : 'معاملة جديدة';
-        this.el.transactionId.value = transaction?.id || '';
-        this.el.transType.value = transaction?.type || 'income';
-        this.el.transDate.value = transaction?.date || Utils.getToday();
-        this.el.transAmount.value = transaction?.amount || '';
-        this.el.transMethod.value = transaction?.payment_method || 'cash';
-        this.el.transDescription.value = transaction?.description || '';
-        this.el.transactionModal.classList.add('open');
+    renderPagination(totalPages) {
+        if (!this.el.pagination || totalPages <= 1) {
+            if (this.el.pagination) this.el.pagination.innerHTML = '';
+            return;
+        }
+        let html = '';
+        const cp = this.state.currentPage;
+        html += `<button ${cp === 1 ? 'disabled' : ''} onclick="CashboxPage.goToPage(${cp - 1})">«</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="${i === cp ? 'active' : ''}" onclick="CashboxPage.goToPage(${i})">${i}</button>`;
+        }
+        html += `<button ${cp === totalPages ? 'disabled' : ''} onclick="CashboxPage.goToPage(${cp + 1})">»</button>`;
+        this.el.pagination.innerHTML = html;
     },
 
-    closeModal() {
-        this.el.transactionModal.classList.remove('open');
+    goToPage(page) {
+        const total = Math.ceil(this.state.filteredTransactions.length / this.state.pageSize);
+        if (page < 1 || page > total) return;
+        this.state.currentPage = page;
+        this.renderTable();
+    },
+
+    /* ---------- إدارة المعاملات (مودال) ---------- */
+    openTransactionModal(transaction = null) {
+        const isEdit = !!transaction;
+        this.state.editingTransaction = transaction;
+        if (this.el.modalTitle) this.el.modalTitle.textContent = isEdit ? 'تعديل معاملة' : 'إضافة معاملة';
+        if (this.el.transactionType) {
+            this.el.transactionType.value = transaction?.type || 'income';
+            if (isEdit) this.el.transactionType.disabled = true;
+            else this.el.transactionType.disabled = false;
+        }
+        if (this.el.transactionAmount) this.el.transactionAmount.value = transaction?.amount || '';
+        if (this.el.transactionDescription) this.el.transactionDescription.value = transaction?.description || '';
+        if (this.el.transactionDate) this.el.transactionDate.value = transaction?.date || this._utils.today();
+        if (this.el.deleteTransactionBtn) this.el.deleteTransactionBtn.style.display = isEdit ? 'inline-flex' : 'none';
+        this.el.transactionModal?.classList.add('open');
+    },
+
+    closeModal(id) {
+        this.el[id]?.classList.remove('open');
+        this.state.editingTransaction = null;
     },
 
     async saveTransaction() {
-        const type = this.el.transType?.value || 'income';
-        const date = this.el.transDate?.value || Utils.getToday();
-        const amount = parseFloat(this.el.transAmount?.value) || 0;
-        const method = this.el.transMethod?.value || 'cash';
-        const description = this.el.transDescription?.value.trim() || null;
+        const type = this.el.transactionType?.value || 'income';
+        const amount = parseFloat(this.el.transactionAmount?.value);
+        const description = (this.el.transactionDescription?.value || '').trim();
+        const date = this.el.transactionDate?.value || this._utils.today();
 
-        if (!amount || amount <= 0) { alert('المبلغ مطلوب'); return; }
-
-        // التحقق من الرصيد في حالة السحب
-        if (type === 'expense') {
-            const currentBalance = this.calculateBalance();
-            if (amount > currentBalance) {
-                alert(`الرصيد غير كافٍ. الرصيد الحالي: ${Utils.formatMoney(currentBalance)}`);
-                return;
-            }
+        if (isNaN(amount) || amount <= 0) {
+            this.showToast('المبلغ غير صالح', 'error');
+            return;
+        }
+        if (!description) {
+            this.showToast('يرجى كتابة وصف', 'error');
+            return;
         }
 
+        const isEdit = !!this.state.editingTransaction;
         const transaction = {
-            id: this.el.transactionId?.value || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
-            date,
+            id: isEdit ? this.state.editingTransaction.id : (window.DB?.generateUUID ? window.DB.generateUUID() : crypto.randomUUID()),
             type,
-            amount,
+            amount: Number(amount),
             description,
-            payment_method: method
+            date,
+            timestamp: Date.now(),
+            tenant_id: this.state.currentUser?.tenant_id
         };
 
+        if (isEdit) {
+            // عند التعديل، نخصم المعاملة القديمة من الرصيد المحلي ثم نضيف الجديدة
+            const oldAmount = this.state.editingTransaction.amount;
+            const oldType = this.state.editingTransaction.type;
+            // الرصيد الحالي قبل الحفظ: نحسبه محلياً
+            if (oldType === 'income') this.state.balance -= oldAmount;
+            else this.state.balance += oldAmount;
+
+            if (type === 'income') this.state.balance += amount;
+            else this.state.balance -= amount;
+        }
+
         try {
-            if (this.isDBReady) {
-                await DB.saveTransaction(transaction);
-            } else if (Utils.hasLocalDB()) {
-                await localDB.put('transactions', transaction);
-            } else {
-                const local = JSON.parse(localStorage.getItem('transactions') || '[]');
-                const idx = local.findIndex(t => t.id === transaction.id);
-                if (idx >= 0) local[idx] = transaction;
-                else local.push(transaction);
-                localStorage.setItem('transactions', JSON.stringify(local));
-            }
-            this.closeModal();
+            // حفظ عبر DB.saveTransaction (يدعم offline)
+            await window.DB?.saveTransaction(transaction);
+            this.showToast(isEdit ? 'تم تعديل المعاملة' : 'تمت الإضافة', 'success');
+            this.closeModal('transactionModal');
+            // إعادة تحميل البيانات بالكامل للتأكد من الدقة
             await this.loadData();
-            this.showToast('تم حفظ المعاملة بنجاح');
-        } catch (err) {
-            console.error('فشل حفظ المعاملة:', err);
-            alert('فشل حفظ المعاملة: ' + err.message);
+        } catch (e) {
+            console.error(e);
+            this.showToast('فشل حفظ المعاملة', 'error');
         }
     },
 
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    async deleteTransaction(id) {
+        const tx = this.state.transactions.find(t => t.id === id);
+        if (!tx) return;
+        if (!confirm(`حذف معاملة "${tx.description}"؟`)) return;
+
+        try {
+            // حذف عبر DB (يجب أن يرسل للطابور في حالة offline)
+            if (window.DB?.deleteTransaction) {
+                await window.DB.deleteTransaction(id);
+            } else {
+                // fallback: تحديث محلي فقط
+                this.state.transactions = this.state.transactions.filter(t => t.id !== id);
+            }
+            this.showToast('تم الحذف', 'success');
+            // إذا كان المودال مفتوحاً أغلقه
+            if (this.el.transactionModal?.classList.contains('open') && this.state.editingTransaction?.id === id) {
+                this.closeModal('transactionModal');
+            }
+            await this.loadData();
+        } catch (e) {
+            console.error(e);
+            this.showToast('فشل حذف المعاملة', 'error');
+        }
+    },
+
+    editTransaction(id) {
+        const tx = this.state.transactions.find(t => t.id === id);
+        if (tx) this.openTransactionModal(tx);
+    },
+
+    deleteCurrentTransaction() {
+        const tx = this.state.editingTransaction;
+        if (tx) this.deleteTransaction(tx.id);
+    },
+
+    /* ---------- تحديث دوري وتنظيف ---------- */
+    setupPeriodicRefresh() {
+        this.refreshTimer = setInterval(() => {
+            if (!this.state.loading && document.visibilityState === 'visible') {
+                this.loadData();
+            }
+        }, 30000);
+    },
+
+    cleanup() {
+        if (this.refreshTimer) clearInterval(this.refreshTimer);
+        if (this._toastTimer) clearTimeout(this._toastTimer);
+        window.removeEventListener('online', () => this.loadData());
     }
 };
 
-window.Cashbox = Cashbox;
-document.addEventListener('DOMContentLoaded', () => Cashbox.init());
+// لا تستدعي init هنا، بل من cashbox.html
+window.CashboxPage = CashboxPage;
