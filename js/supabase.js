@@ -1,17 +1,22 @@
 /* =============================================
-   supabase.js - الإصدار 3.7 (إصلاحات شاملة)
+   supabase.js - النواة المُوحَّدة (SaaS Multi-Tenant)
+   الإصدار 4.0 - Production Grade
    ============================================= */
 (function() {
     'use strict';
 
+    // ==================== الضبط ====================
     const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
 
+    // ==================== التهيئة الاحتياطية ====================
     window.App = window.App || {};
     window.DB = window.DB || {};
 
-    let supabaseClient = null, initialized = false;
+    let supabaseClient = null;
+    let initialized = false;
 
+    // ==================== UUID آمن ====================
     function generateUUID() {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
         if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -28,20 +33,40 @@
         });
     }
 
-    // ==================== SessionStore ====================
+    // ==================== مسجل مركزي (للتطوير) ====================
+    const Logger = {
+        info: (msg, ...args) => console.log(`[INFO] ${msg}`, ...args),
+        warn: (msg, ...args) => console.warn(`[WARN] ${msg}`, ...args),
+        error: (msg, ...args) => console.error(`[ERROR] ${msg}`, ...args)
+    };
+
+    // ==================== إدارة الجلسة (آمنة) ====================
     const SessionStore = {
-        _user: null, _tenantId: null, _settings: null,
-        _cache: new Map(), _cacheTimes: new Map(), _maxCacheSize: 50,
+        _user: null,
+        _tenantId: null,
+        _settings: null,
+        _cache: new Map(),
+        _cacheTimes: new Map(),
+        _maxCacheSize: 50,
 
         set user(val) {
             this._user = val;
             this._tenantId = val?.tenant_id || null;
             if (val) {
-                const session = { id: val.id, email: val.email, fullName: val.fullName, tenant_id: val.tenant_id, loginTime: new Date().toLocaleString('ar-EG') };
+                // لا نخزن role في localStorage للعرض فقط
+                const session = {
+                    id: val.id,
+                    email: val.email,
+                    fullName: val.fullName,
+                    tenant_id: val.tenant_id,
+                    loginTime: new Date().toLocaleString('ar-EG')
+                };
                 localStorage.setItem('app_session', JSON.stringify(session));
             } else {
                 localStorage.removeItem('app_session');
-                this._cache.clear(); this._cacheTimes.clear(); this._settings = null;
+                this._cache.clear();
+                this._cacheTimes.clear();
+                this._settings = null;
             }
         },
         get user() { return this._user; },
@@ -58,16 +83,25 @@
         },
         getCache(key) {
             const expiry = this._cacheTimes.get(key);
-            if (expiry && Date.now() > expiry) { this._cache.delete(key); this._cacheTimes.delete(key); return undefined; }
+            if (expiry && Date.now() > expiry) {
+                this._cache.delete(key);
+                this._cacheTimes.delete(key);
+                return undefined;
+            }
             return this._cache.get(key);
         },
         invalidate(key) {
-            if (key) { this._cache.delete(key); this._cacheTimes.delete(key); }
-            else { this._cache.clear(); this._cacheTimes.clear(); }
+            if (key) {
+                this._cache.delete(key);
+                this._cacheTimes.delete(key);
+            } else {
+                this._cache.clear();
+                this._cacheTimes.clear();
+            }
         }
     };
 
-    // تنظيف الكاش تلقائيًا كل دقيقة
+    // تنظيف الكاش تلقائياً كل دقيقة
     setInterval(() => {
         const now = Date.now();
         for (const [key, expiry] of SessionStore._cacheTimes) {
@@ -78,45 +112,80 @@
         }
     }, 60000);
 
-    function getLocalDB() { return (window.localDB && window.localDB.ready) ? window.localDB : null; }
+    function getLocalDB() {
+        return (window.localDB && window.localDB.ready) ? window.localDB : null;
+    }
 
-    // ==================== OfflineLayer ====================
+    // ==================== طبقة Offline (Delta Sync, Queue) ====================
     const OfflineLayer = {
         async get(storeName, cloudFetcher, forceRefresh = false) {
-            const local = getLocalDB(), cacheKey = `offline_${storeName}`;
-            if (!forceRefresh) { const c = SessionStore.getCache(cacheKey); if (c) return c; }
+            const local = getLocalDB();
+            const cacheKey = `offline_${storeName}`;
+
+            if (!forceRefresh) {
+                const cached = SessionStore.getCache(cacheKey);
+                if (cached) return cached;
+            }
+
             if (local && !forceRefresh) {
                 try {
                     const localData = await local.getAll(storeName);
                     if (localData && localData.length > 0) {
                         SessionStore.setCache(cacheKey, localData);
-                        if (navigator.onLine && supabaseClient && cloudFetcher) this._backgroundSync(storeName, cloudFetcher, local).catch(() => {});
+                        if (navigator.onLine && supabaseClient && cloudFetcher) {
+                            this._backgroundSync(storeName, cloudFetcher, local).catch(() => {});
+                        }
                         return localData;
                     }
-                } catch (e) { console.warn(`خطأ قراءة ${storeName}:`, e); }
+                } catch (e) {
+                    Logger.warn(`قراءة ${storeName} من IndexedDB فشلت`, e);
+                }
             }
+
             if (navigator.onLine && supabaseClient && cloudFetcher) {
                 try {
                     const data = await cloudFetcher();
-                    if (data && Array.isArray(data)) { SessionStore.setCache(cacheKey, data); if (local) await this._deltaSync(local, storeName, data); }
+                    if (data && Array.isArray(data)) {
+                        SessionStore.setCache(cacheKey, data);
+                        if (local) await this._deltaSync(local, storeName, data);
+                    }
                     return data;
-                } catch (error) { console.warn(`فشل جلب ${storeName}:`, error); return local ? await local.getAll(storeName) : []; }
+                } catch (error) {
+                    Logger.warn(`جلب ${storeName} من السحابة فشل`, error);
+                    return local ? await local.getAll(storeName) : [];
+                }
             }
             return local ? await local.getAll(storeName) : [];
         },
 
         async save(storeName, data, cloudSaver, isNew) {
-            const local = getLocalDB(); data.updated_at = new Date().toISOString(); data.version = (data.version || 0) + 1;
-            if (local) await local.put(storeName, data).catch(e => console.warn(`فشل حفظ محلي ${storeName}:`, e));
+            const local = getLocalDB();
+            data.updated_at = new Date().toISOString();
+            data.version = (data.version || 0) + 1;
+
+            if (local) {
+                await local.put(storeName, data).catch(e => Logger.warn(`حفظ محلي ${storeName} فشل`, e));
+            }
+
             SessionStore.invalidate(`offline_${storeName}`);
             data._operation = data._operation || (isNew === true ? 'INSERT' : (isNew === false ? 'UPDATE' : (data.id ? 'UPDATE' : 'INSERT')));
+
             if (navigator.onLine && supabaseClient && cloudSaver) {
                 try {
                     const result = await cloudSaver(data);
-                    if (local?.removeFromSyncQueue) await local.removeFromSyncQueue(data.id).catch(() => {});
+                    if (local && local.removeFromSyncQueue) {
+                        await local.removeFromSyncQueue(data.id).catch(() => {});
+                    }
                     return result;
-                } catch (error) { console.warn(`فشل حفظ ${storeName}:`, error); await this._queueForSync(storeName, data); return data; }
-            } else { await this._queueForSync(storeName, data); return data; }
+                } catch (error) {
+                    Logger.warn(`حفظ ${storeName} في السحابة فشل`, error);
+                    await this._queueForSync(storeName, data);
+                    return data;
+                }
+            } else {
+                await this._queueForSync(storeName, data);
+                return data;
+            }
         },
 
         async delete(storeName, id, cloudDeleter) {
@@ -124,19 +193,32 @@
             if (local) await local.delete(storeName, id).catch(() => {});
             SessionStore.invalidate(`offline_${storeName}`);
             if (navigator.onLine && supabaseClient && cloudDeleter) {
-                try { await cloudDeleter(id); }
-                catch (error) { console.warn(`فشل حذف ${storeName}:`, error); await this._queueForSync(storeName, { id, _operation: 'DELETE' }); }
-            } else { await this._queueForSync(storeName, { id, _operation: 'DELETE' }); }
+                try {
+                    await cloudDeleter(id);
+                } catch (error) {
+                    Logger.warn(`حذف ${storeName} فشل`, error);
+                    await this._queueForSync(storeName, { id, _operation: 'DELETE' });
+                }
+            } else {
+                await this._queueForSync(storeName, { id, _operation: 'DELETE' });
+            }
         },
 
         async _backgroundSync(storeName, cloudFetcher, local) {
-            try { const cloudData = await cloudFetcher(); if (cloudData?.length > 0) { await this._deltaSync(local, storeName, cloudData); SessionStore.setCache(`offline_${storeName}`, cloudData); } } catch {}
+            try {
+                const cloudData = await cloudFetcher();
+                if (cloudData && cloudData.length > 0) {
+                    await this._deltaSync(local, storeName, cloudData);
+                    SessionStore.setCache(`offline_${storeName}`, cloudData);
+                }
+            } catch (e) { /* صامت */ }
         },
 
         async _deltaSync(local, storeName, cloudData) {
             const localItems = await local.getAll(storeName).catch(() => []);
             const localMap = new Map(localItems.map(i => [i.id, i]));
-            const toPut = [], toDelete = new Set(localMap.keys());
+            const toPut = [];
+            const toDelete = new Set(localMap.keys());
             const syncQueue = await local.getSyncQueue().catch(() => []);
             const pendingIds = new Set(syncQueue.map(q => q.ref_id));
 
@@ -148,7 +230,6 @@
                 if (!localItem || cloudTs >= localTs) toPut.push(cloudItem);
             }
 
-            // حذف فقط العناصر غير الموجودة في الطابور وليست INSERT جديدة
             for (const id of toDelete) {
                 if (pendingIds.has(id)) continue;
                 const localItem = localMap.get(id);
@@ -156,13 +237,16 @@
                 await local.delete(storeName, id).catch(() => {});
             }
 
-            for (let i = 0; i < toPut.length; i += 30) await Promise.all(toPut.slice(i, i + 30).map(item => local.put(storeName, item).catch(() => {})));
+            for (let i = 0; i < toPut.length; i += 30) {
+                await Promise.all(toPut.slice(i, i + 30).map(item => local.put(storeName, item).catch(() => {})));
+            }
         },
 
         async _queueForSync(table, data) {
             const local = getLocalDB();
-            if (!local?.addToSyncQueue) return;
-            // منع تكرار العمليات
+            if (!local || !local.addToSyncQueue) return;
+
+            // منع تكرار العمليات على نفس العنصر
             if (data.id && local.findQueueByRef) {
                 const existing = await local.findQueueByRef(data.id, table).catch(() => null);
                 if (existing && existing.type !== 'DELETE') {
@@ -172,119 +256,393 @@
                     return;
                 }
             }
-            await local.addToSyncQueue({
+
+            const queueEntry = {
                 queue_id: generateUUID(),
                 ref_id: data.id,
                 type: data._operation || 'UPDATE',
                 table,
                 data: { ...data },
                 checksum: this._simpleChecksum(JSON.stringify(data)),
-                retries: 0
-            }).catch(e => console.warn('فشل إضافة للطابور:', e));
+                retries: 0,
+                timestamp: Date.now()
+            };
+
+            await local.addToSyncQueue(queueEntry).catch(e => Logger.warn('إضافة للطابور فشلت', e));
         },
 
-        _simpleChecksum(str) { let hash = 0; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash |= 0; } return hash.toString(16); }
+        _simpleChecksum(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return hash.toString(16);
+        }
     };
 
-    // ==================== SyncEngine ====================
+    // ==================== محرك المزامنة (مع أولويات ودعم DELETE) ====================
     const SyncEngine = {
         _processing: false,
         _lastRun: 0,
+
         async process() {
             if (this._processing || Date.now() - this._lastRun < 2000) return;
-            this._processing = true; this._lastRun = Date.now();
+            this._processing = true;
+            this._lastRun = Date.now();
+
             const local = getLocalDB();
-            if (!local?.getSyncQueue || !navigator.onLine) { this._processing = false; return; }
+            if (!local || !local.getSyncQueue || !navigator.onLine) {
+                this._processing = false;
+                return;
+            }
+
             try {
                 const allQueue = await local.getSyncQueue().catch(() => []);
                 const queue = allQueue.filter(item => !item.failed && (!item.nextRetry || item.nextRetry <= Date.now()));
-                if (!queue.length) { this._processing = false; return; }
-                console.log(`🔄 معالجة ${queue.length} عملية...`);
-                const sorted = [...queue].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-                for (let i = 0; i < sorted.length; i += 3) await Promise.allSettled(sorted.slice(i, i + 3).map(item => this._processItem(item, local)));
-            } finally { this._processing = false; }
+                if (!queue.length) {
+                    this._processing = false;
+                    return;
+                }
+
+                Logger.info(`معالجة ${queue.length} عملية من الطابور`);
+                const sorted = [...queue].sort((a, b) => {
+                    const priority = { invoices: 1, purchases: 2, journal_entries: 3, transactions: 4 };
+                    const pa = priority[a.table] || 5;
+                    const pb = priority[b.table] || 5;
+                    if (pa !== pb) return pa - pb;
+                    if (a.type === 'INSERT' && b.type !== 'INSERT') return -1;
+                    if (a.type !== 'INSERT' && b.type === 'INSERT') return 1;
+                    return 0;
+                });
+
+                for (let i = 0; i < sorted.length; i += 3) {
+                    await Promise.allSettled(sorted.slice(i, i + 3).map(item => this._processItem(item, local)));
+                }
+            } finally {
+                this._processing = false;
+            }
         },
 
         async _processItem(item, local) {
             try {
+                // التحقق من التلاعب بالبيانات
                 if (item.checksum && item.data) {
-                    if (OfflineLayer._simpleChecksum(JSON.stringify(item.data)) !== item.checksum) {
-                        console.error('⚠️ تلاعب:', item); await local.removeFromSyncQueue(item.queue_id).catch(() => {}); return;
+                    const recalc = OfflineLayer._simpleChecksum(JSON.stringify(item.data));
+                    if (recalc !== item.checksum) {
+                        Logger.error('تلاعب بالطابور', item);
+                        await local.removeFromSyncQueue(item.queue_id).catch(() => {});
+                        return;
                     }
                 }
+
+                // تنفيذ DELETE
                 if (item.type === 'DELETE') {
-                    const handler = {
-                        products: window.DB._cloudDeleteProduct, parties: window.DB._cloudDeleteParty,
+                    const deleter = {
+                        products: window.DB._cloudDeleteProduct,
+                        parties: window.DB._cloudDeleteParty,
                         invoices: async (id) => { await supabaseClient.from('invoices').update({ deleted_at: new Date().toISOString() }).eq('id', id); },
                         purchases: async (id) => { await supabaseClient.from('purchases').update({ deleted_at: new Date().toISOString() }).eq('id', id); },
                         transactions: async (id) => { await supabaseClient.from('transactions').update({ deleted_at: new Date().toISOString() }).eq('id', id); },
                         returns: async (id) => { await supabaseClient.from('returns').update({ deleted_at: new Date().toISOString() }).eq('id', id); },
                         journal_entries: async (id) => { await supabaseClient.from('journal_entries').update({ deleted_at: new Date().toISOString() }).eq('id', id); }
                     }[item.table];
-                    if (handler) { await handler(item.ref_id); await local.removeFromSyncQueue(item.queue_id); }
-                    else { console.warn('DELETE غير معروف:', item); await local.removeFromSyncQueue(item.queue_id); }
+                    if (deleter) {
+                        await deleter(item.ref_id);
+                        await local.removeFromSyncQueue(item.queue_id).catch(() => {});
+                    } else {
+                        Logger.warn('DELETE غير معروف', item);
+                        await local.removeFromSyncQueue(item.queue_id).catch(() => {});
+                    }
                     return;
                 }
+
+                // تنفيذ INSERT / UPDATE
                 const handler = {
-                    products: window.DB._cloudSaveProduct, parties: window.DB._cloudSaveParty,
-                    invoices: window.DB._cloudSaveInvoice, purchases: window.DB._cloudSavePurchase,
-                    transactions: window.DB._cloudSaveTransaction, returns: window.DB._cloudSaveReturn,
+                    products: window.DB._cloudSaveProduct,
+                    parties: window.DB._cloudSaveParty,
+                    invoices: window.DB._cloudSaveInvoice,
+                    purchases: window.DB._cloudSavePurchase,
+                    transactions: window.DB._cloudSaveTransaction,
+                    returns: window.DB._cloudSaveReturn,
                     journal_entries: window.DB._cloudSaveJournalEntry
                 }[item.table];
-                if (handler) { await handler(item.data); await local.removeFromSyncQueue(item.queue_id); }
-                else { console.warn('عملية غير معروفة:', item); await local.removeFromSyncQueue(item.queue_id); }
-            } catch (e) {
-                console.warn('فشل مزامنة:', e); item.retries = (item.retries || 0) + 1;
-                if (item.retries >= 5) { item.failed = true; if (local.updateSyncQueueItem) await local.updateSyncQueueItem(item); }
-                else { item.nextRetry = Date.now() + Math.pow(2, item.retries) * 1000; if (local.updateSyncQueueItem) await local.updateSyncQueueItem(item); }
+
+                if (handler) {
+                    await handler(item.data);
+                    await local.removeFromSyncQueue(item.queue_id).catch(() => {});
+                } else {
+                    Logger.warn('عملية غير معروفة', item);
+                    await local.removeFromSyncQueue(item.queue_id).catch(() => {});
+                }
+            } catch (error) {
+                Logger.warn('فشل مزامنة عنصر', error);
+                item.retries = (item.retries || 0) + 1;
+                if (item.retries >= 5) {
+                    item.failed = true;
+                    if (local.updateSyncQueueItem) await local.updateSyncQueueItem(item);
+                    Logger.error('تجاوز الحد الأقصى للمحاولات', item.queue_id);
+                } else {
+                    item.nextRetry = Date.now() + Math.pow(2, item.retries) * 1000;
+                    if (local.updateSyncQueueItem) await local.updateSyncQueueItem(item);
+                }
             }
         }
     };
 
-    // ==================== التهيئة ====================
+    // ==================== التهيئة الفعلية ====================
     function tryInitSupabase() {
-        if (typeof supabase === 'undefined') { console.warn('⚠️ Supabase غير محمل.'); return false; }
+        if (typeof supabase === 'undefined') {
+            Logger.warn('Supabase library not loaded');
+            return false;
+        }
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                auth: { storage: localStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-                realtime: { params: { eventsPerSecond: 10 } },
-                global: { headers: { 'X-Client-Info': 'hesaby-pos/3.7' } }
+                auth: {
+                    storage: localStorage,
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true
+                },
+                realtime: {
+                    params: { eventsPerSecond: 10 }
+                },
+                global: {
+                    headers: { 'X-Client-Info': 'hesaby/4.0' }
+                }
             });
-            window.supabase = supabaseClient; console.log('✅ Supabase initialized'); return true;
-        } catch (e) { console.error('❌ فشل تهيئة Supabase:', e); return false; }
+            window.supabase = supabaseClient;
+            Logger.info('Supabase client initialized');
+            return true;
+        } catch (e) {
+            Logger.error('Failed to initialize Supabase', e);
+            return false;
+        }
     }
 
+    // ==================== إعداد التطبيق ====================
     function setupFullApp() {
-        if (initialized) return; initialized = true;
+        if (initialized) return;
+        initialized = true;
 
+        // ==================== App API ====================
         window.App = {
             async getCurrentUser() {
-                if (SessionStore.user) { this._refreshSession().catch(() => {}); return SessionStore.user; }
+                if (SessionStore.user) {
+                    this._refreshSession().catch(() => {});
+                    return SessionStore.user;
+                }
                 if (!supabaseClient) return null;
+
                 try {
                     const { data: { session } } = await supabaseClient.auth.getSession();
-                    if (!session) { SessionStore.user = null; return null; }
-                    const { data: profile, error } = await supabaseClient.from('profiles').select('*, tenants!inner(plan)').eq('id', session.user.id).single();
-                    if (error || !profile) { SessionStore.user = null; return null; }
-                    const user = { id: session.user.id, email: session.user.email, fullName: profile.full_name, role: profile.role, tenant_id: profile.tenant_id, plan: profile.tenants?.plan };
-                    SessionStore.user = user; return user;
-                } catch (e) { console.error('❌ فشل جلب المستخدم:', e); SessionStore.user = null; return null; }
+                    if (!session) {
+                        SessionStore.user = null;
+                        return null;
+                    }
+
+                    const { data: profile, error } = await supabaseClient
+                        .from('profiles')
+                        .select('*, tenants!inner(plan)')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (error || !profile) {
+                        SessionStore.user = null;
+                        return null;
+                    }
+
+                    const user = {
+                        id: session.user.id,
+                        email: session.user.email,
+                        fullName: profile.full_name,
+                        role: profile.role,
+                        tenant_id: profile.tenant_id,
+                        plan: profile.tenants?.plan
+                    };
+                    SessionStore.user = user;
+                    return user;
+                } catch (error) {
+                    Logger.error('getCurrentUser failed', error);
+                    SessionStore.user = null;
+                    return null;
+                }
             },
-            async _refreshSession() { if (!supabaseClient) return; const { data: { session } } = await supabaseClient.auth.getSession(); if (!session || session.user?.id !== SessionStore.user?.id) SessionStore.user = null; },
-            async getTenantId() { return SessionStore.tenantId || (await this.getCurrentUser())?.tenant_id || null; },
-            // (باقي دوال App كما هي)
-            async login(email, password) { /* ... */ },
-            async signup(email, password, fullName, role = 'admin', tenantName = '', phone = '') { /* ... */ },
-            async logout() { if (supabaseClient) await supabaseClient.auth.signOut(); SessionStore.user = null; window.location.href = './index.html'; },
-            async requireAuth() { /* ... */ },
-            _redirectToLogin() { if (window.location.pathname.indexOf('index.html') === -1) window.location.href = './index.html'; },
-            async checkTenantStatus(tenantId) { /* ... */ },
-            async requireRole(allowedRoles) { /* ... */ },
-            initUserInterface() { /* ... */ }
+
+            async _refreshSession() {
+                if (!supabaseClient) return;
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session || !session.user || SessionStore.user?.id !== session.user.id) {
+                    SessionStore.user = null;
+                }
+            },
+
+            async getTenantId() {
+                return SessionStore.tenantId || (await this.getCurrentUser())?.tenant_id || null;
+            },
+
+            async login(email, password) {
+                if (!supabaseClient) throw new Error('الخادم غير متاح');
+                const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (authError) throw authError;
+
+                const userId = authData.user.id;
+                let { data: profile } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                if (!profile) {
+                    const { data: newProfile, error: insertError } = await supabaseClient
+                        .from('profiles')
+                        .insert({ id: userId, full_name: email, role: 'admin' })
+                        .select()
+                        .single();
+                    if (insertError) throw insertError;
+                    profile = newProfile || { id: userId, full_name: email, role: 'admin' };
+                }
+
+                if (profile.role !== 'super_admin' && !profile.tenant_id) {
+                    const tenantName = `متجر ${profile.full_name || email}`;
+                    const { data: newTenantId, error: tenantError } = await supabaseClient.rpc('create_my_tenant', { p_tenant_name: tenantName });
+                    if (tenantError) throw new Error('فشل إنشاء المتجر');
+                    profile.tenant_id = newTenantId;
+                }
+
+                const userInfo = {
+                    id: userId,
+                    email: authData.user.email,
+                    fullName: profile.full_name || email,
+                    role: profile.role,
+                    tenant_id: profile.tenant_id,
+                    plan: undefined
+                };
+                SessionStore.user = userInfo;
+
+                let redirectUrl = './dashboard.html';
+                if (userInfo.role === 'rep') redirectUrl = './pos.html';
+                else if (userInfo.role === 'super_admin') redirectUrl = './admin.html';
+
+                return { success: true, redirectUrl, user: userInfo };
+            },
+
+            async signup(email, password, fullName, role = 'admin', tenantName = '', phone = '') {
+                if (!supabaseClient) throw new Error('الخادم غير متاح');
+                const { data: authData, error: signUpError } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { full_name: fullName, phone: phone } }
+                });
+                if (signUpError) throw signUpError;
+                if (!authData.user) throw new Error('فشل إنشاء المستخدم');
+
+                const tenantNameFinal = tenantName || `متجر ${fullName}`;
+                const { data: tenantId, error: tenantError } = await supabaseClient.rpc('create_my_tenant', { p_tenant_name: tenantNameFinal });
+                if (tenantError) throw tenantError;
+
+                await supabaseClient.from('profiles').upsert({
+                    id: authData.user.id,
+                    full_name: fullName,
+                    role: role,
+                    phone: phone,
+                    tenant_id: tenantId
+                }, { onConflict: 'id' });
+
+                await supabaseClient.auth.signInWithPassword({ email, password });
+                return { success: true, message: 'تم إنشاء الحساب بنجاح.' };
+            },
+
+            async logout() {
+                if (supabaseClient) await supabaseClient.auth.signOut();
+                SessionStore.user = null;
+                window.location.href = './index.html';
+            },
+
+            async requireAuth() {
+                if (SessionStore.user) {
+                    this.getCurrentUser().then(user => {
+                        if (!user) this._redirectToLogin();
+                        else if (user.role !== 'super_admin' && user.tenant_id) {
+                            this.checkTenantStatus(user.tenant_id).catch(() => {});
+                        }
+                    }).catch(() => {});
+                    return true;
+                }
+
+                try {
+                    const user = await this.getCurrentUser();
+                    if (!user) {
+                        this._redirectToLogin();
+                        return false;
+                    }
+                    if (user.role !== 'super_admin' && user.tenant_id) {
+                        await this.checkTenantStatus(user.tenant_id);
+                    }
+                    return true;
+                } catch (error) {
+                    Logger.error('requireAuth failed', error);
+                    this._redirectToLogin();
+                    return false;
+                }
+            },
+
+            _redirectToLogin() {
+                if (window.location.pathname.indexOf('index.html') === -1) {
+                    window.location.href = './index.html';
+                }
+            },
+
+            async checkTenantStatus(tenantId) {
+                if (!supabaseClient) return;
+                try {
+                    const { data: tenant } = await supabaseClient
+                        .from('tenants')
+                        .select('plan')
+                        .eq('id', tenantId)
+                        .single();
+                    if (tenant && tenant.plan === 'expired') {
+                        window.location.href = './expired.html';
+                    }
+                } catch (e) {
+                    Logger.warn('فشل التحقق من حالة المتجر', e);
+                }
+            },
+
+            async requireRole(allowedRoles) {
+                let user = SessionStore.user || await this.getCurrentUser();
+                if (!user) {
+                    this._redirectToLogin();
+                    return false;
+                }
+                const userRole = (user.role || '').toLowerCase();
+                const allowed = allowedRoles.map(r => r.toLowerCase());
+                if (!allowed.includes(userRole)) {
+                    alert('غير مسموح لك بالوصول إلى هذه الصفحة');
+                    if (userRole === 'admin') window.location.href = './dashboard.html';
+                    else if (userRole === 'rep') window.location.href = './pos.html';
+                    else window.location.href = './index.html';
+                    return false;
+                }
+                return true;
+            },
+
+            initUserInterface() {
+                const session = JSON.parse(localStorage.getItem('app_session') || '{}');
+                if (session && session.fullName) {
+                    const nameEl = document.getElementById('userName');
+                    const avatarEl = document.getElementById('userAvatar');
+                    const timeEl = document.getElementById('loginTime');
+                    if (nameEl) nameEl.textContent = session.fullName || session.email;
+                    if (avatarEl) avatarEl.textContent = (session.fullName || 'U').charAt(0).toUpperCase();
+                    if (timeEl) timeEl.textContent = session.loginTime || 'اليوم';
+                }
+            }
         };
 
+        // ==================== DB API (Cloud + Offline) ====================
         window.DB = {
-            // دوال Cloud للـ SyncEngine
+            // دوال Cloud خاصة للمزامنة
             _cloudSaveProduct: async (p) => { const { error } = await supabaseClient.from('products').upsert(p, { onConflict: 'id' }); if (error) throw error; },
             _cloudSaveParty: async (p) => { const { error } = await supabaseClient.from('parties').upsert(p, { onConflict: 'id' }); if (error) throw error; },
             _cloudSaveInvoice: async (inv) => { const { error } = await supabaseClient.from('invoices').upsert(inv, { onConflict: 'id' }); if (error) throw error; },
@@ -293,72 +651,325 @@
             _cloudSaveReturn: async (r) => { const { error } = await supabaseClient.from('returns').upsert(r, { onConflict: 'id' }); if (error) throw error; },
             _cloudSaveJournalEntry: async (e) => { const { error } = await supabaseClient.from('journal_entries').upsert(e, { onConflict: 'id' }); if (error) throw error; },
 
-            // استعلامات مع فلتر soft delete
+            // المنتجات
             getProducts: (force) => OfflineLayer.get('products', async () => {
                 const { data, error } = await supabaseClient.from('products').select('*, product_units(*)').is('deleted_at', null).order('name');
-                if (error) throw error; return data;
+                if (error) throw error;
+                return data;
             }, force),
-            saveProduct(p) { const isNew = !p.id; return OfflineLayer.save('products', { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (prod) => { const { data, error } = await supabaseClient.from('products').upsert(prod, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
-            async deleteProduct(id) { await OfflineLayer.save('products', { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' }, async (data) => { const { error } = await supabaseClient.from('products').update({ deleted_at: data.deleted_at }).eq('id', id); if (error) throw error; }, false); },
-            _cloudDeleteProduct: async (id) => { const { error } = await supabaseClient.from('products').update({ deleted_at: new Date().toISOString() }).eq('id', id); if (error) throw error; },
+            saveProduct(p) {
+                const isNew = !p.id;
+                const product = { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('products', product, async (prod) => {
+                    const { data, error } = await supabaseClient.from('products').upsert(prod, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
+            async deleteProduct(id) {
+                await OfflineLayer.save('products', { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' }, async (data) => {
+                    const { error } = await supabaseClient.from('products').update({ deleted_at: data.deleted_at }).eq('id', id);
+                    if (error) throw error;
+                }, false);
+            },
+            _cloudDeleteProduct: async (id) => {
+                const { error } = await supabaseClient.from('products').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+                if (error) throw error;
+            },
 
+            // الأطراف
             getParties: (type) => OfflineLayer.get('parties', async () => {
                 let q = supabaseClient.from('parties').select('*').is('deleted_at', null).order('name');
                 if (type) q = q.eq('type', type);
-                const { data, error } = await q; if (error) throw error; return data;
+                const { data, error } = await q;
+                if (error) throw error;
+                return data;
             }),
-            saveParty(p) { const isNew = !p.id; return OfflineLayer.save('parties', { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (party) => { const { data, error } = await supabaseClient.from('parties').upsert(party, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
-            async deleteParty(id) { await OfflineLayer.save('parties', { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' }, async (data) => { const { error } = await supabaseClient.from('parties').update({ deleted_at: data.deleted_at }).eq('id', id); if (error) throw error; }, false); },
-            _cloudDeleteParty: async (id) => { const { error } = await supabaseClient.from('parties').update({ deleted_at: new Date().toISOString() }).eq('id', id); if (error) throw error; },
+            saveParty(p) {
+                const isNew = !p.id;
+                const party = { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('parties', party, async (party) => {
+                    const { data, error } = await supabaseClient.from('parties').upsert(party, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
+            async deleteParty(id) {
+                await OfflineLayer.save('parties', { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' }, async (data) => {
+                    const { error } = await supabaseClient.from('parties').update({ deleted_at: data.deleted_at }).eq('id', id);
+                    if (error) throw error;
+                }, false);
+            },
+            _cloudDeleteParty: async (id) => {
+                const { error } = await supabaseClient.from('parties').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+                if (error) throw error;
+            },
 
-            getInvoices: () => OfflineLayer.get('invoices', async () => { const { data, error } = await supabaseClient.from('invoices').select('*').is('deleted_at', null).order('created_at', { ascending: false }); if (error) throw error; return data; }),
-            saveInvoice: (inv) => { const isNew = !inv.id; return OfflineLayer.save('invoices', { ...inv, id: inv.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (inv) => { const { data, error } = await supabaseClient.from('invoices').upsert(inv, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
-            getInvoicesLight: async () => { if (!supabaseClient) return []; try { const { data, error } = await supabaseClient.from('invoices').select('id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status').is('deleted_at', null).order('created_at', { ascending: false }); if (error) throw error; return data; } catch { return []; } },
-            getInvoiceById: async (id) => { if (!supabaseClient) throw new Error('غير متصل'); const { data, error } = await supabaseClient.from('invoices').select('*').eq('id', id).single(); if (error) throw error; return data; },
-            createSaleInvoice: async (inv) => { if (!supabaseClient) throw new Error('غير متصل'); const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: inv }); if (error) throw new Error(error.message); if (!data.success) throw new Error(data.error); SessionStore.invalidate('offline_invoices'); return data; },
+            // الفواتير
+            getInvoices: () => OfflineLayer.get('invoices', async () => {
+                const { data, error } = await supabaseClient.from('invoices').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+                if (error) throw error;
+                return data;
+            }),
+            saveInvoice(inv) {
+                const isNew = !inv.id;
+                const invoice = { ...inv, id: inv.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('invoices', invoice, async (inv) => {
+                    const { data, error } = await supabaseClient.from('invoices').upsert(inv, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
+            getInvoicesLight: async () => {
+                if (!supabaseClient) return [];
+                try {
+                    const { data, error } = await supabaseClient.from('invoices').select('id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status').is('deleted_at', null).order('created_at', { ascending: false });
+                    if (error) throw error;
+                    return data;
+                } catch { return []; }
+            },
+            getInvoiceById: async (id) => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.from('invoices').select('*').eq('id', id).single();
+                if (error) throw error;
+                return data;
+            },
+            createSaleInvoice: async (inv) => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.rpc('create_sale_invoice', { p_data: inv });
+                if (error) throw new Error(error.message);
+                if (!data.success) throw new Error(data.error);
+                SessionStore.invalidate('offline_invoices');
+                return data;
+            },
 
-            getPurchases: () => OfflineLayer.get('purchases', async () => { const { data, error } = await supabaseClient.from('purchases').select('*').is('deleted_at', null).order('created_at', { ascending: false }); if (error) throw error; return data; }),
-            savePurchase: (pur) => { const isNew = !pur.id; return OfflineLayer.save('purchases', { ...pur, id: pur.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (p) => { const { data, error } = await supabaseClient.from('purchases').upsert(p, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
-            createPurchaseInvoice: async (inv) => { if (!supabaseClient) throw new Error('غير متصل'); const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: inv }); if (error) throw new Error(error.message); if (!data.success) throw new Error(data.error); SessionStore.invalidate('offline_purchases'); return data; },
+            // المشتريات
+            getPurchases: () => OfflineLayer.get('purchases', async () => {
+                const { data, error } = await supabaseClient.from('purchases').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+                if (error) throw error;
+                return data;
+            }),
+            savePurchase(pur) {
+                const isNew = !pur.id;
+                const purchase = { ...pur, id: pur.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('purchases', purchase, async (p) => {
+                    const { data, error } = await supabaseClient.from('purchases').upsert(p, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
+            getPurchasesLight: async () => {
+                if (!supabaseClient) return [];
+                try {
+                    const { data, error } = await supabaseClient.from('purchases').select('id, date, created_at, supplier_id, supplier_name, total, paid, remaining, status').is('deleted_at', null).order('created_at', { ascending: false });
+                    if (error) throw error;
+                    return data;
+                } catch { return []; }
+            },
+            getPurchaseById: async (id) => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.from('purchases').select('*').eq('id', id).single();
+                if (error) throw error;
+                return data;
+            },
+            createPurchaseInvoice: async (inv) => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.rpc('create_purchase_invoice', { p_data: inv });
+                if (error) throw new Error(error.message);
+                if (!data.success) throw new Error(data.error);
+                SessionStore.invalidate('offline_purchases');
+                return data;
+            },
 
-            getTransactions: () => OfflineLayer.get('transactions', async () => { const { data, error } = await supabaseClient.from('transactions').select('*').is('deleted_at', null).order('date', { ascending: false }); if (error) throw error; return data; }),
-            saveTransaction: (t) => { const isNew = !t.id; return OfflineLayer.save('transactions', { ...t, id: t.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (trans) => { const { data, error } = await supabaseClient.from('transactions').upsert(trans, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
+            // المعاملات
+            getTransactions: () => OfflineLayer.get('transactions', async () => {
+                const { data, error } = await supabaseClient.from('transactions').select('*').is('deleted_at', null).order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            }),
+            saveTransaction(t) {
+                const isNew = !t.id;
+                const trans = { ...t, id: t.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('transactions', trans, async (trans) => {
+                    const { data, error } = await supabaseClient.from('transactions').upsert(trans, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
 
-            getReturns: (type) => OfflineLayer.get('returns', async () => { let q = supabaseClient.from('returns').select('*').is('deleted_at', null).order('date', { ascending: false }); if (type) q = q.eq('type', type); const { data, error } = await q; if (error) throw error; return data; }),
-            saveReturn: (r) => { const isNew = !r.id; return OfflineLayer.save('returns', { ...r, id: r.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (ret) => { const { data, error } = await supabaseClient.from('returns').upsert(ret, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
+            // المرتجعات
+            getReturns: (type) => OfflineLayer.get('returns', async () => {
+                let q = supabaseClient.from('returns').select('*').is('deleted_at', null).order('date', { ascending: false });
+                if (type) q = q.eq('type', type);
+                const { data, error } = await q;
+                if (error) throw error;
+                return data;
+            }),
+            saveReturn(r) {
+                const isNew = !r.id;
+                const ret = { ...r, id: r.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('returns', ret, async (ret) => {
+                    const { data, error } = await supabaseClient.from('returns').upsert(ret, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
 
-            getJournalEntries: () => OfflineLayer.get('journal_entries', async () => { const { data, error } = await supabaseClient.from('journal_entries').select('*').is('deleted_at', null).order('date', { ascending: false }); if (error) throw error; return data; }),
-            saveJournalEntry: (e) => { const isNew = !e.id; return OfflineLayer.save('journal_entries', { ...e, id: e.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, async (entry) => { const { data, error } = await supabaseClient.from('journal_entries').upsert(entry, { onConflict: 'id' }).select().single(); if (error) throw error; return data; }, isNew); },
+            // القيود المحاسبية
+            getJournalEntries: () => OfflineLayer.get('journal_entries', async () => {
+                const { data, error } = await supabaseClient.from('journal_entries').select('*').is('deleted_at', null).order('date', { ascending: false });
+                if (error) throw error;
+                return data;
+            }),
+            saveJournalEntry(e) {
+                const isNew = !e.id;
+                const entry = { ...e, id: e.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+                return OfflineLayer.save('journal_entries', entry, async (entry) => {
+                    const { data, error } = await supabaseClient.from('journal_entries').upsert(entry, { onConflict: 'id' }).select().single();
+                    if (error) throw error;
+                    return data;
+                }, isNew);
+            },
 
-            getAccounts: () => OfflineLayer.get('accounts', async () => { const { data, error } = await supabaseClient.from('accounts').select('*').is('deleted_at', null).order('name'); if (error) throw error; return data; }),
+            // الحسابات
+            getAccounts: () => OfflineLayer.get('accounts', async () => {
+                const { data, error } = await supabaseClient.from('accounts').select('*').is('deleted_at', null).order('name');
+                if (error) throw error;
+                return data;
+            }),
 
-            getSettings: async () => { if (SessionStore._settings) return SessionStore._settings; if (!supabaseClient) return {}; try { const { data, error } = await supabaseClient.from('settings').select('data').eq('tenant_id', SessionStore.tenantId).single(); if (error && error.code !== 'PGRST116') throw error; SessionStore._settings = data?.data || {}; return SessionStore._settings; } catch { return {}; } },
-            saveSettings: async (s) => { if (!supabaseClient) throw new Error('غير متصل'); const { data, error } = await supabaseClient.from('settings').upsert({ tenant_id: SessionStore.tenantId, data: s }, { onConflict: 'tenant_id' }).select().single(); if (error) throw error; SessionStore._settings = data.data; return data.data; },
+            // الإعدادات
+            getSettings: async () => {
+                if (SessionStore._settings) return SessionStore._settings;
+                if (!supabaseClient) return {};
+                try {
+                    const { data, error } = await supabaseClient.from('settings').select('data').eq('tenant_id', SessionStore.tenantId).single();
+                    if (error && error.code !== 'PGRST116') throw error;
+                    SessionStore._settings = data?.data || {};
+                    return SessionStore._settings;
+                } catch { return {}; }
+            },
+            saveSettings: async (s) => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.from('settings').upsert({ tenant_id: SessionStore.tenantId, data: s }, { onConflict: 'tenant_id' }).select().single();
+                if (error) throw error;
+                SessionStore._settings = data.data;
+                return data.data;
+            },
 
-            generateInvoiceNumber: async () => { if (!supabaseClient) throw new Error('غير متصل'); const { data, error } = await supabaseClient.rpc('next_sequence', { p_name: 'inv_' + new Date().getFullYear().toString().slice(-2) }); if (error) throw error; return data; },
-            getAllTenantsData: async () => { if (!supabaseClient) throw new Error('غير متصل'); const { data, error } = await supabaseClient.rpc('get_all_tenants_data'); if (error) throw error; return data || []; },
-            deleteTenant: async (id) => { if (!supabaseClient) throw new Error('غير متصل'); const { error } = await supabaseClient.rpc('delete_tenant', { p_tenant_id: id }); if (error) throw error; }
+            // أرقام الفواتير
+            generateInvoiceNumber: async () => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.rpc('next_sequence', { p_name: 'inv_' + new Date().getFullYear().toString().slice(-2) });
+                if (error) throw new Error('فشل توليد رقم الفاتورة: ' + error.message);
+                return data;
+            },
+
+            // إدارة المستأجرين (للمشرف العام)
+            getAllTenantsData: async () => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { data, error } = await supabaseClient.rpc('get_all_tenants_data');
+                if (error) throw error;
+                return data || [];
+            },
+            deleteTenant: async (tenantId) => {
+                if (!supabaseClient) throw new Error('غير متصل');
+                const { error } = await supabaseClient.rpc('delete_tenant', { p_tenant_id: tenantId });
+                if (error) throw error;
+            }
         };
 
-        // Realtime
-        supabaseClient.channel('products_changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => SessionStore.invalidate('offline_products'))
-            .subscribe();
+        // ==================== Realtime Subscriptions ====================
+        if (supabaseClient) {
+            supabaseClient.channel('products_changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+                    SessionStore.invalidate('offline_products');
+                })
+                .subscribe();
+        }
 
-        if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_OUT' || event === 'USER_DELETED') SessionStore.user = null;
-            else if (event === 'SIGNED_IN' && session) window.App.getCurrentUser().catch(() => {});
+        // ==================== مراقبة المصادقة ====================
+        if (supabaseClient) {
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+                    SessionStore.user = null;
+                } else if (event === 'SIGNED_IN' && session) {
+                    window.App.getCurrentUser().catch(() => {});
+                }
+            });
+        }
+
+        // ==================== أحداث الاتصال ====================
+        window.addEventListener('online', () => {
+            Logger.info('عاد الاتصال بالإنترنت');
+            SyncEngine.process();
         });
 
-        window.addEventListener('online', () => { console.log('🌐 اتصال'); SyncEngine.process(); });
         if (navigator.onLine) SyncEngine.process();
-        console.log('✅ النظام جاهز (v3.7)');
+
+        Logger.info('النظام جاهز (v4.0)');
     }
 
-    if (tryInitSupabase()) setupFullApp();
-    else {
-        console.warn('⚠️ وضع الطوارئ');
-        window.App = { getCurrentUser: async () => null, /* ... */ };
-        window.DB = { /* fallback */ };
+    // ==================== بدء التشغيل ====================
+    if (tryInitSupabase()) {
+        setupFullApp();
+    } else {
+        Logger.warn('تشغيل وضع الطوارئ - وظائف محدودة');
+        // إعداد وضع الطوارئ (بدون Supabase)
+        window.App = {
+            getCurrentUser: async () => null,
+            getTenantId: async () => null,
+            login: async () => { throw new Error('الخادم غير متاح'); },
+            signup: async () => { throw new Error('الخادم غير متاح'); },
+            logout: () => { window.location.href = './index.html'; },
+            requireAuth: async () => false,
+            requireRole: async () => false,
+            initUserInterface: () => {},
+            checkTenantStatus: async () => {}
+        };
+        window.DB = {
+            getProducts: async () => [],
+            getInvoices: async () => [],
+            getInvoicesLight: async () => [],
+            getPurchases: async () => [],
+            getPurchasesLight: async () => [],
+            getParties: async () => [],
+            getTransactions: async () => [],
+            getReturns: async () => [],
+            getJournalEntries: async () => [],
+            getAccounts: async () => [],
+            getSettings: async () => ({}),
+            saveSettings: async () => {},
+            saveProduct: async () => {},
+            saveParty: async () => {},
+            saveInvoice: async () => {},
+            savePurchase: async () => {},
+            saveTransaction: async () => {},
+            saveReturn: async () => {},
+            saveJournalEntry: async () => {},
+            createSaleInvoice: async () => { throw new Error('غير متصل'); },
+            createPurchaseInvoice: async () => { throw new Error('غير متصل'); },
+            generateInvoiceNumber: async () => { throw new Error('غير متصل'); },
+            getAllTenantsData: async () => [],
+            deleteTenant: async () => {},
+            deleteProduct: async () => {},
+            deleteParty: async () => {},
+            getInvoiceById: async () => { throw new Error('غير متصل'); },
+            getPurchaseById: async () => { throw new Error('غير متصل'); }
+        };
+        // إعادة المحاولة
+        let retryCount = 0;
+        const retryInterval = setInterval(() => {
+            if (initialized || retryCount >= 10) {
+                clearInterval(retryInterval);
+                return;
+            }
+            if (typeof supabase !== 'undefined' && tryInitSupabase()) {
+                setupFullApp();
+                clearInterval(retryInterval);
+                Logger.info('تم استعادة الاتصال بالنواة');
+            }
+            retryCount++;
+        }, 1500);
     }
 })();
