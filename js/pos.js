@@ -1,9 +1,5 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار 6.0 - Production Ready)
-   تحسينات: تهيئة واحدة، صلاحيات آمنة، واجهة تابلت،
-   كروت منتجات، بحث مباشر، حفظ سلة فوري،
-   فواتير معلقة محسّنة، أداء DOM diffing،
-   طباعة آمنة، متوافق مع جميع الأجهزة
+   pos.js - نقطة البيع (إصدار 6.1 - إصلاح التهيئة)
    ============================================= */
 'use strict';
 
@@ -35,7 +31,8 @@ const POS = {
     cache: { prods: new Map(), custs: new Map() },
     el: {},
 
-    init() {
+    // تم تغييرها إلى async لانتظار المصادقة والتحميل
+    async init() {
         this._cacheDOM();
         this._applySafeArea();
         this._bind();
@@ -43,9 +40,17 @@ const POS = {
         window.addEventListener('online', () => this._connStatus());
         window.addEventListener('offline', () => this._connStatus());
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this._saveCart(); });
-        if (window.App) { App.requireAuth(); App.initUserInterface(); }
-        this._loadData();
-        this._sidebarUser();
+        
+        // انتظار المصادقة والصلاحيات
+        if (window.App) {
+            const authorized = await App.requireAuth();
+            if (!authorized) return;
+            await App.requireRole(['admin', 'rep']);
+            App.initUserInterface();
+        }
+        
+        await this._loadData();
+        await this._sidebarUser();
         window.addEventListener('beforeunload', () => { this._stopBarcodeScan(); this._saveCart(); });
     },
 
@@ -196,6 +201,8 @@ const POS = {
             this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
         } catch (e) { console.error(e); this.state.products = []; this.state.customers = []; window.Toast?.error('فشل تحميل البيانات'); }
     },
+
+    // ... (باقي الكود كما في 6.0 دون تغيير) ...
 
     _buildCache() {
         this.cache.prods.clear(); this.cache.custs.clear();
