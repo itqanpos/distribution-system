@@ -14,7 +14,7 @@ const CashboxPage = {
         loading: false,
         editingTransaction: null,
         currentUser: null,
-        balanceMap: new Map() // للتخزين المسبق للرصيد التراكمي
+        balanceMap: new Map()
     },
     el: {},
     refreshTimer: null,
@@ -28,14 +28,13 @@ const CashboxPage = {
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         },
-        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return dateStr; } },
+        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return dateStr; } }
     },
 
     /* ---------- التهيئة ---------- */
     async init() {
         this.cacheElements();
         this.bindEvents();
-        // 1- إصلاح requireAuth (async)
         if (window.App) {
             const ok = await App.requireAuth();
             if (!ok) return;
@@ -56,35 +55,31 @@ const CashboxPage = {
             'sidebar', 'sidebarOverlay', 'menuToggle', 'moreMenuBtn', 'moreDropdown', 'logoutBtn',
             'sidebarAvatar', 'sidebarUserName'
         ];
-        ids.forEach(id => this.el[id] = document.getElementById(id));
+        ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
 
     bindEvents() {
-        // الشريط الجانبي
         this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
         this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
         document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
+
         this.el.moreMenuBtn?.addEventListener('click', e => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
         document.addEventListener('click', e => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
         this.el.logoutBtn?.addEventListener('click', e => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
 
-        // الفلاتر
         this.el.filterType?.addEventListener('change', () => this.applyFilters());
         this.el.searchInput?.addEventListener('input', () => this.applyFilters());
 
-        // فتح مودال إضافة/تعديل
         this.el.addTransactionBtn?.addEventListener('click', () => this.openTransactionModal());
         this.el.closeTransactionModalBtn?.addEventListener('click', () => this.closeModal('transactionModal'));
         this.el.saveTransactionBtn?.addEventListener('click', () => this.saveTransaction());
         this.el.deleteTransactionBtn?.addEventListener('click', () => this.deleteCurrentTransaction());
 
-        // إغلاق المودال بالنقر خارج المحتوى
         this.el.transactionModal?.addEventListener('click', e => {
             if (e.target === this.el.transactionModal) this.closeModal('transactionModal');
         });
     },
 
-    // 2- إصلاح getCurrentUser (async)
     async initSidebarUser() {
         const user = await window.App?.getCurrentUser?.();
         this.state.currentUser = user;
@@ -103,18 +98,14 @@ const CashboxPage = {
         }
     },
 
-    /* ---------- تحميل البيانات وحساب الرصيد ---------- */
+    /* ---------- تحميل البيانات ---------- */
     async loadData() {
         if (this.state.loading) return;
         this.state.loading = true;
         try {
-            // استخدم DB.getTransactions لجلب كل المعاملات (أو getTransactionsLight لو موجودة)
             const tx = await window.DB?.getTransactions().catch(() => []);
-            // تأكد من أن amount رقم
             this.state.transactions = (tx || []).map(t => ({ ...t, amount: Number(t.amount || 0) }));
-            // حساب الرصيد مرة واحدة
             this.calculateBalance();
-            // بناء خريطة للرصيد التراكمي لتحسين الأداء
             this.buildBalanceMap();
             this.applyFilters();
         } catch (e) {
@@ -128,7 +119,6 @@ const CashboxPage = {
     },
 
     calculateBalance() {
-        // 5- تحويل amount إلى Number لضمان الحساب الصحيح
         this.state.balance = this.state.transactions.reduce((acc, t) => {
             return t.type === 'income' ? acc + Number(t.amount) : acc - Number(t.amount);
         }, 0);
@@ -139,7 +129,6 @@ const CashboxPage = {
         }
     },
 
-    // بناء خريطة الرصيد التراكمي لتسريع حسابات الرصيد في وقت لاحق (مثلاً في التحقق من التعديل)
     buildBalanceMap() {
         this.state.balanceMap.clear();
         let cumulative = 0;
@@ -162,7 +151,7 @@ const CashboxPage = {
             filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(search));
         }
 
-        // 8- إصلاح مقارنة timestamp (رقمي)
+        // إصلاح مقارنة timestamp (رقمي)
         filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         this.state.filteredTransactions = filtered;
@@ -170,7 +159,7 @@ const CashboxPage = {
         this.renderTable();
     },
 
-    /* ---------- عرض الجدول والترقيم ---------- */
+    /* ---------- عرض الجدول ---------- */
     renderTable() {
         const { filteredTransactions, currentPage, pageSize } = this.state;
         const totalPages = Math.ceil(filteredTransactions.length / pageSize);
@@ -179,7 +168,7 @@ const CashboxPage = {
 
         if (!this.el.tableBody) return;
         if (!pageData.length) {
-            this.el.tableBody.innerHTML = '<tr><td colspan="5" class="empty-state">لا توجد معاملات</td></tr>';
+            this.el.tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">لا توجد معاملات</td></tr>';
             this.renderPagination(0);
             return;
         }
@@ -195,8 +184,10 @@ const CashboxPage = {
                 <td>${esc(t.description || '-')}</td>
                 <td class="${t.type === 'income' ? 'text-success' : 'text-danger'}">${fm(t.amount)}</td>
                 <td>
-                    <button class="action-btn" onclick="CashboxPage.editTransaction('${t.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn danger" onclick="CashboxPage.deleteTransaction('${t.id}')"><i class="fas fa-trash"></i></button>
+                    <div class="action-btns">
+                        <button class="action-btn" onclick="CashboxPage.editTransaction('${t.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn danger" onclick="CashboxPage.deleteTransaction('${t.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -226,15 +217,14 @@ const CashboxPage = {
         this.renderTable();
     },
 
-    /* ---------- إدارة المعاملات (مودال) ---------- */
+    /* ---------- إدارة المعاملات ---------- */
     openTransactionModal(transaction = null) {
         const isEdit = !!transaction;
         this.state.editingTransaction = transaction;
         if (this.el.modalTitle) this.el.modalTitle.textContent = isEdit ? 'تعديل معاملة' : 'إضافة معاملة';
         if (this.el.transactionType) {
             this.el.transactionType.value = transaction?.type || 'income';
-            if (isEdit) this.el.transactionType.disabled = true;
-            else this.el.transactionType.disabled = false;
+            this.el.transactionType.disabled = isEdit;
         }
         if (this.el.transactionAmount) this.el.transactionAmount.value = transaction?.amount || '';
         if (this.el.transactionDescription) this.el.transactionDescription.value = transaction?.description || '';
@@ -265,7 +255,7 @@ const CashboxPage = {
 
         const isEdit = !!this.state.editingTransaction;
         const transaction = {
-            id: isEdit ? this.state.editingTransaction.id : (window.DB?.generateUUID ? window.DB.generateUUID() : crypto.randomUUID()),
+            id: isEdit ? this.state.editingTransaction.id : crypto.randomUUID(),
             type,
             amount: Number(amount),
             description,
@@ -274,11 +264,10 @@ const CashboxPage = {
             tenant_id: this.state.currentUser?.tenant_id
         };
 
+        // عند التعديل، نخصم المعاملة القديمة من الرصيد المحلي ثم نضيف الجديدة
         if (isEdit) {
-            // عند التعديل، نخصم المعاملة القديمة من الرصيد المحلي ثم نضيف الجديدة
             const oldAmount = this.state.editingTransaction.amount;
             const oldType = this.state.editingTransaction.type;
-            // الرصيد الحالي قبل الحفظ: نحسبه محلياً
             if (oldType === 'income') this.state.balance -= oldAmount;
             else this.state.balance += oldAmount;
 
@@ -287,11 +276,9 @@ const CashboxPage = {
         }
 
         try {
-            // حفظ عبر DB.saveTransaction (يدعم offline)
             await window.DB?.saveTransaction(transaction);
             this.showToast(isEdit ? 'تم تعديل المعاملة' : 'تمت الإضافة', 'success');
             this.closeModal('transactionModal');
-            // إعادة تحميل البيانات بالكامل للتأكد من الدقة
             await this.loadData();
         } catch (e) {
             console.error(e);
@@ -305,15 +292,13 @@ const CashboxPage = {
         if (!confirm(`حذف معاملة "${tx.description}"؟`)) return;
 
         try {
-            // حذف عبر DB (يجب أن يرسل للطابور في حالة offline)
             if (window.DB?.deleteTransaction) {
                 await window.DB.deleteTransaction(id);
             } else {
-                // fallback: تحديث محلي فقط
+                // تحديث محلي فقط في وضع offline
                 this.state.transactions = this.state.transactions.filter(t => t.id !== id);
             }
             this.showToast('تم الحذف', 'success');
-            // إذا كان المودال مفتوحاً أغلقه
             if (this.el.transactionModal?.classList.contains('open') && this.state.editingTransaction?.id === id) {
                 this.closeModal('transactionModal');
             }
@@ -350,5 +335,4 @@ const CashboxPage = {
     }
 };
 
-// لا تستدعي init هنا، بل من cashbox.html
 window.CashboxPage = CashboxPage;
