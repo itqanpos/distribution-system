@@ -20,7 +20,7 @@
     <meta name="theme-color" content="#3b82f6">
 
     <style>
-        /* ========== متغيرات عامة (Light/Dark) ========== */
+        /* ========== متغيرات عامة (Light/Dark) + المساحات الآمنة ========== */
         :root {
             --primary: #2563eb;
             --primary-light: #eff6ff;
@@ -83,10 +83,31 @@
             flex-direction: column;
         }
 
+        /* شريط التحميل العلوي */
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
             background: var(--primary); width: 0%; z-index: 9999;
             transition: width 0.3s ease;
+        }
+
+        /* بالونة عدم الاتصال (Offline Banner) */
+        #offline-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--danger);
+            color: white;
+            text-align: center;
+            padding: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 9998;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        body.offline #offline-banner {
+            transform: translateY(0);
         }
 
         /* ========== الشريط العلوي ========== */
@@ -94,12 +115,18 @@
             display: flex; justify-content: space-between; align-items: center;
             background: var(--bg-surface); backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-light);
-            padding: 0 16px; height: 56px;
+            padding: 0 16px;
+            height: calc(56px + var(--safe-top));
+            padding-top: var(--safe-top);
             position: sticky; top: 0; z-index: 110;
             flex-shrink: 0;
         }
         .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
-        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; display: none; }
+        .menu-toggle {
+            background: none; border: none; color: var(--text-primary);
+            font-size: 1.4rem; cursor: pointer;
+            display: flex; /* يظهر دائمًا */
+        }
         .logo { display: flex; align-items: center; gap: 8px; }
         .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
         .nav-actions { position: relative; }
@@ -127,7 +154,7 @@
         .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
         .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
-        /* ========== القائمة الجانبية ========== */
+        /* ========== القائمة الجانبية (تنسق مثل الهاتف لجميع الأحجام) ========== */
         .sidebar-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.35); z-index: 149;
@@ -137,7 +164,8 @@
         .sidebar {
             position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
             height: 100%; background: var(--bg-surface); border-left: 1px solid var(--border-light);
-            padding: 20px 12px; z-index: 150;
+            padding: calc(20px + var(--safe-top)) 12px 20px 12px;
+            z-index: 150;
             transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
             overflow-y: auto; box-shadow: var(--shadow-lg);
         }
@@ -157,6 +185,7 @@
             display: flex;
             flex: 1;
             overflow: hidden;
+            height: calc(100vh - 56px - var(--safe-top)); /* مهم لإظهار المساحة الآمنة */
         }
 
         /* منطقة كروت المنتجات (تظهر على اللوحي والكمبيوتر) */
@@ -321,7 +350,8 @@
 
         .cart-footer {
             background: var(--bg-surface); border-top: 1px solid var(--border-light);
-            padding: 10px 16px; padding-bottom: calc(10px + var(--safe-bottom));
+            padding: 10px 16px;
+            padding-bottom: calc(10px + var(--safe-bottom));
             box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
         }
         .summary-stats { display: flex; gap: 10px; margin-bottom: 8px; }
@@ -381,36 +411,35 @@
         .receipt-actions { display: flex; gap: 10px; justify-content: center; padding: 12px; }
         #receiptPrintArea { padding: 12px; background: white; font-family: 'Cairo', sans-serif; color: #000; }
 
+        /* التوست */
         .toast {
-            position: fixed; bottom: calc(30px + var(--safe-bottom)); left: 50%; transform: translateX(-50%);
-            background: var(--text-primary); color: var(--bg-surface); padding: 10px 24px;
-            border-radius: 30px; font-weight: 600; font-size: 0.8rem;
+            position: fixed;
+            bottom: calc(30px + var(--safe-bottom));
+            left: 50%; transform: translateX(-50%);
+            background: var(--text-primary); color: var(--bg-surface);
+            padding: 10px 24px; border-radius: 30px;
+            font-weight: 600; font-size: 0.8rem;
             z-index: 260; opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
         .toast.show { opacity: 1; }
 
         /* ========== تجاوب ========== */
+        /* الهاتف: إخفاء كروت المنتجات */
         @media (max-width: 767px) {
-            .menu-toggle { display: flex; }
-            .products-panel { display: none; } /* مخفية على الهاتف */
+            .products-panel { display: none; }
             .cart-panel { width: 100%; }
             .mobile-search-area { display: flex; }
         }
 
+        /* التابلت والكمبيوتر: إظهار كروت المنتجات مع السايد بار منزلق (مثل الهاتف) */
         @media (min-width: 768px) {
-            .menu-toggle { display: none; }
-            .sidebar-overlay { display: none; }
+            .menu-toggle { display: flex; } /* زر القائمة يظل ظاهرًا */
             .sidebar {
-                position: relative;
-                right: 0 !important;
-                width: 240px;
-                height: 100%;
-                border-left: none;
-                border-right: 1px solid var(--border-light);
-                box-shadow: none;
-                transition: none;
-                flex-shrink: 0;
+                position: fixed; /* يبقى منزلقًا */
+                right: -320px;
             }
+            .sidebar.open { right: 0; }
+            .sidebar-overlay { display: block; } /* يظهر إذا كان مفتوحًا */
             .main-layout {
                 flex-direction: row;
             }
@@ -424,13 +453,12 @@
                 border-left: 1px solid var(--border-light);
             }
             .mobile-search-area {
-                display: none; /* إخفاء البحث العلوي، سيصبح داخل cart-panel */
+                display: none; /* إخفاء البحث العلوي في التابلت */
             }
-            /* نقل حقول البحث إلى داخل cart-panel في التابلت */
+            /* إظهار البحث داخل cart-panel في التابلت؟ يمكن إضافته إذا رغبت */
             .cart-panel .mobile-search-area {
                 display: flex; /* إظهار البحث داخل قسم السلة */
             }
-            .sidebar-overlay { display: none !important; }
         }
 
         @media (min-width: 1024px) {
@@ -443,7 +471,10 @@
         }
     </style>
 </head>
-<body>
+<body class="loading">
+    <!-- بالونة عدم الاتصال -->
+    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
+
     <div id="loading-bar"></div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -478,7 +509,7 @@
 
     <!-- القائمة الجانبية + المحتوى الرئيسي -->
     <div class="main-layout">
-        <!-- القائمة الجانبية (ثابتة على التابلت، منزلقة على الهاتف) -->
+        <!-- القائمة الجانبية (منزلقة على جميع الأحجام) -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-user">
                 <div class="sidebar-avatar" id="sidebarAvatar">U</div>
