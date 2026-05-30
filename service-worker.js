@@ -4,7 +4,7 @@
    ============================================= */
 
 // إصدار الكاش - يتغير مع كل تحديث للتطبيق لتفعيل التحميل التلقائي
-const CACHE_VERSION = 'v3.2.0';
+const CACHE_VERSION = 'v3.2.1';
 const CACHE_NAME = `hesaby-app-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `hesaby-runtime-${CACHE_VERSION}`;
 
