@@ -27,8 +27,8 @@ const POS = {
         db: false, busy: false, addingItem: false,
         subtotal: 0, discount: 0, discountType: 'amount', discountValue: 0, net: 0,
         usedBalance: 0, editingInv: null,
-        currentUser: null, // مخزن المستخدم الحالي للصلاحيات
-        resumedInvoiceId: null, // معرف الفاتورة المسترجعة للحذف لاحقاً
+        currentUser: null,
+        resumedInvoiceId: null,
         _unitButtonsBound: false,
         _barcodeStream: null
     },
@@ -67,7 +67,6 @@ const POS = {
             'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
             'sidebarAvatar','sidebarUserName',
             'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn',
-            // Tablet elements
             'tabletProductSearchInput','productGrid','tabletBarcodeBtn'
         ];
         ids.forEach(id => { const el = document.getElementById(id); if (el) this.el[id] = el; });
@@ -82,12 +81,10 @@ const POS = {
     _bind() {
         const on = (id, ev, fn) => { if (this.el[id]) this.el[id].addEventListener(ev, fn); };
 
-        // القائمة الجانبية
         on('menuToggle', 'click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
         on('sidebarOverlay', 'click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
         document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
 
-        // القائمة المنسدلة
         on('moreMenuBtn', 'click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
         document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
         on('returnSaleBtn', 'click', (e) => { e.preventDefault(); this.openReturn(); this.el.moreDropdown?.classList.remove('show'); });
@@ -95,7 +92,6 @@ const POS = {
         on('heldInvoicesBtn', 'click', (e) => { e.preventDefault(); this.loadHeld(); this.el.moreDropdown?.classList.remove('show'); });
         on('logoutBtn', 'click', (e) => { e.preventDefault(); if (confirm('هل أنت متأكد؟')) App.logout(); });
 
-        // البحث - تابلت
         on('tabletProductSearchInput', 'input', U.debounce(() => this._filterTabletProducts(), 150));
         on('tabletBarcodeBtn', 'click', () => this._scanBarcode());
         if (this.el.productGrid) {
@@ -105,7 +101,6 @@ const POS = {
             });
         }
 
-        // البحث - هاتف
         on('productSearchInput', 'input', U.debounce(() => this._filterProducts(), 150));
         on('productDropdown', 'click', (e) => {
             const item = e.target.closest('.dropdown-item');
@@ -114,7 +109,6 @@ const POS = {
         document.addEventListener('click', (e) => { if (!e.target.closest('.search-header')) this._hideProdDropdown(); });
         on('barcodeScannerBtn', 'click', () => this._scanBarcode());
 
-        // العملاء
         on('customerSearchInput', 'input', () => this._filterCustomers());
         on('customerSearchInput', 'focus', () => { if (!this.el.customerSearchInput.value.trim()) this._filterCustomers(); });
         on('customerDropdown', 'click', (e) => {
@@ -127,41 +121,33 @@ const POS = {
         });
         document.addEventListener('click', (e) => { if (!e.target.closest('.customer-box')) this._hideCustDropdown(); });
 
-        // الخصم
         on('discountValue', 'input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this._updateTotals(); this._saveCart(); });
         on('discountType', 'change', () => { this.state.discountType = this.el.discountType.value; this._updateTotals(); this._saveCart(); });
         on('payBtn', 'click', () => this._openPayment());
 
-        // مودال الوحدة
         on('addToCartBtn', 'click', () => this._addToCart());
         on('closeUnitModalBtn', 'click', () => this._closeModal('unitQuantityModal'));
 
-        // الدفع
         on('confirmAndPrintBtn', 'click', (e) => { e.preventDefault(); this._completePayment(); });
         on('closePaymentModalBtn', 'click', () => this._closeModal('paymentModal'));
         on('paymentMethod', 'change', () => this._togglePaymentFields());
         on('cashAmount', 'input', () => this._previewPayment());
         on('transferAmount', 'input', () => this._previewPayment());
 
-        // المعلقة
         on('closeHeldModalBtn', 'click', () => this._closeModal('heldInvoicesModal'));
 
-        // الإيصال
         on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
         on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
         on('printReceiptBtn', 'click', () => this._printReceipt());
 
-        // المكرر
         on('duplicateIncreaseBtn', 'click', () => this._handleDuplicate(true));
         on('duplicateCancelBtn', 'click', () => this._closeModal('duplicateProductModal'));
 
-        // السلة - تفويض حدث واحد
         if (this.el.cartItemsContainer) {
             this.el.cartItemsContainer.addEventListener('change', e => this._onCartChange(e));
             this.el.cartItemsContainer.addEventListener('click', e => this._onCartClick(e));
         }
 
-        // أزرار الوحدات - Event Delegation
         if (this.el.unitButtons && !this.state._unitButtonsBound) {
             this.el.unitButtons.addEventListener('click', (e) => {
                 const btn = e.target.closest('.unit-btn');
@@ -235,7 +221,6 @@ const POS = {
         }
     },
 
-    /* ---------- واجهة التابلت: كروت المنتجات ---------- */
     _renderProductGrid(products = this.state.products) {
         const grid = this.el.productGrid;
         if (!grid) return;
@@ -260,7 +245,6 @@ const POS = {
         this._renderProductGrid(filtered);
     },
 
-    /* ---------- العملاء ---------- */
     _filterCustomers() {
         const term = this.el.customerSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.customerDropdown; if (!dd) return;
@@ -287,7 +271,6 @@ const POS = {
         }
     },
 
-    /* ---------- بحث المنتجات ---------- */
     _filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
         const dd = this.el.productDropdown; if (!dd) return;
@@ -337,7 +320,6 @@ const POS = {
 
     openReturn() { window.location.href = './sales-returns.html'; },
 
-    /* ---------- السلة (DOM diffing) ---------- */
     _calcTotals() {
         let sub = 0; for (const i of this.state.cart) sub += U.round(i.price * i.quantity);
         sub = U.round(sub, 2);
@@ -356,13 +338,10 @@ const POS = {
     },
     _renderCart() {
         const c = this.el.cartItemsContainer; if (!c) return;
-        // DOM diffing: تحديث جزئي للصفوف الموجودة
         if (!this._cartRendered) {
             c.innerHTML = `<div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>`;
             this._cartRendered = true;
         }
-        // الاحتفاظ بالهيدر وإزالة الصفوف القديمة
-        const header = c.querySelector('.cart-header-row');
         const existingRows = c.querySelectorAll('.cart-item-row');
         existingRows.forEach(r => r.remove());
         const emptyMsg = c.querySelector('.empty-cart-message');
@@ -388,7 +367,6 @@ const POS = {
     _resetCartRender() { this._cartRendered = false; },
 
     _canChangePrice() {
-        // صلاحيات من currentUser المخزن
         if (this.state.currentUser) return this.state.currentUser.role === 'admin';
         const session = JSON.parse(localStorage.getItem('app_session') || '{}');
         return session.role === 'admin';
@@ -451,7 +429,6 @@ const POS = {
         this.state.addingItem = false;
     },
 
-    /* ---------- دفع ---------- */
     _openPayment() {
         if (!this.state.cart.length) { window.Toast?.info('السلة فارغة'); return; }
         const { sub, disc, net } = this._calcTotals();
@@ -518,7 +495,6 @@ const POS = {
 
             if (!result?.success) throw new Error(result?.error || 'فشل');
 
-            // حذف الفاتورة المعلقة المسترجعة بعد البيع الناجح
             if (this.state.resumedInvoiceId) {
                 try { await window.supabase.from('invoices').delete().eq('id', this.state.resumedInvoiceId); } catch (e) { /* ignore */ }
                 this.state.resumedInvoiceId = null;
@@ -528,7 +504,7 @@ const POS = {
             this._updateStock();
             if (this.state.db) { await this._fetchProdsAndCusts(); this._buildCache(); }
             else this._buildCache();
-            this._renderProductGrid(); // تحديث كروت التابلت
+            this._renderProductGrid();
             this._showReceipt({ ...inv, invoice_number: result.invoice_number || inv.invoice_number }, cust || { name: 'نقدي', balance: 0 }, this.state.cart, { sub, disc, net }, oldBal, { cash, trans, used, diff });
             this._resetCart(); this.state.editingInv = null; this._resetCartRender();
             window.Toast?.success('تم البيع');
@@ -563,7 +539,6 @@ const POS = {
     },
     _getCust() { return this.state.selectedCustomerId ? this.cache.custs.get(this.state.selectedCustomerId) : null; },
 
-    /* ---------- تعليق واسترجاع ---------- */
     async holdInvoice() {
         if (!this.state.cart.length) { window.Toast?.info('السلة فارغة'); return; }
         const { sub, disc, net } = this._calcTotals();
@@ -592,9 +567,7 @@ const POS = {
             else if (U.localReady()) inv = await localDB.getById('invoices', id);
         } catch { }
         if (!inv) { window.Toast?.error('غير موجودة'); return; }
-        // وضع علامة مسترجعة بدلاً من الحذف الفوري
         this.state.resumedInvoiceId = id;
-        // تحديث محلي للفاتورة لتصبح مسترجعة (لن تظهر في المعلقة مرة أخرى)
         try {
             if (this.state.db) await window.supabase.from('invoices').update({ status: 'resumed' }).eq('id', id);
             else if (U.localReady()) await localDB.put('invoices', { ...inv, status: 'resumed' });
@@ -605,7 +578,6 @@ const POS = {
         this._renderCart(); this._closeModal('heldInvoicesModal'); window.Toast?.success('تم الاسترجاع');
     },
 
-    /* ---------- إيصال HTML عربي ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}'), name = s?.company?.name || 'حسابي', phone = s?.company?.phone || '', foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
         const fmt = v => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -646,5 +618,4 @@ const POS = {
     _closeModal(id) { const m = this.el[id]; if (m) m.classList.remove('open'); }
 };
 
-// ⚠️ لا تستدعي init() هنا - يتم استدعاؤها من initApp() في pos.html فقط
 window.POS = POS;
