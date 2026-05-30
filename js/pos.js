@@ -1,5 +1,5 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار 6.1 - إصلاح التهيئة)
+   pos.js - نقطة البيع (إصدار 6.2 - إصلاح البحث والمنتجات)
    ============================================= */
 'use strict';
 
@@ -31,7 +31,6 @@ const POS = {
     cache: { prods: new Map(), custs: new Map() },
     el: {},
 
-    // تم تغييرها إلى async لانتظار المصادقة والتحميل
     async init() {
         this._cacheDOM();
         this._applySafeArea();
@@ -40,15 +39,12 @@ const POS = {
         window.addEventListener('online', () => this._connStatus());
         window.addEventListener('offline', () => this._connStatus());
         document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this._saveCart(); });
-        
-        // انتظار المصادقة والصلاحيات
         if (window.App) {
             const authorized = await App.requireAuth();
             if (!authorized) return;
             await App.requireRole(['admin', 'rep']);
             App.initUserInterface();
         }
-        
         await this._loadData();
         await this._sidebarUser();
         window.addEventListener('beforeunload', () => { this._stopBarcodeScan(); this._saveCart(); });
@@ -196,13 +192,24 @@ const POS = {
             } else if (U.localReady()) {
                 this.state.products = await localDB.getAll('products') || [];
                 custs = await localDB.getAll('parties') || [];
-            } else { this.state.products = []; custs = []; }
+            } else {
+                this.state.products = [];
+                custs = [];
+            }
             this.state.customers = custs.filter(c => c.type === 'customer');
-            this.state.products.forEach(p => { if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch {} });
-        } catch (e) { console.error(e); this.state.products = []; this.state.customers = []; window.Toast?.error('فشل تحميل البيانات'); }
+            // تحليل units إذا كانت نصاً JSON
+            this.state.products.forEach(p => {
+                if (typeof p.units === 'string') {
+                    try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
+                }
+            });
+        } catch (e) {
+            console.error('فشل تحميل البيانات:', e);
+            this.state.products = [];
+            this.state.customers = [];
+            window.Toast?.error('فشل تحميل البيانات');
+        }
     },
-
-    // ... (باقي الكود كما في 6.0 دون تغيير) ...
 
     _buildCache() {
         this.cache.prods.clear(); this.cache.custs.clear();
@@ -231,7 +238,10 @@ const POS = {
     _renderProductGrid(products = this.state.products) {
         const grid = this.el.productGrid;
         if (!grid) return;
-        if (!products.length) { grid.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);">لا توجد منتجات</div>'; return; }
+        if (!products.length) {
+            grid.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);">لا توجد منتجات</div>';
+            return;
+        }
         let html = '';
         for (const p of products) {
             const stock = p.units?.[0]?.stock || 0;
@@ -280,11 +290,23 @@ const POS = {
 
     _filterProducts() {
         const term = this.el.productSearchInput?.value.trim().toLowerCase() || '';
-        const dd = this.el.productDropdown; if (!dd) return;
+        const dd = this.el.productDropdown;
+        if (!dd) return;
+
         if (!term) { dd.classList.remove('show'); return; }
-        if (!this.state.products.length) { dd.innerHTML = '<div class="dropdown-item" style="color:var(--danger);">⚠️ لا توجد منتجات</div>'; dd.classList.add('show'); return; }
-        const filtered = this.state.products.filter(p => p.name?.toLowerCase().includes(term) || p.barcode === term || p.code === term);
-        dd.innerHTML = filtered.length ? filtered.map(p => `<div class="dropdown-item" data-id="${p.id}"><div class="item-info"><h4>${U.escape(p.name)}</h4></div><div class="item-price">${U.fmtMoney(p.units[0]?.price||0)}</div></div>`).join('') : '<div class="dropdown-item">لا نتائج</div>';
+
+        if (!this.state.products.length) {
+            dd.innerHTML = '<div class="dropdown-item" style="color:var(--danger);text-align:center;">⚠️ لا توجد منتجات</div>';
+            dd.classList.add('show');
+            return;
+        }
+
+        const filtered = this.state.products.filter(p =>
+            p.name?.toLowerCase().includes(term) || p.barcode === term || p.code === term
+        );
+        dd.innerHTML = filtered.length
+            ? filtered.map(p => `<div class="dropdown-item" data-id="${p.id}"><div class="item-info"><h4>${U.escape(p.name)}</h4></div><div class="item-price">${U.fmtMoney(p.units[0]?.price||0)}</div></div>`).join('')
+            : '<div class="dropdown-item" style="color:var(--text-muted);">لا توجد نتائج</div>';
         dd.classList.add('show');
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
@@ -375,8 +397,7 @@ const POS = {
 
     _canChangePrice() {
         if (this.state.currentUser) return this.state.currentUser.role === 'admin';
-        const session = JSON.parse(localStorage.getItem('app_session') || '{}');
-        return session.role === 'admin';
+        return false;
     },
 
     _onCartChange(e) {
