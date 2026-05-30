@@ -18,7 +18,7 @@ const Dashboard = {
     _utils: {
         formatMoney: (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م',
         escapeHTML: (str) => { const d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; },
-        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return dateStr; } },
+        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return dateStr; } }
     },
 
     /* ---------- التهيئة ---------- */
@@ -31,9 +31,12 @@ const Dashboard = {
     },
 
     cacheDOM() {
-        const ids = ['statsGrid', 'dailySalesCards', 'topProductsList', 'recentInvoicesTable', 'sidebarAvatar', 'sidebarUserName',
-                      'heroGreeting', 'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown', 'logoutBtn',
-                      'statTotalInvoices', 'statTotalSales', 'statPaid', 'statUnpaid', 'statLowStock'];
+        const ids = [
+            'statsGrid', 'dailySalesCards', 'topProductsList', 'recentInvoicesTable',
+            'sidebarAvatar', 'sidebarUserName', 'heroGreeting',
+            'menuToggle', 'sidebar', 'sidebarOverlay', 'moreMenuBtn', 'moreDropdown', 'logoutBtn',
+            'statTotalInvoices', 'statTotalSales', 'statPaid', 'statUnpaid', 'statLowStock'
+        ];
         ids.forEach(id => { this.el[id] = document.getElementById(id); });
     },
 
@@ -41,10 +44,10 @@ const Dashboard = {
         this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
         this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
         document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
-        this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
-        window.addEventListener('beforeunload', () => { this.stopPeriodicRefresh(); });
+        this.el.moreMenuBtn?.addEventListener('click', e => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
+        document.addEventListener('click', e => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+        this.el.logoutBtn?.addEventListener('click', e => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
+        window.addEventListener('beforeunload', () => this.stopPeriodicRefresh());
     },
 
     async initAuth() {
@@ -91,9 +94,18 @@ const Dashboard = {
         if (this.state.loading) return;
         this.state.loading = true;
         try {
-            await Promise.all([this.loadStats(), this.loadDailySalesCards(), this.loadTopProducts(), this.loadRecentInvoices()]);
-        } catch (e) { console.error('فشل تحميل البيانات:', e); if (window.Toast) Toast.error('فشل تحميل بعض البيانات'); }
-        finally { this.state.loading = false; }
+            await Promise.all([
+                this.loadStats(),
+                this.loadDailySalesCards(),
+                this.loadTopProducts(),
+                this.loadRecentInvoices()
+            ]);
+        } catch (e) {
+            console.error('فشل تحميل البيانات:', e);
+            if (window.Toast) Toast.error('فشل تحميل بعض البيانات');
+        } finally {
+            this.state.loading = false;
+        }
     },
 
     async loadStats() {
@@ -120,8 +132,8 @@ const Dashboard = {
         const setText = (id, val) => { if (this.el[id]) this.el[id].textContent = val; };
         setText('statTotalInvoices', this.state.stats.totalOrders);
         setText('statTotalSales', fm(this.state.stats.totalSales));
-        setText('statPaid', this.state.stats.totalOrders); // مبسّط
-        setText('statUnpaid', 0); // يمكن تحسينه
+        setText('statPaid', this.state.stats.totalOrders);
+        setText('statUnpaid', 0);
         setText('statLowStock', this.state.stats.lowStockCount);
     },
 
@@ -175,4 +187,3 @@ const Dashboard = {
 };
 
 window.Dashboard = Dashboard;
-// يتم استدعاء Dashboard.init() من dashboard.html بعد التحقق من الجلسة
