@@ -661,21 +661,31 @@
                 <button class="btn btn-cancel" id="duplicateCancelBtn" style="flex: 1;">إلغاء</button>
             </div>
         </div>
-    </div>
+    
+    <!-- Supabase CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- التوست -->
-    <div id="toast" class="toast"></div>
+<!-- النواة (العميل + الجلسة) -->
+<script src="./js/supabase-core.js"></script>
+<!-- المصادقة -->
+<script src="./js/supabase-auth.js"></script>
+<!-- قاعدة البيانات المحلية (IndexedDB) -->
+<script src="./js/db-local.js"></script>
+<!-- طبقة Offline + محرك المزامنة -->
+<script src="./js/supabase-offline.js"></script>
+<!-- دوال قاعدة البيانات -->
+<script src="./js/supabase-db.js"></script>
 
-    <!-- تحميل المكتبات -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-core.js"></script>
-    <script src="./js/supabase-auth.js"></script>
-    <script src="./js/supabase-offline.js"></script>
-    <script src="./js/supabase-db.js"></script>
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="./js/toast.js"></script>
-    <script src="./js/pos.js"></script>
+<!-- الخدمات -->
+<script src="./js/services/invoiceService.js"></script>
+<script src="./js/services/purchaseService.js"></script>
+
+<!-- Toast -->
+<script src="./js/toast.js"></script>
+
+<!-- سكربت الصفحة المحدد -->
+<script src="./js/pos.js"></script>
+    script>
 
     <script>
         (function() {
