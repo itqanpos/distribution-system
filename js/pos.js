@@ -38,11 +38,9 @@ const POS = {
         _barcodeAnimFrame: null,
         _barcodeBuffer: '',
         _barcodeTimer: null,
+        _lastKeyTime: 0, // لتحديد المسح السريع
         _observer: null,
-        // تمت إزالة _errorReported غير المستخدم
-        // Offline queue
         _offlineSales: [],
-        // Activity log (محلي)
         _activityLog: []
     },
     cache: {
@@ -78,14 +76,6 @@ const POS = {
                 this._stopBarcodeScan();
             }
         });
-        if (window.App) {
-            try {
-                const authorized = await App.requireAuth();
-                if (!authorized) return;
-                await App.requireRole(['admin', 'rep']);
-                App.initUserInterface();
-            } catch (e) { console.error('فشل المصادقة', e); return; }
-        }
         await this._loadData();
         await this._sidebarUser();
         this._restorePaymentDraft();
@@ -107,10 +97,11 @@ const POS = {
             'remainingDisplay','balanceAfterLabel','balanceAfter','paymentNotes',
             'confirmAndPrintBtn','closePaymentModalBtn',
             'heldInvoicesModal','heldInvoicesList','closeHeldModalBtn',
-            'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
+            'receiptModal','receiptPrintArea','printReceiptBtn','thermalPrintBtn','skipPrintBtn','closeReceiptModalBtn',
             'sidebarAvatar','sidebarUserName',
             'tabletProductSearchInput','productGrid','tabletBarcodeBtn',
-            'profitDisplay'
+            'profitDisplay',
+            'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn'
         ];
         ids.forEach(id => { const el = document.getElementById(id); if (el) this.el[id] = el; });
     },
@@ -121,7 +112,7 @@ const POS = {
         if (footer) footer.style.paddingBottom = `calc(10px + ${safeBottom})`;
     },
 
-    /* ---------- Error Monitoring (إرسال إلى سحابة) ---------- */
+    /* ---------- Error Monitoring ---------- */
     _setupErrorMonitoring() {
         window.addEventListener('error', (event) => {
             console.error('Global Error:', event.error);
@@ -145,23 +136,21 @@ const POS = {
         } catch (e) { /* صامت */ }
     },
 
-    /* ---------- Realtime Sync (تحديث ذكي + دعم الحذف) ---------- */
+    /* ---------- Realtime Sync ---------- */
     _setupRealtimeSync() {
         if (!window.supabaseClient) return;
         window.supabaseClient
             .channel('products-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-                // FIXED: دعم الحذف
                 if (payload.eventType === 'DELETE') {
                     const deletedId = payload.old?.id;
                     if (deletedId) {
                         this.state.products = this.state.products.filter(p => p.id !== deletedId);
-                        this._buildCache(); // نعيد بناء الكاش لحذفه
+                        this._buildCache();
                         this._debouncedRenderGrid();
                     }
                     return;
                 }
-                // تحديث أو إضافة
                 const updatedProduct = payload.new;
                 if (updatedProduct) {
                     const existingIndex = this.state.products.findIndex(p => p.id === updatedProduct.id);
@@ -170,14 +159,12 @@ const POS = {
                     } else {
                         this.state.products.push(updatedProduct);
                     }
-                    // تحديث جزئي للكاش
                     this._updateProductInCache(updatedProduct);
                     this._debouncedRenderGrid();
                 }
             })
             .subscribe();
     },
-    // دالة مساعدة لتحديث منتج واحد في الكاش
     _updateProductInCache(product) {
         if (!product) return;
         const id = String(product.id);
@@ -186,26 +173,38 @@ const POS = {
         if (product.barcode) this.cache._setWithLimit(this.cache.barcode, product.barcode, product);
         if (product.code) this.cache._setWithLimit(this.cache.barcode, product.code, product);
     },
-    // عرض مؤجل للشبكة لتجنب التكرار
     _debouncedRenderGrid: U.debounce(function() {
         this._renderProductGrid();
     }, 200),
 
-    /* ---------- Barcode Buffer ---------- */
+    /* ---------- Barcode Buffer (محسّن للماسحات HID) ---------- */
     _setupBarcodeBuffer() {
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+            const now = Date.now();
             if (e.key === 'Enter') {
                 if (this.state._barcodeBuffer.length > 5) {
                     this._searchBarcode(this.state._barcodeBuffer);
-                    this.state._barcodeBuffer = '';
                 }
+                this.state._barcodeBuffer = '';
+                this.state._lastKeyTime = 0;
                 return;
             }
             if (e.key.length === 1) {
+                // إذا كانت المدة بين ضغطات المفاتيح أقل من 30ms فهي ماسحة ضوئية
+                if (this.state._lastKeyTime && (now - this.state._lastKeyTime > 50)) {
+                    this.state._barcodeBuffer = ''; // بداية جديدة
+                }
+                this.state._lastKeyTime = now;
                 this.state._barcodeBuffer += e.key;
                 clearTimeout(this.state._barcodeTimer);
-                this.state._barcodeTimer = setTimeout(() => { this.state._barcodeBuffer = ''; }, 100);
+                this.state._barcodeTimer = setTimeout(() => {
+                    if (this.state._barcodeBuffer.length > 5) {
+                        this._searchBarcode(this.state._barcodeBuffer);
+                    }
+                    this.state._barcodeBuffer = '';
+                    this.state._lastKeyTime = 0;
+                }, 150);
             }
         });
     },
@@ -259,8 +258,7 @@ const POS = {
                 if (item.dataset.id === 'cash') { 
                     this.state.selectedCustomerId = null; 
                     this.el.customerSearchInput.value = CASH_CUSTOMER_LABEL;
-                }
-                else { 
+                } else { 
                     this.state.selectedCustomerId = item.dataset.id; 
                     const c = this.cache.custs.get(item.dataset.id); 
                     this.el.customerSearchInput.value = c?.name || ''; 
@@ -288,6 +286,7 @@ const POS = {
         on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
         on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
         on('printReceiptBtn', 'click', () => this._printReceipt());
+        on('thermalPrintBtn', 'click', () => this._printThermal());
 
         if (this.el.cartItemsContainer) {
             this.el.cartItemsContainer.addEventListener('change', e => this._onCartChange(e));
@@ -301,6 +300,22 @@ const POS = {
             });
             this.state._unitButtonsBound = true;
         }
+
+        // ربط مودال تكرار الصنف
+        on('duplicateIncreaseBtn', 'click', () => {
+            if (this._duplicateCallback) {
+                this._duplicateCallback(true);
+                this._duplicateCallback = null;
+            }
+            this._closeModal('duplicateProductModal');
+        });
+        on('duplicateCancelBtn', 'click', () => {
+            if (this._duplicateCallback) {
+                this._duplicateCallback(false);
+                this._duplicateCallback = null;
+            }
+            this._closeModal('duplicateProductModal');
+        });
     },
 
     _connStatus() {
@@ -485,7 +500,7 @@ const POS = {
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
 
-    /* ---------- Barcode Scanner (مع تنظيف كامل للفيديو) ---------- */
+    /* ---------- Barcode Scanner (كاميرا + Buffer) ---------- */
     _stopBarcodeScan() {
         if (this.state._barcodeStream) {
             this.state._barcodeStream.getTracks().forEach(t => t.stop());
@@ -495,7 +510,6 @@ const POS = {
             cancelAnimationFrame(this.state._barcodeAnimFrame);
             this.state._barcodeAnimFrame = null;
         }
-        // FIXED: إزالة عنصر الفيديو إذا كان موجوداً
         if (this._barcodeVideo) {
             this._barcodeVideo.remove();
             this._barcodeVideo = null;
@@ -508,7 +522,7 @@ const POS = {
         video.setAttribute('playsinline', ''); 
         video.style.display = 'none';
         document.body.appendChild(video);
-        this._barcodeVideo = video; // حفظ المرجع
+        this._barcodeVideo = video;
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
             this.state._barcodeStream = stream;
@@ -532,7 +546,7 @@ const POS = {
             window.Toast?.info('وجّه الكاميرا نحو الباركود');
         }).catch(() => { 
             window.Toast?.error('تعذر الوصول للكاميرا'); 
-            this._stopBarcodeScan(); // سيزيل الفيديو
+            this._stopBarcodeScan();
         });
     },
     _searchBarcode(code) {
@@ -545,7 +559,11 @@ const POS = {
         }
     },
 
-    openReturn() { window.location.href = './sales-returns.html'; },
+    openReturn() {
+        // إذا كانت هناك حاجة لبناء صفحة مرتجعات كاملة، نفتحها
+        // حالياً يمكن توجيه المستخدم لصفحة مخصصة
+        window.location.href = './sales-returns.html';
+    },
 
     _calcTotals() {
         let sub = 0; for (const i of this.state.cart) sub += U.round(i.price * i.quantity);
@@ -562,11 +580,16 @@ const POS = {
         if (this.el.itemTypesCount) this.el.itemTypesCount.textContent = this.state.cart.length;
         let pcs = 0; for (const i of this.state.cart) pcs += i.quantity * (i.factor || 1);
         if (this.el.totalPieces) this.el.totalPieces.textContent = Math.round(pcs);
-        if (this.el.profitDisplay && this.state.currentUser?.role === 'admin') {
-            let totalCost = 0;
-            for (const i of this.state.cart) totalCost += (i.cost || 0) * i.quantity;
-            const profit = sub - totalCost;
-            this.el.profitDisplay.textContent = `الربح المتوقع: ${U.fmtMoney(profit)}`;
+        if (this.el.profitDisplay) {
+            if (this.state.currentUser?.role === 'admin' && this.state.cart.length > 0) {
+                let totalCost = 0;
+                for (const i of this.state.cart) totalCost += (i.cost || 0) * i.quantity;
+                const profit = sub - totalCost;
+                this.el.profitDisplay.style.display = 'block';
+                this.el.profitDisplay.textContent = `الربح المتوقع: ${U.fmtMoney(profit)}`;
+            } else {
+                this.el.profitDisplay.style.display = 'none';
+            }
         }
     },
     _renderCart() {
@@ -630,7 +653,7 @@ const POS = {
         }
     },
 
-    /* ---------- Modal الوحدات (مع تصحيح المخزون) ---------- */
+    /* ---------- Modal الوحدات (مع مودال التكرار) ---------- */
     _openUnitModal(id) {
         const p = this.cache.prods.get(String(id)); if (!p?.units?.length) { window.Toast?.info('المنتج غير موجود'); return; }
         this.state.selectedProduct = p; this.state.selectedUnit = p.units[0];
@@ -646,7 +669,6 @@ const POS = {
     _updateUnitInfo() {
         const p = this.state.selectedProduct, u = this.state.selectedUnit; if (!p||!u) return;
         const base = p.units[0], stock = base.stock || 0, fac = u.factor || 1;
-        // FIXED: حساب المخزون المتاح للوحدة المختارة بشكل صحيح
         const avail = u === base ? stock : Math.floor(stock / fac);
         const max = Math.max(0, avail);
         this.el.selectedPrice.value = u.price || 0;
@@ -657,55 +679,50 @@ const POS = {
     },
     _addToCart() {
         if (this.state.addingItem) return;
-        this.state.addingItem = true;
-        if (this.el.addToCartBtn) this.el.addToCartBtn.disabled = true;
-
         const q = +this.el.selectedQuantity?.value || 0, max = +this.el.selectedQuantity?.max || 0;
-        if (q <= 0 || q > max) {
-            window.Toast?.error('كمية غير متاحة');
-            this.state.addingItem = false;
-            if (this.el.addToCartBtn) this.el.addToCartBtn.disabled = false;
-            return;
-        }
+        if (q <= 0 || q > max) { window.Toast?.error('كمية غير متاحة'); return; }
         const u = this.state.selectedUnit;
         let pr = +this.el.selectedPrice?.value || 0;
-        if (!this._canChangePrice()) {
-            pr = u?.price || 0;
-        }
+        if (!this._canChangePrice()) pr = u?.price || 0;
         if (u) {
-            if (u.minPrice > 0 && pr < u.minPrice) {
-                window.Toast?.error(`لا يمكن أقل من ${U.fmtMoney(u.minPrice)}`);
-                this.state.addingItem = false;
-                if (this.el.addToCartBtn) this.el.addToCartBtn.disabled = false;
-                return;
-            }
-            if (u.maxPrice > 0 && pr > u.maxPrice) {
-                window.Toast?.error(`لا يمكن أعلى من ${U.fmtMoney(u.maxPrice)}`);
-                this.state.addingItem = false;
-                if (this.el.addToCartBtn) this.el.addToCartBtn.disabled = false;
-                return;
-            }
+            if (u.minPrice > 0 && pr < u.minPrice) { window.Toast?.error(`لا يمكن أقل من ${U.fmtMoney(u.minPrice)}`); return; }
+            if (u.maxPrice > 0 && pr > u.maxPrice) { window.Toast?.error(`لا يمكن أعلى من ${U.fmtMoney(u.maxPrice)}`); return; }
         }
         const product = this.state.selectedProduct;
         const unitName = u?.name || '';
         const cost = u?.cost || 0;
-        // دمج الصنف المكرر: زيادة الكمية بدلاً من صف جديد
+
+        // التحقق من تكرار الصنف
         const exist = this.state.cart.find(i => i.productId === product.id && i.unitName === unitName);
         if (exist) {
-            exist.quantity = U.round(exist.quantity + q, 3);
-            if (pr) exist.price = pr;
-        } else {
-            this.state.cart.push({
-                productId: product.id,
-                productName: product.name,
-                unitName,
-                quantity: q,
-                price: pr,
-                cost,
-                factor: u?.factor || 1,
-                isBase: u === product.units[0]
-            });
+            // عرض مودال التأكيد
+            this.el.duplicateProductMsg.textContent = `الصنف ${product.name} موجود بالفعل بالكمية ${exist.quantity}. هل تريد زيادة الكمية؟`;
+            this.state.addingItem = true;
+            this._duplicateCallback = (confirmed) => {
+                if (confirmed) {
+                    exist.quantity = U.round(exist.quantity + q, 3);
+                    if (pr) exist.price = pr;
+                    this._renderCart(); this._saveCart();
+                }
+                this.state.addingItem = false;
+                this._closeModal('unitQuantityModal');
+            };
+            this._showModal('duplicateProductModal');
+            return;
         }
+
+        this.state.addingItem = true;
+        if (this.el.addToCartBtn) this.el.addToCartBtn.disabled = true;
+        this.state.cart.push({
+            productId: product.id,
+            productName: product.name,
+            unitName,
+            quantity: q,
+            price: pr,
+            cost,
+            factor: u?.factor || 1,
+            isBase: u === product.units[0]
+        });
         this._renderCart(); this._closeModal('unitQuantityModal'); this._saveCart();
         this.state.addingItem = false;
         if (this.el.addToCartBtn) this.el.addToCartBtn.disabled = false;
@@ -722,6 +739,9 @@ const POS = {
         this.el.currentBalance.classList.toggle('text-success', bal >= 0); this.el.currentBalance.classList.toggle('text-danger', bal < 0);
         this.el.cashAmount.value = ''; this.el.transferAmount.value = ''; this.el.paymentMethod.value = 'cash';
         this._togglePaymentFields(); this._previewPayment(); this._showModal('paymentModal');
+        if (bal < 0) {
+            window.Toast?.warning('هذا العميل عليه دين سابق: ' + U.fmtMoney(-bal));
+        }
     },
     _togglePaymentFields() {
         const m = this.el.paymentMethod?.value || 'cash';
@@ -736,10 +756,11 @@ const POS = {
         else if (m === 'transfer') trans = +this.el.transferAmount?.value || 0;
         else if (m === 'mixed') { cash = +this.el.cashAmount?.value || 0; trans = +this.el.transferAmount?.value || 0; }
         const cust = this._getCust();
-        let used = 0; if (cust?.balance > 0) used = Math.min(cust.balance, Math.max(0, net - cash - trans));
+        let used = 0;
+        if (m !== 'credit' && cust?.balance > 0) used = Math.min(cust.balance, Math.max(0, net - cash - trans));
         this.state.usedBalance = used;
         const paid = U.round(cash + trans + used, 2), diff = U.round(paid - net, 2);
-        const newBal = (cust?.balance || 0) - used + diff; // diff قد يكون سالباً
+        const newBal = (cust?.balance || 0) - used + diff;
         this.el.remainingDisplay.textContent = diff >= 0 ? `فائض ${U.fmtMoney(diff)}` : `متبقي ${U.fmtMoney(-diff)}`;
         this.el.balanceAfterLabel.textContent = newBal >= 0 ? 'رصيد للعميل بعد الدفع:' : 'رصيد على العميل بعد الدفع:';
         this.el.balanceAfter.textContent = U.fmtMoney(Math.abs(newBal));
@@ -754,14 +775,19 @@ const POS = {
             if (m === 'cash') cash = +this.el.cashAmount?.value || 0;
             else if (m === 'transfer') trans = +this.el.transferAmount?.value || 0;
             else if (m === 'mixed') { cash = +this.el.cashAmount?.value || 0; trans = +this.el.transferAmount?.value || 0; }
-            const used = this.state.usedBalance || 0, paid = U.round(cash + trans + used, 2), diff = U.round(paid - net, 2);
+            const used = (m === 'credit') ? 0 : this.state.usedBalance || 0;
+            const paid = (m === 'credit') ? 0 : U.round(cash + trans + used, 2);
+            const diff = (m === 'credit') ? -net : U.round(paid - net, 2); // في الآجل كامل المبلغ متبقي
             const cust = this._getCust(), oldBal = cust?.balance || 0;
 
             if (diff > 0 && cust && !confirm(`سيتم إضافة ${U.fmtMoney(diff)} إلى رصيد العميل. متابعة؟`)) {
                 this.state.busy = false; this.el.confirmAndPrintBtn.disabled = false; return;
             }
+            if (m === 'credit' && cust && !confirm(`سيتم تسجيل كامل المبلغ ${U.fmtMoney(net)} كدين على العميل. متابعة؟`)) {
+                this.state.busy = false; this.el.confirmAndPrintBtn.disabled = false; return;
+            }
 
-            // إعادة فحص المخزون من قاعدة البيانات قبل الحفظ
+            // فحص المخزون
             if (this.state.db) {
                 const freshProducts = await DB.getProducts(true);
                 if (freshProducts) {
@@ -787,15 +813,13 @@ const POS = {
                 paid, remaining: diff >= 0 ? 0 : -diff,
                 customer_credit_added: diff > 0 ? diff : 0,
                 change_amount: diff > 0 ? diff : 0,
-                status: diff >= 0 ? 'paid' : 'partial',
+                status: m === 'credit' ? 'credit' : (diff >= 0 ? 'paid' : 'partial'),
                 notes: this.el.paymentNotes?.value || '',
                 tenant_id: this.state.currentUser?.tenant_id,
                 created_by: this.state.currentUser?.id
             };
 
-            if (this.state.editingInv) {
-                inv.original_invoice_id = this.state.editingInv;
-            }
+            if (this.state.editingInv) inv.original_invoice_id = this.state.editingInv;
 
             let result;
             if (navigator.onLine && this.state.db) {
@@ -854,6 +878,7 @@ const POS = {
         if (this.el.discountValue) this.el.discountValue.value = 0;
         if (this.el.discountType) this.el.discountType.value = 'amount';
         if (this.el.customerSearchInput) { this.el.customerSearchInput.value = ''; this._updateCustDisplay(); }
+        if (this.el.profitDisplay) this.el.profitDisplay.style.display = 'none';
         this._renderCart(); this._resetCartRender();
         localStorage.removeItem('pos_cart');
     },
@@ -979,7 +1004,7 @@ const POS = {
             else if (U.localReady()) await localDB.put('invoices', { ...inv, status: 'resumed' });
         } catch { }
         const validItems = [];
-        const missingItems = []; // لتتبع الأصناف المفقودة
+        const missingItems = [];
         for (const it of (inv.items || [])) {
             const p = this.cache.prods.get(String(it.productId));
             if (p) validItems.push(it);
@@ -991,26 +1016,23 @@ const POS = {
             const c = this.cache.custs.get(String(inv.customer_id)); 
             if (c) this.el.customerSearchInput.value = c.name || ''; 
             this._updateCustDisplay(); 
-        }
-        else { 
+        } else { 
             this.el.customerSearchInput.value = CASH_CUSTOMER_LABEL; 
             this._updateCustDisplay(); 
         }
         this._renderCart(); 
         this._closeModal('heldInvoicesModal');
-        // تحذير في حال وجود أصناف محذوفة
         if (missingItems.length) {
             window.Toast?.warning(`بعض الأصناف لم تعد متوفرة: ${missingItems.join('، ')}`);
         }
         window.Toast?.success('تم الاسترجاع');
     },
 
-    /* ---------- الإيصال (مع تصحيح الرصيد) ---------- */
+    /* ---------- الإيصال (مع خيار الطباعة الحرارية) ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}'), name = s?.company?.name || 'حسابي', phone = s?.company?.phone || '', foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
         const fmt = v => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const used = pay.used || 0, diff = pay.diff || 0;
-        // FIXED: الرصيد الجديد = الرصيد السابق - المستخدم + الفرق (قد يكون سالباً)
         const newBalance = (oldBal || 0) - used + diff;
         let itemsHtml = '';
         for (const it of items) {
@@ -1034,6 +1056,39 @@ const POS = {
             iframe.contentDocument.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Cairo',sans-serif;direction:rtl}</style></head><body>${content}</body></html>`);
             iframe.contentDocument.close(); iframe.contentWindow.focus(); iframe.contentWindow.print();
             setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+        }
+    },
+
+    async _printThermal() {
+        try {
+            // استخدام مكتبة escpos (يجب تحميلها مسبقاً)
+            if (!window.escpos) {
+                window.Toast?.error('مكتبة الطباعة الحرارية غير محملة');
+                return;
+            }
+            const device = await navigator.usb.requestDevice({ filters: [] });
+            await device.open();
+            await device.selectConfiguration(1);
+            await device.claimInterface(0);
+
+            const encoder = new escpos.Encoder();
+            const receipt = this.el.receiptPrintArea.innerText; // نستخدم النص فقط للتبسيط
+            encoder
+                .align('ct')
+                .size(1, 1)
+                .text('حسابي')
+                .text('---------------------')
+                .align('rt')
+                .text(receipt)
+                .cut('partial');
+
+            const data = encoder.encode();
+            await device.transferOut(1, data);
+            await device.close();
+            window.Toast?.success('تمت الطباعة');
+        } catch (e) {
+            console.error(e);
+            window.Toast?.error('فشلت الطباعة الحرارية');
         }
     },
 
