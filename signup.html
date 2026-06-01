@@ -219,15 +219,22 @@
             font-size: 14px;
             font-weight: 600;
             backdrop-filter: blur(8px);
+            animation: fadeSlideDown 0.4s ease;
         }
         .alert.show { display: flex; }
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .alert a {
             color: #f87171;
             font-weight: 700;
             text-decoration: none;
             margin-right: auto;
             cursor: pointer;
+            white-space: nowrap;
         }
+        .alert a:hover { text-decoration: underline; }
 
         .input-group {
             position: relative;
@@ -236,7 +243,7 @@
         .input-group input,
         .input-group select {
             width: 100%;
-            padding: 15px 48px 15px 18px;
+            padding: 15px 48px 15px 48px;
             background: var(--input-bg);
             border: 1px solid var(--border);
             border-radius: 16px;
@@ -270,6 +277,25 @@
         .input-group input:focus ~ .input-icon,
         .input-group input:not(:placeholder-shown) ~ .input-icon,
         .input-group select:focus ~ .input-icon {
+            color: var(--primary);
+        }
+
+        /* زر إظهار كلمة المرور */
+        .toggle-password {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            z-index: 2;
+            transition: color 0.2s;
+        }
+        .toggle-password:hover {
             color: var(--primary);
         }
 
@@ -331,6 +357,10 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .btn.loading .btn-text { display: none; }
         .btn.loading .spinner { display: inline-block; }
+        .btn-outline .spinner {
+            border-color: rgba(99,102,241,0.3);
+            border-top-color: var(--primary);
+        }
 
         .nav-buttons {
             display: flex;
@@ -399,6 +429,8 @@
         @media (max-width: 480px) {
             .card { padding: 30px 20px; border-radius: 20px; }
             .plan-cards { grid-template-columns: 1fr; }
+            .input-group input,
+            .input-group select { padding: 14px 44px 14px 44px; font-size: 15px; }
         }
     </style>
 </head>
@@ -444,14 +476,23 @@
                     <span class="input-icon"><i class="fas fa-phone"></i></span>
                 </div>
                 <div class="input-group">
-                    <input type="password" id="password" placeholder="كلمة المرور" autocomplete="new-password">
+                    <input type="password" id="password" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password">
                     <span class="input-icon"><i class="fas fa-lock"></i></span>
+                    <button type="button" class="toggle-password" data-target="password" aria-label="إظهار كلمة المرور">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </div>
                 <div class="input-group">
                     <input type="password" id="passwordConfirm" placeholder="تأكيد كلمة المرور">
                     <span class="input-icon"><i class="fas fa-check-circle"></i></span>
+                    <button type="button" class="toggle-password" data-target="passwordConfirm" aria-label="إظهار تأكيد كلمة المرور">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </div>
-                <button class="btn" id="nextStep1">التالي <i class="fas fa-arrow-left"></i></button>
+                <button class="btn" id="nextStep1">
+                    <span class="btn-text">التالي <i class="fas fa-arrow-left"></i></span>
+                    <span class="spinner"></span>
+                </button>
             </div>
 
             <!-- الخطوة 2: بيانات المتجر -->
@@ -476,8 +517,14 @@
                     <span class="input-icon"><i class="fas fa-briefcase"></i></span>
                 </div>
                 <div class="nav-buttons">
-                    <button class="btn btn-outline" id="prevStep2">السابق</button>
-                    <button class="btn" id="nextStep2" style="flex:2;">التالي <i class="fas fa-arrow-left"></i></button>
+                    <button class="btn btn-outline" id="prevStep2">
+                        <span class="btn-text">السابق</span>
+                        <span class="spinner"></span>
+                    </button>
+                    <button class="btn" id="nextStep2" style="flex:2;">
+                        <span class="btn-text">التالي <i class="fas fa-arrow-left"></i></span>
+                        <span class="spinner"></span>
+                    </button>
                 </div>
             </div>
 
@@ -502,8 +549,14 @@
                     </div>
                 </div>
                 <div class="nav-buttons">
-                    <button class="btn btn-outline" id="prevStep3">السابق</button>
-                    <button class="btn" id="submitBtn" style="flex:2;">إنشاء المتجر <i class="fas fa-check"></i></button>
+                    <button class="btn btn-outline" id="prevStep3">
+                        <span class="btn-text">السابق</span>
+                        <span class="spinner"></span>
+                    </button>
+                    <button class="btn" id="submitBtn" style="flex:2;">
+                        <span class="btn-text">إنشاء المتجر <i class="fas fa-check"></i></span>
+                        <span class="spinner"></span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -512,11 +565,11 @@
         </div>
     </div>
 
-    <!-- الاعتماديات -->
+    <!-- الاعتماديات (الترتيب مهم) -->
     <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
 
     <script>
         (() => {
@@ -561,14 +614,14 @@
             function showAlert(message, showRetry = true) {
                 alertMsg.textContent = message;
                 alertBox.classList.add('show');
-                if (!showRetry) alertBox.querySelector('a').style.display = 'none';
-                else alertBox.querySelector('a').style.display = '';
+                const retryLink = alertBox.querySelector('a');
+                if (retryLink) retryLink.style.display = showRetry ? '' : 'none';
             }
             function hideAlert() { alertBox.classList.remove('show'); }
 
             function showToast(msg, type = 'error') {
-                if (window.Toast) {
-                    Toast[type]?.(msg) || Toast.error(msg);
+                if (window.Toast && typeof Toast[type] === 'function') {
+                    Toast[type](msg);
                 } else {
                     alert(msg);
                 }
@@ -579,12 +632,12 @@
                 [step1El, step2El, step3El].forEach(el => el.classList.remove('active', 'done'));
                 if (n > 1) step1El.classList.add('done');
                 if (n > 2) step2El.classList.add('done');
-                const activeStep = [step1El, step2El, step3El][n-1];
+                const activeStep = [step1El, step2El, step3El][n - 1];
                 if (activeStep) activeStep.classList.add('active');
 
                 // تحديث المحتوى
                 [content1, content2, content3].forEach(el => el.classList.remove('active'));
-                const activeContent = [content1, content2, content3][n-1];
+                const activeContent = [content1, content2, content3][n - 1];
                 if (activeContent) activeContent.classList.add('active');
 
                 // شريط التقدم
@@ -593,6 +646,21 @@
 
                 currentStep = n;
             }
+
+            // ========== أزرار إظهار/إخفاء كلمة المرور ==========
+            document.querySelectorAll('.toggle-password').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.dataset.target;
+                    const input = document.getElementById(targetId);
+                    if (input) {
+                        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                        input.setAttribute('type', type);
+                        const icon = btn.querySelector('i');
+                        icon.classList.toggle('fa-eye');
+                        icon.classList.toggle('fa-eye-slash');
+                    }
+                });
+            });
 
             // اختيار الخطة
             document.querySelectorAll('.plan-card').forEach(card => {
@@ -608,7 +676,7 @@
                 return new Promise((resolve, reject) => {
                     const start = Date.now();
                     const check = () => {
-                        if (window.App && window.App.signup && window.App.getCurrentUser) {
+                        if (window.App && typeof App.signup === 'function' && typeof App.getCurrentUser === 'function') {
                             resolve();
                         } else if (Date.now() - start > timeoutMs) {
                             reject(new Error('انتهت مهلة الاتصال'));
@@ -631,6 +699,14 @@
                     await waitForApp();
                     hideAlert();
                     disableAllButtons(false);
+                    // إذا كان المستخدم مسجل دخوله بالفعل، نعيد توجيهه
+                    const user = await App.getCurrentUser();
+                    if (user) {
+                        let target = './dashboard.html';
+                        if (user.role === 'rep') target = './pos.html';
+                        else if (user.role === 'super_admin') target = './admin.html';
+                        window.location.href = target;
+                    }
                 } catch (err) {
                     showAlert('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
                     disableAllButtons(true);
@@ -657,11 +733,15 @@
                 if (!fullName || !email || !password) {
                     return showToast('جميع الحقول الأساسية مطلوبة', 'warning');
                 }
+                // تحقق بسيط من صيغة البريد الإلكتروني
+                if (!email.includes('@') || !email.includes('.')) {
+                    return showToast('يرجى إدخال بريد إلكتروني صحيح', 'warning');
+                }
                 if (password !== passwordConfirm) {
                     return showToast('كلمتا المرور غير متطابقتين', 'warning');
                 }
                 if (password.length < 6) {
-                    return showToast('كلمة المرور 6 أحرف على الأقل', 'warning');
+                    return showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'warning');
                 }
                 showStep(2);
             });
@@ -670,6 +750,9 @@
                 const storeName = document.getElementById('storeName').value.trim();
                 if (!storeName) {
                     return showToast('يرجى إدخال اسم المتجر', 'warning');
+                }
+                if (storeName.length < 2) {
+                    return showToast('اسم المتجر يجب أن يكون حرفين على الأقل', 'warning');
                 }
                 showStep(3);
             });
@@ -686,8 +769,13 @@
                 const storeName = document.getElementById('storeName').value.trim();
                 const businessType = document.getElementById('businessType').value;
 
-                // تحقق إضافي من النواة
-                if (!window.App || !window.App.signup) {
+                // تحقق نهائي
+                if (!fullName || !email || !password || !storeName) {
+                    return showToast('جميع الحقول الأساسية مطلوبة', 'warning');
+                }
+
+                // تحقق من النواة
+                if (!window.App || typeof App.signup !== 'function') {
                     showAlert('الاتصال غير متاح، جارٍ المحاولة...');
                     try {
                         await waitForApp(4000);
@@ -704,11 +792,11 @@
                 try {
                     const result = await App.signup(email, password, fullName, 'admin', storeName, phone);
                     if (result.success) {
-                        showToast('تم إنشاء المتجر بنجاح!', 'success');
-                        // يمكن حفظ الخطة المختارة لاحقًا
-                        if (selectedPlan !== 'free') {
-                            console.log('الخطة المختارة:', selectedPlan);
-                            // TODO: توجيه لصفحة الدفع عند الحاجة
+                        showToast('تم إنشاء المتجر بنجاح! جارٍ تحويلك...', 'success');
+                        // يمكن حفظ الخطة المختارة أو نوع النشاط لاحقًا
+                        if (selectedPlan !== 'free' || businessType) {
+                            console.log('بيانات إضافية:', { plan: selectedPlan, businessType });
+                            // TODO: حفظ هذه البيانات في الملف الشخصي أو الإعدادات
                         }
                         setTimeout(() => {
                             window.location.href = './dashboard.html';
