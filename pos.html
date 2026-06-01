@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
-    <!-- كل شيء في الـ head كما هو في التصميم السابق دون تغيير -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نقطة البيع · حسابي</title>
@@ -21,7 +20,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* ========== المتغيرات والتصميم العام (كما هو بالضبط) ========== */
         :root {
             --primary: #2563eb;
             --primary-light: #eff6ff;
@@ -94,9 +92,7 @@
         /* بالونة عدم الاتصال */
         #offline-banner {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             background: var(--danger);
             color: white;
             text-align: center;
@@ -107,11 +103,9 @@
             transform: translateY(-100%);
             transition: transform 0.3s ease;
         }
-        body.offline #offline-banner {
-            transform: translateY(0);
-        }
+        body.offline #offline-banner { transform: translateY(0); }
 
-        /* ========== الشريط العلوي ========== */
+        /* الشريط العلوي */
         .navbar {
             display: flex; justify-content: space-between; align-items: center;
             background: var(--bg-surface); backdrop-filter: blur(12px);
@@ -123,10 +117,7 @@
             flex-shrink: 0;
         }
         .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
-        .menu-toggle {
-            background: none; border: none; color: var(--text-primary);
-            font-size: 1.4rem; cursor: pointer;
-        }
+        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
         .logo { display: flex; align-items: center; gap: 8px; }
         .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
         .nav-actions { position: relative; }
@@ -137,7 +128,6 @@
             cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
         }
         .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
-
         .more-dropdown {
             position: absolute; top: 48px; left: 0;
             background: var(--bg-surface); border-radius: var(--radius-md);
@@ -154,7 +144,7 @@
         .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
         .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
-        /* ========== القائمة الجانبية ========== */
+        /* القائمة الجانبية */
         .sidebar-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.35); z-index: 149;
@@ -180,96 +170,51 @@
         .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
         .menu-item.active { background: var(--primary-light); color: var(--primary); }
 
-        /* ========== الحاوية الرئيسية ========== */
-        .main-layout {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            height: calc(100vh - 56px - var(--safe-top));
-        }
+        /* الحاوية الرئيسية */
+        .main-layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 56px - var(--safe-top)); }
 
-        /* كروت المنتجات (للوحي والكمبيوتر) */
+        /* لوحة المنتجات */
         .products-panel {
-            display: none;
-            flex: 1;
-            flex-direction: column;
-            background: var(--bg-body);
-            border-left: 1px solid var(--border-light);
-            overflow: hidden;
+            display: none; flex: 1; flex-direction: column;
+            background: var(--bg-body); border-left: 1px solid var(--border-light); overflow: hidden;
         }
         .products-panel-header {
-            padding: 12px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: var(--bg-surface);
-            border-bottom: 1px solid var(--border-light);
+            padding: 12px; display: flex; gap: 10px; align-items: center;
+            background: var(--bg-surface); border-bottom: 1px solid var(--border-light);
         }
         .products-panel-header input {
-            flex: 1;
-            padding: 10px 14px;
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm);
-            font-size: 14px;
-            background: var(--bg-input);
-            color: var(--text-primary);
+            flex: 1; padding: 10px 14px; border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm); font-size: 14px; background: var(--bg-input); color: var(--text-primary);
         }
         .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-            padding: 12px;
-            overflow-y: auto;
-            flex: 1;
-            align-content: start;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px; padding: 12px; overflow-y: auto; flex: 1; align-content: start;
         }
         .product-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-md);
-            padding: 12px;
-            text-align: center;
-            cursor: pointer;
-            transition: all var(--transition);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            min-height: 120px;
-            justify-content: center;
+            background: var(--bg-card); border: 1px solid var(--border-light);
+            border-radius: var(--radius-md); padding: 12px; text-align: center;
+            cursor: pointer; transition: all var(--transition);
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            min-height: 120px; justify-content: center;
         }
-        .product-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-1px);
-            border-color: var(--primary);
-        }
+        .product-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); border-color: var(--primary); }
         .product-stock.in-stock { color: var(--success); }
         .product-stock.out-of-stock { color: var(--danger); }
 
-        /* ========== منطقة السلة (تم تعديلها لتطابق التصميم القديم) ========== */
+        /* لوحة السلة */
         .cart-panel {
-            display: flex;
-            flex-direction: column;
-            width: 380px;
-            max-width: 100%;
-            background: var(--bg-surface);
-            border-right: 1px solid var(--border-light);
-            flex-shrink: 0;
-            overflow: hidden;
+            display: flex; flex-direction: column; width: 380px; max-width: 100%;
+            background: var(--bg-surface); border-right: 1px solid var(--border-light);
+            flex-shrink: 0; overflow: hidden;
         }
         .mobile-search-area {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 12px;
-            border-bottom: 1px solid var(--border-light);
-            background: var(--bg-surface);
+            display: flex; flex-direction: column; gap: 10px; padding: 12px;
+            border-bottom: 1px solid var(--border-light); background: var(--bg-surface);
         }
         .customer-box { position: relative; }
         .customer-box input {
             width: 100%; padding: 12px 16px; border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm); font-size: 14px; background: var(--bg-input);
-            color: var(--text-primary);
+            border-radius: var(--radius-sm); font-size: 14px; background: var(--bg-input); color: var(--text-primary);
         }
         .customer-balance { margin-top: 4px; font-weight: 600; font-size: 0.8rem; }
         .customer-balance.positive { color: var(--success); }
@@ -277,8 +222,7 @@
         .search-header { position: relative; }
         .search-header input {
             width: 100%; padding: 12px 16px; border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm); font-size: 14px; background: var(--bg-input);
-            color: var(--text-primary);
+            border-radius: var(--radius-sm); font-size: 14px; background: var(--bg-input); color: var(--text-primary);
         }
         .search-dropdown {
             position: absolute; top: 100%; left: 0; right: 0;
@@ -297,123 +241,43 @@
         .item-info small { color: var(--text-secondary); }
         .item-price { font-weight: 700; color: var(--primary); }
 
-        .cart-main-area {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            background: var(--bg-input);
-            overflow: hidden;
-        }
-        .cart-items {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 12px;
-        }
+        .cart-items { flex: 1; overflow-y: auto; padding: 10px 12px; }
         .cart-header-row {
-            display: flex;
-            justify-content: space-between;
-            font-weight: 700;
-            padding: 8px 0;
-            border-bottom: 2px solid var(--border-medium);
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            text-transform: uppercase;
+            display: flex; justify-content: space-between; font-weight: 700;
+            padding: 8px 0; border-bottom: 2px solid var(--border-medium);
+            color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase;
         }
         .cart-item-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--border-light);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid var(--border-light);
         }
         .cart-item-row input {
-            width: 65px;
-            padding: 6px;
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm);
-            text-align: center;
-            font-size: 0.8rem;
-            background: var(--bg-input);
-            color: var(--text-primary);
+            width: 65px; padding: 6px; border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm); text-align: center; font-size: 0.8rem;
+            background: var(--bg-input); color: var(--text-primary);
         }
-        .cart-item-row .fa-trash {
-            color: var(--danger);
-            cursor: pointer;
-            padding: 6px;
-            border-radius: var(--radius-sm);
-        }
-        .cart-item-row .fa-trash:hover { background: var(--danger-light); }
-
         .cart-footer {
-            background: var(--bg-surface);
-            border-top: 1px solid var(--border-light);
-            padding: 10px 16px;
-            padding-bottom: calc(10px + var(--safe-bottom));
+            background: var(--bg-surface); border-top: 1px solid var(--border-light);
+            padding: 10px 16px; padding-bottom: calc(10px + var(--safe-bottom));
             box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
         }
         .summary-stats { display: flex; gap: 10px; margin-bottom: 8px; }
         .stat-item {
-            background: var(--bg-input);
-            border-radius: var(--radius-sm);
-            padding: 6px 12px;
-            text-align: center;
-            flex: 1;
+            background: var(--bg-input); border-radius: var(--radius-sm);
+            padding: 6px 12px; text-align: center; flex: 1;
         }
         .stat-item .label { font-size: 0.65rem; color: var(--text-muted); }
         .stat-item .value { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); }
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-            font-size: 0.85rem;
-        }
-        .summary-row.total {
-            font-weight: 700;
-            font-size: 1rem;
-            margin-top: 4px;
-            padding-top: 4px;
-            border-top: 2px dashed var(--border-medium);
-        }
-        .discount-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .discount-row input {
-            width: 70px;
-            padding: 6px;
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm);
-            text-align: center;
-            background: var(--bg-input);
-            color: var(--text-primary);
-        }
-        .discount-row select {
-            padding: 6px;
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm);
-            background: var(--bg-input);
-            color: var(--text-primary);
-        }
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
+        .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 0.85rem; }
+        .summary-row.total { font-weight: 700; font-size: 1rem; margin-top: 4px; padding-top: 4px; border-top: 2px dashed var(--border-medium); }
+        .discount-row { display: flex; align-items: center; gap: 6px; }
+        .discount-row input { width: 70px; padding: 6px; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); text-align: center; background: var(--bg-input); color: var(--text-primary); }
+        .discount-row select { padding: 6px; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); }
+        .action-buttons { display: flex; gap: 8px; margin-top: 10px; }
         .btn {
-            flex: 1;
-            padding: 11px;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            font-size: 14px;
-            transition: all var(--transition);
+            flex: 1; padding: 11px; border: none; border-radius: var(--radius-sm);
+            font-weight: 600; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 6px; font-size: 14px; transition: all var(--transition);
         }
         .btn:active { opacity: 0.9; transform: scale(0.97); }
         .btn-success { background: var(--success); color: white; }
@@ -421,17 +285,13 @@
         .btn-cancel { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-medium); }
         .btn-lg { padding: 14px; font-size: 18px; font-weight: 700; }
 
-        /* ربح متوقع (يظهر فقط للمشرف) */
+        /* ربح متوقع */
         #profitDisplay {
-            font-size: 0.8rem;
-            color: var(--success);
-            font-weight: 600;
-            margin-bottom: 8px;
-            text-align: center;
-            display: none; /* يتحكم فيها pos.js */
+            font-size: 0.8rem; color: var(--success); font-weight: 600;
+            margin-bottom: 8px; text-align: center; display: none;
         }
 
-        /* ========== المودالات (بدون تغيير) ========== */
+        /* المودالات */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); z-index: 250; align-items: center; justify-content: center;
@@ -463,7 +323,7 @@
         .text-danger { color: var(--danger) !important; }
 
         .receipt-modal-content { max-width: 380px !important; background: #fffef7; color: #000; }
-        .receipt-actions { display: flex; gap: 10px; justify-content: center; padding: 12px; }
+        .receipt-actions { display: flex; gap: 10px; justify-content: center; padding: 12px; flex-wrap: wrap; }
         #receiptPrintArea { padding: 12px; background: white; font-family: 'Cairo', sans-serif; color: #000; }
 
         .toast {
@@ -504,7 +364,6 @@
     <div id="loading-bar"></div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- الشريط العلوي (كما هو) -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -534,7 +393,6 @@
     </nav>
 
     <div class="main-layout">
-        <!-- القائمة الجانبية (كما هي) -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-user">
                 <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -555,7 +413,6 @@
             </ul>
         </aside>
 
-        <!-- لوحة المنتجات (للأجهزة اللوحية) -->
         <div class="products-panel">
             <div class="products-panel-header">
                 <i class="fas fa-search" style="color: var(--text-muted);"></i>
@@ -565,9 +422,7 @@
             <div id="productGrid" class="product-grid"></div>
         </div>
 
-        <!-- لوحة السلة (تم تعديلها هنا) -->
         <div class="cart-panel">
-            <!-- منطقة البحث العلوية (للهاتف) -->
             <div class="mobile-search-area">
                 <div class="customer-box">
                     <div class="search-header" style="position: relative;">
@@ -587,14 +442,12 @@
                 </div>
             </div>
 
-            <!-- السلة (مع cart-main-area) -->
             <div class="cart-main-area">
                 <div class="cart-items" id="cartItemsContainer">
                     <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>
                     <div class="empty-cart-message">السلة فارغة</div>
                 </div>
                 
-                <!-- فوتر السلة مع profitDisplay -->
                 <div class="cart-footer">
                     <div id="profitDisplay" style="display:none;"></div>
                     <div class="cart-summary">
@@ -618,7 +471,7 @@
         </div>
     </div>
 
-    <!-- المودالات (بدون تغيير) -->
+    <!-- مودال الوحدة والكمية -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
             <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
@@ -631,6 +484,7 @@
         </div>
     </div>
 
+    <!-- مودال الدفع -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
@@ -658,6 +512,7 @@
         </div>
     </div>
 
+    <!-- مودال الفواتير المعلقة -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
@@ -665,12 +520,14 @@
         </div>
     </div>
 
+    <!-- مودال الإيصال -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
             <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
             <div id="receiptPrintArea"></div>
             <div class="receipt-actions">
                 <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-primary" id="thermalPrintBtn"><i class="fas fa-print"></i> حرارية</button>
                 <button class="btn btn-cancel" id="skipPrintBtn">متابعة بدون طباعة</button>
             </div>
         </div>
@@ -690,7 +547,7 @@
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- ========== النصوص البرمجية ========== -->
+    <!-- ========== النصوص البرمجية (الترتيب مهم) ========== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -700,6 +557,8 @@
     <script src="./js/services/invoiceService.js"></script>
     <script src="./js/services/purchaseService.js"></script>
     <script src="./js/toast.js"></script>
+    <!-- مكتبة الطباعة الحرارية -->
+    <script src="https://cdn.jsdelivr.net/npm/esc-pos-encoder@2"></script>
     <script src="./js/pos.js"></script>
 
     <script>
