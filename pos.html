@@ -590,7 +590,7 @@
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- ========== النصوص البرمجية ========== -->
+    <!-- ========== النصوص البرمجية (الترتيب مهم) ========== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -623,11 +623,15 @@
                 loadingBar.style.width = '80%';
                 try {
                     await waitForPOS();
+                    // POS.init() يتولى المصادقة والصلاحيات وتحميل البيانات
                     await window.POS.init();
                     loadingBar.style.width = '100%';
                 } catch (e) {
                     console.error('تهيئة POS فشلت:', e);
                     loadingBar.style.background = 'var(--danger)';
+                    if (window.Toast) {
+                        Toast.error('فشل تحميل نقطة البيع. الرجاء المحاولة لاحقاً.');
+                    }
                 } finally {
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
                 }
