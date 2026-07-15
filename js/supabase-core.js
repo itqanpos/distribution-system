@@ -9,9 +9,21 @@
 
     window.supabaseClient = null;
 
+    // ---------- بيئة التطوير ----------
+    const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const logger = {
+        log: (...args) => IS_DEV && console.log(...args),
+        warn: (...args) => console.warn(...args),
+        error: (...args) => console.error(...args)
+    };
+
     // ========== UUID Generator ==========
     function generateUUID() {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+        // استخدام API الحديث إن وُجد
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        // استخدام getRandomValues (مُتاح في معظم المتصفحات الحديثة)
         if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
             const buf = new Uint8Array(16);
             crypto.getRandomValues(buf);
@@ -20,11 +32,14 @@
             const hex = Array.from(buf, b => b.toString(16).padStart(2, '0')).join('');
             return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
         }
-        // Fallback رياضي
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
+        // احتياطي للمتصفحات القديمة جداً – يعتمد على Math.random لكن مع تحسين بسيط
+        let d = Date.now() + performance.now();
+        const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
             return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
         });
+        return uuid;
     }
     window.generateUUID = generateUUID;
 
@@ -37,22 +52,26 @@
         _cacheTimes: new Map(),
         _maxCacheSize: 50,
 
-        // استعادة الجلسة من localStorage عند البدء (إذا لم تكن مستعادة بعد)
         restoreSession() {
-            if (this._user) return true; // تم الاستعادة مسبقاً
+            if (this._user) return true; // مُستعادة مسبقاً
             try {
                 const raw = localStorage.getItem('app_session');
                 if (raw) {
                     const session = JSON.parse(raw);
-                    // التحقق من أن الجلسة ليست قديمة جداً (اختياري: 30 يوم)
-                    // هنا نستعيد ببساطة
-                    this._user = session;
-                    this._tenantId = session.tenant_id || null;
-                    console.log('✅ تم استعادة الجلسة من localStorage');
+                    // استخدام الـ setter لضمان الاتساق (يحفظ في localStorage، يُحدّث tenantId)
+                    this.user = {
+                        id: session.id,
+                        email: session.email,
+                        fullName: session.fullName,
+                        tenant_id: session.tenant_id
+                        // لا نُمرر loginTime لأن الـ setter سيُنشئ واحداً جديداً (وقت الاستعادة)
+                    };
+                    logger.log('✅ تم استعادة الجلسة من localStorage');
                     return true;
                 }
             } catch (e) {
-                console.warn('فشل استعادة الجلسة من localStorage', e);
+                logger.warn('فشل استعادة الجلسة، جارٍ حذف البيانات التالفة');
+                localStorage.removeItem('app_session');
             }
             return false;
         },
@@ -61,7 +80,6 @@
             this._user = val;
             this._tenantId = val ? (val.tenant_id || null) : null;
             if (val) {
-                // تخزين بيانات آمنة فقط (بدون token حساس إن وجد)
                 const session = {
                     id: val.id,
                     email: val.email,
@@ -72,7 +90,7 @@
                 try {
                     localStorage.setItem('app_session', JSON.stringify(session));
                 } catch (e) {
-                    console.warn('تعذر حفظ الجلسة في localStorage', e);
+                    logger.warn('تعذر حفظ الجلسة في localStorage', e);
                 }
             } else {
                 try {
@@ -92,6 +110,7 @@
 
         setCache(key, data, ttl = 300000) {
             if (this._cache.size >= this._maxCacheSize) {
+                // حذف أقدم مفتاح (سياسة FIFO بسيطة)
                 const firstKey = this._cache.keys().next().value;
                 this._cache.delete(firstKey);
                 this._cacheTimes.delete(firstKey);
@@ -120,7 +139,7 @@
     };
     window.SessionStore = SessionStore;
 
-    // تنظيف الكاش منتهي الصلاحية كل دقيقة
+    // تنظيف دوري للكاش منتهي الصلاحية
     setInterval(() => {
         const now = Date.now();
         for (const [key, expiry] of SessionStore._cacheTimes) {
@@ -134,11 +153,11 @@
     // ========== تهيئة Supabase ==========
     function initSupabase() {
         if (typeof supabase === 'undefined') {
-            console.warn('مكتبة Supabase غير محملة');
+            logger.warn('مكتبة Supabase غير محملة بعد');
             return false;
         }
         try {
-            window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     storage: localStorage,
                     persistSession: true,
@@ -152,17 +171,18 @@
                     headers: { 'X-Client-Info': 'hesaby/4.0' }
                 }
             });
-            // توفير اختصار
-            window.supabase = window.supabaseClient;
-            console.log('✅ تم تهيئة Supabase client');
+            window.supabaseClient = client;
+            // لا نُنشئ اختصاراً عاماً قد يتعارض
+            // window.supabase = client;
+            logger.log('✅ تم تهيئة Supabase client');
             return true;
         } catch (e) {
-            console.error('❌ فشل تهيئة Supabase', e);
+            logger.error('❌ فشل تهيئة Supabase', e);
             return false;
         }
     }
 
-    // محاولة التهيئة الأولية
+    // المحاولة الأولى للتهيئة
     if (!initSupabase()) {
         let retryCount = 0;
         const maxRetries = 10;
@@ -170,38 +190,36 @@
             if (window.supabaseClient || retryCount >= maxRetries) {
                 clearInterval(retryInterval);
                 if (!window.supabaseClient) {
-                    console.error('⚠️ تعذر تهيئة Supabase بعد عدة محاولات');
+                    logger.error('⚠️ تعذر تهيئة Supabase بعد عدة محاولات');
                 }
                 return;
             }
             if (typeof supabase !== 'undefined' && initSupabase()) {
                 clearInterval(retryInterval);
-                console.log('✅ استعادة الاتصال بـ Supabase');
+                logger.log('✅ استعادة الاتصال بـ Supabase');
             }
             retryCount++;
         }, 1500);
     }
 
-    // استعادة الجلسة السابقة (قد تكون بدون اتصال)
-    // ننتظر قليلاً للتأكد من تحميل باقي المكتبات
+    // استعادة الجلسة السابقة بعد تحميل الصفحة
     window.addEventListener('load', () => {
         setTimeout(() => {
             SessionStore.restoreSession();
         }, 100);
     });
 
-    // دالة مساعدة للحصول على localDB بشكل آمن (async)
-    // تستخدم في الملفات الأخرى التي تحتاج localDB
+    // ========== دالة مساعدة للوصول الآمن لـ localDB ==========
     async function getLocalDBAsync() {
         if (!window.localDB) return null;
         try {
             await window.localDB.initPromise;
             return window.localDB.ready ? window.localDB : null;
         } catch (e) {
-            console.warn('localDB غير جاهز', e);
+            logger.warn('localDB غير جاهز', e);
             return null;
         }
     }
-    window.getLocalDBAsync = getLocalDBAsync; // دالة غير متزامنة للاستخدام الآمن
+    window.getLocalDBAsync = getLocalDBAsync;
 
 })();
