@@ -1,5 +1,5 @@
 /* =============================================
-   app.js - نقطة الدخول المركزية لجميع الصفحات
+   app.js - نقطة الدخول المركزية لجميع الصفحات (مُنقّحة)
    ============================================= */
 (async function() {
     'use strict';
@@ -19,7 +19,18 @@
         await waitForCore();
     } catch (e) {
         console.error(e);
-        if (window.Toast?.error) Toast.error('تعذر تحميل التطبيق. تأكد من اتصالك بالإنترنت.');
+        // عرض رسالة خطأ مع إمكانية إعادة التحميل
+        document.body.innerHTML = `
+            <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle text-5xl text-red-400 mb-4"></i>
+                    <p class="text-gray-600 dark:text-gray-300 mb-4">تعذر تحميل التطبيق. تأكد من اتصالك بالإنترنت.</p>
+                    <button onclick="location.reload()" class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+                        <i class="fas fa-redo-alt ml-2"></i>إعادة المحاولة
+                    </button>
+                </div>
+            </div>
+        `;
         return;
     }
 
@@ -35,24 +46,19 @@
     const currentPath = window.location.pathname;
     const pageName = (currentPath.split('/').pop() || '').replace('.html', '');
 
-    // صفحات الإدارة الحساسة (فقط للمشرفين)
     const adminOnlyPages = ['admin', 'settings', 'accounting'];
-    // صفحات المندوب (نقطة البيع فقط)
     const repOnlyPages = ['pos'];
 
+    // توجيه المندوب إلى نقطة البيع إذا حاول دخول صفحات أخرى
     if (role === 'rep' && !repOnlyPages.includes(pageName)) {
         window.location.href = './pos.html';
         return;
     }
 
-    if (role === 'admin' && adminOnlyPages.includes(pageName)) {
-        // مسموح
-    } else if (role === 'rep' && repOnlyPages.includes(pageName)) {
-        // مسموح
-    } else if (role === 'super_admin') {
-        // مسموح للكل
-    } else if (!adminOnlyPages.includes(pageName) && !repOnlyPages.includes(pageName)) {
-        // الصفحات العامة مثل dashboard, products, customers, invoices... مسموحة للجميع
+    // توجيه المشرف إلى لوحة التحكم إذا حاول دخول نقطة البيع (اختياري)
+    if (role === 'admin' && repOnlyPages.includes(pageName)) {
+        window.location.href = './dashboard.html';
+        return;
     }
 
     // ========== 4. تحديث واجهة المستخدم العامة ==========
@@ -89,7 +95,6 @@
 
     // --- Dashboard ---
     async function initDashboard() {
-        // إذا كان هناك سكربت مخصص قد عرف دالة أخرى، نفضلها
         if (window.initDashboardCustom) return window.initDashboardCustom();
         const grid = document.getElementById('statsGrid');
         if (!grid) return;
@@ -136,8 +141,6 @@
 
     // --- نقطة البيع (POS) ---
     async function initPOS() {
-        // pos.js سيتولى التهيئة بالكامل عبر POS.init()
-        // لكننا نضمن وجوده
         if (window.POS && typeof window.POS.init === 'function') {
             await window.POS.init();
         } else {
@@ -147,9 +150,7 @@
 
     // --- المنتجات ---
     async function initProductsPage() {
-        // سكربت products.js سيتولى التهيئة
         if (window.initProductsPageCustom) return window.initProductsPageCustom();
-        // تحميل افتراضي بسيط
         const container = document.getElementById('productsContainer');
         if (!container) return;
         try {
@@ -163,7 +164,6 @@
     // --- الفواتير ---
     async function initInvoicesPage() {
         if (window.initInvoicesPageCustom) return window.initInvoicesPageCustom();
-        // تحميل افتراضي
         const container = document.getElementById('invoicesContainer');
         if (!container) return;
         try {
@@ -203,19 +203,18 @@
     // --- الصندوق ---
     async function initCashboxPage() {
         if (window.initCashboxPageCustom) return window.initCashboxPageCustom();
-        // محتوى بسيط
+        // محتوى مخصص
     }
 
     // --- التقارير ---
     async function initReportsPage() {
         if (window.initReportsPageCustom) return window.initReportsPageCustom();
-        // محتوى بسيط
+        // محتوى مخصص
     }
 
     // --- الإعدادات ---
     async function initSettingsPage() {
         if (window.initSettingsPageCustom) return window.initSettingsPageCustom();
-        // تحميل الإعدادات الحالية
         const form = document.getElementById('settingsForm');
         if (!form) return;
         try {
@@ -229,7 +228,7 @@
     // --- المحاسبة ---
     async function initAccountingPage() {
         if (window.initAccountingPageCustom) return window.initAccountingPageCustom();
-        // قوائم الحسابات
+        // عرض الحسابات
     }
 
     // --- الإدارة (للمشرف العام) ---
@@ -251,8 +250,18 @@
     }
 
     function formatCurrency(value) {
-        return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+        return Number(value || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
     }
+
+    // حل مشكلة ألوان Tailwind الديناميكية باستخدام كائن ثابت
+    const colorClasses = {
+        green:  { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-600 dark:text-green-300' },
+        blue:   { bg: 'bg-blue-50 dark:bg-blue-900', text: 'text-blue-600 dark:text-blue-300' },
+        orange: { bg: 'bg-orange-50 dark:bg-orange-900', text: 'text-orange-600 dark:text-orange-300' },
+        purple: { bg: 'bg-purple-50 dark:bg-purple-900', text: 'text-purple-600 dark:text-purple-300' },
+        teal:   { bg: 'bg-teal-50 dark:bg-teal-900', text: 'text-teal-600 dark:text-teal-300' },
+        rose:   { bg: 'bg-rose-50 dark:bg-rose-900', text: 'text-rose-600 dark:text-rose-300' }
+    };
 
     function showSkeletonLoading(container, count = 4) {
         container.innerHTML = Array(count).fill(0).map(() => `
@@ -276,31 +285,38 @@
     }
 
     function renderStatCards(grid, stats) {
-        grid.innerHTML = stats.map(stat => `
-            <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">${stat.label}</span>
-                    <div class="w-10 h-10 rounded-full bg-${stat.color}-50 dark:bg-${stat.color}-900 text-${stat.color}-600 dark:text-${stat.color}-300 flex items-center justify-center text-lg">
-                        <i class="fas ${stat.icon}"></i>
+        grid.innerHTML = stats.map(stat => {
+            const color = colorClasses[stat.color] || colorClasses.blue;
+            return `
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">${stat.label}</span>
+                        <div class="w-10 h-10 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-lg">
+                            <i class="fas ${stat.icon}"></i>
+                        </div>
                     </div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">${stat.value}</p>
                 </div>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">${stat.value}</p>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
-    // ========== وظائف عرض بسيطة (يجب تخصيصها حسب HTML كل صفحة) ==========
+    // ========== وظائف عرض القوائم ==========
     function renderProductList(container, products) {
         if (!products.length) {
             container.innerHTML = `<p class="text-center py-10 text-gray-500">لا توجد منتجات</p>`;
             return;
         }
-        container.innerHTML = products.map(p => `
-            <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
-                <span>${p.name}</span>
-                <span class="font-bold">${p.price ?? '-'}</span>
-            </div>
-        `).join('');
+        container.innerHTML = products.map(p => {
+            // السعر إما في p.price القديم أو في أول وحدة
+            const price = p.price ?? p.units?.[0]?.price ?? '-';
+            return `
+                <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
+                    <span>${p.name || '-'}</span>
+                    <span class="font-bold">${formatCurrency(price)}</span>
+                </div>
+            `;
+        }).join('');
     }
 
     function renderInvoicesList(container, invoices) {
@@ -317,7 +333,8 @@
     }
 
     function renderPurchasesList(container, purchases) {
-        renderInvoicesList(container, purchases); // نفس الشكل مؤقتاً
+        // استخدام نفس طريقة عرض الفواتير مؤقتًا
+        renderInvoicesList(container, purchases);
     }
 
     function renderPartiesList(container, parties) {
@@ -340,16 +357,19 @@
         }
         container.innerHTML = tenants.map(t => `
             <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
-                <span>${t.name}</span>
-                <span>${t.plan}</span>
+                <span>${t.name || '-'}</span>
+                <span>${t.plan || '-'}</span>
             </div>
         `).join('');
     }
 
     function populateSettingsForm(form, settings) {
-        // مثال: تعبئة حقل اسم الشركة
+        // مثال: تعبئة حقل اسم الشركة من إعدادات مخزنة
+        // يُفترض أن الإعدادات كائن { company: { name: '...' } }
+        const companyName = settings?.company?.name || '';
         const input = form.querySelector('[name="company_name"]');
-        if (input && settings.company?.name) input.value = settings.company.name;
+        if (input) input.value = companyName;
+        // يمكن إضافة حقول أخرى بنفس الطريقة
     }
 
 })();
