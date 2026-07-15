@@ -4,7 +4,7 @@
 (function() {
     'use strict';
 
-    // دالة احتياطية لتوليد UUID
+    // ---------- UUID احتياطي ----------
     function generateUUID() {
         if (window.generateUUID) return window.generateUUID();
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -13,11 +13,11 @@
         });
     }
 
-    // الحصول على localDB مع انتظار الجاهزية
+    // ---------- الحصول على localDB بأمان ----------
     async function getLocalDB() {
         if (!window.localDB) return null;
         try {
-            await window.localDB.initPromise;  // انتظر التهيئة
+            await window.localDB.initPromise;
             return window.localDB.ready ? window.localDB : null;
         } catch (e) {
             console.warn('فشل تهيئة localDB', e);
@@ -25,30 +25,38 @@
         }
     }
 
-    // التحقق من وجود SessionStore
     function getSessionStore() {
         return window.SessionStore;
     }
 
+    // ---------- طبقة OfflineLayer ----------
     const OfflineLayer = {
+        // منع مزامنة خلفية متكررة
+        _syncingStores: new Set(),
+
         async get(storeName, cloudFetcher, forceRefresh = false) {
             const local = await getLocalDB();
             const session = getSessionStore();
             const cacheKey = `offline_${storeName}`;
 
-            // إذا لم يُطلب تحديث، جرب الكاش في الجلسة
+            // إذا طُلب التحديث، ادفع التغييرات المحلية المعلقة أولاً
+            if (forceRefresh && navigator.onLine && window.SyncEngine) {
+                await window.SyncEngine.process().catch(() => {});
+            }
+
+            // 1. تجربة الكاش
             if (!forceRefresh && session) {
                 const cached = session.getCache(cacheKey);
                 if (cached) return cached;
             }
 
-            // إذا لم يُطلب تحديث، جلب من IndexedDB
+            // 2. تجربة IndexedDB
             if (local && !forceRefresh) {
                 try {
                     const localData = await local.getAll(storeName);
                     if (localData && localData.length > 0) {
                         if (session) session.setCache(cacheKey, localData);
-                        // مزامنة خلفية إذا كان متصلاً
+                        // مزامنة خلفية صامتة
                         if (navigator.onLine && window.supabaseClient && cloudFetcher) {
                             this._backgroundSync(storeName, cloudFetcher, local).catch(() => {});
                         }
@@ -59,7 +67,7 @@
                 }
             }
 
-            // جلب من السحابة
+            // 3. جلب من السحابة
             if (navigator.onLine && window.supabaseClient && cloudFetcher) {
                 try {
                     const data = await cloudFetcher();
@@ -70,7 +78,6 @@
                     return data;
                 } catch (error) {
                     console.warn(`جلب ${storeName} من السحابة فشل`, error);
-                    // الرجوع إلى المحلي
                     if (local) {
                         try { return await local.getAll(storeName); } catch {}
                     }
@@ -78,7 +85,7 @@
                 }
             }
 
-            // آخر ملاذ: المحلي فقط
+            // 4. آخر ملاذ: المحلي فقط
             if (local) {
                 try { return await local.getAll(storeName); } catch {}
             }
@@ -87,7 +94,10 @@
 
         async save(storeName, data, cloudSaver, isNew) {
             const local = await getLocalDB();
-            data.updated_at = new Date().toISOString();
+            // الحفاظ على updated_at الأصلي إن وُجد، وإلا استخدام الوقت الحالي
+            if (!data.updated_at) {
+                data.updated_at = new Date().toISOString();
+            }
             data.version = (data.version || 0) + 1;
 
             // حفظ محلي
@@ -109,28 +119,43 @@
             if (navigator.onLine && window.supabaseClient && cloudSaver) {
                 try {
                     const result = await cloudSaver(data);
-                    // حذف من طابور المزامنة إذا كان موجوداً
+                    // إزالة العناصر المعلقة من الطابور الخاصة بهذا المُعرّف
                     if (local) {
-                        const existingItems = await local.findQueueByRef(data.id, storeName);
-                        for (const item of existingItems) {
-                            await local.removeFromSyncQueue(item.queue_id).catch(() => {});
-                        }
+                        await this._removePendingItems(local, data.id, storeName);
                     }
                     return result;
                 } catch (error) {
                     console.warn(`حفظ ${storeName} سحابياً فشل`, error);
                     await this._queueForSync(storeName, data);
-                    return data; // اعتبره محفوظ محلياً
+                    return data; // تم الحفظ محلياً
                 }
             } else {
-                // غير متصل: أضف للطابور
                 await this._queueForSync(storeName, data);
                 return data;
             }
         },
 
-        async _backgroundSync(storeName, cloudFetcher, local) {
+        async _removePendingItems(local, refId, table) {
             try {
+                const queue = await local.getSyncQueue().catch(() => []);
+                const toRemove = queue.filter(
+                    q => q.table === table && q.ref_id === refId
+                );
+                for (const item of toRemove) {
+                    await local.removeFromSyncQueue(item.queue_id).catch(() => {});
+                }
+            } catch (e) { /* تجاهل */ }
+        },
+
+        async _backgroundSync(storeName, cloudFetcher, local) {
+            // منع تكرار المزامنة لنفس المخزن في نفس الوقت
+            if (this._syncingStores.has(storeName)) return;
+            this._syncingStores.add(storeName);
+            try {
+                // ادفع أولاً التغييرات المحلية المعلقة لهذا الجدول
+                if (window.SyncEngine) {
+                    await window.SyncEngine.process().catch(() => {});
+                }
                 const cloudData = await cloudFetcher();
                 if (cloudData && cloudData.length > 0) {
                     await this._deltaSync(local, storeName, cloudData);
@@ -138,7 +163,9 @@
                     if (session) session.setCache(`offline_${storeName}`, cloudData);
                 }
             } catch (e) {
-                // فشل صامت، لا يؤثر على التطبيق
+                // فشل صامت
+            } finally {
+                this._syncingStores.delete(storeName);
             }
         },
 
@@ -148,11 +175,10 @@
             const toPut = [];
             const toDelete = new Set(localMap.keys());
 
-            // جلب الطابور لتجنب حذف عناصر معلقة
+            // العناصر المعلقة في الطابور لا تُحذف
             const syncQueue = await local.getSyncQueue().catch(() => []);
-            const pendingIds = new Set(syncQueue
-                .filter(q => q.table === storeName)
-                .map(q => q.ref_id)
+            const pendingIds = new Set(
+                syncQueue.filter(q => q.table === storeName).map(q => q.ref_id)
             );
 
             for (const cloudItem of cloudData) {
@@ -161,22 +187,20 @@
                 const cloudTs = cloudItem.updated_at ? new Date(cloudItem.updated_at).getTime() : 0;
                 const localTs = localItem?.updated_at ? new Date(localItem.updated_at).getTime() : 0;
 
-                // إذا لم يكن موجوداً محلياً أو النسخة السحابية أحدث، نستبدلها
                 if (!localItem || cloudTs >= localTs) {
                     toPut.push(cloudItem);
                 }
             }
 
-            // حذف العناصر المحلية غير الموجودة في السحابة، ما لم تكن معلقة أو INSERT غير مرفوعة
+            // حذف المحلية غير الموجودة سحابياً (مع حماية المعلقة)
             for (const id of toDelete) {
                 if (pendingIds.has(id)) continue;
                 const localItem = localMap.get(id);
-                // لا تحذف عنصر INSERT محلي لم يتم رفعه بعد
                 if (localItem && localItem._operation === 'INSERT') continue;
                 await local.delete(storeName, id).catch(() => {});
             }
 
-            // تحديث الدفعات
+            // تحديث دفعات
             for (let i = 0; i < toPut.length; i += 30) {
                 const batch = toPut.slice(i, i + 30);
                 await Promise.all(batch.map(item => local.put(storeName, item).catch(() => {})));
@@ -186,6 +210,26 @@
         async _queueForSync(table, data) {
             const local = await getLocalDB();
             if (!local || typeof local.addToSyncQueue !== 'function') return;
+
+            // منع تكرار نفس العملية: إذا كان هناك عنصر بنفس ref_id و table، استبدله
+            try {
+                const existing = await local.getSyncQueue().catch(() => []);
+                const duplicate = existing.find(
+                    q => q.table === table && q.ref_id === data.id && !q.failed
+                );
+                if (duplicate) {
+                    // تحديث البيانات دون تغيير queue_id
+                    duplicate.data = { ...data };
+                    duplicate.timestamp = Date.now();
+                    duplicate.retries = 0;
+                    if (local.updateSyncQueueItem) {
+                        await local.updateSyncQueueItem(duplicate);
+                        return;
+                    }
+                    // إذا لم توجد دالة تحديث، نحذف القديم ونضيف جديد
+                    await local.removeFromSyncQueue(duplicate.queue_id).catch(() => {});
+                }
+            } catch (e) { /* تجاهل */ }
 
             const entry = {
                 queue_id: generateUUID(),
@@ -204,7 +248,7 @@
                 console.warn('إضافة للطابور فشلت', e);
             }
 
-            return entry.queue_id; // إرجاع المعرف للاستخدام لاحقاً
+            return entry.queue_id;
         },
 
         _simpleChecksum(str) {
@@ -228,7 +272,7 @@
             this._processing = true;
 
             const local = await getLocalDB();
-            if (!local || !navigator.onLine) {
+            if (!local || !navigator.onLine || !window.supabaseClient) {
                 this._processing = false;
                 return;
             }
@@ -244,9 +288,7 @@
                     return;
                 }
 
-                console.log(`🔄 معالجة ${queue.length} عملية من الطابور`);
-
-                // معالجة على دفعات 3 عناصر
+                // معالجة على دفعات
                 for (let i = 0; i < queue.length; i += 3) {
                     const batch = queue.slice(i, i + 3);
                     await Promise.allSettled(batch.map(item => this._processItem(item, local)));
@@ -269,44 +311,17 @@
                 }
             }
 
+            // التحقق من وجود DB
+            if (!window.DB) {
+                console.warn('DB غير جاهز بعد، تأجيل المزامنة');
+                return;
+            }
+
             try {
                 if (item.type === 'DELETE') {
-                    // بناء كائن الحذف
-                    const deletePayload = {
-                        id: item.ref_id,
-                        deleted_at: new Date().toISOString()
-                    };
-                    let handler;
-                    if (item.table === 'products') handler = window.DB._cloudDeleteProduct;
-                    else if (item.table === 'parties') handler = window.DB._cloudDeleteParty;
-                    // باقي الأنواع لا تدعم الحذف حالياً
-
-                    if (handler) {
-                        await handler(deletePayload);
-                        await local.removeFromSyncQueue(item.queue_id);
-                    } else {
-                        console.warn(`DELETE غير معروف للجدول ${item.table}`);
-                        await local.removeFromSyncQueue(item.queue_id);
-                    }
+                    await this._handleDelete(item, local);
                 } else {
-                    // INSERT أو UPDATE
-                    const handler = {
-                        products: window.DB._cloudSaveProduct,
-                        parties: window.DB._cloudSaveParty,
-                        invoices: window.DB._cloudSaveInvoice,
-                        purchases: window.DB._cloudSavePurchase,
-                        transactions: window.DB._cloudSaveTransaction,
-                        returns: window.DB._cloudSaveReturn,
-                        journal_entries: window.DB._cloudSaveJournalEntry
-                    }[item.table];
-
-                    if (handler) {
-                        await handler(item.data);
-                        await local.removeFromSyncQueue(item.queue_id);
-                    } else {
-                        console.warn(`عملية غير معروفة للجدول ${item.table}`);
-                        await local.removeFromSyncQueue(item.queue_id);
-                    }
+                    await this._handleUpsert(item, local);
                 }
             } catch (error) {
                 console.warn(`فشل مزامنة ${item.table}`, error);
@@ -320,19 +335,60 @@
                     await local.updateSyncQueueItem(item).catch(() => {});
                 }
             }
+        },
+
+        async _handleDelete(item, local) {
+            const deletePayload = {
+                id: item.ref_id,
+                deleted_at: new Date().toISOString()
+            };
+            // قاموس موسع لدوال الحذف
+            const deleteHandlers = {
+                products: window.DB._cloudDeleteProduct,
+                parties: window.DB._cloudDeleteParty,
+                invoices: window.DB._cloudDeleteInvoice,
+                purchases: window.DB._cloudDeletePurchase,
+                // أضف المزيد حسب الحاجة
+            };
+            const handler = deleteHandlers[item.table];
+            if (handler) {
+                await handler(deletePayload);
+                await local.removeFromSyncQueue(item.queue_id);
+            } else {
+                console.warn(`لا يوجد معالج DELETE للجدول ${item.table}`);
+                await local.removeFromSyncQueue(item.queue_id);
+            }
+        },
+
+        async _handleUpsert(item, local) {
+            const upsertHandlers = {
+                products: window.DB._cloudSaveProduct,
+                parties: window.DB._cloudSaveParty,
+                invoices: window.DB._cloudSaveInvoice,
+                purchases: window.DB._cloudSavePurchase,
+                transactions: window.DB._cloudSaveTransaction,
+                returns: window.DB._cloudSaveReturn,
+                journal_entries: window.DB._cloudSaveJournalEntry
+            };
+            const handler = upsertHandlers[item.table];
+            if (handler) {
+                await handler(item.data);
+                await local.removeFromSyncQueue(item.queue_id);
+            } else {
+                console.warn(`لا يوجد معالج UPSERT للجدول ${item.table}`);
+                await local.removeFromSyncQueue(item.queue_id);
+            }
         }
     };
 
-    // تشغيل المزامنة عند الاتصال
+    // ---------- ربط الأحداث ----------
     window.addEventListener('online', () => {
         setTimeout(() => SyncEngine.process(), 1000);
     });
 
-    // محاولة مزامنة عند البدء إذا كان متصلاً
     if (navigator.onLine) {
         setTimeout(() => SyncEngine.process(), 2000);
     }
 
-    // تعريض SyncEngine للاستخدام اليدوي
     window.SyncEngine = SyncEngine;
 })();
