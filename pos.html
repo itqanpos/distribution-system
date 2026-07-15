@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="نقطة البيع - نظام حسابي">
     <title>نقطة البيع · حسابي</title>
 
     <!-- PWA -->
@@ -17,7 +18,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <style>
         :root {
@@ -547,7 +550,7 @@
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- ========== النصوص البرمجية (الترتيب مهم) ========== -->
+    <!-- ========== النصوص البرمجية ========== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -557,7 +560,7 @@
     <script src="./js/services/invoiceService.js"></script>
     <script src="./js/services/purchaseService.js"></script>
     <script src="./js/toast.js"></script>
-    <!-- مكتبة الطباعة الحرارية -->
+    <!-- مكتبة الطباعة الحرارية (اختياري) -->
     <script src="https://cdn.jsdelivr.net/npm/esc-pos-encoder@2"></script>
     <script src="./js/pos.js"></script>
 
@@ -571,7 +574,7 @@
                     const start = Date.now();
                     const check = () => {
                         if (window.POS && typeof window.POS.init === 'function') resolve();
-                        else if (Date.now() - start > 10000) reject(new Error('POS لم يتم تحميله'));
+                        else if (Date.now() - start > 10000) reject(new Error('POS not loaded'));
                         else setTimeout(check, 200);
                     };
                     check();
@@ -585,10 +588,10 @@
                     await window.POS.init();
                     loadingBar.style.width = '100%';
                 } catch (e) {
-                    console.error('تهيئة POS فشلت:', e);
+                    console.error('POS init failed:', e);
                     loadingBar.style.background = 'var(--danger)';
                     if (window.Toast) {
-                        Toast.error('فشل تحميل نقطة البيع. الرجاء المحاولة لاحقاً.');
+                        Toast.error('Failed to load point of sale. Please try again.');
                     }
                 } finally {
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
