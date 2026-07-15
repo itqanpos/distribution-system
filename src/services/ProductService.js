@@ -1,6 +1,6 @@
 /* =============================================
    src/services/ProductService.js
-   منطق أعمال المنتجات – إصدار نهائي
+   منطق أعمال المنتجات – إصدار مُنقّح
    ============================================= */
 import { productRepository } from '../repositories/ProductRepository.js';
 
@@ -20,12 +20,13 @@ class ProductService {
      */
     async loadProducts(forceRefresh = false) {
         try {
-            this.products = await productRepository.getAll(forceRefresh);
+            const freshProducts = await productRepository.getAll(forceRefresh);
+            this.products = freshProducts;
             this._buildCache();
             return this.products;
         } catch (e) {
             console.error('ProductService: فشل تحميل المنتجات', e);
-            this.products = [];
+            // لا تمسح البيانات القديمة، أعد بناء الكاش من الموجود
             this._buildCache();
             throw e;
         }
@@ -38,6 +39,7 @@ class ProductService {
         this.cache.byId.clear();
         this.cache.byBarcode.clear();
         for (const p of this.products) {
+            // تخزين بالنوع الأصلي و string
             this.cache.byId.set(p.id, p);
             this.cache.byId.set(String(p.id), p);
             if (p.barcode) this.cache.byBarcode.set(p.barcode, p);
@@ -47,11 +49,12 @@ class ProductService {
 
     /**
      * الحصول على منتج بواسطة المعرف.
-     * @param {string} id
+     * @param {string|number} id
      * @returns {Object|undefined}
      */
     getById(id) {
-        return this.cache.byId.get(id) || this.cache.byId.get(String(id));
+        // جرب البحث مباشرة (قد يكون string أو number)
+        return this.cache.byId.get(id) ?? this.cache.byId.get(String(id));
     }
 
     /**
@@ -85,11 +88,14 @@ class ProductService {
      * @returns {Promise<Object>}
      */
     async save(product, isNew) {
+        if (!productRepository) {
+            throw new Error('ProductRepository غير متوفر');
+        }
         const saved = await productRepository.save(product, isNew);
-        // تحديث الكاش المحلي
-        const index = this.products.findIndex(p => p.id === saved.id);
-        if (index !== -1) {
-            this.products[index] = saved;
+        // إزالة النسخة القديمة إذا تغير المعرف (مثلاً عند تحويل id مؤقت)
+        const oldIndex = this.products.findIndex(p => p.id === product.id || p.id === saved.id);
+        if (oldIndex !== -1) {
+            this.products[oldIndex] = saved;
         } else {
             this.products.push(saved);
         }
@@ -102,8 +108,11 @@ class ProductService {
      * @param {string} id
      */
     async softDelete(id) {
+        if (!productRepository) {
+            throw new Error('ProductRepository غير متوفر');
+        }
         await productRepository.softDelete(id);
-        const index = this.products.findIndex(p => p.id === id);
+        const index = this.products.findIndex(p => p.id === id || String(p.id) === String(id));
         if (index !== -1) {
             this.products.splice(index, 1);
             this._buildCache();
@@ -113,18 +122,30 @@ class ProductService {
     /**
      * خصم المخزون محليًا بعد البيع (للتحديث الفوري في الذاكرة).
      * @param {Array} cart - عناصر السلة
+     * @param {string} [baseUnitField='factor'] - معيار الوحدة الأساسية (افتراضيًا التي factor=1)
      */
-    applyStockReduction(cart) {
+    applyStockReduction(cart, baseUnitField = 'factor') {
         for (const item of cart) {
             const product = this.getById(item.productId);
             if (!product?.units?.length) continue;
-            const baseUnit = product.units[0];
+
+            // البحث عن الوحدة المختارة والوحدة الأساسية (ذات factor 1 إن وُجدت)
             const selectedUnit = product.units.find(u => u.name === item.unitName);
-            const factor = selectedUnit?.factor || 1;
-            const reduction = item.unitName === baseUnit.name
+            if (!selectedUnit) continue;
+
+            const factor = selectedUnit.factor || 1;
+            // تحديد الوحدة الأساسية (أول وحدة بعامل 1 أو الوحدة الأولى)
+            const baseUnit = product.units.find(u => u.factor === 1) || product.units[0];
+
+            // احسب الكمية بالوحدة الأساسية
+            const reduction = (item.unitName === baseUnit.name)
                 ? item.quantity
                 : item.quantity * factor;
-            baseUnit.stock = Math.max(0, (baseUnit.stock || 0) - reduction);
+
+            // تأكد أن baseUnit.stock موجود
+            if (baseUnit.stock !== undefined) {
+                baseUnit.stock = Math.max(0, baseUnit.stock - reduction);
+            }
         }
     }
 }
