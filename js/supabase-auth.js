@@ -4,82 +4,80 @@
 (function() {
     'use strict';
 
-    // ---------- انتظار توفر عميل Supabase ----------
+    // انتظار توفر supabaseClient
     function whenClient() {
         return new Promise(resolve => {
             if (window.supabaseClient) return resolve(window.supabaseClient);
             const check = setInterval(() => {
-                if (window.supabaseClient) {
-                    clearInterval(check);
-                    resolve(window.supabaseClient);
-                }
+                if (window.supabaseClient) { clearInterval(check); resolve(window.supabaseClient); }
             }, 100);
         });
     }
 
-    // ---------- كائن التطبيق العام ----------
     window.App = {
-
         /**
-         * جلب المستخدم الحالي مع التحقق من صحة الجلسة عبر الخادم
-         * @returns {Promise<object|null>} كائن المستخدم أو null
+         * جلب المستخدم الحالي (مع تحديث الجلسة)
+         * @returns {Promise<object|null>} كائن المستخدم أو null إذا لم يسجل الدخول
          */
         async getCurrentUser() {
             const client = window.supabaseClient;
-
-            // إذا لم يوجد عميل Supabase، نحاول الاستعادة من التخزين المحلي فقط
             if (!client) {
+                // بدون عميل Supabase، نحاول استعادة الجلسة من localStorage
                 window.SessionStore.restoreSession();
                 return window.SessionStore.user || null;
             }
 
-            // إجبار تحديث الجلسة قبل إعادة أي بيانات مخزّنة
             try {
+                // 1. جلب الجلسة الحالية من Supabase
                 const { data: { session } } = await client.auth.getSession();
                 if (!session || !session.user) {
                     window.SessionStore.user = null;
                     return null;
                 }
 
-                // جلب الملف الشخصي مع المتجر (ربط يساري لتضمين super_admin)
+                // 2. جلب الملف الشخصي بدون استخدام علاقة tenants (لتجنب أخطاء الأقواس)
                 const { data: profile, error } = await client
                     .from('profiles')
-                    .select('*, tenants(plan)')  // left join تلقائي
+                    .select('*')                         // فقط بيانات profile
                     .eq('id', session.user.id)
                     .maybeSingle();
 
-                if (error) {
-                    console.error('خطأ في جلب الملف الشخصي:', error);
+                if (error || !profile) {
                     window.SessionStore.user = null;
                     return null;
                 }
 
-                if (!profile) {
-                    // لا يوجد ملف شخصي – حساب غير مكتمل
-                    window.SessionStore.user = null;
-                    return null;
+                // 3. جلب خطة المتجر (tenants) بشكل منفصل إذا وُجد tenant_id
+                let plan = undefined;
+                if (profile.tenant_id) {
+                    const { data: tenant } = await client
+                        .from('tenants')
+                        .select('plan')
+                        .eq('id', profile.tenant_id)
+                        .maybeSingle();
+                    plan = tenant?.plan;
                 }
 
+                // 4. بناء كائن المستخدم
                 const user = {
                     id: session.user.id,
                     email: session.user.email,
                     fullName: profile.full_name,
                     role: profile.role,
                     tenant_id: profile.tenant_id,
-                    plan: profile.tenants?.plan
+                    plan: plan
                 };
                 window.SessionStore.user = user;
                 return user;
             } catch (error) {
-                console.error('فشل getCurrentUser:', error);
+                console.error('getCurrentUser failed', error);
                 window.SessionStore.user = null;
                 return null;
             }
         },
 
         async getTenantId() {
-            const user = window.SessionStore.user || await this.getCurrentUser();
-            return user?.tenant_id || null;
+            return window.SessionStore.tenantId || (await this.getCurrentUser())?.tenant_id || null;
         },
 
         /**
@@ -89,21 +87,21 @@
          * @returns {Promise<object>} { success, redirectUrl, user }
          */
         async login(email, password) {
-            if (!navigator.onLine) throw new Error('لا يوجد اتصال بالإنترنت');
-
+            if (!navigator.onLine) {
+                throw new Error('لا يوجد اتصال بالإنترنت');
+            }
             const client = await whenClient();
 
-            // 1. المصادقة
+            // 1. مصادقة
             const { data: authData, error: authError } = await client.auth.signInWithPassword({ email, password });
             if (authError) throw authError;
-            if (!authData.user) throw new Error('فشلت المصادقة');
 
             const userId = authData.user.id;
 
-            // 2. جلب الملف الشخصي مع معالجة الأخطاء
+            // 2. جلب الملف الشخصي (مع معالجة الأخطاء)
             const { data: profile, error: profileError } = await client
                 .from('profiles')
-                .select('*, tenants(plan)')
+                .select('*')                   // بدون tenants(plan) المسبب للخطأ
                 .eq('id', userId)
                 .maybeSingle();
 
@@ -112,37 +110,55 @@
                 throw new Error('تعذر تحميل بيانات الحساب. حاول مرة أخرى.');
             }
 
+            // 3. إذا لم يوجد ملف شخصي، ننشئ واحداً (للحسابات القديمة)
             if (!profile) {
-                // لا ملف شخصي ← الحساب غير مكتمل الإعداد
-                throw new Error('الحساب غير مكتمل. الرجاء إتمام التسجيل أولاً.');
+                const { data: newProfile, error: insertError } = await client
+                    .from('profiles')
+                    .insert({ id: userId, full_name: email, role: 'admin' }) // admin افتراضي أكثر أماناً
+                    .select()
+                    .single();
+                if (insertError) throw insertError;
+                profile = newProfile || { id: userId, full_name: email, role: 'admin' };
             }
 
-            // 3. التأكد من وجود متجر (لغير المشرف العام)
+            // 4. إذا لم يكن super_admin وليس لديه tenant، أنشئ له متجراً
             if (profile.role !== 'super_admin' && !profile.tenant_id) {
                 const tenantName = `متجر ${profile.full_name || email}`;
                 try {
                     const { data: newTenantId, error: tenantError } = await client.rpc('create_my_tenant', { p_tenant_name: tenantName });
                     if (tenantError) throw tenantError;
                     profile.tenant_id = newTenantId;
+                    // تحديث الملف الشخصي بالـ tenant_id
                     await client.from('profiles').update({ tenant_id: newTenantId }).eq('id', userId);
                 } catch (tenantError) {
-                    console.error('فشل إنشاء المتجر:', tenantError);
+                    console.error('فشل إنشاء المتجر', tenantError);
                     throw new Error('فشل إنشاء المتجر. يرجى المحاولة لاحقاً.');
                 }
             }
 
-            // 4. بناء كائن المستخدم
+            // 5. جلب الخطة بشكل منفصل إذا وُجد tenant_id
+            let plan = undefined;
+            if (profile.tenant_id) {
+                const { data: tenant } = await client
+                    .from('tenants')
+                    .select('plan')
+                    .eq('id', profile.tenant_id)
+                    .maybeSingle();
+                plan = tenant?.plan;
+            }
+
+            // 6. بناء معلومات المستخدم
             const userInfo = {
                 id: userId,
                 email: authData.user.email,
                 fullName: profile.full_name || email,
                 role: profile.role,
                 tenant_id: profile.tenant_id,
-                plan: profile.tenants?.plan
+                plan: plan
             };
             window.SessionStore.user = userInfo;
 
-            // 5. تحديد مسار إعادة التوجيه حسب الدور
+            // 7. تحديد صفحة التحويل
             let redirectUrl = './dashboard.html';
             if (userInfo.role === 'rep') redirectUrl = './pos.html';
             else if (userInfo.role === 'super_admin') redirectUrl = './admin.html';
@@ -154,65 +170,51 @@
          * إنشاء حساب جديد
          */
         async signup(email, password, fullName, role = 'admin', tenantName = '', phone = '') {
-            if (!navigator.onLine) throw new Error('لا يوجد اتصال بالإنترنت');
-
+            if (!navigator.onLine) {
+                throw new Error('لا يوجد اتصال بالإنترنت');
+            }
             const client = await whenClient();
 
             // 1. إنشاء المستخدم
             const { data: authData, error: signUpError } = await client.auth.signUp({
-                email,
-                password,
-                options: { data: { full_name: fullName, phone } }
+                email, password,
+                options: { data: { full_name: fullName, phone: phone } }
             });
             if (signUpError) throw signUpError;
             if (!authData.user) throw new Error('فشل إنشاء المستخدم');
 
             // 2. إنشاء المتجر
             const tenantNameFinal = tenantName || `متجر ${fullName}`;
-            let tenantId;
-            try {
-                const { data, error: tenantError } = await client.rpc('create_my_tenant', { p_tenant_name: tenantNameFinal });
-                if (tenantError) throw tenantError;
-                tenantId = data;
-            } catch (tenantError) {
-                // فشل إنشاء المتجر → نحذف المستخدم (تنظيف)
-                console.error('فشل إنشاء المتجر – جارٍ حذف المستخدم:', tenantError);
-                await client.auth.admin.deleteUser(authData.user.id).catch(() => {});
-                throw new Error('فشل إنشاء المتجر. يرجى المحاولة لاحقاً.');
-            }
+            const { data: tenantId, error: tenantError } = await client.rpc('create_my_tenant', { p_tenant_name: tenantNameFinal });
+            if (tenantError) throw tenantError;
 
-            // 3. إنشاء/تحديث الملف الشخصي
-            const { error: profileError } = await client.from('profiles').upsert({
+            // 3. إنشاء الملف الشخصي مع tenant_id
+            await client.from('profiles').upsert({
                 id: authData.user.id,
                 full_name: fullName,
                 role: role,
                 phone: phone,
                 tenant_id: tenantId
             }, { onConflict: 'id' });
-            if (profileError) throw profileError;
 
-            // 4. تسجيل الدخول التلقائي (إذا لم يتطلب تأكيد البريد)
+            // 4. تسجيل الدخول تلقائياً (إن لم يتطلب تأكيد البريد)
             if (authData.session) {
-                // الجلسة موجودة، يمكن المتابعة
                 await client.auth.setSession(authData.session);
+                return { success: true, message: 'تم إنشاء الحساب وتسجيل الدخول بنجاح.' };
             } else {
-                // البريد بحاجة للتأكيد – نبلغ المستخدم
                 return { success: true, message: 'تم إنشاء الحساب. يرجى التحقق من بريدك الإلكتروني لتأكيد التسجيل.' };
             }
-
-            return { success: true, message: 'تم إنشاء الحساب وتسجيل الدخول بنجاح.' };
         },
 
-        /**
-         * تسجيل الخروج
-         */
         async logout() {
             const client = window.supabaseClient;
             if (client) {
-                try { await client.auth.signOut(); } catch (e) { /* تجاهل */ }
+                try {
+                    await client.auth.signOut();
+                } catch (e) { /* تجاهل */ }
             }
             window.SessionStore.user = null;
-            // إعادة التوجيه إلى صفحة الدخول إذا لم نكن فيها
+            // إعادة التوجيه لصفحة الدخول
             if (!window.location.pathname.endsWith('index.html')) {
                 window.location.href = './index.html';
             } else {
@@ -221,11 +223,10 @@
         },
 
         /**
-         * حارس المصادقة للصفحات المحمية
-         * @returns {Promise<boolean>} هل المستخدم مسجّل الدخول؟
+         * يتطلب مصادقة (يُستخدم كحارس للصفحات)
+         * @returns {Promise<boolean>} true إذا كان مسجلاً الدخول
          */
         async requireAuth() {
-            // تحديث كامل للمستخدم
             const user = await this.getCurrentUser();
             if (!user) {
                 this._redirectToLogin();
@@ -278,6 +279,7 @@
             const allowed = allowedRoles.map(r => r.toLowerCase());
             if (!allowed.includes(userRole)) {
                 alert('غير مسموح لك بالوصول إلى هذه الصفحة');
+                // إعادة توجيه حسب الدور
                 if (userRole === 'admin') window.location.href = './dashboard.html';
                 else if (userRole === 'rep') window.location.href = './pos.html';
                 else window.location.href = './index.html';
@@ -290,7 +292,6 @@
          * تحديث عناصر واجهة المستخدم من بيانات الجلسة
          */
         initUserInterface() {
-            // محاولة استعادة الجلسة إذا لم تكن محفوظة
             if (!window.SessionStore.user) {
                 window.SessionStore.restoreSession();
             }
@@ -306,7 +307,7 @@
         }
     };
 
-    // ---------- مراقبة تغيرات حالة المصادقة ----------
+    // مراقبة تغيرات المصادقة
     window.addEventListener('load', () => {
         const client = window.supabaseClient;
         if (client) {
