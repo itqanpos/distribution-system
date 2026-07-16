@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="تسجيل الدخول إلى نظام حسابي لإدارة الأعمال">
     <title>تسجيل الدخول · حسابي</title>
 
     <!-- PWA Meta -->
@@ -203,7 +204,7 @@
         }
         .input-group input {
             width: 100%;
-            padding: 15px 48px 15px 48px; /* مساحة للأيقونة اليمنى وزر العين */
+            padding: 15px 48px 15px 48px;
             background: var(--input-bg);
             border: 1px solid var(--border);
             border-radius: 16px;
@@ -376,14 +377,14 @@
     </div>
 
     <!-- الاعتماديات (الترتيب مهم) -->
-    <!-- 1. قاعدة البيانات المحلية (اختياري لكن موصى به) -->
-    <script src="./js/db-local.js"></script>
-    <!-- 2. Supabase CDN -->
+    <!-- 1. Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- 3. النواة (supabaseClient + SessionStore) -->
+    <!-- 2. النواة (supabaseClient + SessionStore) -->
     <script src="./js/supabase-core.js"></script>
-    <!-- 4. المصادقة (App) - لا نحتاج OfflineLayer هنا -->
+    <!-- 3. المصادقة (App) -->
     <script src="./js/supabase-auth.js"></script>
+    <!-- 4. مكتبة التنبيهات (Toast) إن وجدت -->
+    <script src="./js/toast.js"></script>
 
     <script>
         (() => {
@@ -422,11 +423,20 @@
                 alertBox.classList.remove('show');
             }
 
+            // دالة عرض التنبيهات (تستخدم Toast إذا كان محمّلاً، وإلا alert)
             function showToast(msg, type = 'error') {
-                if (window.Toast && typeof Toast[type] === 'function') {
-                    Toast[type](msg);
+                if (window.Toast && typeof Toast.show === 'function') {
+                    // مكتبة Toast مخصصة (مثل التي أنشأناها)
+                    Toast.show(msg, type);
+                } else if (window.Toast && typeof Toast[type] === 'function') {
+                    // طريقة قديمة: Toast.error(msg), Toast.warn(msg)
+                    const method = type === 'warning' ? 'warn' : type;
+                    if (typeof Toast[method] === 'function') {
+                        Toast[method](msg);
+                    } else {
+                        alert(msg);
+                    }
                 } else {
-                    // استخدام تنبيه بسيط كبديل
                     alert(msg);
                 }
             }
@@ -451,28 +461,32 @@
             // ========== بدء التشغيل ==========
             async function init() {
                 loginBtn.disabled = true;
-                loginBtn.querySelector('.btn-text').textContent = 'جاري الاتصال...';
+                const btnText = loginBtn.querySelector('.btn-text');
+                btnText.textContent = 'جاري الاتصال...';
 
                 try {
                     await waitForApp();
-                    // النواة جاهزة
                     hideAlert();
-                    loginBtn.disabled = false;
-                    loginBtn.querySelector('.btn-text').textContent = 'تسجيل الدخول';
 
-                    // إعادة توجيه المستخدم المسجل
+                    // إذا كان المستخدم مسجل دخوله بالفعل، وجهه إلى الصفحة المناسبة
                     const user = await App.getCurrentUser();
                     if (user) {
                         let target = './dashboard.html';
                         if (user.role === 'rep') target = './pos.html';
                         else if (user.role === 'super_admin') target = './admin.html';
-                        window.location.href = target;
+                        // تجنب التوجيه المتكرر إذا كنا بالفعل في صفحة الدخول
+                        if (window.location.pathname.indexOf('index.html') !== -1 || window.location.pathname.endsWith('/')) {
+                            window.location.href = target;
+                        }
+                        return;
                     }
+
+                    loginBtn.disabled = false;
+                    btnText.textContent = 'تسجيل الدخول';
                 } catch (err) {
-                    // فشل الاتصال
+                    console.error(err);
                     showAlert('تعذر الاتصال بالخادم. تأكد من تحميل الصفحة بشكل كامل واتصالك بالإنترنت.');
-                    loginBtn.disabled = true;
-                    loginBtn.querySelector('.btn-text').textContent = 'تعذر الاتصال';
+                    btnText.textContent = 'تعذر الاتصال';
                 }
             }
 
@@ -481,6 +495,7 @@
                 const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passInput.setAttribute('type', type);
                 const icon = togglePasswordBtn.querySelector('i');
+                // fa-eye عندما تكون كلمة المرور مخفية (النوع password)، fa-eye-slash عندما تكون ظاهرة
                 icon.classList.toggle('fa-eye');
                 icon.classList.toggle('fa-eye-slash');
             });
@@ -515,10 +530,10 @@
                     if (result.success) {
                         window.location.href = result.redirectUrl || './dashboard.html';
                     } else {
-                        showToast(result.message || 'فشل تسجيل الدخول');
+                        showToast(result.message || 'فشل تسجيل الدخول', 'error');
                     }
                 } catch (e) {
-                    showToast(e.message || 'حدث خطأ غير متوقع');
+                    showToast(e.message || 'حدث خطأ غير متوقع', 'error');
                 } finally {
                     loginBtn.classList.remove('loading');
                     loginBtn.disabled = false;
@@ -541,7 +556,8 @@
             // ========== أحداث الاتصال بالإنترنت ==========
             window.addEventListener('online', () => {
                 hideAlert();
-                if (loginBtn.disabled && loginBtn.querySelector('.btn-text').textContent === 'تعذر الاتصال') {
+                const btnText = loginBtn.querySelector('.btn-text');
+                if (loginBtn.disabled && btnText && btnText.textContent === 'تعذر الاتصال') {
                     init(); // إعادة محاولة التهيئة
                 }
             });
