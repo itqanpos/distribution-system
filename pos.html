@@ -14,6 +14,9 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
 
+    <!-- صلاحية Bluetooth للطباعة الحرارية -->
+    <meta http-equiv="Content-Security-Policy" content="bluetooth 'allowed'">
+
     <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,14 +86,12 @@
             flex-direction: column;
         }
 
-        /* شريط التحميل العلوي */
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
             background: var(--primary); width: 0%; z-index: 9999;
             transition: width 0.3s ease;
         }
 
-        /* بالونة عدم الاتصال */
         #offline-banner {
             position: fixed;
             top: 0; left: 0; right: 0;
@@ -105,8 +106,11 @@
             transition: transform 0.3s ease;
         }
         body.offline #offline-banner { transform: translateY(0); }
+        body.slow-connection #offline-banner {
+            background: var(--warning);
+            transform: translateY(0);
+        }
 
-        /* الشريط العلوي */
         .navbar {
             display: flex; justify-content: space-between; align-items: center;
             background: var(--bg-surface); backdrop-filter: blur(12px);
@@ -121,7 +125,7 @@
         .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
         .logo { display: flex; align-items: center; gap: 8px; }
         .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-        .nav-actions { position: relative; }
+        .nav-actions { position: relative; display: flex; gap: 6px; }
         .navbar-icon-btn {
             width: 40px; height: 40px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -129,6 +133,8 @@
             cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
         }
         .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
+        .navbar-icon-btn.active { background: var(--primary-light); color: var(--primary); }
+
         .more-dropdown {
             position: absolute; top: 48px; left: 0;
             background: var(--bg-surface); border-radius: var(--radius-md);
@@ -145,7 +151,6 @@
         .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
         .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
-        /* القائمة الجانبية */
         .sidebar-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.35); z-index: 149;
@@ -171,7 +176,6 @@
         .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
         .menu-item.active { background: var(--primary-light); color: var(--primary); }
 
-        /* الحاوية الرئيسية */
         .main-layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 56px - var(--safe-top)); }
 
         /* لوحة المنتجات */
@@ -199,27 +203,16 @@
             min-height: 120px; justify-content: center;
         }
         .product-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); border-color: var(--primary); }
-        .product-stock.in-stock { color: var(--success); }
-        .product-stock.out-of-stock { color: var(--danger); }
 
-        /* ========== لوحة السلة (التعديل الرئيسي) ========== */
+        /* لوحة السلة */
         .cart-panel {
-            display: flex;
-            flex-direction: column;
-            width: 380px;
-            max-width: 100%;
-            background: var(--bg-surface);
-            border-right: 1px solid var(--border-light);
-            flex-shrink: 0;
-            overflow: hidden;
+            display: flex; flex-direction: column; width: 380px; max-width: 100%;
+            background: var(--bg-surface); border-right: 1px solid var(--border-light);
+            flex-shrink: 0; overflow: hidden;
         }
         .mobile-search-area {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 12px;
-            border-bottom: 1px solid var(--border-light);
-            background: var(--bg-surface);
+            display: flex; flex-direction: column; gap: 10px; padding: 12px;
+            border-bottom: 1px solid var(--border-light); background: var(--bg-surface);
         }
         .customer-box { position: relative; }
         .customer-box input {
@@ -251,20 +244,18 @@
         .item-info small { color: var(--text-secondary); }
         .item-price { font-weight: 700; color: var(--primary); }
 
-        /* الحاوية الداخلية للسلة والفوتر */
-        .cart-main-area {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            overflow: hidden;
+        /* شريط إحصائيات اليوم */
+        .today-stats {
+            display: flex; gap: 10px; padding: 8px 12px;
+            background: var(--bg-input); border-bottom: 1px solid var(--border-light);
+            font-size: 0.75rem; color: var(--text-secondary);
         }
+        .today-stats span { font-weight: 700; color: var(--primary); }
 
-        /* قائمة السلة (قابلة للتمرير) */
-        .cart-items {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 12px;
+        .cart-main-area {
+            display: flex; flex-direction: column; flex: 1; overflow: hidden;
         }
+        .cart-items { flex: 1; overflow-y: auto; padding: 10px 12px; }
         .cart-header-row {
             display: flex; justify-content: space-between; font-weight: 700;
             padding: 8px 0; border-bottom: 2px solid var(--border-medium);
@@ -274,14 +265,15 @@
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 0; border-bottom: 1px solid var(--border-light);
         }
+        .cart-item-drag-handle { cursor: grab; margin-right: 4px; color: var(--text-muted); }
         .cart-item-row input {
             width: 65px; padding: 6px; border: 1px solid var(--border-medium);
             border-radius: var(--radius-sm); text-align: center; font-size: 0.8rem;
             background: var(--bg-input); color: var(--text-primary);
         }
+        .cart-note-input { width: 55px !important; font-size: 0.7rem !important; }
         .cart-footer {
-            background: var(--bg-surface);
-            border-top: 1px solid var(--border-light);
+            background: var(--bg-surface); border-top: 1px solid var(--border-light);
             padding: 10px 16px;
             padding-bottom: calc(10px + var(--safe-bottom));
             box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
@@ -310,13 +302,11 @@
         .btn-cancel { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-medium); }
         .btn-lg { padding: 14px; font-size: 18px; font-weight: 700; }
 
-        /* ربح متوقع */
         #profitDisplay {
             font-size: 0.8rem; color: var(--success); font-weight: 600;
             margin-bottom: 8px; text-align: center; display: none;
         }
 
-        /* المودالات */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); z-index: 250; align-items: center; justify-content: center;
@@ -385,7 +375,7 @@
     </style>
 </head>
 <body class="loading">
-    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
+    <div id="offline-banner">You are offline</div>
     <div id="loading-bar"></div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -403,15 +393,16 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
+                <button class="navbar-icon-btn" id="quickSaleToggle" title="Quick Sale Mode"><i class="fas fa-bolt"></i></button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="More"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> فاتورة مرتجع مبيعات</a>
+                    <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> Sales Return</a>
                     <div class="dropdown-divider"></div>
-                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة الحالية</a>
-                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> استرجاع فاتورة معلقة</a>
+                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> Hold Invoice</a>
+                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> Resume Held</a>
                     <div class="dropdown-divider"></div>
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
         </div>
@@ -419,6 +410,7 @@
 
     <div class="main-layout">
         <aside class="sidebar" id="sidebar">
+            <!-- نفس القائمة السابقة -->
             <div class="sidebar-user">
                 <div class="sidebar-avatar" id="sidebarAvatar">U</div>
                 <h4 id="sidebarUserName">مدير النظام</h4>
@@ -441,140 +433,145 @@
         <div class="products-panel">
             <div class="products-panel-header">
                 <i class="fas fa-search" style="color: var(--text-muted);"></i>
-                <input type="text" id="tabletProductSearchInput" placeholder="🔍 بحث عن منتج (اسم، كود، باركود)..." autocomplete="off">
-                <button id="tabletBarcodeBtn" class="navbar-icon-btn" title="مسح باركود"><i class="fas fa-camera"></i></button>
+                <input type="text" id="tabletProductSearchInput" placeholder="🔍 Search product..." autocomplete="off">
+                <button id="tabletBarcodeBtn" class="navbar-icon-btn" title="Scan Barcode"><i class="fas fa-camera"></i></button>
             </div>
             <div id="productGrid" class="product-grid"></div>
         </div>
 
         <div class="cart-panel">
-            <!-- منطقة البحث (ثابتة) -->
             <div class="mobile-search-area">
                 <div class="customer-box">
                     <div class="search-header" style="position: relative;">
                         <i class="fas fa-user" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                        <input type="text" id="customerSearchInput" placeholder="👤 بحث عن عميل..." autocomplete="off" style="padding-right: 35px;">
+                        <input type="text" id="customerSearchInput" placeholder="👤 Search customer..." autocomplete="off" style="padding-right: 35px;">
                         <div id="customerDropdown" class="search-dropdown"></div>
                     </div>
                     <div class="customer-balance" id="customerBalanceDisplay"></div>
                 </div>
                 <div class="search-header" style="position: relative;">
                     <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                    <input type="text" id="productSearchInput" placeholder="🔍 بحث أو مسح باركود..." autocomplete="off" style="padding-right: 60px;">
-                    <button id="barcodeScannerBtn" title="مسح باركود" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">
+                    <input type="text" id="productSearchInput" placeholder="🔍 Search or scan barcode..." autocomplete="off" style="padding-right: 60px;">
+                    <button id="speechSearchBtn" title="Voice Search" style="position: absolute; right: 38px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;"><i class="fas fa-microphone"></i></button>
+                    <button id="barcodeScannerBtn" title="Scan Barcode" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">
                         <i class="fas fa-camera"></i>
                     </button>
                     <div id="productDropdown" class="search-dropdown"></div>
                 </div>
             </div>
 
-            <!-- الحاوية الرئيسية للسلة والفوتر -->
+            <!-- شريط إحصائيات اليوم -->
+            <div class="today-stats">
+                <span>Today's Sales: <strong id="todaySales">0.00 ج.م</strong></span>
+                <span>Invoices: <strong id="todayCount">0</strong></span>
+            </div>
+
             <div class="cart-main-area">
                 <div class="cart-items" id="cartItemsContainer">
-                    <div class="cart-header-row"><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span></span></div>
-                    <div class="empty-cart-message">السلة فارغة</div>
+                    <div class="cart-header-row"><span></span><span>Item</span><span>Qty</span><span>Price</span><span>Total</span><span>Note</span><span></span></div>
+                    <div class="empty-cart-message">Cart is empty</div>
                 </div>
                 
                 <div class="cart-footer">
                     <div id="profitDisplay" style="display:none;"></div>
                     <div class="cart-summary">
                         <div class="summary-stats">
-                            <div class="stat-item"><div class="label">الأصناف</div><div class="value" id="itemTypesCount">0</div></div>
-                            <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
+                            <div class="stat-item"><div class="label">Items</div><div class="value" id="itemTypesCount">0</div></div>
+                            <div class="stat-item"><div class="label">Pieces</div><div class="value" id="totalPieces">0</div></div>
                         </div>
-                        <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
+                        <div class="summary-row"><span>Subtotal:</span> <span id="subtotal">0.00 EGP</span></div>
                         <div class="summary-row discount-row">
-                            <span>الخصم:</span>
+                            <span>Discount:</span>
                             <input type="number" id="discountValue" value="0" min="0" step="0.01">
-                            <select id="discountType"><option value="amount">ج.م</option><option value="percent">%</option></select>
+                            <select id="discountType"><option value="amount">EGP</option><option value="percent">%</option></select>
                         </div>
-                        <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
+                        <div class="summary-row total"><span>Net:</span> <span id="netTotal">0.00 EGP</span></div>
                     </div>
                     <div class="action-buttons">
-                        <button class="btn btn-success btn-lg" id="payBtn"><i class="fas fa-check"></i> دفع</button>
+                        <button class="btn btn-success btn-lg" id="payBtn"><i class="fas fa-check"></i> Pay</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- مودال الوحدة والكمية -->
+    <!-- Modal: Unit/Quantity -->
     <div class="modal" id="unitQuantityModal">
         <div class="modal-content">
-            <div class="modal-header"><h2 id="modalProductName">إضافة منتج</h2><button id="closeUnitModalBtn">&times;</button></div>
-            <div class="form-group"><label>اختر الوحدة</label><div id="unitButtons" class="unit-selector"></div></div>
-            <div class="form-group"><label>الكمية</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
-            <div class="form-group"><label>السعر</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
+            <div class="modal-header"><h2 id="modalProductName">Add Product</h2><button id="closeUnitModalBtn">&times;</button></div>
+            <div class="form-group"><label>Select Unit</label><div id="unitButtons" class="unit-selector"></div></div>
+            <div class="form-group"><label>Quantity</label><input type="number" id="selectedQuantity" min="0.001" step="0.001" value="1"></div>
+            <div class="form-group"><label>Price</label><input type="number" id="selectedPrice" min="0" step="0.01"></div>
             <small id="stockInfo"></small>
             <div id="priceLimitMsg" style="color: var(--danger); font-size: 0.8rem; margin-top: 4px; display: none;"></div>
-            <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">إضافة للسلة</button>
+            <button class="btn btn-primary" id="addToCartBtn" style="margin-top:20px;">Add to Cart</button>
         </div>
     </div>
 
-    <!-- مودال الدفع -->
+    <!-- Modal: Payment -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
-            <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
+            <div class="modal-header"><h2>Complete Payment</h2><button id="closePaymentModalBtn">&times;</button></div>
             <div id="paymentDetails">
-                <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
-                <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
-                <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
+                <div class="summary-row"><span>Subtotal:</span> <span id="paySubtotal">0.00 EGP</span></div>
+                <div class="summary-row"><span>Discount:</span> <span id="payDiscount">0.00 EGP</span></div>
+                <div class="summary-row"><span>Net:</span> <span id="payNet">0.00 EGP</span></div>
                 <div class="summary-row">
-                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
-                    <span id="currentBalance" style="font-weight: 700;">0.00 ج.م</span>
+                    <span id="currentBalanceLabel">Current Balance:</span>
+                    <span id="currentBalance" style="font-weight: 700;">0.00 EGP</span>
                 </div>
             </div>
-            <div class="form-group"><label>طريقة الدفع</label>
-                <select id="paymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="mixed">مختلط</option><option value="credit">آجل</option></select>
+            <div class="form-group"><label>Payment Method</label>
+                <select id="paymentMethod"><option value="cash">Cash</option><option value="transfer">Transfer</option><option value="mixed">Mixed</option><option value="credit">Credit</option></select>
             </div>
-            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
-            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
-            <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
+            <div id="cashField" class="form-group"><label>Cash Amount</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>Transfer Amount</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
+            <div class="summary-row"><span>Remaining / Change:</span> <span id="remainingDisplay">0.00 EGP</span></div>
             <div class="summary-row">
-                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
-                <span id="balanceAfter" style="font-weight: 700;">0.00 ج.م</span>
+                <span id="balanceAfterLabel">Balance After:</span>
+                <span id="balanceAfter" style="font-weight: 700;">0.00 EGP</span>
             </div>
-            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
-            <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
+            <div class="form-group"><label>Notes</label><input type="text" id="paymentNotes"></div>
+            <button class="btn btn-success" id="confirmAndPrintBtn">Confirm & Print</button>
         </div>
     </div>
 
-    <!-- مودال الفواتير المعلقة -->
+    <!-- Modal: Held Invoices -->
     <div class="modal" id="heldInvoicesModal">
         <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
+            <div class="modal-header"><h2>Held Invoices</h2><button id="closeHeldModalBtn">&times;</button></div>
             <div id="heldInvoicesList"></div>
         </div>
     </div>
 
-    <!-- مودال الإيصال -->
+    <!-- Modal: Receipt -->
     <div class="modal" id="receiptModal">
         <div class="modal-content receipt-modal-content">
             <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
             <div id="receiptPrintArea"></div>
             <div class="receipt-actions">
-                <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
-                <button class="btn btn-primary" id="thermalPrintBtn"><i class="fas fa-print"></i> حرارية</button>
-                <button class="btn btn-cancel" id="skipPrintBtn">متابعة بدون طباعة</button>
+                <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> Print</button>
+                <button class="btn btn-primary" id="thermalPrintBtn"><i class="fas fa-print"></i> Thermal</button>
+                <button class="btn btn-cancel" id="skipPrintBtn">Skip</button>
             </div>
         </div>
     </div>
 
-    <!-- مودال تأكيد تكرار الصنف -->
+    <!-- Modal: Duplicate Product -->
     <div class="modal" id="duplicateProductModal">
         <div class="modal-content" style="max-width: 360px; text-align: center;">
-            <h3 style="margin-bottom: 12px;">الصنف موجود مسبقاً</h3>
+            <h3 style="margin-bottom: 12px;">Item Already in Cart</h3>
             <p id="duplicateProductMsg" style="margin-bottom: 20px; color: var(--text-secondary);"></p>
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" id="duplicateIncreaseBtn" style="flex: 1;">زيادة الكمية</button>
-                <button class="btn btn-cancel" id="duplicateCancelBtn" style="flex: 1;">إلغاء</button>
+                <button class="btn btn-primary" id="duplicateIncreaseBtn" style="flex: 1;">Increase Qty</button>
+                <button class="btn btn-cancel" id="duplicateCancelBtn" style="flex: 1;">Cancel</button>
             </div>
         </div>
     </div>
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- ========== النصوص البرمجية (الترتيب مهم) ========== -->
+    <!-- ========== Scripts ========== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -584,14 +581,14 @@
     <script src="./js/services/invoiceService.js"></script>
     <script src="./js/services/purchaseService.js"></script>
     <script src="./js/toast.js"></script>
-    <!-- مكتبة الطباعة الحرارية -->
     <script src="https://cdn.jsdelivr.net/npm/esc-pos-encoder@2"></script>
+    <!-- SortableJS for drag & drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="./js/pos.js"></script>
 
     <script>
         (function() {
             const loadingBar = document.getElementById('loading-bar');
-
             async function waitForPOS() {
                 if (window.POS && typeof window.POS.init === 'function') return;
                 await new Promise((resolve, reject) => {
@@ -604,7 +601,6 @@
                     check();
                 });
             }
-
             async function initApp() {
                 loadingBar.style.width = '80%';
                 try {
@@ -614,14 +610,11 @@
                 } catch (e) {
                     console.error('POS init failed:', e);
                     loadingBar.style.background = 'var(--danger)';
-                    if (window.Toast) {
-                        Toast.error('Failed to load point of sale. Please try again.');
-                    }
+                    if (window.Toast) Toast.error('Failed to load POS. Please try again.');
                 } finally {
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
                 }
             }
-
             initApp();
         })();
     </script>
