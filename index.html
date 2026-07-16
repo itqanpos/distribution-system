@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#0b1120">
 
     <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,88 +20,83 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- الأنماط -->
     <style>
         :root {
             --primary: #6366f1;
-            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
             --secondary: #06b6d4;
             --accent: #f59e0b;
-            --bg: #0f172a;
-            --card-bg: rgba(255, 255, 255, 0.06);
+            --bg-deep: #0b1120;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.15);
             --text: #f1f5f9;
             --text-muted: #94a3b8;
-            --input-bg: rgba(255, 255, 255, 0.08);
-            --border: rgba(255, 255, 255, 0.1);
-            --shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            --input-bg: rgba(255, 255, 255, 0.07);
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.3);
             --radius: 24px;
-            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Cairo', sans-serif;
-            background: var(--bg);
+            background: var(--bg-deep);
             min-height: 100vh;
-            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
             position: relative;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
-        /* خلفية النجوم */
-        .stars {
+        /* ---------- خلفية ديناميكية محسّنة ---------- */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.25;
+            z-index: 0;
+            pointer-events: none;
+            animation: float 20s infinite ease-in-out;
+        }
+        .bg-orb.orb1 {
+            width: 500px; height: 500px;
+            background: var(--primary);
+            top: -150px; right: -100px;
+        }
+        .bg-orb.orb2 {
+            width: 400px; height: 400px;
+            background: var(--secondary);
+            bottom: -100px; left: -80px;
+            animation-delay: -5s;
+        }
+        .bg-orb.orb3 {
+            width: 350px; height: 350px;
+            background: #8b5cf6;
+            top: 60%; left: 60%;
+            animation-delay: -10s;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.1); }
+            50% { transform: translate(-20px, 20px) scale(0.9); }
+            75% { transform: translate(15px, 10px) scale(1.05); }
+        }
+
+        /* شبكة خفيفة */
+        .grid-overlay {
             position: fixed;
             inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
             z-index: 0;
             pointer-events: none;
         }
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            animation: twinkle var(--duration) ease-in-out infinite;
-            animation-delay: var(--delay);
-            opacity: 0;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.2; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.5); }
-        }
 
-        /* هالات متحركة */
-        .aura {
-            position: fixed;
-            width: 500px;
-            height: 500px;
-            border-radius: 50%;
-            filter: blur(120px);
-            opacity: 0.12;
-            z-index: 0;
-            pointer-events: none;
-            animation: rotateAura 30s linear infinite;
-        }
-        .aura-1 {
-            background: var(--primary);
-            top: -150px;
-            right: -150px;
-        }
-        .aura-2 {
-            background: var(--secondary);
-            bottom: -150px;
-            left: -150px;
-            animation-direction: reverse;
-        }
-        @keyframes rotateAura {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        /* الحاوية الرئيسية */
+        /* ---------- الحاوية الرئيسية ---------- */
         .login-wrapper {
             width: 100%;
             max-width: 440px;
@@ -118,14 +113,28 @@
             background: var(--card-bg);
             backdrop-filter: blur(40px);
             -webkit-backdrop-filter: blur(40px);
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-glass);
             border-radius: var(--radius);
             padding: 44px 36px;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
+            box-shadow: var(--shadow-glow), 0 25px 50px -12px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        /* تأثير إضاءة على الحافة */
+        .login-card::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: var(--radius);
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.4), transparent 40%, transparent 60%, rgba(6,182,212,0.4));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
         }
 
-        /* الشعار */
+        /* ---------- الشعار ---------- */
         .logo-area {
             text-align: center;
             margin-bottom: 36px;
@@ -134,7 +143,7 @@
             width: 80px;
             height: 80px;
             margin: 0 auto 20px;
-            background: linear-gradient(135deg, var(--primary), #818cf8);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             border-radius: 22px;
             display: flex;
             align-items: center;
@@ -146,7 +155,7 @@
         .logo-icon:hover { transform: scale(1.05) rotate(-2deg); }
         @keyframes pulse {
             0%, 100% { box-shadow: 0 12px 28px -8px rgba(99,102,241,0.4); }
-            50% { box-shadow: 0 16px 36px -8px rgba(99,102,241,0.7); }
+            50% { box-shadow: 0 20px 40px -8px rgba(99,102,241,0.8); }
         }
         .logo-icon i {
             font-size: 40px;
@@ -159,6 +168,10 @@
             color: var(--text);
             letter-spacing: -0.5px;
             margin-bottom: 6px;
+            background: linear-gradient(to left, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         .logo-area .subtitle {
             color: var(--text-muted);
@@ -166,7 +179,7 @@
             font-weight: 500;
         }
 
-        /* رسالة الاتصال */
+        /* ---------- تنبيه الخطأ داخل البطاقة ---------- */
         .alert {
             display: none;
             align-items: center;
@@ -197,23 +210,24 @@
         }
         .alert a:hover { text-decoration: underline; }
 
-        /* الحقول */
+        /* ---------- حقول الإدخال ---------- */
         .input-group {
             position: relative;
             margin-bottom: 22px;
         }
         .input-group input {
             width: 100%;
-            padding: 15px 48px 15px 48px;
+            padding: 15px 52px 15px 16px;
             background: var(--input-bg);
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-glass);
             border-radius: 16px;
             font-family: 'Cairo', sans-serif;
             font-size: 16px;
             color: var(--text);
-            transition: var(--transition);
+            transition: all 0.3s;
             outline: none;
             backdrop-filter: blur(4px);
+            letter-spacing: 0.3px;
         }
         .input-group input:focus {
             border-color: var(--primary);
@@ -223,12 +237,12 @@
         .input-group input::placeholder { color: #64748b; }
         .input-icon {
             position: absolute;
-            right: 16px;
+            right: 18px;
             top: 50%;
             transform: translateY(-50%);
             color: #64748b;
             font-size: 18px;
-            transition: var(--transition);
+            transition: all 0.3s;
             pointer-events: none;
         }
         .input-group input:focus ~ .input-icon,
@@ -251,13 +265,24 @@
             z-index: 2;
             transition: color 0.2s;
         }
-        .toggle-password:hover {
-            color: var(--primary);
-        }
+        .toggle-password:hover { color: var(--primary); }
 
-        /* زر الدخول */
+        /* رابط نسيت كلمة المرور */
+        .forgot-link {
+            text-align: left;
+            margin: -8px 0 16px 0;
+            font-size: 13px;
+        }
+        .forgot-link a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .forgot-link a:hover { color: var(--primary-light); }
+
+        /* ---------- زر تسجيل الدخول ---------- */
         .btn {
-            background: linear-gradient(135deg, var(--primary), #818cf8);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
             border: none;
             border-radius: 16px;
@@ -267,8 +292,8 @@
             font-weight: 700;
             font-size: 18px;
             cursor: pointer;
-            transition: var(--transition);
-            margin-top: 12px;
+            transition: all 0.3s;
+            margin-top: 4px;
             letter-spacing: 0.3px;
             position: relative;
             overflow: hidden;
@@ -279,7 +304,7 @@
             gap: 8px;
         }
         .btn:hover {
-            box-shadow: 0 16px 35px -8px rgba(99,102,241,0.6);
+            box-shadow: 0 16px 35px -8px rgba(99,102,241,0.7);
             transform: translateY(-2px);
         }
         .btn:active { transform: scale(0.98); }
@@ -289,6 +314,8 @@
             transform: none;
             box-shadow: 0 10px 25px -8px rgba(99,102,241,0.3);
         }
+
+        /* Spinner */
         .btn .spinner {
             display: none;
             width: 20px;
@@ -302,7 +329,7 @@
         .btn.loading .btn-text { display: none; }
         .btn.loading .spinner { display: inline-block; }
 
-        /* رابط التسجيل */
+        /* ---------- رابط التسجيل ---------- */
         .signup-link {
             margin-top: 28px;
             text-align: center;
@@ -310,29 +337,30 @@
             color: var(--text-muted);
         }
         .signup-link a {
-            color: var(--primary);
+            color: var(--primary-light);
             font-weight: 700;
             text-decoration: none;
             transition: color 0.2s;
         }
-        .signup-link a:hover { color: #818cf8; }
+        .signup-link a:hover { color: white; }
 
-        /* تجاوب الموبايل */
+        /* ---------- تجاوب الموبايل ---------- */
         @media (max-width: 480px) {
             .login-card { padding: 32px 24px; border-radius: 20px; }
             .logo-icon { width: 64px; height: 64px; border-radius: 18px; }
             .logo-icon i { font-size: 32px; }
             .logo-area h1 { font-size: 26px; }
-            .input-group input { padding: 14px 44px 14px 44px; font-size: 15px; }
+            .input-group input { padding: 14px 46px 14px 14px; font-size: 15px; }
             .btn { padding: 14px; font-size: 17px; }
         }
     </style>
 </head>
 <body>
     <!-- خلفية ديناميكية -->
-    <div class="stars" id="starsContainer"></div>
-    <div class="aura aura-1"></div>
-    <div class="aura aura-2"></div>
+    <div class="bg-orb orb1"></div>
+    <div class="bg-orb orb2"></div>
+    <div class="bg-orb orb3"></div>
+    <div class="grid-overlay"></div>
 
     <div class="login-wrapper">
         <div class="login-card">
@@ -365,6 +393,10 @@
                 </button>
             </div>
 
+            <div class="forgot-link">
+                <a href="./forgot-password.html">نسيت كلمة المرور؟</a>
+            </div>
+
             <button class="btn" id="loginBtn">
                 <span class="btn-text">تسجيل الدخول</span>
                 <span class="spinner"></span>
@@ -376,34 +408,14 @@
         </div>
     </div>
 
-    <!-- الاعتماديات (الترتيب مهم) -->
-    <!-- 1. Supabase CDN -->
+    <!-- الاعتماديات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- 2. النواة (supabaseClient + SessionStore) -->
     <script src="./js/supabase-core.js"></script>
-    <!-- 3. المصادقة (App) -->
     <script src="./js/supabase-auth.js"></script>
-    <!-- 4. مكتبة التنبيهات (Toast) إن وجدت -->
     <script src="./js/toast.js"></script>
 
     <script>
         (() => {
-            // ========== إنشاء النجوم ==========
-            const starsContainer = document.getElementById('starsContainer');
-            for (let i = 0; i < 70; i++) {
-                const star = document.createElement('div');
-                star.className = 'star';
-                star.style.cssText = `
-                    left: ${Math.random() * 100}%;
-                    top: ${Math.random() * 100}%;
-                    width: ${Math.random() * 3 + 1}px;
-                    height: ${Math.random() * 3 + 1}px;
-                    --duration: ${Math.random() * 3 + 2}s;
-                    --delay: ${Math.random() * 4}s;
-                `;
-                starsContainer.appendChild(star);
-            }
-
             // ========== عناصر DOM ==========
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
@@ -412,7 +424,6 @@
             const alertMsg = document.getElementById('alertMsg');
             const togglePasswordBtn = document.getElementById('togglePassword');
 
-            // ========== دوال مساعدة ==========
             function showAlert(message, showRetry = true) {
                 alertMsg.textContent = message;
                 alertBox.classList.add('show');
@@ -423,25 +434,18 @@
                 alertBox.classList.remove('show');
             }
 
-            // دالة عرض التنبيهات (تستخدم Toast إذا كان محمّلاً، وإلا alert)
             function showToast(msg, type = 'error') {
-                if (window.Toast && typeof Toast.show === 'function') {
-                    // مكتبة Toast مخصصة (مثل التي أنشأناها)
+                if (window.Toast?.show) {
                     Toast.show(msg, type);
-                } else if (window.Toast && typeof Toast[type] === 'function') {
-                    // طريقة قديمة: Toast.error(msg), Toast.warn(msg)
+                } else if (window.Toast) {
                     const method = type === 'warning' ? 'warn' : type;
-                    if (typeof Toast[method] === 'function') {
-                        Toast[method](msg);
-                    } else {
-                        alert(msg);
-                    }
+                    if (typeof Toast[method] === 'function') Toast[method](msg);
+                    else alert(msg);
                 } else {
                     alert(msg);
                 }
             }
 
-            // ========== انتظار تحميل النواة ==========
             function waitForApp(timeoutMs = 8000) {
                 return new Promise((resolve, reject) => {
                     const start = Date.now();
@@ -458,7 +462,6 @@
                 });
             }
 
-            // ========== بدء التشغيل ==========
             async function init() {
                 loginBtn.disabled = true;
                 const btnText = loginBtn.querySelector('.btn-text');
@@ -468,13 +471,11 @@
                     await waitForApp();
                     hideAlert();
 
-                    // إذا كان المستخدم مسجل دخوله بالفعل، وجهه إلى الصفحة المناسبة
                     const user = await App.getCurrentUser();
                     if (user) {
                         let target = './dashboard.html';
                         if (user.role === 'rep') target = './pos.html';
                         else if (user.role === 'super_admin') target = './admin.html';
-                        // تجنب التوجيه المتكرر إذا كنا بالفعل في صفحة الدخول
                         if (window.location.pathname.indexOf('index.html') !== -1 || window.location.pathname.endsWith('/')) {
                             window.location.href = target;
                         }
@@ -484,23 +485,19 @@
                     loginBtn.disabled = false;
                     btnText.textContent = 'تسجيل الدخول';
                 } catch (err) {
-                    console.error(err);
                     showAlert('تعذر الاتصال بالخادم. تأكد من تحميل الصفحة بشكل كامل واتصالك بالإنترنت.');
                     btnText.textContent = 'تعذر الاتصال';
                 }
             }
 
-            // ========== إظهار/إخفاء كلمة المرور ==========
             togglePasswordBtn.addEventListener('click', () => {
                 const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passInput.setAttribute('type', type);
                 const icon = togglePasswordBtn.querySelector('i');
-                // fa-eye عندما تكون كلمة المرور مخفية (النوع password)، fa-eye-slash عندما تكون ظاهرة
                 icon.classList.toggle('fa-eye');
                 icon.classList.toggle('fa-eye-slash');
             });
 
-            // ========== عملية تسجيل الدخول ==========
             async function performLogin() {
                 const email = emailInput.value.trim();
                 const password = passInput.value;
@@ -510,7 +507,6 @@
                     return;
                 }
 
-                // التحقق من وجود App مرة أخرى
                 if (!window.App || typeof App.login !== 'function') {
                     showAlert('الاتصال غير متاح حاليًا، جارٍ إعادة المحاولة...');
                     try {
@@ -540,32 +536,27 @@
                 }
             }
 
-            // ========== الأحداث ==========
             loginBtn.addEventListener('click', performLogin);
             passInput.addEventListener('keypress', e => { if (e.key === 'Enter') performLogin(); });
             emailInput.addEventListener('keypress', e => { if (e.key === 'Enter') passInput.focus(); });
 
-            // تركيز أول حقل
             emailInput.focus();
 
-            // ========== Service Worker ==========
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./service-worker.js').catch(() => {});
             }
 
-            // ========== أحداث الاتصال بالإنترنت ==========
             window.addEventListener('online', () => {
                 hideAlert();
                 const btnText = loginBtn.querySelector('.btn-text');
                 if (loginBtn.disabled && btnText && btnText.textContent === 'تعذر الاتصال') {
-                    init(); // إعادة محاولة التهيئة
+                    init();
                 }
             });
             window.addEventListener('offline', () => {
                 showAlert('أنت غير متصل بالإنترنت', false);
             });
 
-            // بدء التهيئة بعد التأكد من جاهزية DOM
             init();
         })();
     </script>
