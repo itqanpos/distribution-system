@@ -3,254 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="description" content="تسجيل الدخول إلى نظام حسابي لإدارة الأعمال">
+    <meta name="description" content="تسجيل الدخول إلى نظام حسابي">
     <title>تسجيل الدخول · حسابي</title>
 
     <!-- PWA Meta -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#0b1120">
+    <meta name="theme-color" content="#f8fafc">
 
     <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-light: #818cf8;
-            --secondary: #06b6d4;
-            --accent: #f59e0b;
-            --bg-deep: #0b1120;
-            --card-bg: rgba(255, 255, 255, 0.05);
-            --border-glass: rgba(255, 255, 255, 0.15);
-            --text: #f1f5f9;
-            --text-muted: #94a3b8;
-            --input-bg: rgba(255, 255, 255, 0.07);
-            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.3);
-            --radius: 24px;
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --border: #e2e8f0;
+            --input-bg: #f8fafc;
+            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --radius: 20px;
+            --transition: 0.2s ease;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Cairo', sans-serif;
-            background: var(--bg-deep);
+            background: linear-gradient(180deg, #f8fafc 0%, #e9eef3 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            position: relative;
-            overflow: hidden;
         }
 
-        /* ---------- خلفية ديناميكية محسّنة ---------- */
-        .bg-orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.25;
-            z-index: 0;
-            pointer-events: none;
-            animation: float 20s infinite ease-in-out;
-        }
-        .bg-orb.orb1 {
-            width: 500px; height: 500px;
-            background: var(--primary);
-            top: -150px; right: -100px;
-        }
-        .bg-orb.orb2 {
-            width: 400px; height: 400px;
-            background: var(--secondary);
-            bottom: -100px; left: -80px;
-            animation-delay: -5s;
-        }
-        .bg-orb.orb3 {
-            width: 350px; height: 350px;
-            background: #8b5cf6;
-            top: 60%; left: 60%;
-            animation-delay: -10s;
-        }
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(30px, -30px) scale(1.1); }
-            50% { transform: translate(-20px, 20px) scale(0.9); }
-            75% { transform: translate(15px, 10px) scale(1.05); }
-        }
-
-        /* شبكة خفيفة */
-        .grid-overlay {
-            position: fixed;
-            inset: 0;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        /* ---------- الحاوية الرئيسية ---------- */
-        .login-wrapper {
+        .login-container {
             width: 100%;
-            max-width: 440px;
-            position: relative;
-            z-index: 2;
-            animation: cardEntry 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+            max-width: 420px;
+            animation: fadeIn 0.6s ease forwards;
         }
-        @keyframes cardEntry {
-            from { opacity: 0; transform: translateY(30px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .login-card {
             background: var(--card-bg);
-            backdrop-filter: blur(40px);
-            -webkit-backdrop-filter: blur(40px);
-            border: 1px solid var(--border-glass);
             border-radius: var(--radius);
-            padding: 44px 36px;
-            box-shadow: var(--shadow-glow), 0 25px 50px -12px rgba(0,0,0,0.5);
-            position: relative;
-        }
-        /* تأثير إضاءة على الحافة */
-        .login-card::before {
-            content: '';
-            position: absolute;
-            inset: -1px;
-            border-radius: var(--radius);
-            padding: 1px;
-            background: linear-gradient(135deg, rgba(99,102,241,0.4), transparent 40%, transparent 60%, rgba(6,182,212,0.4));
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            pointer-events: none;
+            padding: 40px 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
         }
 
-        /* ---------- الشعار ---------- */
-        .logo-area {
+        /* الشعار */
+        .logo {
             text-align: center;
             margin-bottom: 36px;
         }
         .logo-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 22px;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            background: #eef2ff;
+            color: #2563eb;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 12px 28px -8px rgba(99,102,241,0.5);
-            animation: pulse 2.5s ease-in-out infinite;
-            transition: transform 0.3s;
-        }
-        .logo-icon:hover { transform: scale(1.05) rotate(-2deg); }
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 12px 28px -8px rgba(99,102,241,0.4); }
-            50% { box-shadow: 0 20px 40px -8px rgba(99,102,241,0.8); }
-        }
-        .logo-icon i {
-            font-size: 40px;
-            color: white;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
-        }
-        .logo-area h1 {
             font-size: 32px;
-            font-weight: 900;
+        }
+        .logo h1 {
+            font-size: 26px;
+            font-weight: 800;
             color: var(--text);
             letter-spacing: -0.5px;
-            margin-bottom: 6px;
-            background: linear-gradient(to left, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
-        .logo-area .subtitle {
-            color: var(--text-muted);
-            font-size: 15px;
-            font-weight: 500;
+        .logo p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
         }
 
-        /* ---------- تنبيه الخطأ داخل البطاقة ---------- */
+        /* رسالة الخطأ */
         .alert {
             display: none;
-            align-items: center;
-            gap: 10px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
             padding: 12px 16px;
-            border-radius: 14px;
+            border-radius: 12px;
             margin-bottom: 20px;
             font-size: 14px;
-            font-weight: 600;
-            backdrop-filter: blur(8px);
-            animation: fadeSlideDown 0.4s ease;
+            font-weight: 500;
+            align-items: center;
+            gap: 10px;
         }
         .alert.show { display: flex; }
-        @keyframes fadeSlideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
         .alert a {
-            color: #f87171;
+            color: #b91c1c;
             font-weight: 700;
-            text-decoration: none;
             margin-right: auto;
             cursor: pointer;
+            text-decoration: none;
             white-space: nowrap;
         }
         .alert a:hover { text-decoration: underline; }
 
-        /* ---------- حقول الإدخال ---------- */
+        /* الحقول */
         .input-group {
             position: relative;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }
         .input-group input {
             width: 100%;
-            padding: 15px 52px 15px 16px;
+            padding: 14px 44px 14px 44px;
             background: var(--input-bg);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
             font-family: 'Cairo', sans-serif;
-            font-size: 16px;
+            font-size: 15px;
             color: var(--text);
-            transition: all 0.3s;
+            transition: all 0.2s;
             outline: none;
-            backdrop-filter: blur(4px);
-            letter-spacing: 0.3px;
         }
         .input-group input:focus {
             border-color: var(--primary);
-            background: rgba(255,255,255,0.12);
-            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
         }
-        .input-group input::placeholder { color: #64748b; }
+        .input-group input::placeholder { color: #94a3b8; }
         .input-icon {
             position: absolute;
-            right: 18px;
+            right: 16px;
             top: 50%;
             transform: translateY(-50%);
-            color: #64748b;
+            color: #94a3b8;
             font-size: 18px;
-            transition: all 0.3s;
             pointer-events: none;
+            transition: color 0.2s;
         }
         .input-group input:focus ~ .input-icon,
         .input-group input:not(:placeholder-shown) ~ .input-icon {
             color: var(--primary);
         }
 
-        /* زر إظهار كلمة المرور */
         .toggle-password {
             position: absolute;
             left: 16px;
@@ -258,64 +164,46 @@
             transform: translateY(-50%);
             background: none;
             border: none;
-            color: #64748b;
+            color: #94a3b8;
             font-size: 18px;
             cursor: pointer;
             padding: 4px;
-            z-index: 2;
-            transition: color 0.2s;
         }
         .toggle-password:hover { color: var(--primary); }
 
-        /* رابط نسيت كلمة المرور */
-        .forgot-link {
-            text-align: left;
-            margin: -8px 0 16px 0;
-            font-size: 13px;
-        }
-        .forgot-link a {
-            color: var(--text-muted);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-        .forgot-link a:hover { color: var(--primary-light); }
-
-        /* ---------- زر تسجيل الدخول ---------- */
+        /* زر الدخول */
         .btn {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: var(--primary);
             color: white;
             border: none;
-            border-radius: 16px;
-            padding: 16px;
+            border-radius: 14px;
+            padding: 15px;
             width: 100%;
             font-family: 'Cairo', sans-serif;
             font-weight: 700;
-            font-size: 18px;
+            font-size: 17px;
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 4px;
-            letter-spacing: 0.3px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 25px -8px rgba(99,102,241,0.5);
+            transition: all 0.2s;
+            margin-top: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            box-shadow: 0 8px 20px -10px rgba(37,99,235,0.4);
         }
         .btn:hover {
-            box-shadow: 0 16px 35px -8px rgba(99,102,241,0.7);
-            transform: translateY(-2px);
+            background: var(--primary-hover);
+            box-shadow: 0 12px 24px -10px rgba(37,99,235,0.5);
+            transform: translateY(-1px);
         }
         .btn:active { transform: scale(0.98); }
         .btn:disabled {
-            opacity: 0.7;
+            opacity: 0.65;
             cursor: not-allowed;
             transform: none;
-            box-shadow: 0 10px 25px -8px rgba(99,102,241,0.3);
+            box-shadow: none;
         }
 
-        /* Spinner */
         .btn .spinner {
             display: none;
             width: 20px;
@@ -329,72 +217,56 @@
         .btn.loading .btn-text { display: none; }
         .btn.loading .spinner { display: inline-block; }
 
-        /* ---------- رابط التسجيل ---------- */
+        /* رابط التسجيل */
         .signup-link {
-            margin-top: 28px;
+            margin-top: 26px;
             text-align: center;
             font-size: 15px;
-            color: var(--text-muted);
+            color: var(--text-secondary);
         }
         .signup-link a {
-            color: var(--primary-light);
+            color: var(--primary);
             font-weight: 700;
             text-decoration: none;
-            transition: color 0.2s;
         }
-        .signup-link a:hover { color: white; }
+        .signup-link a:hover { text-decoration: underline; }
 
-        /* ---------- تجاوب الموبايل ---------- */
         @media (max-width: 480px) {
-            .login-card { padding: 32px 24px; border-radius: 20px; }
-            .logo-icon { width: 64px; height: 64px; border-radius: 18px; }
-            .logo-icon i { font-size: 32px; }
-            .logo-area h1 { font-size: 26px; }
-            .input-group input { padding: 14px 46px 14px 14px; font-size: 15px; }
-            .btn { padding: 14px; font-size: 17px; }
+            .login-card { padding: 32px 22px; }
         }
     </style>
 </head>
 <body>
-    <!-- خلفية ديناميكية -->
-    <div class="bg-orb orb1"></div>
-    <div class="bg-orb orb2"></div>
-    <div class="bg-orb orb3"></div>
-    <div class="grid-overlay"></div>
 
-    <div class="login-wrapper">
+    <div class="login-container">
         <div class="login-card">
+
             <!-- الشعار -->
-            <div class="logo-area">
-                <div class="logo-icon">
-                    <i class="fas fa-store-alt"></i>
-                </div>
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-store-alt"></i></div>
                 <h1>حسابي</h1>
-                <p class="subtitle">نظام إدارة الأعمال الذكي</p>
+                <p>نظام إدارة الأعمال</p>
             </div>
 
-            <!-- رسالة خطأ الاتصال -->
+            <!-- رسالة خطأ -->
             <div class="alert" id="connectionAlert">
                 <i class="fas fa-exclamation-triangle"></i>
-                <span id="alertMsg">تعذر الاتصال بالخادم</span>
+                <span id="alertMsg"></span>
                 <a onclick="location.reload()">إعادة المحاولة</a>
             </div>
 
-            <!-- نموذج تسجيل الدخول -->
+            <!-- نموذج الدخول -->
             <div class="input-group">
-                <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email" autocorrect="off" autocapitalize="none">
+                <input type="email" id="email" placeholder="البريد الإلكتروني" autocomplete="email" inputmode="email">
                 <span class="input-icon"><i class="fas fa-envelope"></i></span>
             </div>
+
             <div class="input-group">
                 <input type="password" id="password" placeholder="كلمة المرور" autocomplete="current-password">
                 <span class="input-icon"><i class="fas fa-lock"></i></span>
-                <button type="button" class="toggle-password" id="togglePassword" aria-label="إظهار كلمة المرور">
+                <button type="button" class="toggle-password" id="togglePassword">
                     <i class="fas fa-eye"></i>
                 </button>
-            </div>
-
-            <div class="forgot-link">
-                <a href="./forgot-password.html">نسيت كلمة المرور؟</a>
             </div>
 
             <button class="btn" id="loginBtn">
@@ -403,7 +275,7 @@
             </button>
 
             <div class="signup-link">
-                ليس لديك متجر؟ <a href="./signup.html">أنشئ متجرك الآن</a>
+                ليس لديك متجر؟ <a href="./signup.html">أنشئ متجرك</a>
             </div>
         </div>
     </div>
@@ -416,7 +288,6 @@
 
     <script>
         (() => {
-            // ========== عناصر DOM ==========
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
             const loginBtn = document.getElementById('loginBtn');
@@ -485,7 +356,7 @@
                     loginBtn.disabled = false;
                     btnText.textContent = 'تسجيل الدخول';
                 } catch (err) {
-                    showAlert('تعذر الاتصال بالخادم. تأكد من تحميل الصفحة بشكل كامل واتصالك بالإنترنت.');
+                    showAlert('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
                     btnText.textContent = 'تعذر الاتصال';
                 }
             }
@@ -526,10 +397,10 @@
                     if (result.success) {
                         window.location.href = result.redirectUrl || './dashboard.html';
                     } else {
-                        showToast(result.message || 'فشل تسجيل الدخول', 'error');
+                        showToast(result.message || 'فشل تسجيل الدخول');
                     }
                 } catch (e) {
-                    showToast(e.message || 'حدث خطأ غير متوقع', 'error');
+                    showToast(e.message || 'حدث خطأ غير متوقع');
                 } finally {
                     loginBtn.classList.remove('loading');
                     loginBtn.disabled = false;
