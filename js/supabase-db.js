@@ -52,12 +52,14 @@
         }
     };
 
-    // ---------- مُولّد UUID احتياطي ----------
+    // ---------- مُولّد UUID احتياطي (بدون الاعتماد على النافذة) ----------
     function generateUUID() {
-        if (window.generateUUID) return window.generateUUID();
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            const r = (Math.random() * 16) | 0;
+            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
         });
     }
 
@@ -69,7 +71,7 @@
         // Fallback: جلب مباشر من Supabase
         if (!getClient()) {
             console.warn('Supabase client غير متوفر ولا OfflineLayer، إرجاع مصفوفة فارغة');
-            return [];
+            return Promise.resolve([]);
         }
         return cloudFetcher().catch(err => {
             console.error(`فشل جلب ${storeName}`, err);
@@ -83,7 +85,7 @@
         }
         // Fallback: حفظ مباشر
         if (!getClient()) {
-            throw new Error('غير متصل ولا توجد قاعدة بيانات محلية');
+            return Promise.reject(new Error('غير متصل ولا توجد قاعدة بيانات محلية'));
         }
         return cloudSaver(data).catch(err => {
             console.error(`فشل حفظ ${storeName}`, err);
@@ -91,7 +93,7 @@
         });
     }
 
-    // دالة مساعدة لإبطال كاش البيانات (وليس كاش الجلسة)
+    // إبطال كاش البيانات
     function invalidateDataCache(storeName) {
         if (window.OfflineLayer && typeof window.OfflineLayer.invalidate === 'function') {
             window.OfflineLayer.invalidate(storeName);
@@ -133,17 +135,6 @@
 
     // ========== كائن DB العام ==========
     window.DB = {
-        // تعريض دوال السحابة للاستخدام الخارجي عند الحاجة
-        _cloudSaveProduct: _cloud.saveProduct,
-        _cloudSaveParty: _cloud.saveParty,
-        _cloudSaveInvoice: _cloud.saveInvoice,
-        _cloudSavePurchase: _cloud.savePurchase,
-        _cloudSaveTransaction: _cloud.saveTransaction,
-        _cloudSaveReturn: _cloud.saveReturn,
-        _cloudSaveJournalEntry: _cloud.saveJournalEntry,
-        _cloudDeleteProduct: _cloud.deleteProduct,
-        _cloudDeleteParty: _cloud.deleteParty,
-
         // ========== المنتجات ==========
         getProducts: (force) => offlineGet('products', async () => {
             const client = getClient();
@@ -284,15 +275,12 @@
         editSaleInvoice: async (inv) => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
-            // استخدام upsert كبديل آمن إذا لم توجد دالة RPC مخصصة
             try {
                 const { data: rpcData, error: rpcError } = await client.rpc('edit_sale_invoice', { p_data: inv });
-                if (!rpcError && rpcData) {
-                    if (rpcData.success === false) throw new Error(rpcData.error);
-                    invalidateDataCache('invoices');
-                    return rpcData;
-                }
-                throw rpcError || new Error('RPC edit_sale_invoice غير متوفرة');
+                if (rpcError) throw rpcError;
+                if (rpcData && rpcData.success === false) throw new Error(rpcData.error);
+                invalidateDataCache('invoices');
+                return rpcData || { success: true };
             } catch (rpcErr) {
                 console.warn('edit_sale_invoice فشلت، محاولة حفظ مباشر:', rpcErr);
                 // بديل: تحديث مباشر للفاتورة
@@ -472,7 +460,6 @@
                 .select('data')
                 .single();
             if (error) throw error;
-            // إبطال الكاش الخاص بالإعدادات في OfflineLayer
             invalidateDataCache('settings');
             return data.data;
         },
