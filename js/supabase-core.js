@@ -19,11 +19,9 @@
 
     // ========== UUID Generator ==========
     function generateUUID() {
-        // استخدام API الحديث إن وُجد
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return crypto.randomUUID();
         }
-        // استخدام getRandomValues (مُتاح في معظم المتصفحات الحديثة)
         if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
             const buf = new Uint8Array(16);
             crypto.getRandomValues(buf);
@@ -32,14 +30,13 @@
             const hex = Array.from(buf, b => b.toString(16).padStart(2, '0')).join('');
             return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
         }
-        // احتياطي للمتصفحات القديمة جداً – يعتمد على Math.random لكن مع تحسين بسيط
+        // احتياطي للمتصفحات القديمة جداً
         let d = Date.now() + performance.now();
-        const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
             const r = (d + Math.random() * 16) % 16 | 0;
             d = Math.floor(d / 16);
             return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
         });
-        return uuid;
     }
     window.generateUUID = generateUUID;
 
@@ -53,18 +50,16 @@
         _maxCacheSize: 50,
 
         restoreSession() {
-            if (this._user) return true; // مُستعادة مسبقاً
+            if (this._user) return true;
             try {
                 const raw = localStorage.getItem('app_session');
                 if (raw) {
                     const session = JSON.parse(raw);
-                    // استخدام الـ setter لضمان الاتساق (يحفظ في localStorage، يُحدّث tenantId)
                     this.user = {
                         id: session.id,
                         email: session.email,
                         fullName: session.fullName,
                         tenant_id: session.tenant_id
-                        // لا نُمرر loginTime لأن الـ setter سيُنشئ واحداً جديداً (وقت الاستعادة)
                     };
                     logger.log('✅ تم استعادة الجلسة من localStorage');
                     return true;
@@ -80,22 +75,19 @@
             this._user = val;
             this._tenantId = val ? (val.tenant_id || null) : null;
             if (val) {
-                const session = {
-                    id: val.id,
-                    email: val.email,
-                    fullName: val.fullName,
-                    tenant_id: val.tenant_id,
-                    loginTime: new Date().toLocaleString('ar-EG')
-                };
                 try {
-                    localStorage.setItem('app_session', JSON.stringify(session));
+                    localStorage.setItem('app_session', JSON.stringify({
+                        id: val.id,
+                        email: val.email,
+                        fullName: val.fullName,
+                        tenant_id: val.tenant_id,
+                        loginTime: new Date().toLocaleString('ar-EG')
+                    }));
                 } catch (e) {
                     logger.warn('تعذر حفظ الجلسة في localStorage', e);
                 }
             } else {
-                try {
-                    localStorage.removeItem('app_session');
-                } catch (e) { /* تجاهل */ }
+                try { localStorage.removeItem('app_session'); } catch (e) { /* تجاهل */ }
                 this._cache.clear();
                 this._cacheTimes.clear();
                 this._settings = null;
@@ -110,10 +102,11 @@
 
         setCache(key, data, ttl = 300000) {
             if (this._cache.size >= this._maxCacheSize) {
-                // حذف أقدم مفتاح (سياسة FIFO بسيطة)
                 const firstKey = this._cache.keys().next().value;
-                this._cache.delete(firstKey);
-                this._cacheTimes.delete(firstKey);
+                if (firstKey) {
+                    this._cache.delete(firstKey);
+                    this._cacheTimes.delete(firstKey);
+                }
             }
             this._cache.set(key, data);
             this._cacheTimes.set(key, Date.now() + ttl);
@@ -172,8 +165,6 @@
                 }
             });
             window.supabaseClient = client;
-            // لا نُنشئ اختصاراً عاماً قد يتعارض
-            // window.supabase = client;
             logger.log('✅ تم تهيئة Supabase client');
             return true;
         } catch (e) {
@@ -209,11 +200,34 @@
         }, 100);
     });
 
-    // ========== دالة مساعدة للوصول الآمن لـ localDB ==========
+    // ========== دوال مساعدة عامة ==========
+
+    /**
+     * الحصول على عميل Supabase (وعد)
+     * يُستخدم في الملفات التي تحتاج العميل بشكل آمن
+     */
+    function getSupabaseClient() {
+        return new Promise(resolve => {
+            if (window.supabaseClient) return resolve(window.supabaseClient);
+            const check = setInterval(() => {
+                if (window.supabaseClient) {
+                    clearInterval(check);
+                    resolve(window.supabaseClient);
+                }
+            }, 100);
+        });
+    }
+    window.getSupabaseClient = getSupabaseClient;
+
+    /**
+     * الحصول على localDB جاهز (وعد)
+     */
     async function getLocalDBAsync() {
         if (!window.localDB) return null;
         try {
-            await window.localDB.initPromise;
+            if (typeof window.localDB.initPromise !== 'undefined') {
+                await window.localDB.initPromise;
+            }
             return window.localDB.ready ? window.localDB : null;
         } catch (e) {
             logger.warn('localDB غير جاهز', e);
