@@ -1,5 +1,5 @@
 /* =============================================
-   supabase-core.js - العميل وتهيئة الجلسة (محسّن)
+   supabase-core.js - العميل وتهيئة الجلسة (مُحسَّن)
    ============================================= */
 (function() {
     'use strict';
@@ -9,7 +9,6 @@
 
     window.supabaseClient = null;
 
-    // ---------- بيئة التطوير ----------
     const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const logger = {
         log: (...args) => IS_DEV && console.log(...args),
@@ -17,7 +16,7 @@
         error: (...args) => console.error(...args)
     };
 
-    // ========== UUID Generator ==========
+    // ---------- UUID Generator ----------
     function generateUUID() {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return crypto.randomUUID();
@@ -30,7 +29,6 @@
             const hex = Array.from(buf, b => b.toString(16).padStart(2, '0')).join('');
             return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
         }
-        // احتياطي للمتصفحات القديمة جداً
         let d = Date.now() + performance.now();
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
             const r = (d + Math.random() * 16) % 16 | 0;
@@ -40,11 +38,10 @@
     }
     window.generateUUID = generateUUID;
 
-    // ========== Session Store ==========
+    // ---------- Session Store ----------
     const SessionStore = {
         _user: null,
         _tenantId: null,
-        _settings: null,
         _cache: new Map(),
         _cacheTimes: new Map(),
         _maxCacheSize: 50,
@@ -83,30 +80,21 @@
                         tenant_id: val.tenant_id,
                         loginTime: new Date().toLocaleString('ar-EG')
                     }));
-                } catch (e) {
-                    logger.warn('تعذر حفظ الجلسة في localStorage', e);
-                }
+                } catch (e) { /* تجاهل */ }
             } else {
                 try { localStorage.removeItem('app_session'); } catch (e) { /* تجاهل */ }
                 this._cache.clear();
                 this._cacheTimes.clear();
-                this._settings = null;
             }
         },
-        get user() {
-            return this._user;
-        },
-        get tenantId() {
-            return this._tenantId;
-        },
+        get user() { return this._user; },
+        get tenantId() { return this._tenantId; },
 
         setCache(key, data, ttl = 300000) {
             if (this._cache.size >= this._maxCacheSize) {
                 const firstKey = this._cache.keys().next().value;
-                if (firstKey) {
-                    this._cache.delete(firstKey);
-                    this._cacheTimes.delete(firstKey);
-                }
+                this._cache.delete(firstKey);
+                this._cacheTimes.delete(firstKey);
             }
             this._cache.set(key, data);
             this._cacheTimes.set(key, Date.now() + ttl);
@@ -132,7 +120,7 @@
     };
     window.SessionStore = SessionStore;
 
-    // تنظيف دوري للكاش منتهي الصلاحية
+    // تنظيف دوري للكاش
     setInterval(() => {
         const now = Date.now();
         for (const [key, expiry] of SessionStore._cacheTimes) {
@@ -143,7 +131,7 @@
         }
     }, 60000);
 
-    // ========== تهيئة Supabase ==========
+    // ---------- تهيئة Supabase ----------
     function initSupabase() {
         if (typeof supabase === 'undefined') {
             logger.warn('مكتبة Supabase غير محملة بعد');
@@ -157,12 +145,8 @@
                     autoRefreshToken: true,
                     detectSessionInUrl: true
                 },
-                realtime: {
-                    params: { eventsPerSecond: 10 }
-                },
-                global: {
-                    headers: { 'X-Client-Info': 'hesaby/4.0' }
-                }
+                realtime: { params: { eventsPerSecond: 10 } },
+                global: { headers: { 'X-Client-Info': 'hesaby/4.0' } }
             });
             window.supabaseClient = client;
             logger.log('✅ تم تهيئة Supabase client');
@@ -173,67 +157,33 @@
         }
     }
 
-    // المحاولة الأولى للتهيئة
     if (!initSupabase()) {
         let retryCount = 0;
         const maxRetries = 10;
         const retryInterval = setInterval(() => {
             if (window.supabaseClient || retryCount >= maxRetries) {
                 clearInterval(retryInterval);
-                if (!window.supabaseClient) {
-                    logger.error('⚠️ تعذر تهيئة Supabase بعد عدة محاولات');
-                }
                 return;
             }
             if (typeof supabase !== 'undefined' && initSupabase()) {
                 clearInterval(retryInterval);
-                logger.log('✅ استعادة الاتصال بـ Supabase');
             }
             retryCount++;
         }, 1500);
     }
 
-    // استعادة الجلسة السابقة بعد تحميل الصفحة
     window.addEventListener('load', () => {
-        setTimeout(() => {
-            SessionStore.restoreSession();
-        }, 100);
+        setTimeout(() => SessionStore.restoreSession(), 100);
     });
 
-    // ========== دوال مساعدة عامة ==========
-
-    /**
-     * الحصول على عميل Supabase (وعد)
-     * يُستخدم في الملفات التي تحتاج العميل بشكل آمن
-     */
-    function getSupabaseClient() {
+    // دالة مساعدة للحصول على العميل
+    window.getSupabaseClient = () => {
         return new Promise(resolve => {
             if (window.supabaseClient) return resolve(window.supabaseClient);
             const check = setInterval(() => {
-                if (window.supabaseClient) {
-                    clearInterval(check);
-                    resolve(window.supabaseClient);
-                }
+                if (window.supabaseClient) { clearInterval(check); resolve(window.supabaseClient); }
             }, 100);
         });
-    }
-    window.getSupabaseClient = getSupabaseClient;
-
-    /**
-     * الحصول على localDB جاهز (وعد)
-     */
-    async function getLocalDBAsync() {
-        if (!window.localDB) return null;
-        try {
-            if (typeof window.localDB.initPromise !== 'undefined') {
-                await window.localDB.initPromise;
-            }
-            return window.localDB.ready ? window.localDB : null;
-        } catch (e) {
-            logger.warn('localDB غير جاهز', e);
-            return null;
-        }
-    }
-    window.getLocalDBAsync = getLocalDBAsync;
+    };
 
 })();
