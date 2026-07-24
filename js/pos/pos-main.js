@@ -1,3 +1,4 @@
+// js/pos/pos-main.js
 'use strict';
 import { U, LRUCache, UserPrefs, CASH_CUSTOMER_LABEL, CASH_CUSTOMER_STORED } from './utils.js';
 import { createInitialState, _resetCart, _getCust, _calcTotals, _updateTotals,
@@ -22,7 +23,7 @@ import { _scanBarcode, _stopBarcodeScan, _searchBarcode, _startSpeechSearch,
 import { _setupAutoTheme, _setupErrorMonitoring, _logErrorToServer, _sidebarUser } from './pos-init.js';
 
 const POS = {
-    U, // نجعل الأدوات متاحة
+    U,
     state: createInitialState(),
     cache: {
         prods: new LRUCache(800),
@@ -31,7 +32,7 @@ const POS = {
     },
     el: {},
 
-    // ربط الدوال المستوردة
+    // دوال مساعدة
     _resetCart, _getCust, _calcTotals, _updateTotals,
     _saveCart, _restoreCart, _savePaymentDraft, _restorePaymentDraft,
     _logActivity, _localInvNum,
@@ -54,28 +55,28 @@ const POS = {
     _setupAutoTheme, _setupErrorMonitoring, _logErrorToServer, _sidebarUser,
 
     async init() {
-        // ربط this بكل دالة تحتاج POS
-        for (const key of Object.keys(POS)) {
+        // ربط كل الدوال التي تحتاج POS
+        Object.keys(POS).forEach(key => {
             if (typeof POS[key] === 'function' && key.startsWith('_')) {
                 POS[key] = POS[key].bind(null, POS);
             }
-        }
-        // استثناءات لبعض الدوال التي لا تحتاج POS أو تستخدم this الأصلي
+        });
+        // دوال خاصة لا تُربط بنفس الطريقة
         POS._applyUserPrefs = _applyUserPrefs.bind(null, POS);
         POS._cacheDOM = _cacheDOM.bind(null, POS);
-        POS._applySafeArea = _applySafeArea;
+        POS._applySafeArea = _applySafeArea; // لا تحتاج POS
         POS._bindKeyboardShortcuts = _bindKeyboardShortcuts.bind(null, POS);
         POS._bindEvents = _bindEvents.bind(null, POS);
-        POS._connStatus = _connStatus;
+        POS._connStatus = _connStatus; // لا تحتاج POS
         POS._setupErrorMonitoring = _setupErrorMonitoring.bind(null, POS);
         POS._setupBarcodeBuffer = _setupBarcodeBuffer.bind(null, POS);
         POS._setupRealtimeSync = _setupRealtimeSync.bind(null, POS);
-        POS._setupAutoTheme = _setupAutoTheme;
+        POS._setupAutoTheme = _setupAutoTheme; // لا تحتاج POS
         POS._setupConnectionCheck = _setupConnectionCheck.bind(null, POS);
         POS._startTodayStatsUpdater = _startTodayStatsUpdater.bind(null, POS);
         POS._enableDragDrop = _enableDragDrop.bind(null, POS);
 
-        // التهيئة
+        // تهيئة الواجهة
         POS._applyUserPrefs();
         POS._cacheDOM();
         POS._applySafeArea();
@@ -113,5 +114,4 @@ const POS = {
     openReturn() { window.location.href = './sales-returns.html'; }
 };
 
-// دوال عامة لا تحتاج ربط بـ POS لأنها تستخدم this من الكائن الأصلي (مثل playBeep عبر U)
 window.POS = POS;
