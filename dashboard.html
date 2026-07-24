@@ -10,6 +10,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,14 +19,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./css/dashboard.css">
     
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-    
     <script src="./js/db-local.js"></script>
     <script src="./js/sync.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <!-- المكونات الجديدة -->
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
+    <script src="./js/supabase-db.js"></script>
+    <script src="./js/supabase-offline.js"></script>
     <script src="./js/toast.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -82,8 +83,8 @@
             <div class="date-display" id="currentDate"></div>
         </div>
 
-        <!-- المحتوى الديناميكي -->
         <div class="dashboard-container">
+            <!-- رسالة الترحيب -->
             <section class="hero-section">
                 <div class="hero-content">
                     <div><h1 id="heroGreeting">مرحباً 👋</h1><p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p></div>
@@ -94,13 +95,32 @@
                 </div>
             </section>
 
-            <section class="stats-grid">
-                <div class="premium-card sales"><div class="card-top"><div><span>مبيعات اليوم</span><h2 id="salesToday">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-chart-line"></i></div></div><div class="card-bottom"><span class="success-text" id="salesTrend">↑ حتى اللحظة</span></div></div>
-                <div class="premium-card purchases"><div class="card-top"><div><span>المشتريات</span><h2 id="purchasesToday">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-shopping-cart"></i></div></div><div class="card-bottom"><span class="warning-text" id="purchasesTrend">↑ حتى اللحظة</span></div></div>
-                <div class="premium-card customers"><div class="card-top"><div><span>العملاء</span><h2 id="customersCount">0</h2></div><div class="icon-box"><i class="fas fa-users"></i></div></div><div class="card-bottom"><span class="success-text" id="customersTrend">+ إجمالي</span></div></div>
-                <div class="premium-card cash"><div class="card-top"><div><span>رصيد الصندوق</span><h2 id="cashBalance">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-wallet"></i></div></div><div class="card-bottom"><span class="danger-text" id="cashTrend">↓ الرصيد الحالي</span></div></div>
+            <!-- بطاقات الإحصائيات المتوافقة مع dashboard.js -->
+            <section class="stats-grid" id="statsGrid">
+                <div class="premium-card sales">
+                    <div class="card-top"><div><span>إجمالي الفواتير</span><h2 id="statTotalInvoices">0</h2></div><div class="icon-box"><i class="fas fa-file-invoice"></i></div></div>
+                </div>
+                <div class="premium-card purchases">
+                    <div class="card-top"><div><span>إجمالي المبيعات</span><h2 id="statTotalSales">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-chart-line"></i></div></div>
+                </div>
+                <div class="premium-card customers">
+                    <div class="card-top"><div><span>الفواتير المدفوعة</span><h2 id="statPaid">0</h2></div><div class="icon-box"><i class="fas fa-check-circle"></i></div></div>
+                </div>
+                <div class="premium-card cash">
+                    <div class="card-top"><div><span>الفواتير غير المدفوعة</span><h2 id="statUnpaid">0</h2></div><div class="icon-box"><i class="fas fa-exclamation-circle"></i></div></div>
+                </div>
+                <div class="premium-card low-stock">
+                    <div class="card-top"><div><span>منتجات منخفضة المخزون</span><h2 id="statLowStock">0</h2></div><div class="icon-box"><i class="fas fa-boxes"></i></div></div>
+                </div>
             </section>
 
+            <!-- مبيعات آخر 7 أيام -->
+            <section class="daily-sales-section">
+                <div class="section-header"><h3>مبيعات آخر 7 أيام</h3></div>
+                <div class="daily-sales-cards" id="dailySalesCards"></div>
+            </section>
+
+            <!-- إجراءات سريعة -->
             <section class="quick-actions">
                 <div class="section-header"><h3>إجراءات سريعة</h3></div>
                 <div class="actions-grid">
@@ -111,21 +131,27 @@
                 </div>
             </section>
 
+            <!-- المخطط والأكثر مبيعاً -->
             <section class="main-grid">
                 <div class="glass-card large-card">
                     <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select" id="chartPeriod"><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يوم</option></select></div>
                     <div class="chart-placeholder"><canvas id="salesChart"></canvas></div>
                 </div>
                 <div class="glass-card">
-                    <div class="section-header"><h3>تنبيهات ذكية</h3></div>
-                    <div class="insights-list">
-                        <div class="insight-item warning"><i class="fas fa-exclamation-triangle"></i><div><strong>منتجات قاربت النفاد</strong><p id="lowStockAlert">0 منتجات</p></div></div>
-                        <div class="insight-item success"><i class="fas fa-arrow-trend-up"></i><div><strong>زيادة بالمبيعات</strong><p id="salesGrowthAlert">نمو ملحوظ</p></div></div>
-                        <div class="insight-item danger"><i class="fas fa-credit-card"></i><div><strong>فواتير مستحقة</strong><p id="unpaidAlert">0 فاتورة غير مدفوعة</p></div></div>
-                    </div>
+                    <div class="section-header"><h3>الأكثر مبيعاً</h3></div>
+                    <div class="top-products-list" id="topProductsList"><p class="empty">جاري التحميل...</p></div>
                 </div>
             </section>
 
+            <!-- الفواتير الأخيرة -->
+            <section class="recent-invoices-section">
+                <div class="glass-card">
+                    <div class="section-header"><h3>آخر الفواتير</h3></div>
+                    <div class="recent-invoices-table" id="recentInvoicesTable"><p class="empty">جاري التحميل...</p></div>
+                </div>
+            </section>
+
+            <!-- النشاط الأخير (اختياري - يمكن تعبئته لاحقاً) -->
             <section class="activity-section">
                 <div class="glass-card">
                     <div class="section-header"><h3>النشاط الأخير</h3></div>
@@ -138,5 +164,34 @@
     <div class="toast" id="toast"></div>
 
     <script src="./js/dashboard.js"></script>
+    <script>
+        (function() {
+            async function initDashboard() {
+                if (window.Dashboard && typeof window.Dashboard.init === 'function') {
+                    // عرض التاريخ الحالي
+                    const dateEl = document.getElementById('currentDate');
+                    if (dateEl) {
+                        dateEl.textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    }
+                    await window.Dashboard.init();
+                    // تحديث البيانات يدوياً عند النقر على زر التحديث
+                    document.getElementById('refreshDataBtn')?.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        await window.Dashboard.loadAllData();
+                        if (window.Toast) Toast.info('تم تحديث البيانات');
+                    });
+                } else {
+                    // إعادة المحاولة بعد فترة قصيرة
+                    setTimeout(initDashboard, 300);
+                }
+            }
+            // بدء التحميل عندما تصبح الصفحة جاهزة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initDashboard);
+            } else {
+                initDashboard();
+            }
+        })();
+    </script>
 </body>
 </html>
