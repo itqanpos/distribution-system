@@ -562,23 +562,27 @@
     <script src="https://cdn.jsdelivr.net/npm/esc-pos-encoder@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-    <!-- ========== ملفات POS المقسمة (بالترتيب الصحيح) ========== -->
+    <!-- ========== ملفات POS المقسمة (12 ملفاً بالترتيب الصحيح) ========== -->
     <script src="./js/pos/pos-core.js"></script>
+    <script src="./js/pos/pos-state.js"></script>
+    <script src="./js/pos/pos-cache.js"></script>
     <script src="./js/pos/pos-dom.js"></script>
     <script src="./js/pos/pos-events.js"></script>
     <script src="./js/pos/pos-cart.js"></script>
     <script src="./js/pos/pos-data.js"></script>
     <script src="./js/pos/pos-io.js"></script>
+    <script src="./js/pos/pos-network.js"></script>
+    <script src="./js/pos/pos-init.js"></script>
     <script src="./js/pos/pos-main.js"></script>
 
-    <!-- تهيئة التطبيق -->
+    <!-- بدء التطبيق بعد التحميل -->
     <script>
         (function() {
             const loadingBar = document.getElementById('loading-bar');
             
-            async function waitForPOS() {
-                if (window.POS && typeof window.POS.init === 'function') return;
+            function waitForPOS() {
                 return new Promise((resolve, reject) => {
+                    if (window.POS && typeof window.POS.init === 'function') return resolve();
                     const start = Date.now();
                     const check = () => {
                         if (window.POS && typeof window.POS.init === 'function') resolve();
