@@ -1,97 +1,102 @@
-// js/pos/pos-main.js
+/* =============================================
+   pos-main.js - نقطة الدخول الرئيسية
+   الوظيفة: تجميع جميع وحدات POS وتهيئة التطبيق.
+   يستدعي دوال التهيئة، يحمّل البيانات، يربط أحداث
+   دورة حياة الصفحة، ويبدأ التطبيق تلقائياً.
+   ============================================= */
 'use strict';
-import { U, LRUCache, UserPrefs, CASH_CUSTOMER_LABEL, CASH_CUSTOMER_STORED } from './utils.js';
-import { createInitialState, _resetCart, _getCust, _calcTotals, _updateTotals,
-         _saveCart, _restoreCart, _savePaymentDraft, _restorePaymentDraft,
-         _logActivity, _localInvNum } from './pos-state.js';
-import { _buildCache, _updateProductInCache } from './pos-cache.js';
-import { _cacheDOM, _applySafeArea, _renderCart, _resetCartRender,
-         _renderProductGrid, _filterTabletProducts, _filterProducts, _filterCustomers,
-         _hideCustDropdown, _hideProdDropdown, _updateCustDisplay,
-         _showModal, _closeModal, _applyUserPrefs, _connStatus,
-         _togglePaymentFields, _previewPayment, _debouncedRenderGrid } from './pos-dom.js';
-import { _bindEvents, _bindKeyboardShortcuts, _setupBarcodeBuffer, _enableDragDrop,
-         _onCartChange, _onCartClick, _canChangePrice, _closeAllModals } from './pos-events.js';
-import { _openUnitModal, _selectUnit, _updateUnitInfo, _addToCart, _quickAdd,
-         _openPayment, _completePayment, _checkStock, _localStockCheck,
-         _updateLocalStock, _confirmAction, holdInvoice, loadHeld, _resumeInvoice } from './pos-core.js';
-import { _loadData, _fetchProdsAndCusts, _loadEditInvoice,
-         _setupRealtimeSync, _setupConnectionCheck, _startTodayStatsUpdater,
-         _syncOfflineSales } from './pos-network.js';
-import { _scanBarcode, _stopBarcodeScan, _searchBarcode, _startSpeechSearch,
-         _showReceipt, _printReceipt, _printThermal } from './pos-io.js';
-import { _setupAutoTheme, _setupErrorMonitoring, _logErrorToServer, _sidebarUser } from './pos-init.js';
 
-const POS = {
-    U,
-    state: createInitialState(),
-    cache: {
-        prods: new LRUCache(800),
-        custs: new LRUCache(400),
-        barcode: new LRUCache(600)
-    },
-    el: {},
+(function() {
+    const POS = window.POS;
 
-    // دوال مساعدة
-    _resetCart, _getCust, _calcTotals, _updateTotals,
-    _saveCart, _restoreCart, _savePaymentDraft, _restorePaymentDraft,
-    _logActivity, _localInvNum,
-    _buildCache, _updateProductInCache,
-    _cacheDOM, _applySafeArea, _renderCart, _resetCartRender,
-    _renderProductGrid, _filterTabletProducts, _filterProducts, _filterCustomers,
-    _hideCustDropdown, _hideProdDropdown, _updateCustDisplay,
-    _showModal, _closeModal, _applyUserPrefs, _connStatus,
-    _togglePaymentFields, _previewPayment, _debouncedRenderGrid,
-    _bindEvents, _bindKeyboardShortcuts, _setupBarcodeBuffer, _enableDragDrop,
-    _onCartChange, _onCartClick, _canChangePrice, _closeAllModals,
-    _openUnitModal, _selectUnit, _updateUnitInfo, _addToCart, _quickAdd,
-    _openPayment, _completePayment, _checkStock, _localStockCheck,
-    _updateLocalStock, _confirmAction, holdInvoice, loadHeld, _resumeInvoice,
-    _loadData, _fetchProdsAndCusts, _loadEditInvoice,
-    _setupRealtimeSync, _setupConnectionCheck, _startTodayStatsUpdater,
-    _syncOfflineSales,
-    _scanBarcode, _stopBarcodeScan, _searchBarcode, _startSpeechSearch,
-    _showReceipt, _printReceipt, _printThermal,
-    _setupAutoTheme, _setupErrorMonitoring, _logErrorToServer, _sidebarUser,
+    /**
+     * POS.init - دالة التهيئة الرئيسية لنظام نقطة البيع
+     * تُستدعى مرة واحدة عند تحميل الصفحة.
+     * تقوم بالخطوات التالية:
+     * 1. تطبيق تفضيلات المستخدم (حجم الخط)
+     * 2. تخزين مراجع عناصر DOM المهمة
+     * 3. تطبيق المسافات الآمنة للهواتف
+     * 4. ربط اختصارات لوحة المفاتيح
+     * 5. ربط جميع أحداث النقر والإدخال
+     * 6. عرض حالة الاتصال الحالية
+     * 7. إعداد مراقبة الأخطاء
+     * 8. إعداد قراءة الباركود من الماسح الضوئي
+     * 9. إعداد المزامنة الفورية (Realtime)
+     * 10. إعداد السمة التلقائية (داكن/فاتح)
+     * 11. بدء فحص الاتصال الدوري
+     * 12. بدء تحديث إحصائيات اليوم
+     * 13. تفعيل السحب والإفلات في السلة
+     * 14. تسجيل Service Worker للتطبيق التقدمي
+     * 15. ربط أحداث الاتصال والمزامنة
+     * 16. ربط حدث إخفاء الصفحة لحفظ السلة
+     * 17. تحميل المنتجات والعملاء
+     * 18. تحميل بيانات المستخدم للشريط الجانبي
+     * 19. استعادة مسودة الدفع إن وجدت
+     * 20. ربط حدث مغادرة الصفحة للحفظ وإيقاف الكاميرا
+     */
+    POS.init = async function() {
+        console.log('🚀 بدء تهيئة نظام نقطة البيع...');
 
-    async init() {
-        // ربط كل الدوال التي تحتاج POS
-        Object.keys(POS).forEach(key => {
-            if (typeof POS[key] === 'function' && key.startsWith('_')) {
-                POS[key] = POS[key].bind(null, POS);
-            }
-        });
-        // دوال خاصة لا تُربط بنفس الطريقة
-        POS._applyUserPrefs = _applyUserPrefs.bind(null, POS);
-        POS._cacheDOM = _cacheDOM.bind(null, POS);
-        POS._applySafeArea = _applySafeArea; // لا تحتاج POS
-        POS._bindKeyboardShortcuts = _bindKeyboardShortcuts.bind(null, POS);
-        POS._bindEvents = _bindEvents.bind(null, POS);
-        POS._connStatus = _connStatus; // لا تحتاج POS
-        POS._setupErrorMonitoring = _setupErrorMonitoring.bind(null, POS);
-        POS._setupBarcodeBuffer = _setupBarcodeBuffer.bind(null, POS);
-        POS._setupRealtimeSync = _setupRealtimeSync.bind(null, POS);
-        POS._setupAutoTheme = _setupAutoTheme; // لا تحتاج POS
-        POS._setupConnectionCheck = _setupConnectionCheck.bind(null, POS);
-        POS._startTodayStatsUpdater = _startTodayStatsUpdater.bind(null, POS);
-        POS._enableDragDrop = _enableDragDrop.bind(null, POS);
+        // ========== المرحلة 1: تهيئة الواجهة والإعدادات ==========
 
-        // تهيئة الواجهة
+        // تطبيق تفضيلات المستخدم (مثل حجم الخط)
         POS._applyUserPrefs();
+
+        // تخزين مراجع عناصر DOM المهمة
         POS._cacheDOM();
+
+        // تطبيق مسافات آمنة للهواتف ذات الشق (Notch)
         POS._applySafeArea();
+
+        // ربط اختصارات لوحة المفاتيح (F1-F5, Escape)
         POS._bindKeyboardShortcuts();
+
+        // ربط جميع أحداث النقر والإدخال
         POS._bindEvents();
+
+        // عرض حالة الاتصال الحالية
         POS._connStatus();
+
+        // ========== المرحلة 2: إعداد الأنظمة الخلفية ==========
+
+        // مراقبة الأخطاء العامة وإرسالها للسيرفر
         POS._setupErrorMonitoring();
+
+        // إعداد قراءة الباركود من الماسح الضوئي
         POS._setupBarcodeBuffer();
+
+        // إعداد المزامنة الفورية مع Supabase
         POS._setupRealtimeSync();
+
+        // إعداد السمة التلقائية
         POS._setupAutoTheme();
+
+        // بدء فحص الاتصال الدوري
         POS._setupConnectionCheck();
+
+        // بدء تحديث إحصائيات اليوم بشكل دوري
         POS._startTodayStatsUpdater();
 
-        window.addEventListener('online', () => { POS._connStatus(); POS._syncOfflineSales(); });
-        window.addEventListener('offline', () => POS._connStatus());
+        // تفعيل السحب والإفلات لعناصر السلة (إذا كانت المكتبة محملة)
+        POS._enableDragDrop();
+
+        // تسجيل Service Worker لدعم PWA
+        POS._setupServiceWorker();
+
+        // ========== المرحلة 3: ربط أحداث دورة حياة الصفحة ==========
+
+        // عند عودة الاتصال: تحديث الحالة ومزامنة المبيعات غير المتصلة
+        window.addEventListener('online', () => {
+            POS._connStatus();
+            POS._syncOfflineSales();
+        });
+
+        // عند فقدان الاتصال: تحديث الحالة فقط
+        window.addEventListener('offline', () => {
+            POS._connStatus();
+        });
+
+        // عند إخفاء الصفحة (تبديل التطبيق أو قفل الشاشة): حفظ السلة ومسودة الدفع
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 POS._saveCart();
@@ -100,18 +105,44 @@ const POS = {
             }
         });
 
+        // ========== المرحلة 4: تحميل البيانات ==========
+
+        // تحميل المنتجات والعملاء من قاعدة البيانات
         await POS._loadData();
+
+        // تحميل بيانات المستخدم الحالي للشريط الجانبي
         await POS._sidebarUser();
+
+        // استعادة مسودة الدفع (إذا كانت موجودة)
         POS._restorePaymentDraft();
 
+        // ========== المرحلة 5: أحداث مغادرة الصفحة ==========
+
+        // عند مغادرة الصفحة (إغلاق أو تحديث): حفظ السلة وإيقاف الكاميرا
         window.addEventListener('beforeunload', () => {
             POS._stopBarcodeScan();
             POS._saveCart();
             POS._savePaymentDraft();
         });
-    },
 
-    openReturn() { window.location.href = './sales-returns.html'; }
-};
+        console.log('✅ تم تهيئة نظام نقطة البيع بنجاح');
+    };
 
-window.POS = POS;
+    // ========== بدء التطبيق تلقائياً ==========
+    // ننتظر حتى يتم تحميل الصفحة بالكامل ثم نبدأ التهيئة
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            POS.init().catch(err => {
+                console.error('❌ فشل تهيئة نقطة البيع:', err);
+                U.showToast('فشل تحميل نقطة البيع. يرجى تحديث الصفحة.', 'error');
+            });
+        });
+    } else {
+        // إذا كانت الصفحة محملة بالفعل، ابدأ فوراً
+        POS.init().catch(err => {
+            console.error('❌ فشل تهيئة نقطة البيع:', err);
+            U.showToast('فشل تحميل نقطة البيع. يرجى تحديث الصفحة.', 'error');
+        });
+    }
+
+})();
