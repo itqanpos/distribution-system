@@ -21,7 +21,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* نفس التنسيقات السابقة كاملة دون تغيير */
         :root {
             --primary: #2563eb;
             --primary-light: #eff6ff;
@@ -550,7 +549,7 @@
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- ========== السكريبتات الأساسية (Supabase و DB) ========== -->
+    <!-- ========== المكتبات الأساسية ========== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -563,7 +562,7 @@
     <script src="https://cdn.jsdelivr.net/npm/esc-pos-encoder@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-    <!-- ========== ملفات POS المقسمة (بالترتيب) ========== -->
+    <!-- ========== ملفات POS المقسمة (بالترتيب الصحيح) ========== -->
     <script src="./js/pos/pos-core.js"></script>
     <script src="./js/pos/pos-dom.js"></script>
     <script src="./js/pos/pos-events.js"></script>
@@ -572,23 +571,24 @@
     <script src="./js/pos/pos-io.js"></script>
     <script src="./js/pos/pos-main.js"></script>
 
-    <!-- بدء التطبيق بعد التحميل -->
+    <!-- تهيئة التطبيق -->
     <script>
         (function() {
             const loadingBar = document.getElementById('loading-bar');
-            // انتظار جاهزية POS
-            function waitForPOS() {
+            
+            async function waitForPOS() {
+                if (window.POS && typeof window.POS.init === 'function') return;
                 return new Promise((resolve, reject) => {
-                    if (window.POS && typeof window.POS.init === 'function') return resolve();
                     const start = Date.now();
                     const check = () => {
                         if (window.POS && typeof window.POS.init === 'function') resolve();
-                        else if (Date.now() - start > 15000) reject(new Error('POS لم يتم تحميله'));
+                        else if (Date.now() - start > 15000) reject(new Error('تعذر تحميل نقطة البيع'));
                         else setTimeout(check, 100);
                     };
                     check();
                 });
             }
+
             async function initApp() {
                 loadingBar.style.width = '80%';
                 try {
@@ -598,12 +598,19 @@
                 } catch (e) {
                     console.error('فشل تهيئة POS:', e);
                     loadingBar.style.background = 'var(--danger)';
-                    if (window.Toast) Toast.error('فشل تحميل نقطة البيع. تأكد من تحميل جميع الملفات بشكل صحيح.');
+                    if (window.Toast) {
+                        Toast.error('فشل تحميل نقطة البيع. تأكد من تحميل جميع الملفات بشكل صحيح.');
+                    }
                 } finally {
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
                 }
             }
-            initApp();
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initApp);
+            } else {
+                initApp();
+            }
         })();
     </script>
 </body>
