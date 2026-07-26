@@ -1,253 +1,228 @@
-/* =============================================
-   products.js - المنتجات (إصدار متوافق مع SaaS)
-   ============================================= */
 'use strict';
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
-        },
-        formatDate: (dateStr) => {
-            if (!dateStr) return '';
-            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-            catch (e) { return dateStr; }
-        },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
-    };
-}
-
-const Products = {
+const ProductsPage = {
     products: [],
-    editingId: null,
+    currentView: 'grid',
+    editingProductId: null,
 
     init() {
-        this.cacheElements();
-        this.bindEvents();
-        if (window.App) {
-            if (!App.requireAuth()) return;
-            App.initUserInterface();
-        }
-        this.loadData();
+        this._cacheDOM();
+        this._bindEvents();
+        this._loadProducts();
+        this._updateSidebarUser();
     },
 
-    cacheElements() {
+    _cacheDOM() {
         this.el = {
+            container: document.getElementById('productsContainer'),
+            searchInput: document.getElementById('searchInput'),
+            addBtn: document.getElementById('addProductBtn'),
+            refreshBtn: document.getElementById('refreshBtn'),
+            countSpan: document.getElementById('productCount'),
+            panel: document.getElementById('productPanel'),
+            panelTitle: document.getElementById('panelTitle'),
+            panelBody: document.getElementById('panelBody'),
+            saveBtn: document.getElementById('saveProductBtn'),
+            cancelBtn: document.getElementById('cancelPanelBtn'),
+            closePanelBtn: document.getElementById('closePanelBtn'),
+            deleteModal: document.getElementById('deleteModal'),
+            deleteMsg: document.getElementById('deleteMsg'),
+            confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
+            cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
+            viewBtns: document.querySelectorAll('.view-btn'),
+            tabs: document.querySelectorAll('.tab'),
             menuToggle: document.getElementById('menuToggle'),
             sidebar: document.getElementById('sidebar'),
-            sidebarOverlay: document.getElementById('sidebarOverlay'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            searchInput: document.getElementById('searchInput'),
-            categoryFilter: document.getElementById('categoryFilter'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            addProductBtn: document.getElementById('addProductBtn'),
-            productsBody: document.getElementById('productsBody'),
-            productModal: document.getElementById('productModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            closeModalBtn: document.getElementById('closeModalBtn'),
-            cancelModalBtn: document.getElementById('cancelModalBtn'),
-            productForm: document.getElementById('productForm'),
-            productId: document.getElementById('productId'),
-            productName: document.getElementById('productName'),
-            category: document.getElementById('category'),
-            unitsContainer: document.getElementById('unitsContainer'),
-            addUnitBtn: document.getElementById('addUnitBtn'),
-            notes: document.getElementById('notes'),
-            totalProducts: document.getElementById('totalProducts'),
-            lowStockCount: document.getElementById('lowStockCount'),
-            outOfStockCount: document.getElementById('outOfStockCount'),
-            categoriesCount: document.getElementById('categoriesCount'),
-            categoriesList: document.getElementById('categoriesList'),
-            toast: document.getElementById('toast')
+            sidebarOverlay: document.getElementById('sidebarOverlay')
         };
     },
 
-    bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => {
+    _bindEvents() {
+        this.el.addBtn.addEventListener('click', () => this._openPanel());
+        this.el.refreshBtn.addEventListener('click', () => this._loadProducts());
+        this.el.searchInput.addEventListener('input', () => this._renderProducts());
+        this.el.closePanelBtn.addEventListener('click', () => this._closePanel());
+        this.el.cancelBtn.addEventListener('click', () => this._closePanel());
+        this.el.saveBtn.addEventListener('click', () => this._saveProduct());
+        this.el.viewBtns.forEach(btn => btn.addEventListener('click', e => {
+            this.currentView = e.currentTarget.dataset.view;
+            this.el.viewBtns.forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            this._renderProducts();
+        }));
+        this.el.tabs.forEach(tab => tab.addEventListener('click', e => this._switchTab(e.currentTarget.dataset.tab)));
+        this.el.confirmDeleteBtn.addEventListener('click', () => this._deleteProduct());
+        this.el.cancelDeleteBtn.addEventListener('click', () => this._closeModal('deleteModal'));
+        // الشريط الجانبي
+        this.el.menuToggle.addEventListener('click', () => {
             this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay?.classList.toggle('show');
+            this.el.sidebarOverlay.classList.toggle('show');
         });
-        this.el.sidebarOverlay?.addEventListener('click', () => {
+        this.el.sidebarOverlay.addEventListener('click', () => {
             this.el.sidebar.classList.remove('open');
             this.el.sidebarOverlay.classList.remove('show');
         });
-        document.querySelectorAll('.menu-item').forEach(link => {
-            link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
-                this.el.sidebarOverlay?.classList.remove('show');
-            });
+        // اختصارات
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 'n') { e.preventDefault(); this._openPanel(); }
         });
-
-        this.el.logoutBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (window.App) App.logout();
-            else window.location.href = './index.html';
-        });
-
-        this.el.searchInput?.addEventListener('input', () => this.renderTable());
-        this.el.categoryFilter?.addEventListener('change', () => this.renderTable());
-        this.el.refreshBtn?.addEventListener('click', () => this.loadData());
-
-        this.el.addProductBtn?.addEventListener('click', () => this.openModal());
-        this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.productForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveProduct(); });
-
-        this.el.addUnitBtn?.addEventListener('click', () => this.addUnitCard());
     },
 
-    async loadData() {
+    async _loadProducts() {
         try {
-            if (Utils.isDBReady()) {
-                this.products = await DB.getProducts() || [];
-            } else if (Utils.hasLocalDB()) {
-                this.products = await localDB.getAll('products') || [];
-            } else {
-                this.products = [];
-            }
-
-            this.products = this.products.map(p => {
-                if (typeof p.units === 'string') {
-                    try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
-                }
-                return p;
-            });
-
-            if (!this.products.length && !Utils.isDBReady() && !Utils.hasLocalDB()) {
-                this.products = [
-                    { id: '1', name: 'بيبسي', category: 'مشروبات',
-                      units: [{ name: 'كرتونة', price: 240, cost: 200, stock: 5, factor: 1 },
-                              { name: 'علبة', price: 10, cost: 8.33, stock: 0, factor: 24 }] }
-                ];
-            }
-
-            this.updateStats();
-            this.populateCategories();
-            this.renderTable();
-        } catch (err) {
-            console.error('فشل تحميل المنتجات:', err);
-            this.el.productsBody.innerHTML = '<tr><td colspan="6" class="empty-message">فشل تحميل المنتجات</td></tr>';
+            const prods = await DB.getProducts(true);
+            this.products = prods || [];
+            this._renderProducts();
+            this.el.countSpan.textContent = `${this.products.length} منتج`;
+        } catch (e) {
+            console.error(e);
+            Toast.error('فشل تحميل المنتجات');
         }
     },
 
-    updateStats() { /* بدون تغيير */ },
-    populateCategories() { /* بدون تغيير */ },
-    formatStockDisplay(product) { /* بدون تغيير */ },
-    renderTable() { /* بدون تغيير */ },
-
-    openModal(product = null) {
-        this.editingId = product?.id || null;
-        this.el.modalTitle.textContent = product ? 'تعديل منتج' : 'منتج جديد';
-        this.el.productId.value = product?.id || '';
-        this.el.productName.value = product?.name || '';
-        this.el.category.value = product?.category || '';
-        this.el.notes.value = product?.notes || '';
-        this.el.unitsContainer.innerHTML = '';
-
-        if (product?.units?.length) {
-            product.units.forEach((u, i) => this.addUnitCard(u, i === 0));
+    _renderProducts() {
+        const term = this.el.searchInput.value.trim().toLowerCase();
+        let filtered = this.products;
+        if (term) {
+            filtered = this.products.filter(p => p.name?.toLowerCase().includes(term) || p.barcode === term || p.code === term);
+        }
+        if (this.currentView === 'grid') {
+            this.el.container.className = 'products-grid';
+            this.el.container.innerHTML = filtered.map(p => this._productCard(p)).join('');
         } else {
-            this.addUnitCard({ name: 'كرتونة', price: 0, cost: 0, minPrice: 0, maxPrice: 0, stock: 0, factor: 1 }, true);
+            this.el.container.className = 'products-grid table-view';
+            this.el.container.innerHTML = this._productTable(filtered);
         }
-        this.el.productModal.classList.add('open');
+        // ربط الأحداث
+        this.el.container.querySelectorAll('.product-card, .product-row').forEach(el => {
+            el.addEventListener('click', () => this._openPanel(el.dataset.id));
+        });
+        this.el.container.querySelectorAll('.delete-product').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                this._confirmDelete(btn.dataset.id, btn.dataset.name);
+            });
+        });
     },
 
-    closeModal() {
-        this.el.productModal.classList.remove('open');
+    _productCard(p) {
+        const base = p.units?.[0] || {};
+        const stock = base.stock || 0;
+        const stockColor = stock > 5 ? 'var(--success)' : stock > 0 ? 'var(--warning)' : 'var(--danger)';
+        return `
+        <div class="product-card" data-id="${p.id}">
+            ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}">` : '<div class="no-image"><i class="fas fa-box"></i></div>'}
+            <div class="card-body">
+                <h4>${p.name}</h4>
+                <span class="price">${U.fmtMoney(base.price)}</span>
+                <div class="stock" style="color:${stockColor}">${stock}</div>
+            </div>
+            <button class="btn-icon delete-product" data-id="${p.id}" data-name="${p.name}"><i class="fas fa-trash"></i></button>
+        </div>`;
     },
 
-    addUnitCard(unit = null, isBase = false) { /* بدون تغيير */ },
-    updateStockForSubUnits() { /* بدون تغيير */ },
-    updateSingleUnitCost(card) { /* بدون تغيير */ },
-    updatePriceFromFactor(input) { /* بدون تغيير */ },
-    updatePricesFromBase() { /* بدون تغيير */ },
-
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    _productTable(list) {
+        let html = `<table><thead><tr>
+            <th>الصورة</th><th>الاسم</th><th>الكود</th><th>السعر</th><th>المخزون</th><th>إجراءات</th>
+        </tr></thead><tbody>`;
+        list.forEach(p => {
+            const base = p.units?.[0] || {};
+            const stock = base.stock || 0;
+            html += `<tr class="product-row" data-id="${p.id}">
+                <td>${p.image_url ? `<img src="${p.image_url}" width="40" height="40" style="object-fit:cover;border-radius:6px">` : ''}</td>
+                <td>${p.name}</td>
+                <td>${p.code || '-'}</td>
+                <td>${U.fmtMoney(base.price)}</td>
+                <td>${stock}</td>
+                <td><button class="btn-icon delete-product" data-id="${p.id}" data-name="${p.name}"><i class="fas fa-trash"></i></button></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
     },
 
-    async saveProduct() {
-        const name = this.el.productName.value.trim();
-        if (!name) { alert('اسم المنتج مطلوب'); return; }
+    _openPanel(id = null) {
+        this.editingProductId = id;
+        const product = id ? this.products.find(p => p.id === id) : null;
+        this.el.panelTitle.textContent = product ? 'تعديل المنتج' : 'إضافة منتج';
+        // بناء محتوى التبويب النشط (أساسي)
+        this._buildBasicTab(product);
+        this.el.panel.classList.add('open');
+    },
 
-        const category = this.el.category.value.trim();
-        const notes = this.el.notes.value.trim();
-        const unitCards = [...this.el.unitsContainer.children];
-        const units = unitCards.map(card => ({
-            name: card.querySelector('.unit-name-input')?.value.trim() || 'قطعة',
-            price: parseFloat(card.querySelector('.unit-price')?.value) || 0,
-            cost: parseFloat(card.querySelector('.unit-cost')?.value) || 0,
-            minPrice: parseFloat(card.querySelector('.unit-min-price')?.value) || 0,
-            maxPrice: parseFloat(card.querySelector('.unit-max-price')?.value) || 0,
-            stock: parseFloat(card.querySelector('.unit-stock')?.value) || 0,
-            factor: parseFloat(card.querySelector('.unit-factor')?.value) || 1
-        }));
+    _buildBasicTab(product) {
+        this.el.panelBody.innerHTML = `
+            <div class="form-group"><label>اسم المنتج</label><input type="text" id="prodName" value="${product?.name || ''}"></div>
+            <div class="form-group"><label>الكود</label><input type="text" id="prodCode" value="${product?.code || ''}"></div>
+            <div class="form-group"><label>الباركود</label><input type="text" id="prodBarcode" value="${product?.barcode || ''}"></div>
+            <div class="form-group"><label>السعر الأساسي</label><input type="number" id="prodPrice" value="${product?.units?.[0]?.price || ''}" step="0.01"></div>
+            <div class="form-group"><label>المخزون</label><input type="number" id="prodStock" value="${product?.units?.[0]?.stock || ''}"></div>
+        `;
+    },
 
+    async _saveProduct() {
+        const name = document.getElementById('prodName')?.value.trim();
+        if (!name) return Toast.error('الاسم مطلوب');
         const product = {
-            id: this.editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
+            id: this.editingProductId || undefined,
             name,
-            category: category || null,
-            units,
-            notes: notes || null,
-            min_stock: 5
+            code: document.getElementById('prodCode')?.value || undefined,
+            barcode: document.getElementById('prodBarcode')?.value || undefined,
+            units: [{
+                name: 'وحدة',
+                price: +document.getElementById('prodPrice')?.value || 0,
+                cost: 0,
+                factor: 1,
+                stock: +document.getElementById('prodStock')?.value || 0
+            }]
         };
-
         try {
-            // ✅ استخدام DB.saveProduct من supabase.js (الذي يتطلب tenant_id)
-            if (Utils.isDBReady()) {
-                await DB.saveProduct(product);
-            } else if (Utils.hasLocalDB()) {
-                await localDB.put('products', product);
-            } else {
-                const local = JSON.parse(localStorage.getItem('products') || '[]');
-                const idx = local.findIndex(p => p.id === product.id);
-                if (idx >= 0) local[idx] = product;
-                else local.push(product);
-                localStorage.setItem('products', JSON.stringify(local));
-            }
-            this.closeModal();
-            await this.loadData();
-            this.showToast('تم حفظ المنتج بنجاح');
-        } catch (err) {
-            console.error('❌ فشل حفظ المنتج:', err);
-            alert('فشل حفظ المنتج: ' + (err.message || 'خطأ غير معروف'));
+            await DB.saveProduct(product);
+            Toast.success('تم حفظ المنتج');
+            this._closePanel();
+            this._loadProducts();
+        } catch (e) {
+            Toast.error('فشل الحفظ');
         }
     },
 
-    editProduct(id) {
-        const p = this.products.find(x => x.id === id);
-        if (p) this.openModal(p);
+    _confirmDelete(id, name) {
+        this._pendingDeleteId = id;
+        this.el.deleteMsg.textContent = `حذف "${name}"؟`;
+        this._openModal('deleteModal');
     },
 
-    duplicateProduct(id) {
-        const p = this.products.find(x => x.id === id);
-        if (p) this.openModal({ ...p, id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()), name: p.name + ' (نسخة)' });
-    },
-
-    async deleteProduct(id) {
-        if (!confirm('حذف المنتج؟')) return;
+    async _deleteProduct() {
+        if (!this._pendingDeleteId) return;
         try {
-            if (Utils.isDBReady()) await DB.deleteProduct(id);
-            else if (Utils.hasLocalDB()) await localDB.delete('products', id).catch(() => {});
-            else {
-                const local = JSON.parse(localStorage.getItem('products') || '[]');
-                localStorage.setItem('products', JSON.stringify(local.filter(p => p.id !== id)));
+            await DB.deleteProduct(this._pendingDeleteId);
+            Toast.success('تم الحذف');
+            this._closeModal('deleteModal');
+            this._loadProducts();
+        } catch (e) {
+            Toast.error('فشل الحذف');
+        }
+    },
+
+    _closePanel() {
+        this.el.panel.classList.remove('open');
+        this.editingProductId = null;
+    },
+
+    _openModal(id) { document.getElementById(id).classList.add('open'); },
+    _closeModal(id) { document.getElementById(id).classList.remove('open'); },
+
+    async _updateSidebarUser() {
+        if (window.App?.getCurrentUser) {
+            const u = await App.getCurrentUser();
+            if (u) {
+                const avatar = document.getElementById('sidebarAvatar');
+                const nameEl = document.getElementById('sidebarUserName');
+                if (avatar) avatar.textContent = (u.fullName || 'U')[0].toUpperCase();
+                if (nameEl) nameEl.textContent = u.fullName || u.email;
             }
-            await this.loadData();
-            this.showToast('تم حذف المنتج');
-        } catch (err) {
-            console.error(err);
-            alert('فشل حذف المنتج');
         }
     }
 };
 
-window.Products = Products;
-document.addEventListener('DOMContentLoaded', () => Products.init());
+window.addEventListener('DOMContentLoaded', () => ProductsPage.init());
