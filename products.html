@@ -4,16 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المنتجات · حسابي</title>
-
     <!-- PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-
-    <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -23,8 +17,6 @@
 <body>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- الشريط العلوي -->
 <nav class="navbar" id="mainNavbar">
     <div class="navbar-left">
         <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -35,11 +27,9 @@
     </div>
     <div class="navbar-right">
         <button class="navbar-icon-btn" id="refreshBtn" title="تحديث البيانات"><i class="fas fa-sync-alt"></i></button>
-        <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
     </div>
 </nav>
 
-<!-- الشريط الجانبي -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-user">
         <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -51,42 +41,33 @@
         <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
         <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
         <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-        <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
         <li><a class="menu-item active" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
         <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
     </ul>
 </aside>
 
-<!-- المحتوى الرئيسي -->
 <main class="main-content">
-    <!-- رأس الصفحة -->
     <div class="page-header">
         <div class="page-title">
             <h1><i class="fas fa-boxes"></i> المنتجات</h1>
             <span class="product-count" id="productCount">0 منتج</span>
         </div>
-        <button class="btn btn-primary" id="addProductBtn">
-            <i class="fas fa-plus"></i> إضافة منتج
-        </button>
+        <button class="btn btn-primary" id="addProductBtn"><i class="fas fa-plus"></i> إضافة منتج</button>
     </div>
-
-    <!-- أدوات البحث والتصفية -->
     <div class="toolbar">
         <div class="search-wrapper">
             <i class="fas fa-search"></i>
             <input type="text" id="searchInput" placeholder="ابحث بالاسم أو الكود أو الباركود..." autocomplete="off">
         </div>
         <div class="view-toggle">
-            <button class="view-btn active" data-view="grid" title="عرض شبكي"><i class="fas fa-th-large"></i></button>
-            <button class="view-btn" data-view="table" title="عرض جدولي"><i class="fas fa-list"></i></button>
+            <button class="view-btn active" data-view="grid"><i class="fas fa-th-large"></i></button>
+            <button class="view-btn" data-view="table"><i class="fas fa-list"></i></button>
         </div>
     </div>
-
-    <!-- حاوية المنتجات -->
     <div id="productsContainer" class="products-grid"></div>
 </main>
 
-<!-- المودال: إضافة / تعديل منتج -->
+<!-- مودال إضافة / تعديل منتج -->
 <div class="modal" id="productModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -94,7 +75,6 @@
             <button class="close-btn" id="closeModalBtn">&times;</button>
         </div>
         <form id="productForm" novalidate>
-            <!-- قسم البيانات الأساسية -->
             <div class="form-section">
                 <h3 class="section-title">البيانات الأساسية</h3>
                 <div class="form-group">
@@ -103,56 +83,25 @@
                     <div class="error-message" id="nameError"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label>الباركود</label>
-                        <input type="text" id="prodBarcode" placeholder="اختياري">
-                    </div>
-                    <div class="form-group">
-                        <label>الكود (SKU)</label>
-                        <input type="text" id="prodCode" placeholder="اختياري">
-                    </div>
+                    <div class="form-group"><label>الباركود</label><input type="text" id="prodBarcode" placeholder="اختياري"></div>
+                    <div class="form-group"><label>الكود (SKU)</label><input type="text" id="prodCode" placeholder="اختياري"></div>
                 </div>
             </div>
-
-            <!-- قسم التسعير والوحدة -->
             <div class="form-section">
                 <h3 class="section-title">التسعير والوحدة</h3>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label>اسم الوحدة <span class="required">*</span></label>
-                        <input type="text" id="prodUnitName" placeholder="مثال: كيس، قطعة" required>
-                        <div class="error-message" id="unitError"></div>
-                    </div>
-                    <div class="form-group">
-                        <label>عامل التحويل</label>
-                        <input type="number" id="prodFactor" step="0.001" min="0.001" value="1" placeholder="1">
-                        <small>عدد الوحدات الصغرى في هذه الوحدة</small>
-                    </div>
+                    <div class="form-group"><label>اسم الوحدة <span class="required">*</span></label><input type="text" id="prodUnitName" placeholder="مثال: كيس" required><div class="error-message" id="unitError"></div></div>
+                    <div class="form-group"><label>عامل التحويل</label><input type="number" id="prodFactor" step="0.001" min="0.001" value="1"><small>عدد الوحدات الصغرى</small></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label>سعر البيع <span class="required">*</span></label>
-                        <input type="number" id="prodPrice" step="0.01" min="0" placeholder="0.00" required>
-                        <div class="error-message" id="priceError"></div>
-                    </div>
-                    <div class="form-group">
-                        <label>سعر التكلفة</label>
-                        <input type="number" id="prodCost" step="0.01" min="0" placeholder="0.00">
-                    </div>
+                    <div class="form-group"><label>سعر البيع <span class="required">*</span></label><input type="number" id="prodPrice" step="0.01" min="0" placeholder="0.00" required><div class="error-message" id="priceError"></div></div>
+                    <div class="form-group"><label>سعر التكلفة</label><input type="number" id="prodCost" step="0.01" min="0" placeholder="0.00"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label>أدنى سعر بيع</label>
-                        <input type="number" id="prodMinPrice" step="0.01" min="0" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>أقصى سعر بيع</label>
-                        <input type="number" id="prodMaxPrice" step="0.01" min="0" placeholder="0.00">
-                    </div>
+                    <div class="form-group"><label>أدنى سعر بيع</label><input type="number" id="prodMinPrice" step="0.01" min="0" placeholder="0.00"></div>
+                    <div class="form-group"><label>أقصى سعر بيع</label><input type="number" id="prodMaxPrice" step="0.01" min="0" placeholder="0.00"></div>
                 </div>
             </div>
-
-            <!-- أزرار الحفظ -->
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" id="cancelBtn">إلغاء</button>
                 <button type="submit" class="btn btn-primary" id="saveBtn">حفظ المنتج</button>
@@ -164,11 +113,8 @@
 <!-- مودال تأكيد الحذف -->
 <div class="modal" id="deleteModal">
     <div class="modal-content" style="max-width:400px; text-align:center;">
-        <div class="modal-header">
-            <h3>تأكيد الحذف</h3>
-            <button class="close-btn" id="closeDeleteModalBtn">&times;</button>
-        </div>
-        <p id="deleteMsg" style="margin-bottom:20px;">هل أنت متأكد من حذف هذا المنتج؟</p>
+        <div class="modal-header"><h3>تأكيد الحذف</h3><button class="close-btn" id="closeDeleteModalBtn">&times;</button></div>
+        <p id="deleteMsg" style="margin-bottom:20px;"></p>
         <div class="modal-actions" style="justify-content:center;">
             <button class="btn btn-cancel" id="cancelDeleteBtn">إلغاء</button>
             <button class="btn btn-danger" id="confirmDeleteBtn">حذف</button>
@@ -176,17 +122,16 @@
     </div>
 </div>
 
-<!-- حاوية Toast -->
 <div class="toast" id="toastContainer"></div>
 
-<!-- ملفات الجافاسكريبت -->
+<!-- ملفات الجافاسكريبت بالترتيب -->
 <script src="./js/supabase-core.js"></script>
 <script src="./js/supabase-auth.js"></script>
 <script src="./js/db-local.js"></script>
 <script src="./js/supabase-offline.js"></script>
 <script src="./js/supabase-db.js"></script>
 <script src="./js/toast.js"></script>
+<script src="./js/pos/pos-core.js"></script> <!-- مهم: يحتوي على U و أدوات مساعدة -->
 <script src="./js/products.js"></script>
-
 </body>
 </html>
