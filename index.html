@@ -13,20 +13,15 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
 
-    <!-- الخطوط والأيقونات -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <style>
+        /* ========== المتغيرات العامة ========== */
         :root {
             --primary: #2563eb;
             --primary-light: #eff6ff;
             --primary-dark: #1d4ed8;
-            --success: #10b981;
             --danger: #ef4444;
             --danger-light: #fee2e2;
+            --success: #10b981;
             --bg-body: #f8fafc;
             --bg-surface: #ffffff;
             --bg-input: #f1f5f9;
@@ -56,6 +51,7 @@
             --border-medium: #475569;
         }
 
+        /* ========== الأساسيات ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
@@ -67,8 +63,30 @@
             justify-content: center;
             padding: 20px;
             background-image: radial-gradient(circle at 10% 20%, var(--primary-light) 0%, transparent 40%);
+            transition: background var(--transition);
         }
 
+        /* ========== رسالة وضع عدم الاتصال ========== */
+        .offline-banner {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: var(--danger);
+            color: white;
+            text-align: center;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            z-index: 999;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .offline-banner.show { transform: translateY(0); }
+
+        /* ========== حاوية تسجيل الدخول ========== */
         .login-container {
             width: 100%;
             max-width: 420px;
@@ -77,8 +95,10 @@
             box-shadow: var(--shadow-lg);
             padding: 35px 30px;
             border: 1px solid var(--border-light);
+            transition: background var(--transition), border-color var(--transition);
         }
 
+        /* الشعار */
         .logo-area {
             text-align: center;
             margin-bottom: 30px;
@@ -106,6 +126,7 @@
             margin-top: 4px;
         }
 
+        /* ========== النموذج ========== */
         .form-group {
             margin-bottom: 20px;
         }
@@ -127,14 +148,14 @@
             font-size: 14px;
             background: var(--bg-input);
             color: var(--text-primary);
-            transition: border var(--transition);
+            transition: border var(--transition), box-shadow var(--transition);
         }
         .input-wrapper input:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px var(--primary-light);
         }
-        .input-wrapper i {
+        .input-wrapper i.leading-icon {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
@@ -152,46 +173,85 @@
             cursor: pointer;
             font-size: 1rem;
             padding: 5px;
+            transition: color var(--transition);
         }
+        .toggle-password:hover { color: var(--primary); }
         .error-message {
             color: var(--danger);
             font-size: 0.75rem;
             margin-top: 4px;
             display: none;
         }
+        .error-message.visible { display: block; }
 
-        .btn-login {
+        /* ========== خيارات إضافية ========== */
+        .options-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .remember-me input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+        }
+        .forgot-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .forgot-link:hover { text-decoration: underline; }
+
+        /* ========== أزرار الدخول ========== */
+        .btn {
             width: 100%;
             padding: 13px;
-            background: var(--primary);
-            color: white;
             border: none;
             border-radius: var(--radius-sm);
             font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
-            transition: background var(--transition), opacity var(--transition);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            transition: background var(--transition), opacity var(--transition);
+        }
+        .btn-login {
+            background: var(--primary);
+            color: white;
+            margin-bottom: 12px;
         }
         .btn-login:hover { background: var(--primary-dark); }
         .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
-        .btn-login .spinner {
+        .btn-magic {
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-medium);
+            font-weight: 600;
+        }
+        .btn-magic:hover { background: var(--border-light); }
+        .btn .spinner {
             display: none;
             width: 18px;
             height: 18px;
-            border: 2px solid white;
+            border: 2px solid currentColor;
             border-top-color: transparent;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-        .btn-login.loading .spinner { display: inline-block; }
-        .btn-login.loading .btn-text { display: none; }
-
+        .btn.loading .spinner { display: inline-block; }
+        .btn.loading .btn-text { display: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* ========== روابط إضافية ========== */
         .links {
             text-align: center;
             margin-top: 20px;
@@ -205,210 +265,292 @@
         .links a:hover { text-decoration: underline; }
         .links span { color: var(--text-muted); }
 
-        .toast {
-            position: fixed;
-            bottom: calc(30px + var(--safe-bottom));
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--text-primary);
-            color: var(--bg-surface);
-            padding: 10px 24px;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            z-index: 999;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
+        /* ========== تجاوب ========== */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 25px 20px;
+            }
+            .options-row {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
         }
-        .toast.show { opacity: 1; }
     </style>
 </head>
 <body>
 
-<div class="login-container">
-    <div class="logo-area">
-        <div class="logo-icon"><i class="fas fa-store"></i></div>
-        <h1>حسابي</h1>
-        <p>نظام إدارة المبيعات والمخزون</p>
+    <!-- Banner عدم الاتصال -->
+    <div class="offline-banner" id="offlineBanner" role="alert">
+        <i class="fas fa-wifi-slash"></i> أنت غير متصل بالإنترنت
     </div>
 
-    <form id="loginForm" novalidate>
-        <div class="form-group">
-            <label for="email">البريد الإلكتروني</label>
-            <div class="input-wrapper">
-                <i class="fas fa-envelope"></i>
-                <input type="email" id="email" placeholder="example@domain.com" autocomplete="email" required>
+    <!-- بطاقة تسجيل الدخول -->
+    <div class="login-container" role="main" aria-labelledby="pageTitle">
+        <!-- الشعار -->
+        <div class="logo-area">
+            <div class="logo-icon">
+                <img src="./icons/icon-192x192.png" alt="حسابي" style="width:50px;height:50px;object-fit:contain;border-radius:10px;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+                <i class="fas fa-store" style="display:none;font-size:28px;"></i>
             </div>
-            <div class="error-message" id="emailError"></div>
+            <h1 id="pageTitle">حسابي</h1>
+            <p>نظام إدارة السوبر ماركت</p>
         </div>
 
-        <div class="form-group">
-            <label for="password">كلمة المرور</label>
-            <div class="input-wrapper">
-                <i class="fas fa-lock"></i>
-                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
-                <button type="button" class="toggle-password" id="togglePassword" tabindex="-1">
-                    <i class="fas fa-eye"></i>
-                </button>
+        <!-- النموذج -->
+        <form id="loginForm" novalidate autocomplete="on">
+            <!-- البريد الإلكتروني -->
+            <div class="form-group">
+                <label for="email">البريد الإلكتروني</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-envelope leading-icon" aria-hidden="true"></i>
+                    <input type="email" id="email" name="email" placeholder="example@domain.com" autocomplete="email" required aria-required="true" aria-describedby="emailError">
+                    <div class="error-message" id="emailError" role="alert"></div>
+                </div>
             </div>
-            <div class="error-message" id="passwordError"></div>
+
+            <!-- كلمة المرور -->
+            <div class="form-group">
+                <label for="password">كلمة المرور</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock leading-icon" aria-hidden="true"></i>
+                    <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required aria-required="true" aria-describedby="passwordError" minlength="6">
+                    <button type="button" class="toggle-password" id="togglePassword" aria-label="إظهار كلمة المرور" tabindex="-1">
+                        <i class="fas fa-eye" aria-hidden="true"></i>
+                    </button>
+                    <div class="error-message" id="passwordError" role="alert"></div>
+                </div>
+            </div>
+
+            <!-- خيارات -->
+            <div class="options-row">
+                <div class="remember-me">
+                    <input type="checkbox" id="rememberMe" name="rememberMe">
+                    <label for="rememberMe">تذكرني</label>
+                </div>
+                <a href="#" class="forgot-link" id="forgotPasswordLink" role="button">نسيت كلمة المرور؟</a>
+            </div>
+
+            <!-- زر تسجيل الدخول -->
+            <button type="submit" class="btn btn-login" id="loginBtn" aria-label="تسجيل الدخول">
+                <span class="btn-text">تسجيل الدخول</span>
+                <div class="spinner" aria-hidden="true"></div>
+            </button>
+
+            <!-- رابط سحري (مستقبلي) -->
+            <button type="button" class="btn btn-magic" id="magicLinkBtn" aria-label="تسجيل الدخول برابط سحري" disabled>
+                <i class="fas fa-magic"></i> تسجيل الدخول برابط سحري
+            </button>
+        </form>
+
+        <!-- روابط إضافية -->
+        <div class="links">
+            <span>ليس لديك حساب؟</span>
+            <a href="./signup.html">إنشاء حساب جديد</a>
         </div>
-
-        <button type="submit" class="btn-login" id="loginBtn">
-            <span class="btn-text">تسجيل الدخول</span>
-            <div class="spinner"></div>
-        </button>
-    </form>
-
-    <div class="links">
-        <a href="#" id="forgotPasswordLink">نسيت كلمة المرور؟</a>
-        <span> | </span>
-        <a href="./signup.html">إنشاء حساب جديد</a>
     </div>
-</div>
 
-<div class="toast" id="toast"></div>
+    <!-- سكريبت تسجيل الدخول (ES Module) -->
+    <script type="module">
+        // ========== استيراد Supabase ==========
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-<!-- ملفات النظام -->
-<script src="./js/supabase-core.js"></script>
-<script src="./js/supabase-auth.js"></script>
-<script src="./js/toast.js"></script>
+        // ========== إعدادات Supabase ==========
+        const SUPABASE_URL = 'https://emvqitmpdkkuyjzegyxf.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtdnFpdG1wZGtrdXlqemVneXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxOTY2NjUsImV4cCI6MjA5MTc3MjY2NX0.gEeUDMmqNQj0Tb3b1WBlXxCsJaD_ZMxxmx_8mPYNVcU';
 
-<script>
-    (function() {
+        // ========== إنشاء العميل ==========
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                storage: localStorage,
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            }
+        });
+
+        // ========== العناصر ==========
         const form = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
-        const togglePassword = document.getElementById('togglePassword');
+        const togglePasswordBtn = document.getElementById('togglePassword');
         const loginBtn = document.getElementById('loginBtn');
         const emailError = document.getElementById('emailError');
         const passwordError = document.getElementById('passwordError');
-        const toast = document.getElementById('toast');
+        const offlineBanner = document.getElementById('offlineBanner');
+        const rememberMeCheckbox = document.getElementById('rememberMe');
+        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
 
-        // تبديل إظهار كلمة المرور
-        togglePassword.addEventListener('click', () => {
-            const type = passwordInput.type === 'password' ? 'text' : 'password';
-            passwordInput.type = type;
-            const icon = togglePassword.querySelector('i');
-            icon.classList.toggle('fa-eye', type === 'password');
-            icon.classList.toggle('fa-eye-slash', type === 'text');
-        });
-
-        // التحقق من صحة البريد
+        // ========== دوال مساعدة ==========
         function isValidEmail(email) {
             return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
         }
 
-        // عرض رسالة خطأ تحت الحقل
-        function showFieldError(el, msg) {
-            el.textContent = msg;
-            el.style.display = 'block';
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.add('visible');
         }
-        function clearFieldErrors() {
-            emailError.style.display = 'none';
-            passwordError.style.display = 'none';
-        }
-
-        // دالة عرض رسالة Toast (تستخدم Toast النظام إذا وجد)
-        function showToastMessage(msg, type = 'error') {
-            if (window.Toast && typeof Toast[type] === 'function') {
-                Toast[type](msg);
-            } else {
-                // fallback بسيط
-                toast.textContent = msg;
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 3000);
-            }
+        function clearErrors() {
+            [emailError, passwordError].forEach(el => {
+                el.textContent = '';
+                el.classList.remove('visible');
+            });
         }
 
-        // استخراج رسالة الخطأ من كائن الخطأ بصيغ مختلفة
-        function getErrorMessage(error) {
-            if (!error) return 'حدث خطأ غير معروف.';
-            if (typeof error === 'string') return error;
-            if (error.message && typeof error.message === 'string') return error.message;
-            if (error.error_description) return error.error_description;
-            if (error.msg) return error.msg;
-            // إذا كان كائنًا فارغًا أو غير معروف
-            try {
-                return JSON.stringify(error);
-            } catch (e) {
-                return 'حدث خطأ غير معروف.';
-            }
-        }
-
-        // تفعيل/تعطيل حالة التحميل للزر
         function setLoading(loading) {
             loginBtn.disabled = loading;
             loginBtn.classList.toggle('loading', loading);
+            emailInput.disabled = loading;
+            passwordInput.disabled = loading;
+            // منع الزر السحري (المعطل أصلاً)
         }
 
-        // معالجة تقديم النموذج
+        // ========== إدارة حالة الاتصال ==========
+        function updateOnlineStatus() {
+            const isOnline = navigator.onLine;
+            if (!isOnline) {
+                offlineBanner.classList.add('show');
+                loginBtn.disabled = true;
+            } else {
+                offlineBanner.classList.remove('show');
+                // إعادة تمكين زر الدخول فقط إذا لم يكن في حالة تحميل
+                if (!loginBtn.classList.contains('loading')) {
+                    loginBtn.disabled = false;
+                }
+            }
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus(); // فحص أولي
+
+        // ========== تذكر البريد الإلكتروني ==========
+        // استعادة البريد من localStorage إذا كان محفوظاً
+        const savedEmail = localStorage.getItem('rememberedEmail');
+        if (savedEmail) {
+            emailInput.value = savedEmail;
+            rememberMeCheckbox.checked = true;
+        }
+        // حفظ البريد عند تغيير حالة التذكر
+        rememberMeCheckbox.addEventListener('change', () => {
+            if (rememberMeCheckbox.checked) {
+                localStorage.setItem('rememberedEmail', emailInput.value);
+            } else {
+                localStorage.removeItem('rememberedEmail');
+            }
+        });
+        emailInput.addEventListener('input', () => {
+            if (rememberMeCheckbox.checked) {
+                localStorage.setItem('rememberedEmail', emailInput.value);
+            }
+        });
+
+        // ========== إظهار/إخفاء كلمة المرور ==========
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            const icon = togglePasswordBtn.querySelector('i');
+            icon.classList.toggle('fa-eye', !isPassword);
+            icon.classList.toggle('fa-eye-slash', isPassword);
+            togglePasswordBtn.setAttribute('aria-label', isPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+        });
+
+        // ========== نسيت كلمة المرور ==========
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('خاصية استعادة كلمة المرور ستتوفر قريباً.');
+        });
+
+        // ========== تحقق من الجلسة الحالية ==========
+        async function checkSession() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    // مستخدم مسجل، توجيه إلى لوحة التحكم
+                    window.location.href = './dashboard.html';
+                }
+            } catch (error) {
+                console.warn('فشل التحقق من الجلسة:', error);
+            }
+        }
+        checkSession();
+
+        // ========== تقديم النموذج ==========
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            clearFieldErrors();
+            clearErrors();
+
+            // التحقق من الاتصال
+            if (!navigator.onLine) {
+                showError(emailError, 'أنت غير متصل بالإنترنت. يرجى المحاولة لاحقاً.');
+                return;
+            }
 
             const email = emailInput.value.trim();
             const password = passwordInput.value;
 
+            // التحقق من صحة البيانات
             let hasError = false;
             if (!email) {
-                showFieldError(emailError, 'البريد الإلكتروني مطلوب');
+                showError(emailError, 'البريد الإلكتروني مطلوب');
                 hasError = true;
             } else if (!isValidEmail(email)) {
-                showFieldError(emailError, 'صيغة البريد الإلكتروني غير صحيحة');
+                showError(emailError, 'صيغة البريد الإلكتروني غير صحيحة');
                 hasError = true;
             }
             if (!password) {
-                showFieldError(passwordError, 'كلمة المرور مطلوبة');
+                showError(passwordError, 'كلمة المرور مطلوبة');
+                hasError = true;
+            } else if (password.length < 6) {
+                showError(passwordError, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
                 hasError = true;
             }
             if (hasError) return;
 
+            // بدء تسجيل الدخول
             setLoading(true);
             try {
-                // التأكد من أن App.login موجود
-                if (!window.App || typeof window.App.login !== 'function') {
-                    throw new Error('نظام المصادقة غير متوفر. يرجى تحديث الصفحة.');
+                // محاولة تسجيل الدخول
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) {
+                    // التعامل مع أنواع الأخطاء
+                    if (error.message.includes('Invalid login credentials')) {
+                        showError(passwordError, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+                    } else if (error.message.includes('Email not confirmed')) {
+                        showError(emailError, 'لم يتم تأكيد البريد الإلكتروني. تحقق من صندوق الوارد.');
+                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        showError(emailError, 'فشل الاتصال بالخادم. تأكد من اتصالك.');
+                    } else {
+                        showError(emailError, 'حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى.');
+                    }
+                    return;
                 }
 
-                const result = await window.App.login(email, password);
-                if (result && result.success) {
-                    showToastMessage('تم تسجيل الدخول بنجاح', 'success');
-                    setTimeout(() => {
-                        window.location.href = result.redirectUrl || './dashboard.html';
-                    }, 500);
+                // نجاح تسجيل الدخول
+                // حفظ البريد إذا كان "تذكرني" مفعلاً
+                if (rememberMeCheckbox.checked) {
+                    localStorage.setItem('rememberedEmail', email);
                 } else {
-                    showToastMessage(getErrorMessage(result) || 'فشل تسجيل الدخول', 'error');
+                    localStorage.removeItem('rememberedEmail');
                 }
+
+                // التوجيه حسب الدور (نتركه للصفحة الرئيسية التي قد تعيد توجيه)
+                window.location.href = './dashboard.html';
             } catch (err) {
-                console.error('خطأ تسجيل الدخول:', err);
-                const msg = getErrorMessage(err);
-                // إذا كانت رسالة الخطأ تشير إلى بيانات اعتماد غير صحيحة
-                if (msg.includes('Invalid login credentials') || msg.includes('Invalid email or password')) {
-                    showFieldError(passwordError, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
-                } else if (msg.includes('Email not confirmed')) {
-                    showFieldError(emailError, 'لم يتم تأكيد البريد الإلكتروني. رجاء تحقق من صندوق الوارد.');
-                } else if (msg.includes('network') || msg.includes('fetch')) {
-                    showToastMessage('فشل الاتصال بالخادم. تأكد من اتصالك بالإنترنت.', 'error');
-                } else {
-                    showToastMessage(msg, 'error');
-                }
+                console.error('خطأ غير متوقع:', err);
+                showError(emailError, 'حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.');
             } finally {
                 setLoading(false);
             }
         });
 
-        // رابط نسيت كلمة المرور
-        document.getElementById('forgotPasswordLink').addEventListener('click', (e) => {
-            e.preventDefault();
-            showToastMessage('خاصية استعادة كلمة المرور قيد التطوير', 'info');
+        // ========== تسجيل الدخول برابط سحري (معطل) ==========
+        document.getElementById('magicLinkBtn').addEventListener('click', () => {
+            alert('تسجيل الدخول برابط سحري سيكون متاحاً قريباً.');
         });
-
-        // تركيز تلقائي
-        if (!emailInput.value) emailInput.focus();
-    })();
-</script>
-
+    </script>
 </body>
 </html>
