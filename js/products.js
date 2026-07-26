@@ -1,10 +1,15 @@
 'use strict';
 
+/**
+ * كائن ProductsPage لإدارة صفحة المنتجات
+ */
 const ProductsPage = {
     products: [],
     currentView: 'grid',
     editingId: null,
+    pendingDeleteId: null,
 
+    /* ---------- التهيئة ---------- */
     init() {
         this._cacheDOM();
         this._bindEvents();
@@ -13,82 +18,86 @@ const ProductsPage = {
     },
 
     _cacheDOM() {
-        this.el = {
-            container: document.getElementById('productsContainer'),
-            searchInput: document.getElementById('searchInput'),
-            addBtn: document.getElementById('addProductBtn'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            countSpan: document.getElementById('productCount'),
-            productModal: document.getElementById('productModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            productForm: document.getElementById('productForm'),
-            prodName: document.getElementById('prodName'),
-            prodPrice: document.getElementById('prodPrice'),
-            prodMinPrice: document.getElementById('prodMinPrice'),
-            prodMaxPrice: document.getElementById('prodMaxPrice'),
-            prodUnitName: document.getElementById('prodUnitName'),
-            prodFactor: document.getElementById('prodFactor'),
-            prodBarcode: document.getElementById('prodBarcode'),
-            cancelBtn: document.getElementById('cancelBtn'),
-            closeModalBtn: document.getElementById('closeModalBtn'),
-            deleteModal: document.getElementById('deleteModal'),
-            deleteMsg: document.getElementById('deleteMsg'),
-            confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
-            cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
-            viewBtns: document.querySelectorAll('.view-btn'),
-            menuToggle: document.getElementById('menuToggle'),
-            sidebar: document.getElementById('sidebar'),
-            sidebarOverlay: document.getElementById('sidebarOverlay')
-        };
+        const ids = [
+            'menuToggle', 'sidebar', 'sidebarOverlay', 'refreshBtn',
+            'productsContainer', 'searchInput', 'addProductBtn',
+            'productCount', 'productModal', 'modalTitle', 'productForm',
+            'prodName', 'prodBarcode', 'prodCode',
+            'prodUnitName', 'prodFactor', 'prodPrice', 'prodCost',
+            'prodMinPrice', 'prodMaxPrice',
+            'cancelBtn', 'closeModalBtn', 'saveBtn',
+            'deleteModal', 'deleteMsg', 'confirmDeleteBtn', 'cancelDeleteBtn', 'closeDeleteModalBtn',
+            'viewBtns'
+        ];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) this[id] = el;
+        });
+        // الأزرار التي لها محددات خاصة
+        this.viewBtns = document.querySelectorAll('.view-btn');
     },
 
     _bindEvents() {
-        this.el.addBtn.addEventListener('click', () => this._openModal());
-        this.el.refreshBtn.addEventListener('click', () => this._loadProducts());
-        this.el.searchInput.addEventListener('input', () => this._render());
-        this.el.closeModalBtn.addEventListener('click', () => this._closeModal());
-        this.el.cancelBtn.addEventListener('click', () => this._closeModal());
-        this.el.productForm.addEventListener('submit', (e) => {
+        // القائمة الجانبية
+        this.menuToggle.addEventListener('click', () => {
+            this.sidebar.classList.toggle('open');
+            this.sidebarOverlay.classList.toggle('show');
+        });
+        this.sidebarOverlay.addEventListener('click', () => {
+            this.sidebar.classList.remove('open');
+            this.sidebarOverlay.classList.remove('show');
+        });
+
+        // الإجراءات الرئيسية
+        this.addProductBtn.addEventListener('click', () => this._openModal());
+        this.refreshBtn.addEventListener('click', () => this._loadProducts());
+        this.searchInput.addEventListener('input', () => this._renderProducts());
+
+        // المودال
+        this.closeModalBtn.addEventListener('click', () => this._closeModal());
+        this.cancelBtn.addEventListener('click', () => this._closeModal());
+        this.productForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this._saveProduct();
         });
-        this.el.viewBtns.forEach(btn => btn.addEventListener('click', e => {
-            this.currentView = e.currentTarget.dataset.view;
-            this.el.viewBtns.forEach(b => b.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            this._render();
-        }));
-        this.el.confirmDeleteBtn.addEventListener('click', () => this._deleteProduct());
-        this.el.cancelDeleteBtn.addEventListener('click', () => this._closeDeleteModal());
 
-        this.el.menuToggle.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay.classList.toggle('show');
-        });
-        this.el.sidebarOverlay.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
+        // عرض شبكي / جدولي
+        this.viewBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.currentView = btn.dataset.view;
+                this.viewBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._renderProducts();
+            });
         });
 
-        document.addEventListener('keydown', e => {
+        // الحذف
+        this.confirmDeleteBtn.addEventListener('click', () => this._deleteProduct());
+        this.cancelDeleteBtn.addEventListener('click', () => this._closeDeleteModal());
+        this.closeDeleteModalBtn.addEventListener('click', () => this._closeDeleteModal());
+
+        // Escape لإغلاق المودال
+        document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') this._closeModal();
         });
     },
 
+    /* ---------- تحميل البيانات ---------- */
     async _loadProducts() {
         try {
             const prods = await DB.getProducts(true) || [];
             this.products = prods;
-            this._render();
-            this.el.countSpan.textContent = `${this.products.length} منتج`;
+            this._renderProducts();
+            this.productCount.textContent = `${this.products.length} منتج`;
         } catch (e) {
             console.error(e);
             Toast.error('فشل تحميل المنتجات');
         }
     },
 
-    _render() {
-        const term = this.el.searchInput.value.trim().toLowerCase();
+    /* ---------- عرض المنتجات ---------- */
+    _renderProducts() {
+        const term = this.searchInput.value.trim().toLowerCase();
         let filtered = this.products;
         if (term) {
             filtered = filtered.filter(p =>
@@ -97,45 +106,57 @@ const ProductsPage = {
                 (p.code || '').includes(term)
             );
         }
+
         if (this.currentView === 'grid') {
-            this.el.container.className = 'products-grid';
-            this.el.container.innerHTML = filtered.map(p => this._cardHTML(p)).join('');
+            this.productsContainer.className = 'products-grid';
+            this.productsContainer.innerHTML = filtered.map(p => this._productCard(p)).join('');
         } else {
-            this.el.container.className = 'products-grid table-view';
-            this.el.container.innerHTML = this._tableHTML(filtered);
+            this.productsContainer.className = 'products-grid table-view';
+            this.productsContainer.innerHTML = this._productTable(filtered);
         }
         this._attachProductEvents();
     },
 
-    _cardHTML(p) {
-        const base = p.units?.[0] || {};
+    _productCard(product) {
+        const base = product.units?.[0] || {};
         const stock = base.stock || 0;
-        const price = base.price || 0;
+        let stockColor = 'var(--text-muted)';
+        if (stock > 5) stockColor = 'var(--success)';
+        else if (stock > 0) stockColor = 'var(--warning)';
+        else stockColor = 'var(--danger)';
+
         return `
-            <div class="product-card" data-id="${p.id}">
-                <i class="fas fa-trash-alt delete-icon" data-id="${p.id}" title="حذف"></i>
-                <div style="text-align:center; margin-bottom:8px;">
-                    ${p.image_url ? `<img src="${p.image_url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;">` : '<i class="fas fa-box" style="font-size:3rem;color:var(--text-muted);"></i>'}
-                </div>
-                <h4 style="margin-bottom:4px;">${this._esc(p.name)}</h4>
-                <div style="font-size:0.9rem; color:var(--text-secondary);">${U.fmtMoney(price)}</div>
-                <div style="font-size:0.8rem; color:var(--text-muted);">${base.name || 'وحدة'}</div>
-                <div style="font-size:0.7rem; color:${stock > 5 ? 'var(--success)' : stock > 0 ? 'var(--warning)' : 'var(--danger)'};">المخزون: ${stock}</div>
-            </div>`;
+        <div class="product-card" data-id="${product.id}">
+            <div class="card-actions">
+                <button class="edit-btn" data-id="${product.id}" title="تعديل"><i class="fas fa-edit"></i></button>
+                <button class="delete-btn" data-id="${product.id}" title="حذف"><i class="fas fa-trash-alt"></i></button>
+            </div>
+            <div class="card-image">
+                ${product.image_url ? `<img src="${product.image_url}" alt="${this._esc(product.name)}">` : '<i class="fas fa-box"></i>'}
+            </div>
+            <div class="card-info">
+                <h3>${this._esc(product.name)}</h3>
+                <div class="price">${U.fmtMoney(base.price)}</div>
+                <div class="unit">${base.name || 'وحدة'} | تحويل: ${base.factor || 1}</div>
+                <div class="stock" style="color:${stockColor}">المخزون: ${stock}</div>
+            </div>
+        </div>`;
     },
 
-    _tableHTML(list) {
-        let html = `<table><thead><tr><th>الاسم</th><th>الوحدة</th><th>السعر</th><th>المخزون</th><th>إجراءات</th></tr></thead><tbody>`;
+    _productTable(list) {
+        let html = `<table><thead><tr>
+            <th>المنتج</th><th>الوحدة</th><th>السعر</th><th>المخزون</th><th>إجراءات</th>
+        </tr></thead><tbody>`;
         list.forEach(p => {
             const base = p.units?.[0] || {};
-            html += `<tr class="product-row" data-id="${p.id}">
+            html += `<tr>
                 <td>${this._esc(p.name)}</td>
-                <td>${base.name || 'وحدة'}</td>
+                <td>${base.name || '-'}</td>
                 <td>${U.fmtMoney(base.price)}</td>
                 <td>${base.stock || 0}</td>
-                <td>
-                    <i class="fas fa-edit" style="color:var(--primary);cursor:pointer;margin-left:10px;" data-edit="${p.id}"></i>
-                    <i class="fas fa-trash-alt" style="color:var(--danger);cursor:pointer;" data-delete="${p.id}"></i>
+                <td class="action-icons">
+                    <i class="fas fa-edit" data-edit="${p.id}" title="تعديل"></i>
+                    <i class="fas fa-trash-alt" data-delete="${p.id}" title="حذف"></i>
                 </td>
             </tr>`;
         });
@@ -144,25 +165,34 @@ const ProductsPage = {
     },
 
     _attachProductEvents() {
-        this.el.container.querySelectorAll('.product-card').forEach(card => {
+        // النقر على بطاقة المنتج للتعديل
+        this.productsContainer.querySelectorAll('.product-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-icon')) return;
+                if (e.target.closest('button')) return;
                 this._editProduct(card.dataset.id);
             });
         });
-        this.el.container.querySelectorAll('.delete-icon').forEach(icon => {
-            icon.addEventListener('click', (e) => {
+        // أزرار التعديل والحذف في البطاقات
+        this.productsContainer.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this._confirmDelete(icon.dataset.id);
+                this._editProduct(btn.dataset.id);
             });
         });
-        this.el.container.querySelectorAll('.fa-edit').forEach(icon => {
+        this.productsContainer.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._confirmDelete(btn.dataset.id);
+            });
+        });
+        // أيقونات الجدول
+        this.productsContainer.querySelectorAll('.fa-edit').forEach(icon => {
             icon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this._editProduct(icon.dataset.edit);
             });
         });
-        this.el.container.querySelectorAll('.fa-trash-alt').forEach(icon => {
+        this.productsContainer.querySelectorAll('.fa-trash-alt').forEach(icon => {
             icon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this._confirmDelete(icon.dataset.delete);
@@ -170,19 +200,26 @@ const ProductsPage = {
         });
     },
 
+    /* ---------- إدارة المودال ---------- */
     _openModal(product = null) {
         this.editingId = product ? product.id : null;
-        this.el.modalTitle.textContent = product ? 'تعديل المنتج' : 'إضافة منتج';
-        this.el.prodName.value = product ? (product.name || '') : '';
+        this.modalTitle.textContent = product ? 'تعديل المنتج' : 'إضافة منتج جديد';
+
+        // تعبئة الحقول
+        this.prodName.value = product ? (product.name || '') : '';
+        this.prodBarcode.value = product ? (product.barcode || '') : '';
+        this.prodCode.value = product ? (product.code || '') : '';
+
         const base = product?.units?.[0] || {};
-        this.el.prodPrice.value = base.price || '';
-        this.el.prodMinPrice.value = base.minPrice || '';
-        this.el.prodMaxPrice.value = base.maxPrice || '';
-        this.el.prodUnitName.value = base.name || '';
-        this.el.prodFactor.value = base.factor || 1;
-        this.el.prodBarcode.value = product?.barcode || '';
+        this.prodUnitName.value = base.name || '';
+        this.prodFactor.value = base.factor || 1;
+        this.prodPrice.value = base.price || '';
+        this.prodCost.value = base.cost || '';
+        this.prodMinPrice.value = base.minPrice || '';
+        this.prodMaxPrice.value = base.maxPrice || '';
+
         this._clearErrors();
-        this.el.productModal.classList.add('open');
+        this.productModal.classList.add('open');
     },
 
     _editProduct(id) {
@@ -191,7 +228,7 @@ const ProductsPage = {
     },
 
     _closeModal() {
-        this.el.productModal.classList.remove('open');
+        this.productModal.classList.remove('open');
         this.editingId = null;
     },
 
@@ -199,21 +236,26 @@ const ProductsPage = {
         document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
     },
 
+    /* ---------- حفظ المنتج ---------- */
     _validateForm() {
         let valid = true;
-        if (!this.el.prodName.value.trim()) {
+        const name = this.prodName.value.trim();
+        const unitName = this.prodUnitName.value.trim();
+        const price = this.prodPrice.value;
+
+        if (!name) {
             document.getElementById('nameError').textContent = 'اسم المنتج مطلوب';
             document.getElementById('nameError').style.display = 'block';
             valid = false;
         }
-        if (this.el.prodPrice.value === '' || parseFloat(this.el.prodPrice.value) < 0) {
-            document.getElementById('priceError').textContent = 'سعر البيع مطلوب';
-            document.getElementById('priceError').style.display = 'block';
-            valid = false;
-        }
-        if (!this.el.prodUnitName.value.trim()) {
+        if (!unitName) {
             document.getElementById('unitError').textContent = 'اسم الوحدة مطلوب';
             document.getElementById('unitError').style.display = 'block';
+            valid = false;
+        }
+        if (price === '' || parseFloat(price) < 0) {
+            document.getElementById('priceError').textContent = 'سعر البيع مطلوب';
+            document.getElementById('priceError').style.display = 'block';
             valid = false;
         }
         return valid;
@@ -223,24 +265,25 @@ const ProductsPage = {
         this._clearErrors();
         if (!this._validateForm()) return;
 
-        const product = {
+        const productData = {
             id: this.editingId || undefined,
-            name: this.el.prodName.value.trim(),
-            barcode: this.el.prodBarcode.value.trim() || undefined,
+            name: this.prodName.value.trim(),
+            barcode: this.prodBarcode.value.trim() || undefined,
+            code: this.prodCode.value.trim() || undefined,
             units: [{
-                name: this.el.prodUnitName.value.trim(),
-                price: parseFloat(this.el.prodPrice.value) || 0,
-                cost: 0,
-                factor: parseFloat(this.el.prodFactor.value) || 1,
+                name: this.prodUnitName.value.trim(),
+                price: parseFloat(this.prodPrice.value) || 0,
+                cost: parseFloat(this.prodCost.value) || 0,
+                factor: parseFloat(this.prodFactor.value) || 1,
                 stock: this.editingId ? (this.products.find(p => p.id === this.editingId)?.units?.[0]?.stock || 0) : 0,
-                minPrice: parseFloat(this.el.prodMinPrice.value) || 0,
-                maxPrice: parseFloat(this.el.prodMaxPrice.value) || 0
+                minPrice: parseFloat(this.prodMinPrice.value) || 0,
+                maxPrice: parseFloat(this.prodMaxPrice.value) || 0
             }]
         };
 
         try {
-            await DB.saveProduct(product);
-            Toast.success('تم حفظ المنتج');
+            await DB.saveProduct(productData);
+            Toast.success('تم حفظ المنتج بنجاح');
             this._closeModal();
             await this._loadProducts();
         } catch (e) {
@@ -249,22 +292,23 @@ const ProductsPage = {
         }
     },
 
+    /* ---------- حذف المنتج ---------- */
     _confirmDelete(id) {
-        this._pendingDeleteId = id;
+        this.pendingDeleteId = id;
         const product = this.products.find(p => p.id === id);
-        this.el.deleteMsg.textContent = `هل أنت متأكد من حذف "${product?.name || 'المنتج'}"؟`;
-        this.el.deleteModal.classList.add('open');
+        this.deleteMsg.textContent = `هل أنت متأكد من حذف "${product?.name || 'المنتج'}"؟ لا يمكن التراجع عن هذا الإجراء.`;
+        this.deleteModal.classList.add('open');
     },
 
     _closeDeleteModal() {
-        this.el.deleteModal.classList.remove('open');
-        this._pendingDeleteId = null;
+        this.deleteModal.classList.remove('open');
+        this.pendingDeleteId = null;
     },
 
     async _deleteProduct() {
-        if (!this._pendingDeleteId) return;
+        if (!this.pendingDeleteId) return;
         try {
-            await DB.deleteProduct(this._pendingDeleteId);
+            await DB.deleteProduct(this.pendingDeleteId);
             Toast.success('تم حذف المنتج');
             this._closeDeleteModal();
             await this._loadProducts();
@@ -274,6 +318,7 @@ const ProductsPage = {
         }
     },
 
+    /* ---------- أدوات مساعدة ---------- */
     _esc(str) {
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(str || ''));
@@ -282,15 +327,15 @@ const ProductsPage = {
 
     async _updateSidebarUser() {
         if (window.App?.getCurrentUser) {
-            const u = await App.getCurrentUser();
-            if (u) {
+            const user = await App.getCurrentUser();
+            if (user) {
                 const avatar = document.getElementById('sidebarAvatar');
                 const nameEl = document.getElementById('sidebarUserName');
-                if (avatar) avatar.textContent = (u.fullName || 'U')[0].toUpperCase();
-                if (nameEl) nameEl.textContent = u.fullName || u.email;
+                if (avatar) avatar.textContent = (user.fullName || 'U')[0].toUpperCase();
+                if (nameEl) nameEl.textContent = user.fullName || user.email;
             }
         }
     }
 };
 
-window.addEventListener('DOMContentLoaded', () => ProductsPage.init());
+document.addEventListener('DOMContentLoaded', () => ProductsPage.init());
