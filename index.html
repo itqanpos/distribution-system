@@ -277,7 +277,6 @@
 
 <script>
     (function() {
-        // العناصر
         const form = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
@@ -287,7 +286,7 @@
         const passwordError = document.getElementById('passwordError');
         const toast = document.getElementById('toast');
 
-        // إظهار/إخفاء كلمة المرور
+        // تبديل إظهار كلمة المرور
         togglePassword.addEventListener('click', () => {
             const type = passwordInput.type === 'password' ? 'text' : 'password';
             passwordInput.type = type;
@@ -301,7 +300,7 @@
             return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
         }
 
-        // عرض رسالة خطأ
+        // عرض رسالة خطأ تحت الحقل
         function showFieldError(el, msg) {
             el.textContent = msg;
             el.style.display = 'block';
@@ -311,12 +310,10 @@
             passwordError.style.display = 'none';
         }
 
-        // عرض toast
-        function showToast(msg, type = 'error') {
-            if (window.Toast) {
-                if (type === 'error') Toast.error(msg);
-                else if (type === 'success') Toast.success(msg);
-                else Toast.info(msg);
+        // دالة عرض رسالة Toast (تستخدم Toast النظام إذا وجد)
+        function showToastMessage(msg, type = 'error') {
+            if (window.Toast && typeof Toast[type] === 'function') {
+                Toast[type](msg);
             } else {
                 // fallback بسيط
                 toast.textContent = msg;
@@ -325,13 +322,28 @@
             }
         }
 
-        // حالة التحميل
+        // استخراج رسالة الخطأ من كائن الخطأ بصيغ مختلفة
+        function getErrorMessage(error) {
+            if (!error) return 'حدث خطأ غير معروف.';
+            if (typeof error === 'string') return error;
+            if (error.message && typeof error.message === 'string') return error.message;
+            if (error.error_description) return error.error_description;
+            if (error.msg) return error.msg;
+            // إذا كان كائنًا فارغًا أو غير معروف
+            try {
+                return JSON.stringify(error);
+            } catch (e) {
+                return 'حدث خطأ غير معروف.';
+            }
+        }
+
+        // تفعيل/تعطيل حالة التحميل للزر
         function setLoading(loading) {
             loginBtn.disabled = loading;
             loginBtn.classList.toggle('loading', loading);
         }
 
-        // تسجيل الدخول
+        // معالجة تقديم النموذج
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             clearFieldErrors();
@@ -355,38 +367,45 @@
 
             setLoading(true);
             try {
+                // التأكد من أن App.login موجود
+                if (!window.App || typeof window.App.login !== 'function') {
+                    throw new Error('نظام المصادقة غير متوفر. يرجى تحديث الصفحة.');
+                }
+
                 const result = await window.App.login(email, password);
-                if (result.success) {
-                    showToast('تم تسجيل الدخول بنجاح', 'success');
+                if (result && result.success) {
+                    showToastMessage('تم تسجيل الدخول بنجاح', 'success');
                     setTimeout(() => {
                         window.location.href = result.redirectUrl || './dashboard.html';
                     }, 500);
                 } else {
-                    showToast(result.message || 'فشل تسجيل الدخول', 'error');
+                    showToastMessage(getErrorMessage(result) || 'فشل تسجيل الدخول', 'error');
                 }
             } catch (err) {
-                console.error(err);
-                if (err.message) {
-                    if (err.message.includes('Invalid login credentials')) {
-                        showFieldError(passwordError, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
-                    } else {
-                        showToast(err.message, 'error');
-                    }
+                console.error('خطأ تسجيل الدخول:', err);
+                const msg = getErrorMessage(err);
+                // إذا كانت رسالة الخطأ تشير إلى بيانات اعتماد غير صحيحة
+                if (msg.includes('Invalid login credentials') || msg.includes('Invalid email or password')) {
+                    showFieldError(passwordError, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+                } else if (msg.includes('Email not confirmed')) {
+                    showFieldError(emailError, 'لم يتم تأكيد البريد الإلكتروني. رجاء تحقق من صندوق الوارد.');
+                } else if (msg.includes('network') || msg.includes('fetch')) {
+                    showToastMessage('فشل الاتصال بالخادم. تأكد من اتصالك بالإنترنت.', 'error');
                 } else {
-                    showToast('فشل الاتصال بالخادم. تأكد من اتصالك بالإنترنت.', 'error');
+                    showToastMessage(msg, 'error');
                 }
             } finally {
                 setLoading(false);
             }
         });
 
-        // نسيت كلمة المرور (مؤقت)
+        // رابط نسيت كلمة المرور
         document.getElementById('forgotPasswordLink').addEventListener('click', (e) => {
             e.preventDefault();
-            showToast('خاصية استعادة كلمة المرور قيد التطوير', 'info');
+            showToastMessage('خاصية استعادة كلمة المرور قيد التطوير', 'info');
         });
 
-        // التركيز التلقائي على أول حقل فارغ
+        // تركيز تلقائي
         if (!emailInput.value) emailInput.focus();
     })();
 </script>
