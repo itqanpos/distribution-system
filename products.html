@@ -4,14 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المنتجات · حسابي</title>
-    
-    <link rel="icon" href="./icons/icon-192x192.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- PWA -->
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -26,23 +24,12 @@
     <div class="navbar-left">
         <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
         <div class="logo">
-            <div class="logo-icon">
-                <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
-                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
-            </div>
-            <div class="logo-text"><h2>حسابي</h2></div>
+            <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;">
+            <h2>حسابي</h2>
         </div>
     </div>
     <div class="navbar-right">
-        <div class="nav-actions">
-            <button class="navbar-icon-btn" id="syncBtn" title="مزامنة"><i class="fas fa-sync-alt"></i></button>
-            <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
-            <div class="more-dropdown" id="moreDropdown">
-                <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
-            </div>
-        </div>
+        <button class="navbar-icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
     </div>
 </nav>
 
@@ -57,10 +44,6 @@
         <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
         <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
         <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-        <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
-        <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-        <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-        <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
         <li><a class="menu-item active" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
         <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
     </ul>
@@ -74,7 +57,6 @@
         </div>
         <div class="header-actions">
             <button class="btn btn-primary" id="addProductBtn"><i class="fas fa-plus"></i> إضافة منتج</button>
-            <button class="btn btn-icon" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
         </div>
     </div>
 
@@ -89,39 +71,67 @@
         </div>
     </div>
 
-    <div id="productsContainer" class="products-grid">
-        <!-- سيتم تعبئته عبر JS -->
-    </div>
-
-    <div id="loadMoreSentinel"></div>
+    <div id="productsContainer" class="products-grid"></div>
 </main>
 
-<!-- اللوحة الجانبية للمنتج -->
-<div class="side-panel" id="productPanel">
-    <div class="panel-header">
-        <h2 id="panelTitle">تفاصيل المنتج</h2>
-        <button class="close-panel-btn" id="closePanelBtn">&times;</button>
-    </div>
-    <div class="panel-tabs">
-        <button class="tab active" data-tab="basic">أساسي</button>
-        <button class="tab" data-tab="units">الوحدات</button>
-        <button class="tab" data-tab="stock">المخزون</button>
-    </div>
-    <div class="panel-body" id="panelBody">
-        <!-- المحتوى الديناميكي -->
-    </div>
-    <div class="panel-footer">
-        <button class="btn btn-cancel" id="cancelPanelBtn">إلغاء</button>
-        <button class="btn btn-primary" id="saveProductBtn">حفظ</button>
+<!-- المودال: إضافة / تعديل منتج -->
+<div class="modal" id="productModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">إضافة منتج</h2>
+            <button class="close-btn" id="closeModalBtn">&times;</button>
+        </div>
+        <form id="productForm" novalidate>
+            <div class="form-group">
+                <label>اسم المنتج</label>
+                <input type="text" id="prodName" placeholder="أدخل اسم المنتج" required>
+                <div class="error-message" id="nameError"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>سعر البيع</label>
+                    <input type="number" id="prodPrice" step="0.01" min="0" placeholder="0.00" required>
+                    <div class="error-message" id="priceError"></div>
+                </div>
+                <div class="form-group">
+                    <label>أدنى سعر</label>
+                    <input type="number" id="prodMinPrice" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>أقصى سعر</label>
+                    <input type="number" id="prodMaxPrice" step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>الوحدة</label>
+                    <input type="text" id="prodUnitName" placeholder="مثال: قطعة، كيلو" required>
+                    <div class="error-message" id="unitError"></div>
+                </div>
+                <div class="form-group">
+                    <label>عامل التحويل</label>
+                    <input type="number" id="prodFactor" step="0.001" min="0.001" value="1" placeholder="1">
+                    <small style="color:var(--text-muted);">عدد الوحدات الأساسية في هذه الوحدة (عادة 1)</small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>الباركود (اختياري)</label>
+                <input type="text" id="prodBarcode" placeholder="باركود المنتج">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel" id="cancelBtn">إلغاء</button>
+                <button type="submit" class="btn btn-primary">حفظ</button>
+            </div>
+        </form>
     </div>
 </div>
 
 <!-- مودال تأكيد الحذف -->
 <div class="modal" id="deleteModal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width:400px; text-align:center;">
         <h3>تأكيد الحذف</h3>
         <p id="deleteMsg">هل أنت متأكد من حذف هذا المنتج؟</p>
-        <div class="modal-actions">
+        <div class="modal-actions" style="justify-content:center;">
             <button class="btn btn-cancel" id="cancelDeleteBtn">إلغاء</button>
             <button class="btn btn-danger" id="confirmDeleteBtn">حذف</button>
         </div>
