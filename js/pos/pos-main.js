@@ -1,148 +1,19 @@
-/* =============================================
-   pos-main.js - نقطة الدخول الرئيسية
-   الوظيفة: تجميع جميع وحدات POS وتهيئة التطبيق.
-   يستدعي دوال التهيئة، يحمّل البيانات، يربط أحداث
-   دورة حياة الصفحة، ويبدأ التطبيق تلقائياً.
-   ============================================= */
 'use strict';
-
 (function() {
     const POS = window.POS;
-
-    /**
-     * POS.init - دالة التهيئة الرئيسية لنظام نقطة البيع
-     * تُستدعى مرة واحدة عند تحميل الصفحة.
-     * تقوم بالخطوات التالية:
-     * 1. تطبيق تفضيلات المستخدم (حجم الخط)
-     * 2. تخزين مراجع عناصر DOM المهمة
-     * 3. تطبيق المسافات الآمنة للهواتف
-     * 4. ربط اختصارات لوحة المفاتيح
-     * 5. ربط جميع أحداث النقر والإدخال
-     * 6. عرض حالة الاتصال الحالية
-     * 7. إعداد مراقبة الأخطاء
-     * 8. إعداد قراءة الباركود من الماسح الضوئي
-     * 9. إعداد المزامنة الفورية (Realtime)
-     * 10. إعداد السمة التلقائية (داكن/فاتح)
-     * 11. بدء فحص الاتصال الدوري
-     * 12. بدء تحديث إحصائيات اليوم
-     * 13. تفعيل السحب والإفلات في السلة
-     * 14. تسجيل Service Worker للتطبيق التقدمي
-     * 15. ربط أحداث الاتصال والمزامنة
-     * 16. ربط حدث إخفاء الصفحة لحفظ السلة
-     * 17. تحميل المنتجات والعملاء
-     * 18. تحميل بيانات المستخدم للشريط الجانبي
-     * 19. استعادة مسودة الدفع إن وجدت
-     * 20. ربط حدث مغادرة الصفحة للحفظ وإيقاف الكاميرا
-     */
     POS.init = async function() {
-        console.log('🚀 بدء تهيئة نظام نقطة البيع...');
-
-        // ========== المرحلة 1: تهيئة الواجهة والإعدادات ==========
-
-        // تطبيق تفضيلات المستخدم (مثل حجم الخط)
-        POS._applyUserPrefs();
-
-        // تخزين مراجع عناصر DOM المهمة
-        POS._cacheDOM();
-
-        // تطبيق مسافات آمنة للهواتف ذات الشق (Notch)
-        POS._applySafeArea();
-
-        // ربط اختصارات لوحة المفاتيح (F1-F5, Escape)
-        POS._bindKeyboardShortcuts();
-
-        // ربط جميع أحداث النقر والإدخال
-        POS._bindEvents();
-
-        // عرض حالة الاتصال الحالية
-        POS._connStatus();
-
-        // ========== المرحلة 2: إعداد الأنظمة الخلفية ==========
-
-        // مراقبة الأخطاء العامة وإرسالها للسيرفر
-        POS._setupErrorMonitoring();
-
-        // إعداد قراءة الباركود من الماسح الضوئي
-        POS._setupBarcodeBuffer();
-
-        // إعداد المزامنة الفورية مع Supabase
-        POS._setupRealtimeSync();
-
-        // إعداد السمة التلقائية
-        POS._setupAutoTheme();
-
-        // بدء فحص الاتصال الدوري
-        POS._setupConnectionCheck();
-
-        // بدء تحديث إحصائيات اليوم بشكل دوري
-        POS._startTodayStatsUpdater();
-
-        // تفعيل السحب والإفلات لعناصر السلة (إذا كانت المكتبة محملة)
-        POS._enableDragDrop();
-
-        // تسجيل Service Worker لدعم PWA
-        POS._setupServiceWorker();
-
-        // ========== المرحلة 3: ربط أحداث دورة حياة الصفحة ==========
-
-        // عند عودة الاتصال: تحديث الحالة ومزامنة المبيعات غير المتصلة
-        window.addEventListener('online', () => {
-            POS._connStatus();
-            POS._syncOfflineSales();
-        });
-
-        // عند فقدان الاتصال: تحديث الحالة فقط
-        window.addEventListener('offline', () => {
-            POS._connStatus();
-        });
-
-        // عند إخفاء الصفحة (تبديل التطبيق أو قفل الشاشة): حفظ السلة ومسودة الدفع
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                POS._saveCart();
-                POS._savePaymentDraft();
-                POS._stopBarcodeScan();
-            }
-        });
-
-        // ========== المرحلة 4: تحميل البيانات ==========
-
-        // تحميل المنتجات والعملاء من قاعدة البيانات
+        POS._applyUserPrefs(); POS._cacheDOM(); POS._applySafeArea();
+        POS._bindKeyboardShortcuts(); POS._bindEvents(); POS._connStatus();
+        POS._setupErrorMonitoring(); POS._setupBarcodeBuffer(); POS._setupRealtimeSync();
+        POS._setupAutoTheme(); POS._setupConnectionCheck(); POS._startTodayStatsUpdater();
+        POS._enableDragDrop(); POS._setupServiceWorker();
+        window.addEventListener('online',()=>{ POS._connStatus(); POS._syncOfflineSales(); });
+        window.addEventListener('offline',()=>POS._connStatus());
+        document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'){ POS._saveCart(); POS._savePaymentDraft(); POS._stopBarcodeScan(); } });
         await POS._loadData();
-
-        // تحميل بيانات المستخدم الحالي للشريط الجانبي
         await POS._sidebarUser();
-
-        // استعادة مسودة الدفع (إذا كانت موجودة)
         POS._restorePaymentDraft();
-
-        // ========== المرحلة 5: أحداث مغادرة الصفحة ==========
-
-        // عند مغادرة الصفحة (إغلاق أو تحديث): حفظ السلة وإيقاف الكاميرا
-        window.addEventListener('beforeunload', () => {
-            POS._stopBarcodeScan();
-            POS._saveCart();
-            POS._savePaymentDraft();
-        });
-
-        console.log('✅ تم تهيئة نظام نقطة البيع بنجاح');
+        window.addEventListener('beforeunload',()=>{ POS._stopBarcodeScan(); POS._saveCart(); POS._savePaymentDraft(); });
     };
-
-    // ========== بدء التطبيق تلقائياً ==========
-    // ننتظر حتى يتم تحميل الصفحة بالكامل ثم نبدأ التهيئة
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            POS.init().catch(err => {
-                console.error('❌ فشل تهيئة نقطة البيع:', err);
-                U.showToast('فشل تحميل نقطة البيع. يرجى تحديث الصفحة.', 'error');
-            });
-        });
-    } else {
-        // إذا كانت الصفحة محملة بالفعل، ابدأ فوراً
-        POS.init().catch(err => {
-            console.error('❌ فشل تهيئة نقطة البيع:', err);
-            U.showToast('فشل تحميل نقطة البيع. يرجى تحديث الصفحة.', 'error');
-        });
-    }
-
+    document.addEventListener('DOMContentLoaded',()=>{ POS.init().catch(e=>console.error(e)); });
 })();
