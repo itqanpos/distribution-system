@@ -2,7 +2,7 @@
 (function() {
     const POS = window.POS;
     POS._cacheDOM = function() {
-        const ids = ['menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown','actionsBtn','actionsDropdown','holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn','productSearchInput','customerSearchInput','customerBalanceDisplay','customerDetails','productDropdown','customerDropdown','barcodeScannerBtn','cartItemsContainer','discountValue','discountType','taxRate','shipping','taxAmount','shippingAmount','discountDisplay','itemTypesCount','totalPieces','subtotal','netTotal','payBtn','unitQuantityModal','modalProductName','unitButtons','selectedQuantity','selectedPrice','stockInfo','addToCartBtn','closeUnitModalBtn','priceLimitMsg','paymentModal','paySubtotal','payDiscount','payNet','currentBalance','paymentMethod','cashField','transferField','cashAmount','transferAmount','remainingDisplay','balanceAfterLabel','balanceAfter','paymentNotes','confirmAndPrintBtn','closePaymentModalBtn','heldInvoicesModal','heldInvoicesList','closeHeldModalBtn','receiptModal','receiptPrintArea','printReceiptBtn','thermalPrintBtn','skipPrintBtn','closeReceiptModalBtn','sidebarAvatar','sidebarUserName','headerUserName','headerDate','headerTime','headerInvoiceNumber','headerConnectionStatus','tabletProductSearchInput','productGrid','tabletBarcodeBtn','profitDisplay','todaySales','todayCount','duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn','quickSaleToggle','speechSearchBtn'];
+        const ids = ['menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown','actionsBtn','actionsDropdown','holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn','copyInvoiceBtn','deleteInvoiceBtn','reprintInvoiceBtn','voidInvoiceBtn','convertToQuoteBtn','productSearchInput','customerSearchInput','customerBalanceDisplay','customerDetails','productDropdown','customerDropdown','barcodeScannerBtn','cartItemsContainer','discountValue','discountType','taxRate','shipping','taxAmount','shippingAmount','discountDisplay','itemTypesCount','totalPieces','subtotal','netTotal','payBtn','unitQuantityModal','modalProductName','unitButtons','selectedQuantity','selectedPrice','stockInfo','addToCartBtn','closeUnitModalBtn','priceLimitMsg','paymentModal','paySubtotal','payDiscount','payTax','payShipping','payNet','currentBalance','paymentMethodsContainer','remainingDisplay','balanceAfterLabel','balanceAfter','paymentNotes','confirmAndPrintBtn','closePaymentModalBtn','heldInvoicesModal','heldInvoicesList','closeHeldModalBtn','receiptModal','receiptPrintArea','printReceiptBtn','thermalPrintBtn','skipPrintBtn','closeReceiptModalBtn','sidebarAvatar','sidebarUserName','headerUserName','headerDate','headerTime','headerInvoiceNumber','headerConnectionStatus','tabletProductSearchInput','productGrid','tabletBarcodeBtn','profitDisplay','todaySales','todayCount','duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn','quickSaleToggle','speechSearchBtn'];
         ids.forEach(id => { const el = document.getElementById(id); if (el) POS.el[id] = el; });
     };
     POS._applySafeArea = function() {
@@ -12,11 +12,8 @@
     };
     POS._sortProducts = function(products) {
         const sort = POS.state.productSort || 'popular';
-        if (sort === 'popular') {
-            return [...products].sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0));
-        } else if (sort === 'name') {
-            return [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
-        }
+        if (sort === 'popular') return [...products].sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0));
+        else if (sort === 'name') return [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
         return products;
     };
     POS._renderProductGrid = function(products = POS.state.products) {
