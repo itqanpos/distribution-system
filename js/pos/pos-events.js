@@ -8,9 +8,11 @@
         document.querySelectorAll('.menu-item').forEach(l=>l.addEventListener('click',()=>{ POS.el.sidebar?.classList.remove('open'); POS.el.sidebarOverlay?.classList.remove('show'); }));
         on('moreMenuBtn','click',e=>{ e.stopPropagation(); POS.el.moreDropdown?.classList.toggle('show'); });
         document.addEventListener('click',e=>{ if(!e.target.closest('.nav-actions')) POS.el.moreDropdown?.classList.remove('show'); });
-        on('returnSaleBtn','click',e=>{ e.preventDefault(); POS.openReturn(); POS.el.moreDropdown?.classList.remove('show'); });
-        on('holdInvoiceBtn','click',e=>{ e.preventDefault(); POS.holdInvoice(); POS.el.moreDropdown?.classList.remove('show'); });
-        on('heldInvoicesBtn','click',e=>{ e.preventDefault(); POS.loadHeld(); POS.el.moreDropdown?.classList.remove('show'); });
+        on('actionsBtn','click',e=>{ e.stopPropagation(); POS.el.actionsDropdown?.classList.toggle('show'); });
+        document.addEventListener('click',e=>{ if(!e.target.closest('.actions-wrapper')) POS.el.actionsDropdown?.classList.remove('show'); });
+        on('holdInvoiceBtn','click',e=>{ e.preventDefault(); POS.holdInvoice(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('heldInvoicesBtn','click',e=>{ e.preventDefault(); POS.loadHeld(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('returnSaleBtn','click',e=>{ e.preventDefault(); POS.openReturn(); POS.el.actionsDropdown?.classList.remove('show'); });
         on('logoutBtn','click',async e=>{ e.preventDefault(); if(await POS._confirmAction('تسجيل الخروج؟')) App.logout(); });
         on('quickSaleToggle','click',()=>{ POS.state.quickSale=!POS.state.quickSale; UserPrefs.set('quickSale',POS.state.quickSale); POS.el.quickSaleToggle?.classList.toggle('active',POS.state.quickSale); });
         on('speechSearchBtn','click',()=>POS._startSpeechSearch());
@@ -27,6 +29,8 @@
         document.addEventListener('click',e=>{ if(!e.target.closest('.customer-box')) POS._hideCustDropdown(); });
         on('discountValue','input',()=>{ POS.state.discountValue=+POS.el.discountValue.value||0; POS._updateTotals(); POS._saveCart(); });
         on('discountType','change',()=>{ POS.state.discountType=POS.el.discountType.value; POS._updateTotals(); POS._saveCart(); });
+        on('taxRate','input',()=>{ POS.state.taxRate=+POS.el.taxRate.value||0; POS._updateTotals(); POS._saveCart(); });
+        on('shipping','input',()=>{ POS.state.shipping=+POS.el.shipping.value||0; POS._updateTotals(); POS._saveCart(); });
         on('payBtn','click',()=>POS._openPayment());
         on('addToCartBtn','click',()=>POS._addToCart());
         on('closeUnitModalBtn','click',()=>{ POS._stopBarcodeScan(); POS._closeModal('unitQuantityModal'); });
@@ -46,16 +50,20 @@
         on('duplicateCancelBtn','click',()=>{ if(POS._duplicateCallback){ POS._duplicateCallback(false); POS._duplicateCallback=null; } POS._closeModal('duplicateProductModal'); });
     };
     POS._bindKeyboardShortcuts = function() {
-        document.addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return; if(e.key==='F1'){ e.preventDefault(); POS.el.customerSearchInput?.focus(); } if(e.key==='F2'){ e.preventDefault(); POS.el.productSearchInput?.focus(); } if(e.key==='F4'){ e.preventDefault(); if(POS.state.cart.length) POS._openPayment(); } if(e.key==='F5'){ e.preventDefault(); POS.holdInvoice(); } if(e.key==='Escape') POS._closeAllModals(); });
+        document.addEventListener('keydown',e=>{
+            if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return;
+            if(e.key==='F1'){ e.preventDefault(); POS.el.customerSearchInput?.focus(); }
+            if(e.key==='F2'){ e.preventDefault(); POS.el.productSearchInput?.focus(); }
+            if(e.key==='F4'){ e.preventDefault(); if(POS.state.cart.length) POS._openPayment(); }
+            if(e.key==='F5'){ e.preventDefault(); POS.holdInvoice(); }
+            if(e.key==='F6'){ e.preventDefault(); POS.loadHeld(); }
+            if(e.key==='F7'){ e.preventDefault(); POS._scanBarcode(); }
+            if(e.key==='Escape') POS._closeAllModals();
+            if(e.ctrlKey && e.key==='p'){ e.preventDefault(); if(POS.state.cart.length) POS._openPayment(); }
+        });
     };
     POS._setupBarcodeBuffer = function() {
         document.addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return; const now=Date.now(); if(e.key==='Enter'){ if(POS.state._barcodeBuffer.length>5) POS._searchBarcode(POS.state._barcodeBuffer); POS.state._barcodeBuffer=''; POS.state._lastKeyTime=0; return; } if(e.key.length===1){ if(POS.state._lastKeyTime && now-POS.state._lastKeyTime>30) POS.state._barcodeBuffer=''; POS.state._lastKeyTime=now; POS.state._barcodeBuffer+=e.key; clearTimeout(POS.state._barcodeTimer); POS.state._barcodeTimer=setTimeout(()=>{ if(POS.state._barcodeBuffer.length>5) POS._searchBarcode(POS.state._barcodeBuffer); POS.state._barcodeBuffer=''; POS.state._lastKeyTime=0; },150); } });
-    };
-    POS._filterTabletProducts = function() {
-        const term=(POS.el.tabletProductSearchInput?.value||'').trim().toLowerCase();
-        if(!term){ POS._renderProductGrid(); return; }
-        const filtered=POS.state.products.filter(p=>(p.name||'').toLowerCase().includes(term)||p.barcode===term||p.code===term);
-        POS._renderProductGrid(filtered);
     };
     POS._filterCustomers = function() {
         const term=(POS.el.customerSearchInput?.value||'').trim().toLowerCase();
@@ -67,10 +75,29 @@
         dd.innerHTML=html; dd.classList.add('show');
     };
     POS._onCartChange = function(e) {
-        if(e.target.classList.contains('cart-price-input')){ if(!POS._canChangePrice()){ U.showToast('لا صلاحية','error'); POS._renderCart(); return; } const idx=+e.target.dataset.idx,p=+e.target.value; if(!isNaN(p)&&p>=0) POS.state.cart[idx].price=p; POS._renderCart(); POS._saveCart(); }
-        else if(e.target.classList.contains('cart-qty-input')){ const idx=+e.target.dataset.idx,q=+e.target.value; if(isNaN(q)||q<=0) POS.state.cart.splice(idx,1); else POS.state.cart[idx].quantity=q; POS._renderCart(); POS._saveCart(); }
-        else if(e.target.classList.contains('cart-note-input')){ const idx=+e.target.dataset.idx; POS.state.cart[idx].note=e.target.value; POS._saveCart(); }
+        const t = e.target;
+        if(t.classList.contains('cart-price-input')){
+            if(!POS.can('canEditPrice')){ U.showToast('لا صلاحية','error'); POS._renderCart(); return; }
+            const idx=+t.dataset.idx,p=+t.value; if(!isNaN(p)&&p>=0) POS.state.cart[idx].price=p;
+            POS._renderCart(); POS._saveCart();
+        } else if(t.classList.contains('cart-qty-input')){
+            const idx=+t.dataset.idx,q=+t.value; if(isNaN(q)||q<=0) POS.state.cart.splice(idx,1); else POS.state.cart[idx].quantity=q;
+            POS._renderCart(); POS._saveCart();
+        } else if(t.classList.contains('cart-item-discount')){
+            if(!POS.can('canEditDiscount')){ U.showToast('لا صلاحية','error'); POS._renderCart(); return; }
+            const idx=+t.dataset.idx,val=+t.value; if(!isNaN(val)&&val>=0) POS.state.cart[idx].discount=val;
+            POS._renderCart(); POS._saveCart();
+        } else if(t.classList.contains('cart-note-input')){
+            const idx=+t.dataset.idx; POS.state.cart[idx].note=t.value; POS._saveCart();
+        }
     };
-    POS._onCartClick = function(e) { if(e.target.closest('.fa-trash')){ const idx=+e.target.closest('.fa-trash').dataset.idx; POS.state.cart.splice(idx,1); U.playBeep('remove'); POS._renderCart(); POS._saveCart(); } };
+    POS._onCartClick = function(e) {
+        if(e.target.closest('.fa-trash')){
+            if(!POS.can('canDeleteItem')){ U.showToast('لا صلاحية للحذف','error'); return; }
+            const idx=+e.target.closest('.fa-trash').dataset.idx;
+            POS._logActivity('حذف صنف', POS.state.cart[idx]?.productName);
+            POS.state.cart.splice(idx,1); U.playBeep('remove'); POS._renderCart(); POS._saveCart();
+        }
+    };
     POS._closeAllModals = function(){ ['paymentModal','unitQuantityModal','heldInvoicesModal','receiptModal','duplicateProductModal'].forEach(id=>POS._closeModal(id)); };
 })();
