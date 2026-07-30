@@ -99,6 +99,7 @@
         }
         body.offline #offline-banner { transform: translateY(0); }
 
+        /* === HEADER المحسن === */
         .navbar {
             display: flex; justify-content: space-between; align-items: center;
             background: var(--bg-surface); backdrop-filter: blur(12px);
@@ -111,6 +112,12 @@
         .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
         .logo { display: flex; align-items: center; gap: 8px; }
         .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .header-info {
+            display: flex; align-items: center; gap: 15px;
+            font-size: 0.8rem; color: var(--text-secondary);
+        }
+        .header-info span { display: flex; align-items: center; gap: 4px; }
+        .header-info .connection-status { font-weight: 600; }
         .nav-actions { position: relative; display: flex; gap: 6px; }
         .navbar-icon-btn {
             width: 40px; height: 40px; border-radius: 50%;
@@ -121,20 +128,20 @@
         .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
         .navbar-icon-btn.active { background: var(--primary-light); color: var(--primary); }
 
-        .more-dropdown {
+        .more-dropdown, .actions-dropdown {
             position: absolute; top: 48px; left: 0;
             background: var(--bg-surface); border-radius: var(--radius-md);
             box-shadow: var(--shadow-lg); min-width: 200px;
             z-index: 200; display: none; flex-direction: column;
             overflow: hidden; border: 1px solid var(--border-light);
         }
-        .more-dropdown.show { display: flex; }
-        .more-dropdown a {
+        .more-dropdown.show, .actions-dropdown.show { display: flex; }
+        .more-dropdown a, .actions-dropdown a {
             padding: 12px 18px; color: var(--text-primary);
             text-decoration: none; display: flex; align-items: center;
             gap: 10px; font-weight: 500; font-size: 0.85rem; transition: background var(--transition);
         }
-        .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
+        .more-dropdown a:hover, .actions-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
         .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
 
         .sidebar-overlay {
@@ -185,9 +192,16 @@
             border-radius: var(--radius-md); padding: 12px; text-align: center;
             cursor: pointer; transition: all var(--transition);
             display: flex; flex-direction: column; align-items: center; gap: 6px;
-            min-height: 120px; justify-content: center;
+            min-height: 120px; justify-content: center; position: relative;
         }
         .product-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); border-color: var(--primary); }
+        .card-badges { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; }
+        .badge {
+            padding: 2px 6px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; color: white;
+        }
+        .badge-danger { background: var(--danger); }
+        .badge-warning { background: var(--warning); color: #000; }
+        .badge-offer { background: var(--primary); }
 
         .cart-panel {
             display: flex; flex-direction: column; width: 380px; max-width: 100%;
@@ -206,6 +220,19 @@
         .customer-balance { margin-top: 4px; font-weight: 600; font-size: 0.8rem; }
         .customer-balance.positive { color: var(--success); }
         .customer-balance.negative { color: var(--danger); }
+        .customer-details {
+            background: var(--bg-input);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            margin-top: 8px;
+            display: none;
+        }
+        .customer-info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+        }
         .search-header { position: relative; }
         .search-header input {
             width: 100%; padding: 12px 16px; border: 1px solid var(--border-medium);
@@ -370,19 +397,27 @@
                 </div>
                 <div class="logo-text"><h2>حسابي</h2></div>
             </div>
+            <div class="header-info">
+                <span><i class="fas fa-user"></i> <span id="headerUserName">مستخدم</span></span>
+                <span><i class="fas fa-calendar"></i> <span id="headerDate"></span></span>
+                <span><i class="fas fa-clock"></i> <span id="headerTime"></span></span>
+                <span><i class="fas fa-file-invoice"></i> <span id="headerInvoiceNumber">#----</span></span>
+                <span class="connection-status" id="headerConnectionStatus">🟢 متصل</span>
+            </div>
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
                 <button class="navbar-icon-btn" id="quickSaleToggle" title="البيع السريع"><i class="fas fa-bolt"></i></button>
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
-                <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> مرتجع مبيعات</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة</a>
-                    <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> فواتير معلقة</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                <div class="actions-wrapper" style="position:relative;">
+                    <button class="navbar-icon-btn" id="actionsBtn" title="الإجراءات"><i class="fas fa-ellipsis-v"></i></button>
+                    <div class="actions-dropdown" id="actionsDropdown">
+                        <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة</a>
+                        <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> فواتير معلقة</a>
+                        <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> مرتجع مبيعات</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                        <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -427,6 +462,7 @@
                         <div id="customerDropdown" class="search-dropdown"></div>
                     </div>
                     <div class="customer-balance" id="customerBalanceDisplay"></div>
+                    <div class="customer-details" id="customerDetails"></div>
                 </div>
                 <div class="search-header" style="position: relative;">
                     <i class="fas fa-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
@@ -446,7 +482,7 @@
 
             <div class="cart-main-area">
                 <div class="cart-items" id="cartItemsContainer">
-                    <div class="cart-header-row"><span></span><span>الصنف</span><span>الكمية</span><span>السعر</span><span>الإجمالي</span><span>ملاحظة</span><span></span></div>
+                    <div class="cart-header-row"><span></span><span>الصنف</span><span>الكمية</span><span>السعر</span><span>خصم</span><span>الإجمالي</span><span></span></div>
                     <div class="empty-cart-message">السلة فارغة</div>
                 </div>
                 
@@ -463,6 +499,9 @@
                             <input type="number" id="discountValue" value="0" min="0" step="0.01">
                             <select id="discountType"><option value="amount">ج.م</option><option value="percent">%</option></select>
                         </div>
+                        <div class="summary-row"><span>الضريبة (%):</span> <input type="number" id="taxRate" value="0" min="0" max="100" step="0.01" style="width:60px;"></div>
+                        <div class="summary-row"><span>الشحن:</span> <input type="number" id="shipping" value="0" min="0" step="0.01" style="width:80px;"></div>
+                        <div class="summary-row"><span>قيمة الضريبة:</span> <span id="taxAmount">0.00 ج.م</span></div>
                         <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
                     </div>
                     <div class="action-buttons">
@@ -493,6 +532,8 @@
             <div id="paymentDetails">
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
+                <div class="summary-row"><span>الضريبة:</span> <span id="payTax">0.00 ج.م</span></div>
+                <div class="summary-row"><span>الشحن:</span> <span id="payShipping">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
                 <div class="summary-row">
                     <span id="currentBalanceLabel">الرصيد الحالي:</span>
@@ -549,7 +590,7 @@
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- ========== المكتبات الأساسية (Supabase وغيرها) ========== -->
+    <!-- ========== السكريبتات ========== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -562,7 +603,7 @@
     <script src="https://cdn.jsdelivr.net/npm/esc-pos-encoder@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-    <!-- ========== ملفات POS الأساسية (12 ملفاً بالترتيب) ========== -->
+    <!-- ملفات POS المحسنة (12 ملف) -->
     <script src="./js/pos/pos-core.js"></script>
     <script src="./js/pos/pos-state.js"></script>
     <script src="./js/pos/pos-cache.js"></script>
@@ -573,8 +614,40 @@
     <script src="./js/pos/pos-io.js"></script>
     <script src="./js/pos/pos-network.js"></script>
     <script src="./js/pos/pos-init.js"></script>
-    <script src="./js/pos/pos-main.js"></script>
     <script src="./js/pos/pos-print.js"></script>
-    <!-- POS ستبدأ تلقائياً عن طريق pos-main.js -->
+    <script src="./js/pos/pos-main.js"></script>
+
+    <script>
+        (function() {
+            const loadingBar = document.getElementById('loading-bar');
+            async function waitForPOS() {
+                if (window.POS && typeof window.POS.init === 'function') return;
+                await new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const check = () => {
+                        if (window.POS && typeof window.POS.init === 'function') resolve();
+                        else if (Date.now() - start > 10000) reject(new Error('POS not loaded'));
+                        else setTimeout(check, 200);
+                    };
+                    check();
+                });
+            }
+            async function initApp() {
+                loadingBar.style.width = '80%';
+                try {
+                    await waitForPOS();
+                    await window.POS.init();
+                    loadingBar.style.width = '100%';
+                } catch (e) {
+                    console.error('POS init failed:', e);
+                    loadingBar.style.background = 'var(--danger)';
+                    if (window.Toast) Toast.error('فشل تحميل نقطة البيع. يرجى المحاولة لاحقاً.');
+                } finally {
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+                }
+            }
+            initApp();
+        })();
+    </script>
 </body>
 </html>
