@@ -379,6 +379,37 @@
             .product-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
             .cart-panel { width: 400px; }
         }
+        .payment-method-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .payment-method-row select {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+        .payment-method-row input {
+            width: 120px;
+            padding: 8px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            text-align: center;
+        }
+        .remove-payment-btn {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 4px;
+        }
     </style>
 </head>
 <body class="loading">
@@ -413,8 +444,14 @@
                     <div class="actions-dropdown" id="actionsDropdown">
                         <a href="#" id="holdInvoiceBtn"><i class="fas fa-pause"></i> تعليق الفاتورة</a>
                         <a href="#" id="heldInvoicesBtn"><i class="fas fa-list"></i> فواتير معلقة</a>
-                        <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> مرتجع مبيعات</a>
+                        <a href="#" id="copyInvoiceBtn"><i class="fas fa-copy"></i> نسخ الفاتورة</a>
+                        <a href="#" id="reprintInvoiceBtn"><i class="fas fa-print"></i> إعادة طباعة آخر فاتورة</a>
                         <div class="dropdown-divider"></div>
+                        <a href="#" id="deleteInvoiceBtn"><i class="fas fa-trash-alt"></i> حذف الفاتورة</a>
+                        <a href="#" id="voidInvoiceBtn"><i class="fas fa-ban"></i> إلغاء الفاتورة (Void)</a>
+                        <a href="#" id="convertToQuoteBtn"><i class="fas fa-file-invoice"></i> تحويل إلى عرض سعر</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> مرتجع مبيعات</a>
                         <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                         <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                     </div>
@@ -494,14 +531,16 @@
                             <div class="stat-item"><div class="label">القطع</div><div class="value" id="totalPieces">0</div></div>
                         </div>
                         <div class="summary-row"><span>الإجمالي:</span> <span id="subtotal">0.00 ج.م</span></div>
+                        <div class="summary-row"><span>الخصم:</span> <span id="discount">0.00 ج.م</span></div>
                         <div class="summary-row discount-row">
-                            <span>الخصم:</span>
+                            <span>قيمة الخصم:</span>
                             <input type="number" id="discountValue" value="0" min="0" step="0.01">
                             <select id="discountType"><option value="amount">ج.م</option><option value="percent">%</option></select>
                         </div>
                         <div class="summary-row"><span>الضريبة (%):</span> <input type="number" id="taxRate" value="0" min="0" max="100" step="0.01" style="width:60px;"></div>
                         <div class="summary-row"><span>الشحن:</span> <input type="number" id="shipping" value="0" min="0" step="0.01" style="width:80px;"></div>
                         <div class="summary-row"><span>قيمة الضريبة:</span> <span id="taxAmount">0.00 ج.م</span></div>
+                        <div class="summary-row"><span>قيمة الشحن:</span> <span id="shippingAmount">0.00 ج.م</span></div>
                         <div class="summary-row total"><span>الصافي:</span> <span id="netTotal">0.00 ج.م</span></div>
                     </div>
                     <div class="action-buttons">
@@ -525,9 +564,9 @@
         </div>
     </div>
 
-    <!-- Modal: الدفع -->
+    <!-- Modal: الدفع (متعدد الوسائل) -->
     <div class="modal" id="paymentModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width:500px;">
             <div class="modal-header"><h2>إتمام الدفع</h2><button id="closePaymentModalBtn">&times;</button></div>
             <div id="paymentDetails">
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
@@ -540,11 +579,10 @@
                     <span id="currentBalance" style="font-weight: 700;">0.00 ج.م</span>
                 </div>
             </div>
-            <div class="form-group"><label>طريقة الدفع</label>
-                <select id="paymentMethod"><option value="cash">نقدي</option><option value="transfer">تحويل</option><option value="mixed">مختلط</option><option value="credit">آجل</option></select>
+            <div class="form-group">
+                <label>وسائل الدفع</label>
+                <div id="paymentMethodsContainer"></div>
             </div>
-            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
-            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
             <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
             <div class="summary-row">
                 <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
