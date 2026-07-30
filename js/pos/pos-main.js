@@ -12,6 +12,7 @@
         document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'){ POS._saveCart(); POS._savePaymentDraft(); POS._stopBarcodeScan(); } });
         await POS._loadData();
         await POS._sidebarUser();
+        POS._updateHeader();
         POS._restorePaymentDraft();
         window.addEventListener('beforeunload',()=>{ POS._stopBarcodeScan(); POS._saveCart(); POS._savePaymentDraft(); });
     };
