@@ -12,6 +12,11 @@
         document.addEventListener('click',e=>{ if(!e.target.closest('.actions-wrapper')) POS.el.actionsDropdown?.classList.remove('show'); });
         on('holdInvoiceBtn','click',e=>{ e.preventDefault(); POS.holdInvoice(); POS.el.actionsDropdown?.classList.remove('show'); });
         on('heldInvoicesBtn','click',e=>{ e.preventDefault(); POS.loadHeld(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('copyInvoiceBtn','click',e=>{ e.preventDefault(); POS.copyCurrentInvoice(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('deleteInvoiceBtn','click',e=>{ e.preventDefault(); POS.deleteCurrentInvoice(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('reprintInvoiceBtn','click',e=>{ e.preventDefault(); POS.reprintLastInvoice(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('voidInvoiceBtn','click',e=>{ e.preventDefault(); POS.voidCurrentInvoice(); POS.el.actionsDropdown?.classList.remove('show'); });
+        on('convertToQuoteBtn','click',e=>{ e.preventDefault(); POS.convertToQuote(); POS.el.actionsDropdown?.classList.remove('show'); });
         on('returnSaleBtn','click',e=>{ e.preventDefault(); POS.openReturn(); POS.el.actionsDropdown?.classList.remove('show'); });
         on('logoutBtn','click',async e=>{ e.preventDefault(); if(await POS._confirmAction('تسجيل الخروج؟')) App.logout(); });
         on('quickSaleToggle','click',()=>{ POS.state.quickSale=!POS.state.quickSale; UserPrefs.set('quickSale',POS.state.quickSale); POS.el.quickSaleToggle?.classList.toggle('active',POS.state.quickSale); });
@@ -36,9 +41,6 @@
         on('closeUnitModalBtn','click',()=>{ POS._stopBarcodeScan(); POS._closeModal('unitQuantityModal'); });
         on('confirmAndPrintBtn','click',e=>{ e.preventDefault(); POS._completePayment(); });
         on('closePaymentModalBtn','click',()=>POS._closeModal('paymentModal'));
-        on('paymentMethod','change',()=>POS._togglePaymentFields());
-        on('cashAmount','input',()=>POS._previewPayment());
-        on('transferAmount','input',()=>POS._previewPayment());
         on('closeHeldModalBtn','click',()=>POS._closeModal('heldInvoicesModal'));
         on('closeReceiptModalBtn','click',()=>POS._closeModal('receiptModal'));
         on('skipPrintBtn','click',()=>POS._closeModal('receiptModal'));
