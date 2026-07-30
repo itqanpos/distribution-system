@@ -69,55 +69,26 @@ const UserPrefs = {
     }
 };
 
-/** نظام الصلاحيات حسب الدور */
 const PERMISSIONS = {
     admin: {
-        canEditPrice: true,
-        canEditDiscount: true,
-        canDeleteItem: true,
-        canDeleteInvoice: true,
-        canOpenDrawer: true,
-        canReprint: true,
-        canReturn: true,
-        canVoidInvoice: true,
-        maxDiscountPercent: 100,
-        maxDiscountAmount: Infinity
+        canEditPrice: true, canEditDiscount: true, canDeleteItem: true,
+        canDeleteInvoice: true, canOpenDrawer: true, canReprint: true,
+        canReturn: true, canVoidInvoice: true, maxDiscountPercent: 100, maxDiscountAmount: Infinity
     },
     accountant: {
-        canEditPrice: true,
-        canEditDiscount: true,
-        canDeleteItem: false,
-        canDeleteInvoice: false,
-        canOpenDrawer: true,
-        canReprint: true,
-        canReturn: true,
-        canVoidInvoice: true,
-        maxDiscountPercent: 20,
-        maxDiscountAmount: 500
+        canEditPrice: true, canEditDiscount: true, canDeleteItem: false,
+        canDeleteInvoice: false, canOpenDrawer: true, canReprint: true,
+        canReturn: true, canVoidInvoice: true, maxDiscountPercent: 20, maxDiscountAmount: 500
     },
     cashier: {
-        canEditPrice: false,
-        canEditDiscount: false,
-        canDeleteItem: false,
-        canDeleteInvoice: false,
-        canOpenDrawer: true,
-        canReprint: true,
-        canReturn: false,
-        canVoidInvoice: false,
-        maxDiscountPercent: 0,
-        maxDiscountAmount: 0
+        canEditPrice: false, canEditDiscount: false, canDeleteItem: false,
+        canDeleteInvoice: false, canOpenDrawer: true, canReprint: true,
+        canReturn: false, canVoidInvoice: false, maxDiscountPercent: 0, maxDiscountAmount: 0
     },
     rep: {
-        canEditPrice: false,
-        canEditDiscount: false,
-        canDeleteItem: false,
-        canDeleteInvoice: false,
-        canOpenDrawer: false,
-        canReprint: false,
-        canReturn: false,
-        canVoidInvoice: false,
-        maxDiscountPercent: 0,
-        maxDiscountAmount: 0
+        canEditPrice: false, canEditDiscount: false, canDeleteItem: false,
+        canDeleteInvoice: false, canOpenDrawer: false, canReprint: false,
+        canReturn: false, canVoidInvoice: false, maxDiscountPercent: 0, maxDiscountAmount: 0
     }
 };
 
@@ -141,7 +112,7 @@ Object.assign(window.POS, {
         _barcodeBuffer: '', _barcodeTimer: null, _lastKeyTime: 0,
         _observer: null, _offlineSales: [], _activityLog: [], _connectionCheckTimer: null,
         _cartRendered: false, _duplicateCallback: null, _thermalDevice: null, _barcodeVideo: null,
-        _paymentMethods: [] // وسائل الدفع الديناميكية
+        paymentMethods: []
     },
     cache: {
         prods: new LRUCache(800),
@@ -150,7 +121,6 @@ Object.assign(window.POS, {
     },
     el: {},
     permissions: PERMISSIONS,
-    /** دالة مساعدة للتحقق من الصلاحية */
     can: function(action) {
         const role = (this.state.currentUser?.role || 'cashier').toLowerCase();
         const perms = this.permissions[role] || this.permissions.cashier;
