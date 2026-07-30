@@ -111,7 +111,6 @@
     POS._logActivity = function(action, details) {
         const entry = { action, details, user: POS.state.currentUser?.fullName || 'مستخدم', time: U.now() };
         POS.state._activityLog.push(entry);
-        // تخزين في localStorage للرجوع إليه
         try {
             const log = JSON.parse(localStorage.getItem('pos_activity_log') || '[]');
             log.unshift(entry);
