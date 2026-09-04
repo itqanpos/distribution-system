@@ -4,32 +4,314 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة التحكم · حسابي</title>
-    
-    <link rel="icon" href="./icons/icon-192x192.png">
+
+    <!-- PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    
+
+    <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/dashboard.css">
-    
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-core.js"></script>
-    <script src="./js/supabase-auth.js"></script>
-    <script src="./js/supabase-db.js"></script>
-    <script src="./js/supabase-offline.js"></script>
-    <script src="./js/toast.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-dark: #1d4ed8;
+            --success: #10b981;
+            --success-light: #dcfce7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: 0.2s ease;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        [data-theme="dark"] {
+            --primary: #6366f1;
+            --primary-light: rgba(99,102,241,0.2);
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --success-light: rgba(16,185,129,0.2);
+            --danger: #ef4444;
+            --danger-light: rgba(239,68,68,0.2);
+            --warning: #f59e0b;
+            --warning-light: rgba(245,158,11,0.2);
+            --bg-body: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-light: #334155;
+            --border-medium: #475569;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #loading-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: var(--primary); width: 0%; z-index: 9999;
+            transition: width 0.3s ease;
+        }
+
+        #offline-banner {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: var(--danger); color: white;
+            text-align: center; padding: 6px;
+            font-size: 0.8rem; font-weight: 600;
+            z-index: 9998; transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        body.offline #offline-banner { transform: translateY(0); }
+
+        .navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--bg-surface); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0 16px;
+            height: calc(56px + var(--safe-top));
+            padding-top: var(--safe-top);
+            position: sticky; top: 0; z-index: 110;
+            flex-shrink: 0;
+        }
+        .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
+        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
+        .logo { display: flex; align-items: center; gap: 8px; }
+        .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .nav-actions { position: relative; }
+        .navbar-icon-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
+        }
+        .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
+
+        .more-dropdown {
+            position: absolute; top: 48px; left: 0;
+            background: var(--bg-surface); border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg); min-width: 200px;
+            z-index: 200; display: none; flex-direction: column;
+            overflow: hidden; border: 1px solid var(--border-light);
+        }
+        .more-dropdown.show { display: flex; }
+        .more-dropdown a {
+            padding: 12px 18px; color: var(--text-primary);
+            text-decoration: none; display: flex; align-items: center;
+            gap: 10px; font-weight: 500; font-size: 0.85rem; transition: background var(--transition);
+        }
+        .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
+        .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.35); z-index: 149;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .sidebar-overlay.show { opacity: 1; visibility: visible; }
+        .sidebar {
+            position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
+            height: 100%; background: var(--bg-surface); border-left: 1px solid var(--border-light);
+            padding: calc(20px + var(--safe-top)) 12px 20px 12px;
+            z-index: 150;
+            transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+            overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
+        .sidebar.open { right: 0; }
+        .sidebar-user { text-align: center; margin-bottom: 20px; }
+        .sidebar-avatar { width: 64px; height: 64px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: 700; font-size: 1.5rem; }
+        .sidebar-user h4 { color: var(--text-primary); }
+        .menu { list-style: none; }
+        .menu-section { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 12px 8px; }
+        .menu-item { display: flex; align-items: center; padding: 12px 14px; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); font-size: 0.85rem; transition: all var(--transition); }
+        .menu-item i { width: 22px; margin-left: 10px; }
+        .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
+        .menu-item.active { background: var(--primary-light); color: var(--primary); }
+
+        .dashboard-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+        }
+
+        /* ===== كرت مبيعات اليوم ===== */
+        .today-sales-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.3);
+        }
+        .today-sales-card .main-stat {
+            grid-column: span 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .today-sales-card .main-stat .icon {
+            width: 56px; height: 56px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem;
+        }
+        .today-sales-card .main-stat .info h3 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+        .today-sales-card .main-stat .info .value {
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+        .today-sales-card .sub-stat {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .today-sales-card .sub-stat .label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        .today-sales-card .sub-stat .num {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all var(--transition);
+        }
+        .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .stat-icon {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+        }
+        .stat-info h3 { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+        .stat-info .value { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
+        .stat-icon.blue { background: var(--primary-light); color: var(--primary); }
+        .stat-icon.green { background: var(--success-light); color: var(--success); }
+        .stat-icon.orange { background: var(--warning-light); color: var(--warning); }
+        .stat-icon.red { background: var(--danger-light); color: var(--danger); }
+        .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
+        .stat-icon.teal { background: #ccfbf1; color: #0d9488; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-header h3 { font-size: 1rem; font-weight: 700; }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th {
+            text-align: right; padding: 10px 8px;
+            color: var(--text-secondary); font-weight: 600;
+            border-bottom: 2px solid var(--border-medium);
+        }
+        .data-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .data-table tr:hover { background: var(--bg-input); }
+
+        .quick-actions {
+            display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+        }
+        .quick-btn {
+            padding: 10px 20px;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex; align-items: center; gap: 8px;
+            transition: all var(--transition);
+        }
+        .quick-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        @media (max-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+            .today-sales-card { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-<body>
+<body class="loading">
+    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
+    <div id="loading-bar"></div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <nav class="navbar" id="mainNavbar">
@@ -48,15 +330,15 @@
             <div class="nav-actions">
                 <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث البيانات</a>
-                    <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <div class="dropdown-divider"></div>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
     </nav>
 
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -77,120 +359,339 @@
         </ul>
     </aside>
 
-    <main class="main-content">
-        <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1></div>
-            <div class="date-display" id="currentDate"></div>
+    <main class="dashboard-content">
+
+        <!-- كرت مبيعات اليوم -->
+        <div class="today-sales-card" id="todaySalesCard">
+            <div class="main-stat">
+                <div class="icon"><i class="fas fa-chart-line"></i></div>
+                <div class="info">
+                    <h3>مبيعات اليوم</h3>
+                    <div class="value" id="todayTotalSales">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="sub-stat">
+                <div class="label">عدد الفواتير</div>
+                <div class="num" id="todayInvoicesCount">0</div>
+            </div>
+            <div class="sub-stat">
+                <div class="label">متوسط الفاتورة</div>
+                <div class="num" id="todayAverage">0.00 ج.م</div>
+            </div>
+            <div class="sub-stat">
+                <div class="label">نقدي</div>
+                <div class="num" id="todayCash">0.00 ج.م</div>
+            </div>
+            <div class="sub-stat">
+                <div class="label">شبكة</div>
+                <div class="num" id="todayTransfer">0.00 ج.م</div>
+            </div>
+            <div class="sub-stat">
+                <div class="label">آجل</div>
+                <div class="num" id="todayCredit">0.00 ج.م</div>
+            </div>
         </div>
 
-        <div class="dashboard-container">
-            <!-- رسالة الترحيب -->
-            <section class="hero-section">
-                <div class="hero-content">
-                    <div><h1 id="heroGreeting">مرحباً 👋</h1><p id="heroSubtitle">إليك ملخص نشاطك التجاري اليوم</p></div>
-                    <div class="hero-actions">
-                        <button class="primary-btn" onclick="window.location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
-                        <button class="secondary-btn" onclick="window.location.href='./reports.html'"><i class="fas fa-chart-line"></i> التقارير</button>
-                    </div>
-                </div>
-            </section>
+        <!-- أزرار سريعة -->
+        <div class="quick-actions">
+            <button class="quick-btn" onclick="location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
+            <button class="quick-btn" onclick="location.href='./products.html'"><i class="fas fa-box"></i> إدارة المنتجات</button>
+            <button class="quick-btn" onclick="location.href='./customers.html'"><i class="fas fa-users"></i> العملاء والموردين</button>
+        </div>
 
-            <!-- بطاقات الإحصائيات المتوافقة مع dashboard.js -->
-            <section class="stats-grid" id="statsGrid">
-                <div class="premium-card sales">
-                    <div class="card-top"><div><span>إجمالي الفواتير</span><h2 id="statTotalInvoices">0</h2></div><div class="icon-box"><i class="fas fa-file-invoice"></i></div></div>
-                </div>
-                <div class="premium-card purchases">
-                    <div class="card-top"><div><span>إجمالي المبيعات</span><h2 id="statTotalSales">0.00 ج.م</h2></div><div class="icon-box"><i class="fas fa-chart-line"></i></div></div>
-                </div>
-                <div class="premium-card customers">
-                    <div class="card-top"><div><span>الفواتير المدفوعة</span><h2 id="statPaid">0</h2></div><div class="icon-box"><i class="fas fa-check-circle"></i></div></div>
-                </div>
-                <div class="premium-card cash">
-                    <div class="card-top"><div><span>الفواتير غير المدفوعة</span><h2 id="statUnpaid">0</h2></div><div class="icon-box"><i class="fas fa-exclamation-circle"></i></div></div>
-                </div>
-                <div class="premium-card low-stock">
-                    <div class="card-top"><div><span>منتجات منخفضة المخزون</span><h2 id="statLowStock">0</h2></div><div class="icon-box"><i class="fas fa-boxes"></i></div></div>
-                </div>
-            </section>
+        <!-- بطاقات الإحصائيات -->
+        <div class="stats-grid" id="statsGrid"></div>
 
-            <!-- مبيعات آخر 7 أيام -->
-            <section class="daily-sales-section">
-                <div class="section-header"><h3>مبيعات آخر 7 أيام</h3></div>
-                <div class="daily-sales-cards" id="dailySalesCards"></div>
-            </section>
+        <!-- الرسم البياني والجداول -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h3>مبيعات آخر 7 أيام</h3>
+                </div>
+                <canvas id="salesChart" height="200"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>أحدث الفواتير</h3>
+                    <a href="./invoices.html" style="font-size:0.8rem;color:var(--primary);text-decoration:none;">عرض الكل</a>
+                </div>
+                <div id="recentInvoices">
+                    <p style="color:var(--text-muted);text-align:center;">جاري التحميل...</p>
+                </div>
+            </div>
+        </div>
 
-            <!-- إجراءات سريعة -->
-            <section class="quick-actions">
-                <div class="section-header"><h3>إجراءات سريعة</h3></div>
-                <div class="actions-grid">
-                    <button class="action-card" onclick="window.location.href='./pos.html'"><i class="fas fa-file-invoice"></i><span>فاتورة جديدة</span></button>
-                    <button class="action-card" onclick="window.location.href='./customers.html'"><i class="fas fa-user-plus"></i><span>إضافة عميل</span></button>
-                    <button class="action-card" onclick="window.location.href='./products.html'"><i class="fas fa-box"></i><span>إضافة منتج</span></button>
-                    <button class="action-card" onclick="window.location.href='./reports.html'"><i class="fas fa-print"></i><span>طباعة تقرير</span></button>
+        <div class="dashboard-grid" style="margin-top:16px;">
+            <div class="card">
+                <div class="card-header">
+                    <h3>منتجات منخفضة المخزون</h3>
+                    <a href="./products.html" style="font-size:0.8rem;color:var(--primary);text-decoration:none;">عرض الكل</a>
                 </div>
-            </section>
-
-            <!-- المخطط والأكثر مبيعاً -->
-            <section class="main-grid">
-                <div class="glass-card large-card">
-                    <div class="section-header"><h3>تحليل المبيعات</h3><select class="modern-select" id="chartPeriod"><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يوم</option></select></div>
-                    <div class="chart-placeholder"><canvas id="salesChart"></canvas></div>
+                <div id="lowStockProducts">
+                    <p style="color:var(--text-muted);text-align:center;">جاري التحميل...</p>
                 </div>
-                <div class="glass-card">
-                    <div class="section-header"><h3>الأكثر مبيعاً</h3></div>
-                    <div class="top-products-list" id="topProductsList"><p class="empty">جاري التحميل...</p></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>أحدث العملاء</h3>
+                    <a href="./customers.html" style="font-size:0.8rem;color:var(--primary);text-decoration:none;">عرض الكل</a>
                 </div>
-            </section>
-
-            <!-- الفواتير الأخيرة -->
-            <section class="recent-invoices-section">
-                <div class="glass-card">
-                    <div class="section-header"><h3>آخر الفواتير</h3></div>
-                    <div class="recent-invoices-table" id="recentInvoicesTable"><p class="empty">جاري التحميل...</p></div>
+                <div id="recentCustomers">
+                    <p style="color:var(--text-muted);text-align:center;">جاري التحميل...</p>
                 </div>
-            </section>
-
-            <!-- النشاط الأخير (اختياري - يمكن تعبئته لاحقاً) -->
-            <section class="activity-section">
-                <div class="glass-card">
-                    <div class="section-header"><h3>النشاط الأخير</h3></div>
-                    <div class="timeline" id="activityTimeline"><p class="empty">جاري التحميل...</p></div>
-                </div>
-            </section>
+            </div>
         </div>
     </main>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toastContainer"></div>
 
-    <script src="./js/dashboard.js"></script>
+    <!-- السكريبتات -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/supabase-offline.js"></script>
+    <script src="./js/supabase-db.js"></script>
+    <script src="./js/toast.js"></script>
+
     <script>
-        (function() {
-            async function initDashboard() {
-                if (window.Dashboard && typeof window.Dashboard.init === 'function') {
-                    // عرض التاريخ الحالي
-                    const dateEl = document.getElementById('currentDate');
-                    if (dateEl) {
-                        dateEl.textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        (() => {
+            const loadingBar = document.getElementById('loading-bar');
+            const statsGrid = document.getElementById('statsGrid');
+            const recentInvoices = document.getElementById('recentInvoices');
+            const lowStockProducts = document.getElementById('lowStockProducts');
+            const recentCustomers = document.getElementById('recentCustomers');
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const moreMenuBtn = document.getElementById('moreMenuBtn');
+            const moreDropdown = document.getElementById('moreDropdown');
+            const logoutBtn = document.getElementById('logoutBtn');
+
+            function fmtMoney(v) {
+                return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+            }
+
+            function waitForCore(timeoutMs = 8000) {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const check = () => {
+                        if (window.App && window.DB) {
+                            resolve();
+                        } else if (Date.now() - start > timeoutMs) {
+                            reject(new Error('Core not loaded'));
+                        } else {
+                            setTimeout(check, 200);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            async function loadDashboard() {
+                try {
+                    const [invoices, purchases, products, parties] = await Promise.allSettled([
+                        DB.getInvoices(),
+                        DB.getPurchases(),
+                        DB.getProducts(),
+                        DB.getParties()
+                    ]);
+
+                    const invData = invoices.status === 'fulfilled' ? invoices.value : [];
+                    const purData = purchases.status === 'fulfilled' ? purchases.value : [];
+                    const prodData = products.status === 'fulfilled' ? products.value : [];
+                    const partyData = parties.status === 'fulfilled' ? parties.value : [];
+
+                    // ===== بيانات اليوم =====
+                    const today = new Date().toISOString().split('T')[0];
+                    const todayInvs = invData.filter(inv => inv.date === today && inv.type === 'sale');
+                    const todaySalesTotal = todayInvs.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+                    const todayCount = todayInvs.length;
+                    const todayAvg = todayCount > 0 ? todaySalesTotal / todayCount : 0;
+                    const todayCash = todayInvs
+                        .filter(inv => inv.status === 'paid')
+                        .reduce((sum, inv) => sum + (Number(inv.cash_paid) || 0), 0);
+                    const todayTransfer = todayInvs
+                        .filter(inv => inv.status === 'paid')
+                        .reduce((sum, inv) => sum + (Number(inv.transfer_paid) || 0), 0);
+                    const todayCredit = todayInvs
+                        .filter(inv => inv.status === 'credit' || inv.status === 'partial')
+                        .reduce((sum, inv) => sum + (Number(inv.remaining) || 0), 0);
+
+                    // تعبئة كرت مبيعات اليوم
+                    document.getElementById('todayTotalSales').textContent = fmtMoney(todaySalesTotal);
+                    document.getElementById('todayInvoicesCount').textContent = todayCount;
+                    document.getElementById('todayAverage').textContent = fmtMoney(todayAvg);
+                    document.getElementById('todayCash').textContent = fmtMoney(todayCash);
+                    document.getElementById('todayTransfer').textContent = fmtMoney(todayTransfer);
+                    document.getElementById('todayCredit').textContent = fmtMoney(todayCredit);
+
+                    // الإحصائيات العامة
+                    const todayPurchases = purData
+                        .filter(p => p.date === today)
+                        .reduce((sum, p) => sum + (Number(p.total) || 0), 0);
+                    const pendingInvoices = invData.filter(inv => ['held', 'partial', 'pending'].includes(inv.status)).length;
+                    const customersCount = partyData.filter(p => p.type === 'customer').length;
+                    const suppliersCount = partyData.filter(p => p.type === 'supplier').length;
+                    const lowStock = prodData.filter(p => (p.units?.[0]?.stock || 0) < 5).length;
+
+                    const stats = [
+                        { label: 'مشتريات اليوم', value: fmtMoney(todayPurchases), icon: 'fa-truck', color: 'green' },
+                        { label: 'فواتير معلقة', value: pendingInvoices, icon: 'fa-clock', color: 'orange' },
+                        { label: 'المنتجات', value: prodData.length, icon: 'fa-box', color: 'purple' },
+                        { label: 'العملاء', value: customersCount, icon: 'fa-users', color: 'teal' },
+                        { label: 'الموردين', value: suppliersCount, icon: 'fa-user-tie', color: 'red' }
+                    ];
+                    renderStats(stats);
+
+                    // أحدث الفواتير
+                    const recentInvs = invData.slice(0, 5);
+                    if (recentInvs.length) {
+                        recentInvoices.innerHTML = recentInvs.map(inv => `
+                            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);">
+                                <span>${inv.invoice_number || inv.id?.substring(0,8)}</span>
+                                <span>${inv.customer_name || 'نقدي'}</span>
+                                <span style="font-weight:600;">${fmtMoney(inv.total)}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        recentInvoices.innerHTML = '<p style="color:var(--text-muted);text-align:center;">لا توجد فواتير</p>';
                     }
-                    await window.Dashboard.init();
-                    // تحديث البيانات يدوياً عند النقر على زر التحديث
-                    document.getElementById('refreshDataBtn')?.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        await window.Dashboard.loadAllData();
-                        if (window.Toast) Toast.info('تم تحديث البيانات');
-                    });
-                } else {
-                    // إعادة المحاولة بعد فترة قصيرة
-                    setTimeout(initDashboard, 300);
+
+                    // منتجات منخفضة المخزون
+                    const lowProds = prodData.filter(p => (p.units?.[0]?.stock || 0) < 5).slice(0, 5);
+                    if (lowProds.length) {
+                        lowStockProducts.innerHTML = lowProds.map(p => `
+                            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);">
+                                <span>${p.name}</span>
+                                <span style="color:var(--danger);font-weight:600;">${p.units?.[0]?.stock || 0}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        lowStockProducts.innerHTML = '<p style="color:var(--text-muted);text-align:center;">لا توجد منتجات منخفضة المخزون</p>';
+                    }
+
+                    // أحدث العملاء
+                    const recentCusts = partyData.filter(p => p.type === 'customer').slice(0, 5);
+                    if (recentCusts.length) {
+                        recentCustomers.innerHTML = recentCusts.map(c => `
+                            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);">
+                                <span>${c.name}</span>
+                                <span>${c.phone || '-'}</span>
+                                <span style="font-weight:600;">${fmtMoney(c.balance || 0)}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        recentCustomers.innerHTML = '<p style="color:var(--text-muted);text-align:center;">لا يوجد عملاء</p>';
+                    }
+
+                    renderSalesChart(invData);
+
+                } catch (e) {
+                    console.error('Dashboard load failed:', e);
+                    if (window.Toast) Toast.error('فشل تحميل لوحة التحكم');
                 }
             }
-            // بدء التحميل عندما تصبح الصفحة جاهزة
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initDashboard);
-            } else {
-                initDashboard();
+
+            function renderStats(stats) {
+                statsGrid.innerHTML = stats.map(s => `
+                    <div class="stat-card">
+                        <div class="stat-icon ${s.color}"><i class="fas ${s.icon}"></i></div>
+                        <div class="stat-info">
+                            <h3>${s.label}</h3>
+                            <div class="value">${s.value}</div>
+                        </div>
+                    </div>
+                `).join('');
             }
+
+            function renderSalesChart(invoices) {
+                const canvas = document.getElementById('salesChart');
+                if (!canvas || typeof Chart === 'undefined') return;
+
+                const days = [];
+                const sales = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const dateStr = d.toISOString().split('T')[0];
+                    const daySales = invoices
+                        .filter(inv => inv.date === dateStr && inv.type === 'sale')
+                        .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+                    days.push(dateStr.slice(5));
+                    sales.push(daySales);
+                }
+
+                new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: days,
+                        datasets: [{
+                            label: 'المبيعات',
+                            data: sales,
+                            backgroundColor: 'rgba(37, 99, 235, 0.5)',
+                            borderColor: '#2563eb',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // ===== ربط الأحداث =====
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                sidebarOverlay.classList.toggle('show');
+            });
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
+            });
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('show');
+                });
+            });
+
+            moreMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                moreDropdown.classList.toggle('show');
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
+            });
+
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                    await App.logout();
+                }
+            });
+
+            async function initDashboard() {
+                loadingBar.style.width = '80%';
+                try {
+                    await waitForCore();
+                    await App.requireAuth();
+                    App.initUserInterface();
+                    await loadDashboard();
+                    loadingBar.style.width = '100%';
+                } catch (e) {
+                    console.error('Dashboard init failed:', e);
+                    loadingBar.style.background = 'var(--danger)';
+                } finally {
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+                }
+            }
+
+            initDashboard();
         })();
     </script>
 </body>
