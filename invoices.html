@@ -82,15 +82,10 @@
             flex-direction: column;
         }
 
-        #loading-bar {
-            position: fixed; top: 0; left: 0; height: 3px;
-            background: var(--primary); width: 0%; z-index: 9999;
-            transition: width 0.3s ease;
-        }
+        #loading-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 9999; transition: width 0.3s ease; }
 
         #offline-banner {
-            position: fixed;
-            top: 0; left: 0; right: 0;
+            position: fixed; top: 0; left: 0; right: 0;
             background: var(--danger); color: white;
             text-align: center; padding: 6px;
             font-size: 0.8rem; font-weight: 600;
@@ -168,9 +163,8 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            padding-bottom: calc(20px + var(--safe-bottom));
+            padding-bottom: 80px; /* مساحة للفوتر الثابت */
         }
-
         .page-header {
             display: flex;
             justify-content: space-between;
@@ -180,6 +174,23 @@
             margin-bottom: 20px;
         }
         .page-header h1 { font-size: 1.5rem; font-weight: 800; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 18px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition);
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
 
         .filters-bar {
             display: flex;
@@ -206,25 +217,17 @@
             overflow: hidden;
             box-shadow: var(--shadow-sm);
         }
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .data-table th {
-            text-align: right;
-            padding: 12px;
-            color: var(--text-secondary);
-            font-weight: 700;
+            text-align: right; padding: 12px;
+            color: var(--text-secondary); font-weight: 700;
             background: var(--bg-input);
             border-bottom: 1px solid var(--border-light);
         }
-        .data-table td {
-            padding: 12px;
-            border-bottom: 1px solid var(--border-light);
-        }
+        .data-table td { padding: 12px; border-bottom: 1px solid var(--border-light); }
         .data-table tr:last-child td { border-bottom: none; }
         .data-table tr:hover { background: var(--bg-input); }
+
         .status-badge {
             padding: 4px 10px;
             border-radius: 20px;
@@ -235,6 +238,7 @@
         .status-partial { background: var(--warning-light); color: var(--warning); }
         .status-credit { background: var(--danger-light); color: var(--danger); }
         .status-held { background: var(--bg-input); color: var(--text-muted); }
+
         .action-btns { display: flex; gap: 6px; }
         .action-btn {
             background: none;
@@ -251,13 +255,48 @@
         .action-btn.delete { color: var(--danger); }
         .action-btn.delete:hover { background: var(--danger-light); border-color: var(--danger); }
 
-        .empty-state {
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+
+        /* ===== التذييل الثابت ===== */
+        .fixed-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-light);
+            padding: 10px 16px;
+            padding-bottom: calc(10px + var(--safe-bottom));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            z-index: 90;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        .fixed-footer .summary-item {
             text-align: center;
-            padding: 40px;
-            color: var(--text-muted);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .fixed-footer .summary-item strong {
+            display: block;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        .fixed-footer .footer-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
         }
 
-        /* Modal */
+        /* ===== مودال الإيصال ===== */
         .modal {
             display: none;
             position: fixed;
@@ -275,7 +314,7 @@
             padding: 20px;
             width: 90%;
             max-width: 500px;
-            max-height: 85vh;
+            max-height: 90vh;
             overflow-y: auto;
             box-shadow: var(--shadow-lg);
         }
@@ -287,20 +326,77 @@
         }
         .modal-header h2 { font-size: 1.2rem; }
         .modal-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
-        .detail-row {
+
+        /* تنسيق الإيصال داخل المودال */
+        .receipt-preview {
+            background: #fffef7;
+            color: #000;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.85rem;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            direction: rtl;
+            line-height: 1.6;
+        }
+        .receipt-preview .receipt-header {
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+        .receipt-preview .receipt-sub {
+            text-align: center;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+        .receipt-preview hr {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
+        .receipt-preview .receipt-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border-light);
-            font-size: 0.9rem;
+            margin-bottom: 2px;
         }
-        .detail-row .label { color: var(--text-secondary); }
-        .detail-row .value { font-weight: 600; }
+        .receipt-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .receipt-preview table th,
+        .receipt-preview table td {
+            padding: 4px;
+            text-align: right;
+            border-bottom: 1px dashed #ccc;
+        }
+        .receipt-preview table th { font-weight: 700; }
+        .receipt-preview .receipt-total {
+            font-weight: 800;
+            font-size: 1rem;
+        }
+        .receipt-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .receipt-actions .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+        }
+        .btn-print { background: var(--primary); color: white; }
+        .btn-close { background: var(--bg-input); color: var(--text-primary); }
 
         @media (max-width: 768px) {
             .page-header h1 { font-size: 1.2rem; }
             .filters-bar { flex-direction: column; }
             .filters-bar input, .filters-bar select { width: 100%; }
+            .fixed-footer { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -356,7 +452,7 @@
     <main class="page-content">
         <div class="page-header">
             <h1>الفواتير</h1>
-            <button class="btn btn-primary" onclick="location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
+            <button class="btn-primary" onclick="location.href='./pos.html'"><i class="fas fa-plus"></i> فاتورة جديدة</button>
         </div>
 
         <div class="filters-bar">
@@ -382,29 +478,46 @@
                         <th>رقم الفاتورة</th>
                         <th>التاريخ</th>
                         <th>العميل / المورد</th>
-                        <th>النوع</th>
                         <th>الإجمالي</th>
-                        <th>المدفوع</th>
                         <th>المتبقي</th>
                         <th>الحالة</th>
                         <th>إجراءات</th>
                     </tr>
                 </thead>
                 <tbody id="invoicesTableBody">
-                    <tr><td colspan="9" class="empty-state">جاري التحميل...</td></tr>
+                    <tr><td colspan="7" class="empty-state">جاري التحميل...</td></tr>
                 </tbody>
             </table>
         </div>
     </main>
 
-    <!-- Modal عرض تفاصيل الفاتورة -->
-    <div class="modal" id="invoiceDetailsModal">
+    <!-- التذييل الثابت -->
+    <div class="fixed-footer">
+        <div class="summary-item">
+            <span>إجمالي المبيعات</span>
+            <strong id="footerTotalSales">0.00 ج.م</strong>
+        </div>
+        <div class="summary-item">
+            <span>عدد الفواتير</span>
+            <strong id="footerInvoiceCount">0</strong>
+        </div>
+        <button class="footer-btn" id="footerNewInvoiceBtn"><i class="fas fa-plus"></i> جديد</button>
+    </div>
+
+    <!-- مودال عرض الإيصال -->
+    <div class="modal" id="receiptModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>تفاصيل الفاتورة</h2>
-                <button id="closeDetailsModalBtn">&times;</button>
+                <h2>إيصال الفاتورة</h2>
+                <button id="closeReceiptModal">&times;</button>
             </div>
-            <div id="invoiceDetailsContent"></div>
+            <div class="receipt-preview" id="receiptPreview">
+                <!-- يتم تعبئته عبر JS -->
+            </div>
+            <div class="receipt-actions">
+                <button class="btn btn-print" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-close" id="closeReceiptBtn">إغلاق</button>
+            </div>
         </div>
     </div>
 
@@ -426,9 +539,14 @@
             const statusFilter = document.getElementById('statusFilter');
             const typeFilter = document.getElementById('typeFilter');
             const tableBody = document.getElementById('invoicesTableBody');
-            const modal = document.getElementById('invoiceDetailsModal');
-            const modalContent = document.getElementById('invoiceDetailsContent');
-            const closeDetailsBtn = document.getElementById('closeDetailsModalBtn');
+            const footerTotalSales = document.getElementById('footerTotalSales');
+            const footerInvoiceCount = document.getElementById('footerInvoiceCount');
+            const footerNewInvoiceBtn = document.getElementById('footerNewInvoiceBtn');
+            const receiptModal = document.getElementById('receiptModal');
+            const receiptPreview = document.getElementById('receiptPreview');
+            const closeReceiptModal = document.getElementById('closeReceiptModal');
+            const closeReceiptBtn = document.getElementById('closeReceiptBtn');
+            const printReceiptBtn = document.getElementById('printReceiptBtn');
             const menuToggle = document.getElementById('menuToggle');
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -443,22 +561,11 @@
             }
 
             function getStatusBadge(status) {
-                const map = {
-                    paid: 'status-paid',
-                    partial: 'status-partial',
-                    credit: 'status-credit',
-                    held: 'status-held'
-                };
+                const map = { paid: 'status-paid', partial: 'status-partial', credit: 'status-credit', held: 'status-held' };
                 return map[status] || 'status-held';
             }
-
             function getStatusText(status) {
-                const map = {
-                    paid: 'مدفوعة',
-                    partial: 'جزئية',
-                    credit: 'آجلة',
-                    held: 'معلقة'
-                };
+                const map = { paid: 'مدفوعة', partial: 'جزئية', credit: 'آجلة', held: 'معلقة' };
                 return map[status] || status;
             }
 
@@ -466,13 +573,9 @@
                 return new Promise((resolve, reject) => {
                     const start = Date.now();
                     const check = () => {
-                        if (window.App && window.DB) {
-                            resolve();
-                        } else if (Date.now() - start > timeoutMs) {
-                            reject(new Error('Core not loaded'));
-                        } else {
-                            setTimeout(check, 200);
-                        }
+                        if (window.App && window.DB) resolve();
+                        else if (Date.now() - start > timeoutMs) reject(new Error('Core not loaded'));
+                        else setTimeout(check, 200);
                     };
                     check();
                 });
@@ -483,21 +586,28 @@
                     const invoices = await DB.getInvoices();
                     allInvoices = invoices || [];
                     renderTable(allInvoices);
+                    updateFooterStats(allInvoices);
                 } catch (e) {
                     console.error('Failed to load invoices:', e);
-                    tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">فشل تحميل الفواتير</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="7" class="empty-state">فشل تحميل الفواتير</td></tr>';
                 }
             }
 
+            function updateFooterStats(invoices) {
+                const saleInvoices = invoices.filter(inv => inv.type === 'sale');
+                const totalSales = saleInvoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+                footerTotalSales.textContent = fmtMoney(totalSales);
+                footerInvoiceCount.textContent = invoices.length;
+            }
+
             function filterInvoices() {
-                const searchTerm = searchInput.value.trim().toLowerCase();
+                const term = searchInput.value.trim().toLowerCase();
                 const status = statusFilter.value;
                 const type = typeFilter.value;
-
                 const filtered = allInvoices.filter(inv => {
-                    const matchesSearch = !searchTerm ||
-                        (inv.invoice_number && inv.invoice_number.toLowerCase().includes(searchTerm)) ||
-                        (inv.customer_name && inv.customer_name.toLowerCase().includes(searchTerm));
+                    const matchesSearch = !term ||
+                        (inv.invoice_number && inv.invoice_number.toLowerCase().includes(term)) ||
+                        (inv.customer_name && inv.customer_name.toLowerCase().includes(term));
                     const matchesStatus = !status || inv.status === status;
                     const matchesType = !type || inv.type === type;
                     return matchesSearch && matchesStatus && matchesType;
@@ -507,17 +617,15 @@
 
             function renderTable(invoices) {
                 if (!invoices.length) {
-                    tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">لا توجد فواتير</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="7" class="empty-state">لا توجد فواتير</td></tr>';
                     return;
                 }
                 tableBody.innerHTML = invoices.map(inv => `
                     <tr>
                         <td>${inv.invoice_number || inv.id?.substring(0,8)}</td>
                         <td>${inv.date || ''}</td>
-                        <td>${inv.customer_name || 'نقدي'}</td>
-                        <td>${inv.type === 'sale' ? 'بيع' : 'شراء'}</td>
+                        <td>${inv.customer_name || inv.supplier_name || 'نقدي'}</td>
                         <td>${fmtMoney(inv.total)}</td>
-                        <td>${fmtMoney(inv.paid)}</td>
                         <td>${fmtMoney(inv.remaining)}</td>
                         <td><span class="status-badge ${getStatusBadge(inv.status)}">${getStatusText(inv.status)}</span></td>
                         <td>
@@ -529,9 +637,8 @@
                     </tr>
                 `).join('');
 
-                // ربط أزرار العرض والحذف
                 tableBody.querySelectorAll('.action-btn.view').forEach(btn => {
-                    btn.addEventListener('click', () => showInvoiceDetails(btn.dataset.id));
+                    btn.addEventListener('click', () => showInvoiceReceipt(btn.dataset.id));
                 });
                 tableBody.querySelectorAll('.action-btn.delete').forEach(btn => {
                     btn.addEventListener('click', async () => {
@@ -542,28 +649,49 @@
                 });
             }
 
-            function showInvoiceDetails(id) {
+            function showInvoiceReceipt(id) {
                 const inv = allInvoices.find(i => i.id === id);
                 if (!inv) return;
-                modalContent.innerHTML = `
-                    <div class="detail-row"><span class="label">رقم الفاتورة:</span><span class="value">${inv.invoice_number || inv.id?.substring(0,8)}</span></div>
-                    <div class="detail-row"><span class="label">التاريخ:</span><span class="value">${inv.date}</span></div>
-                    <div class="detail-row"><span class="label">العميل:</span><span class="value">${inv.customer_name || 'نقدي'}</span></div>
-                    <div class="detail-row"><span class="label">النوع:</span><span class="value">${inv.type === 'sale' ? 'بيع' : 'شراء'}</span></div>
-                    <div class="detail-row"><span class="label">الإجمالي:</span><span class="value">${fmtMoney(inv.total)}</span></div>
-                    <div class="detail-row"><span class="label">المدفوع:</span><span class="value">${fmtMoney(inv.paid)}</span></div>
-                    <div class="detail-row"><span class="label">المتبقي:</span><span class="value">${fmtMoney(inv.remaining)}</span></div>
-                    <div class="detail-row"><span class="label">الحالة:</span><span class="value">${getStatusText(inv.status)}</span></div>
-                    <div class="detail-row"><span class="label">الخصم:</span><span class="value">${fmtMoney(inv.discount)}</span></div>
-                    <div class="detail-row"><span class="label">الملاحظات:</span><span class="value">${inv.notes || '-'}</span></div>
+
+                const items = inv.items || [];
+                let itemsHtml = '';
+                items.forEach(item => {
+                    const lineTotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
+                    itemsHtml += `
+                        <tr>
+                            <td>${item.productName || ''} ${item.unitName ? '- ' + item.unitName : ''}</td>
+                            <td style="text-align:center;">${item.quantity}</td>
+                            <td style="text-align:center;">${fmtMoney(item.price)}</td>
+                            <td style="text-align:left;">${fmtMoney(lineTotal)}</td>
+                        </tr>
+                    `;
+                });
+
+                const receiptHtml = `
+                    <div class="receipt-header">${inv.customer_name || inv.supplier_name || 'نقدي'} - فاتورة ${inv.type === 'sale' ? 'بيع' : 'شراء'}</div>
+                    <div class="receipt-sub">${inv.invoice_number || inv.id?.substring(0,8)} | ${inv.date || ''}</div>
+                    <hr>
+                    <table>
+                        <thead>
+                            <tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr>
+                        </thead>
+                        <tbody>${itemsHtml || '<tr><td colspan="4">لا توجد منتجات</td></tr>'}</tbody>
+                    </table>
+                    <hr>
+                    <div class="receipt-row"><span>الإجمالي:</span><span>${fmtMoney(inv.total)}</span></div>
+                    ${inv.discount ? `<div class="receipt-row"><span>الخصم:</span><span>${fmtMoney(inv.discount)}</span></div>` : ''}
+                    <div class="receipt-row"><span>المدفوع:</span><span>${fmtMoney(inv.paid)}</span></div>
+                    <div class="receipt-row"><span>المتبقي:</span><span>${fmtMoney(inv.remaining)}</span></div>
+                    <hr>
+                    <div class="receipt-row receipt-total"><span>الإجمالي النهائي:</span><span>${fmtMoney(inv.total)}</span></div>
                 `;
-                modal.classList.add('open');
+
+                receiptPreview.innerHTML = receiptHtml;
+                receiptModal.classList.add('open');
             }
 
             async function deleteInvoice(id) {
                 try {
-                    // حذف منطقي عبر update status إلى voided أو استخدام DB.deleteInvoice إن وجدت
-                    // سنستخدم طريقة بسيطة: تحديث حالة الفاتورة إلى voided
                     const inv = allInvoices.find(i => i.id === id);
                     if (inv) {
                         await DB.saveInvoice({ ...inv, status: 'voided', deleted_at: new Date().toISOString() });
@@ -576,16 +704,34 @@
                 }
             }
 
-            // ربط الأحداث
+            // طباعة الإيصال
+            printReceiptBtn.addEventListener('click', () => {
+                const content = receiptPreview.innerHTML;
+                const printWindow = window.open('', '_blank', 'width=400,height=600');
+                if (printWindow) {
+                    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;background:white;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:5px;border-bottom:1px dashed #ccc}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${content}</body></html>`);
+                    printWindow.document.close();
+                    printWindow.focus();
+                    setTimeout(() => printWindow.print(), 300);
+                }
+            });
+
+            // أحداث الإغلاق
+            closeReceiptModal.addEventListener('click', () => receiptModal.classList.remove('open'));
+            closeReceiptBtn.addEventListener('click', () => receiptModal.classList.remove('open'));
+            receiptModal.addEventListener('click', (e) => {
+                if (e.target === receiptModal) receiptModal.classList.remove('open');
+            });
+
+            // زر الفاتورة الجديدة في الفوتر
+            footerNewInvoiceBtn.addEventListener('click', () => location.href = './pos.html');
+
+            // البحث والفلترة
             searchInput.addEventListener('input', filterInvoices);
             statusFilter.addEventListener('change', filterInvoices);
             typeFilter.addEventListener('change', filterInvoices);
 
-            closeDetailsBtn.addEventListener('click', () => modal.classList.remove('open'));
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.classList.remove('open');
-            });
-
+            // ربط القائمة والشريط العلوي
             menuToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('open');
                 sidebarOverlay.classList.toggle('show');
@@ -600,7 +746,6 @@
                     sidebarOverlay.classList.remove('show');
                 });
             });
-
             moreMenuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 moreDropdown.classList.toggle('show');
@@ -608,12 +753,9 @@
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
             });
-
             logoutBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                    await App.logout();
-                }
+                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) await App.logout();
             });
 
             async function initInvoicesPage() {
