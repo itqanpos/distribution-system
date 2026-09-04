@@ -19,9 +19,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
     <style>
         :root {
             --primary: #2563eb;
@@ -173,7 +170,7 @@
             padding-bottom: calc(20px + var(--safe-bottom));
         }
 
-        /* ===== كرت مبيعات اليوم ===== */
+        /* كرت مبيعات اليوم */
         .today-sales-card {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
@@ -186,7 +183,6 @@
             box-shadow: 0 8px 20px rgba(37,99,235,0.3);
         }
         .today-sales-card .main-stat {
-            grid-column: span 1;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -272,6 +268,36 @@
         }
         .card-header h3 { font-size: 1rem; font-weight: 700; }
 
+        /* بطاقات المبيعات الأسبوعية */
+        .week-sales-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        .week-sales-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center;
+            transition: all var(--transition);
+        }
+        .week-sales-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+        .week-sales-card .day {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .week-sales-card .amount {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .week-sales-card .count {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .data-table th {
             text-align: right; padding: 10px 8px;
@@ -309,7 +335,7 @@
         }
     </style>
 </head>
-<body class="loading">
+<body>
     <div id="offline-banner">أنت غير متصل بالإنترنت</div>
     <div id="loading-bar"></div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -338,7 +364,6 @@
         </div>
     </nav>
 
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -402,14 +427,16 @@
         <!-- بطاقات الإحصائيات -->
         <div class="stats-grid" id="statsGrid"></div>
 
-        <!-- الرسم البياني والجداول -->
-        <div class="dashboard-grid">
-            <div class="card">
-                <div class="card-header">
-                    <h3>مبيعات آخر 7 أيام</h3>
-                </div>
-                <canvas id="salesChart" height="200"></canvas>
+        <!-- بطاقات مبيعات آخر 7 أيام -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <h3>مبيعات آخر 7 أيام</h3>
             </div>
+            <div class="week-sales-grid" id="weekSalesGrid"></div>
+        </div>
+
+        <!-- الجداول -->
+        <div class="dashboard-grid">
             <div class="card">
                 <div class="card-header">
                     <h3>أحدث الفواتير</h3>
@@ -419,9 +446,6 @@
                     <p style="color:var(--text-muted);text-align:center;">جاري التحميل...</p>
                 </div>
             </div>
-        </div>
-
-        <div class="dashboard-grid" style="margin-top:16px;">
             <div class="card">
                 <div class="card-header">
                     <h3>منتجات منخفضة المخزون</h3>
@@ -431,6 +455,9 @@
                     <p style="color:var(--text-muted);text-align:center;">جاري التحميل...</p>
                 </div>
             </div>
+        </div>
+
+        <div class="dashboard-grid" style="margin-top:16px;">
             <div class="card">
                 <div class="card-header">
                     <h3>أحدث العملاء</h3>
@@ -445,7 +472,7 @@
 
     <div class="toast" id="toastContainer"></div>
 
-    <!-- السكريبتات -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-core.js"></script>
     <script src="./js/supabase-auth.js"></script>
@@ -458,6 +485,7 @@
         (() => {
             const loadingBar = document.getElementById('loading-bar');
             const statsGrid = document.getElementById('statsGrid');
+            const weekSalesGrid = document.getElementById('weekSalesGrid');
             const recentInvoices = document.getElementById('recentInvoices');
             const lowStockProducts = document.getElementById('lowStockProducts');
             const recentCustomers = document.getElementById('recentCustomers');
@@ -518,7 +546,6 @@
                         .filter(inv => inv.status === 'credit' || inv.status === 'partial')
                         .reduce((sum, inv) => sum + (Number(inv.remaining) || 0), 0);
 
-                    // تعبئة كرت مبيعات اليوم
                     document.getElementById('todayTotalSales').textContent = fmtMoney(todaySalesTotal);
                     document.getElementById('todayInvoicesCount').textContent = todayCount;
                     document.getElementById('todayAverage').textContent = fmtMoney(todayAvg);
@@ -526,14 +553,16 @@
                     document.getElementById('todayTransfer').textContent = fmtMoney(todayTransfer);
                     document.getElementById('todayCredit').textContent = fmtMoney(todayCredit);
 
-                    // الإحصائيات العامة
+                    // ===== بطاقات مبيعات آخر 7 أيام =====
+                    renderWeekSales(invData);
+
+                    // ===== الإحصائيات العامة =====
                     const todayPurchases = purData
                         .filter(p => p.date === today)
                         .reduce((sum, p) => sum + (Number(p.total) || 0), 0);
                     const pendingInvoices = invData.filter(inv => ['held', 'partial', 'pending'].includes(inv.status)).length;
                     const customersCount = partyData.filter(p => p.type === 'customer').length;
                     const suppliersCount = partyData.filter(p => p.type === 'supplier').length;
-                    const lowStock = prodData.filter(p => (p.units?.[0]?.stock || 0) < 5).length;
 
                     const stats = [
                         { label: 'مشتريات اليوم', value: fmtMoney(todayPurchases), icon: 'fa-truck', color: 'green' },
@@ -544,7 +573,7 @@
                     ];
                     renderStats(stats);
 
-                    // أحدث الفواتير
+                    // ===== أحدث الفواتير =====
                     const recentInvs = invData.slice(0, 5);
                     if (recentInvs.length) {
                         recentInvoices.innerHTML = recentInvs.map(inv => `
@@ -558,7 +587,7 @@
                         recentInvoices.innerHTML = '<p style="color:var(--text-muted);text-align:center;">لا توجد فواتير</p>';
                     }
 
-                    // منتجات منخفضة المخزون
+                    // ===== منتجات منخفضة المخزون =====
                     const lowProds = prodData.filter(p => (p.units?.[0]?.stock || 0) < 5).slice(0, 5);
                     if (lowProds.length) {
                         lowStockProducts.innerHTML = lowProds.map(p => `
@@ -571,7 +600,7 @@
                         lowStockProducts.innerHTML = '<p style="color:var(--text-muted);text-align:center;">لا توجد منتجات منخفضة المخزون</p>';
                     }
 
-                    // أحدث العملاء
+                    // ===== أحدث العملاء =====
                     const recentCusts = partyData.filter(p => p.type === 'customer').slice(0, 5);
                     if (recentCusts.length) {
                         recentCustomers.innerHTML = recentCusts.map(c => `
@@ -584,8 +613,6 @@
                     } else {
                         recentCustomers.innerHTML = '<p style="color:var(--text-muted);text-align:center;">لا يوجد عملاء</p>';
                     }
-
-                    renderSalesChart(invData);
 
                 } catch (e) {
                     console.error('Dashboard load failed:', e);
@@ -605,43 +632,30 @@
                 `).join('');
             }
 
-            function renderSalesChart(invoices) {
-                const canvas = document.getElementById('salesChart');
-                if (!canvas || typeof Chart === 'undefined') return;
-
+            function renderWeekSales(invoices) {
                 const days = [];
-                const sales = [];
                 for (let i = 6; i >= 0; i--) {
                     const d = new Date();
                     d.setDate(d.getDate() - i);
                     const dateStr = d.toISOString().split('T')[0];
-                    const daySales = invoices
-                        .filter(inv => inv.date === dateStr && inv.type === 'sale')
-                        .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
-                    days.push(dateStr.slice(5));
-                    sales.push(daySales);
+                    const dayInvs = invoices.filter(inv => inv.date === dateStr && inv.type === 'sale');
+                    const total = dayInvs.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+                    const count = dayInvs.length;
+                    days.push({
+                        date: dateStr,
+                        label: i === 0 ? 'اليوم' : dateStr.slice(5),
+                        total: total,
+                        count: count
+                    });
                 }
 
-                new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                        labels: days,
-                        datasets: [{
-                            label: 'المبيعات',
-                            data: sales,
-                            backgroundColor: 'rgba(37, 99, 235, 0.5)',
-                            borderColor: '#2563eb',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
-                });
+                weekSalesGrid.innerHTML = days.map(d => `
+                    <div class="week-sales-card">
+                        <div class="day">${d.label}</div>
+                        <div class="amount">${fmtMoney(d.total)}</div>
+                        <div class="count">${d.count} فواتير</div>
+                    </div>
+                `).join('');
             }
 
             // ===== ربط الأحداث =====
