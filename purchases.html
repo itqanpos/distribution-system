@@ -1,40 +1,332 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المشتريات · حسابي</title>
 
+    <!-- PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
 
+    <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/pos.css">
-    <link rel="stylesheet" href="./css/invoices.css">
-
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
 
     <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-dark: #1d4ed8;
+            --success: #10b981;
+            --success-light: #dcfce7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: 0.2s ease;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        [data-theme="dark"] {
+            --primary: #6366f1;
+            --primary-light: rgba(99,102,241,0.2);
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --success-light: rgba(16,185,129,0.2);
+            --danger: #ef4444;
+            --danger-light: rgba(239,68,68,0.2);
+            --warning: #f59e0b;
+            --warning-light: rgba(245,158,11,0.2);
+            --bg-body: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-light: #334155;
+            --border-medium: #475569;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
         #loading-bar {
             position: fixed; top: 0; left: 0; height: 3px;
-            background: #f59e0b; width: 0%; z-index: 9999;
+            background: var(--primary); width: 0%; z-index: 9999;
             transition: width 0.3s ease;
         }
-        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        #offline-banner {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: var(--danger); color: white;
+            text-align: center; padding: 6px;
+            font-size: 0.8rem; font-weight: 600;
+            z-index: 9998; transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        body.offline #offline-banner { transform: translateY(0); }
+
+        .navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--bg-surface); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0 16px;
+            height: calc(56px + var(--safe-top));
+            padding-top: var(--safe-top);
+            position: sticky; top: 0; z-index: 110;
+            flex-shrink: 0;
+        }
+        .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
+        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
+        .logo { display: flex; align-items: center; gap: 8px; }
+        .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .nav-actions { position: relative; }
+        .navbar-icon-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
+        }
+        .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
+
+        .more-dropdown {
+            position: absolute; top: 48px; left: 0;
+            background: var(--bg-surface); border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg); min-width: 200px;
+            z-index: 200; display: none; flex-direction: column;
+            overflow: hidden; border: 1px solid var(--border-light);
+        }
+        .more-dropdown.show { display: flex; }
+        .more-dropdown a {
+            padding: 12px 18px; color: var(--text-primary);
+            text-decoration: none; display: flex; align-items: center;
+            gap: 10px; font-weight: 500; font-size: 0.85rem; transition: background var(--transition);
+        }
+        .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
+        .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.35); z-index: 149;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .sidebar-overlay.show { opacity: 1; visibility: visible; }
+        .sidebar {
+            position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
+            height: 100%; background: var(--bg-surface); border-left: 1px solid var(--border-light);
+            padding: calc(20px + var(--safe-top)) 12px 20px 12px;
+            z-index: 150;
+            transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+            overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
+        .sidebar.open { right: 0; }
+        .sidebar-user { text-align: center; margin-bottom: 20px; }
+        .sidebar-avatar { width: 64px; height: 64px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: 700; font-size: 1.5rem; }
+        .sidebar-user h4 { color: var(--text-primary); }
+        .menu { list-style: none; }
+        .menu-section { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 12px 8px; }
+        .menu-item { display: flex; align-items: center; padding: 12px 14px; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); font-size: 0.85rem; transition: all var(--transition); }
+        .menu-item i { width: 22px; margin-left: 10px; }
+        .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
+        .menu-item.active { background: var(--primary-light); color: var(--primary); }
+
+        /* محتوى الصفحة */
+        .page-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .page-header h1 { font-size: 1.5rem; font-weight: 800; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 18px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition);
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .filters-bar input, .filters-bar select {
+            padding: 10px 14px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            outline: none;
+        }
+        .filters-bar input { flex: 1; min-width: 200px; }
+
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .data-table th {
+            text-align: right;
+            padding: 12px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border-light);
+        }
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover { background: var(--bg-input); }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-paid { background: var(--success-light); color: var(--success); }
+        .status-partial { background: var(--warning-light); color: var(--warning); }
+        .status-credit { background: var(--danger-light); color: var(--danger); }
+        .status-held { background: var(--bg-input); color: var(--text-muted); }
+
+        .action-btns { display: flex; gap: 6px; }
+        .action-btn {
+            background: none;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+        .action-btn.view { color: var(--primary); }
+        .action-btn.delete { color: var(--danger); }
+        .action-btn.delete:hover { background: var(--danger-light); border-color: var(--danger); }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 250;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .modal-header h2 { font-size: 1.2rem; }
+        .modal-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.9rem;
+        }
+        .detail-row .label { color: var(--text-secondary); }
+        .detail-row .value { font-weight: 600; }
+
+        @media (max-width: 768px) {
+            .page-header h1 { font-size: 1.2rem; }
+            .filters-bar { flex-direction: column; }
+            .filters-bar input, .filters-bar select { width: 100%; }
+        }
     </style>
 </head>
 <body>
+    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
     <div id="loading-bar"></div>
-
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- الشريط العلوي -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -49,13 +341,9 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="printPurchasesReportBtn"><i class="fas fa-print"></i> طباعة تقرير المشتريات</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="./settings.html" rel="noopener"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
                     <div class="dropdown-divider"></div>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
@@ -63,7 +351,6 @@
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -78,168 +365,276 @@
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
     </aside>
 
-    <!-- محتوى صفحة المشتريات -->
-    <main class="invoices-content">
+    <main class="page-content">
         <div class="page-header">
-            <h2>المشتريات</h2>
-            <div class="header-actions">
-                <button class="btn btn-primary" id="newPurchaseBtn">
-                    <i class="fas fa-plus"></i> فاتورة شراء جديدة
-                </button>
-            </div>
-        </div>
-
-        <!-- بطاقات إحصائية -->
-        <div class="stats-grid" id="purchaseStatsGrid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
-                <div class="stat-info"><div class="stat-label">إجمالي المشتريات</div><div class="stat-value" id="statTotalPurchases">---</div></div>
-            </div>
-            <div class="stat-card sales">
-                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="stat-info"><div class="stat-label">إجمالي القيمة</div><div class="stat-value" id="statTotalAmount">---</div></div>
-            </div>
-            <div class="stat-card orders">
-                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-                <div class="stat-info"><div class="stat-label">المدفوعة</div><div class="stat-value" id="statPaid">---</div></div>
-            </div>
-            <div class="stat-card customers">
-                <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                <div class="stat-info"><div class="stat-label">غير المدفوعة</div><div class="stat-value" id="statUnpaid">---</div></div>
-            </div>
-        </div>
-
-        <!-- فلترة -->
-        <div class="filter-bar">
-            <div class="filter-group">
-                <select id="filterStatus">
-                    <option value="all">كل الحالات</option>
-                    <option value="paid">مدفوعة</option>
-                    <option value="partial">جزئية</option>
-                    <option value="unpaid">غير مدفوعة</option>
-                    <option value="voided">ملغاة</option>
-                </select>
-            </div>
-            <div class="filter-group search-group">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="بحث برقم الفاتورة أو المورد...">
-            </div>
-            <button class="btn btn-outline" id="resetFiltersBtn">
-                <i class="fas fa-redo"></i> إعادة
+            <h1>المشتريات</h1>
+            <button class="btn-primary" onclick="location.href='./purchase-form.html'">
+                <i class="fas fa-plus"></i> فاتورة شراء جديدة
             </button>
         </div>
 
-        <!-- جدول المشتريات -->
-        <div class="table-card">
-            <div class="table-responsive">
-                <table id="purchasesTable">
-                    <thead>
-                        <tr>
-                            <th>رقم الفاتورة</th>
-                            <th>التاريخ</th>
-                            <th>المورد</th>
-                            <th>الإجمالي</th>
-                            <th>المدفوع</th>
-                            <th>المتبقي</th>
-                            <th>الحالة</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="purchasesTableBody">
-                        <tr>
-                            <td colspan="8" style="text-align:center;padding:40px;color:var(--gray-400);">
-                                <i class="fas fa-spinner fa-spin"></i> جاري تحميل المشتريات...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="pagination" id="pagination"></div>
+        <div class="filters-bar">
+            <input type="text" id="searchInput" placeholder="🔍 بحث برقم الفاتورة أو اسم المورد...">
+            <select id="statusFilter">
+                <option value="">كل الحالات</option>
+                <option value="paid">مدفوعة</option>
+                <option value="partial">جزئية</option>
+                <option value="credit">آجلة</option>
+            </select>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>التاريخ</th>
+                        <th>المورد</th>
+                        <th>الإجمالي</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>الحالة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="purchasesTableBody">
+                    <tr><td colspan="8" class="empty-state">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
         </div>
     </main>
 
-    <!-- مودال تفاصيل فاتورة شراء -->
+    <!-- Modal عرض تفاصيل فاتورة شراء -->
     <div class="modal" id="purchaseDetailsModal">
-        <div class="modal-content modal-lg">
+        <div class="modal-content">
             <div class="modal-header">
                 <h2>تفاصيل فاتورة الشراء</h2>
                 <button id="closeDetailsModalBtn">&times;</button>
             </div>
             <div id="purchaseDetailsContent"></div>
-            <div class="modal-actions">
-                <button class="btn btn-danger" id="voidPurchaseBtn" style="display:none;">
-                    <i class="fas fa-ban"></i> إلغاء الفاتورة
-                </button>
-                <button class="btn btn-primary" id="printPurchaseBtn">
-                    <i class="fas fa-print"></i> طباعة
-                </button>
-            </div>
         </div>
     </div>
 
-    <div id="toast" class="toast"></div>
+    <div class="toast" id="toastContainer"></div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
     <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
+    <script src="./js/supabase-offline.js"></script>
+    <script src="./js/supabase-db.js"></script>
     <script src="./js/toast.js"></script>
 
     <script>
-        (function() {
+        (() => {
             const loadingBar = document.getElementById('loading-bar');
-            function showLoading() { loadingBar.style.width = '80%'; }
-            function hideLoading() { loadingBar.style.width = '100%'; setTimeout(() => loadingBar.style.width = '0%', 200); }
+            const searchInput = document.getElementById('searchInput');
+            const statusFilter = document.getElementById('statusFilter');
+            const tableBody = document.getElementById('purchasesTableBody');
+            const modal = document.getElementById('purchaseDetailsModal');
+            const modalContent = document.getElementById('purchaseDetailsContent');
+            const closeDetailsBtn = document.getElementById('closeDetailsModalBtn');
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const moreMenuBtn = document.getElementById('moreMenuBtn');
+            const moreDropdown = document.getElementById('moreDropdown');
+            const logoutBtn = document.getElementById('logoutBtn');
 
-            async function initApp() {
-                if (!window.App) {
-                    if (window.Toast) Toast.error('خطأ في تحميل التطبيق');
-                    else alert('خطأ في تحميل التطبيق');
-                    return;
-                }
+            let allPurchases = [];
 
-                showLoading();
+            function fmtMoney(v) {
+                return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+            }
 
-                try {
-                    const authorized = await App.requireAuth();
-                    if (!authorized) { hideLoading(); return; }
+            function getStatusBadge(status) {
+                const map = {
+                    paid: 'status-paid',
+                    partial: 'status-partial',
+                    credit: 'status-credit'
+                };
+                return map[status] || 'status-paid';
+            }
 
-                    const roleOk = await App.requireRole(['admin', 'rep']);
-                    if (!roleOk) { hideLoading(); return; }
+            function getStatusText(status) {
+                const map = {
+                    paid: 'مدفوعة',
+                    partial: 'جزئية',
+                    credit: 'آجلة'
+                };
+                return map[status] || status;
+            }
 
-                    App.initUserInterface();
-
-                    const script = document.createElement('script');
-                    script.src = './js/purchases.js';
-                    script.onload = function() {
-                        if (window.PurchasesPage) {
-                            window.PurchasesPage.init();
+            function waitForCore(timeoutMs = 8000) {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const check = () => {
+                        if (window.App && window.DB) {
+                            resolve();
+                        } else if (Date.now() - start > timeoutMs) {
+                            reject(new Error('Core not loaded'));
                         } else {
-                            if (window.Toast) Toast.error('فشل تهيئة صفحة المشتريات');
+                            setTimeout(check, 200);
                         }
-                        hideLoading();
                     };
-                    script.onerror = function() {
-                        if (window.Toast) Toast.error('فشل تحميل ملفات الصفحة');
-                        hideLoading();
-                    };
-                    document.body.appendChild(script);
+                    check();
+                });
+            }
+
+            async function loadPurchases() {
+                try {
+                    const purchases = await DB.getPurchases();
+                    allPurchases = purchases || [];
+                    renderTable(allPurchases);
                 } catch (e) {
-                    console.error('خطأ في التهيئة:', e);
-                    if (window.Toast) Toast.error('حدث خطأ غير متوقع');
-                    hideLoading();
+                    console.error('Failed to load purchases:', e);
+                    tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">فشل تحميل المشتريات</td></tr>';
                 }
             }
 
-            initApp();
+            function filterPurchases() {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                const status = statusFilter.value;
+
+                const filtered = allPurchases.filter(p => {
+                    const matchesSearch = !searchTerm ||
+                        (p.invoice_number && p.invoice_number.toLowerCase().includes(searchTerm)) ||
+                        (p.supplier_name && p.supplier_name.toLowerCase().includes(searchTerm));
+                    const matchesStatus = !status || p.status === status;
+                    return matchesSearch && matchesStatus;
+                });
+                renderTable(filtered);
+            }
+
+            function renderTable(purchases) {
+                if (!purchases.length) {
+                    tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">لا توجد مشتريات</td></tr>';
+                    return;
+                }
+                tableBody.innerHTML = purchases.map(p => `
+                    <tr>
+                        <td>${p.invoice_number || p.id?.substring(0,8)}</td>
+                        <td>${p.date || ''}</td>
+                        <td>${p.supplier_name || 'بدون مورد'}</td>
+                        <td>${fmtMoney(p.total)}</td>
+                        <td>${fmtMoney(p.paid)}</td>
+                        <td>${fmtMoney(p.remaining)}</td>
+                        <td><span class="status-badge ${getStatusBadge(p.status)}">${getStatusText(p.status)}</span></td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="action-btn view" data-id="${p.id}" title="عرض"><i class="fas fa-eye"></i></button>
+                                <button class="action-btn delete" data-id="${p.id}" title="حذف"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+                tableBody.querySelectorAll('.action-btn.view').forEach(btn => {
+                    btn.addEventListener('click', () => showPurchaseDetails(btn.dataset.id));
+                });
+                tableBody.querySelectorAll('.action-btn.delete').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+                            await deletePurchase(btn.dataset.id);
+                        }
+                    });
+                });
+            }
+
+            function showPurchaseDetails(id) {
+                const p = allPurchases.find(i => i.id === id);
+                if (!p) return;
+                modalContent.innerHTML = `
+                    <div class="detail-row"><span class="label">رقم الفاتورة:</span><span class="value">${p.invoice_number || p.id?.substring(0,8)}</span></div>
+                    <div class="detail-row"><span class="label">التاريخ:</span><span class="value">${p.date}</span></div>
+                    <div class="detail-row"><span class="label">المورد:</span><span class="value">${p.supplier_name || 'بدون مورد'}</span></div>
+                    <div class="detail-row"><span class="label">الإجمالي:</span><span class="value">${fmtMoney(p.total)}</span></div>
+                    <div class="detail-row"><span class="label">المدفوع:</span><span class="value">${fmtMoney(p.paid)}</span></div>
+                    <div class="detail-row"><span class="label">المتبقي:</span><span class="value">${fmtMoney(p.remaining)}</span></div>
+                    <div class="detail-row"><span class="label">الخصم:</span><span class="value">${fmtMoney(p.discount)}</span></div>
+                    <div class="detail-row"><span class="label">الحالة:</span><span class="value">${getStatusText(p.status)}</span></div>
+                    <div class="detail-row"><span class="label">الملاحظات:</span><span class="value">${p.notes || '-'}</span></div>
+                `;
+                modal.classList.add('open');
+            }
+
+            async function deletePurchase(id) {
+                try {
+                    const p = allPurchases.find(i => i.id === id);
+                    if (p) {
+                        await DB.savePurchase({ ...p, status: 'voided', deleted_at: new Date().toISOString() });
+                        await loadPurchases();
+                        if (window.Toast) Toast.success('تم حذف الفاتورة');
+                    }
+                } catch (e) {
+                    console.error('Delete failed:', e);
+                    if (window.Toast) Toast.error('فشل حذف الفاتورة');
+                }
+            }
+
+            // ربط الأحداث
+            searchInput.addEventListener('input', filterPurchases);
+            statusFilter.addEventListener('change', filterPurchases);
+
+            closeDetailsBtn.addEventListener('click', () => modal.classList.remove('open'));
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('open');
+            });
+
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                sidebarOverlay.classList.toggle('show');
+            });
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
+            });
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('show');
+                });
+            });
+
+            moreMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                moreDropdown.classList.toggle('show');
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
+            });
+
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                    await App.logout();
+                }
+            });
+
+            async function initPurchasesPage() {
+                loadingBar.style.width = '80%';
+                try {
+                    await waitForCore();
+                    await App.requireAuth();
+                    App.initUserInterface();
+                    await loadPurchases();
+                    loadingBar.style.width = '100%';
+                } catch (e) {
+                    console.error('Purchases page init failed:', e);
+                    loadingBar.style.background = 'var(--danger)';
+                } finally {
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+                }
+            }
+
+            initPurchasesPage();
         })();
     </script>
 </body>
