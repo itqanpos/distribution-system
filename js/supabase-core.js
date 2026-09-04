@@ -9,18 +9,9 @@
 
     window.supabaseClient = null;
 
-    const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const logger = {
-        log: (...args) => IS_DEV && console.log(...args),
-        warn: (...args) => console.warn(...args),
-        error: (...args) => console.error(...args)
-    };
-
     // ---------- UUID Generator ----------
     function generateUUID() {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            return crypto.randomUUID();
-        }
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
         if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
             const buf = new Uint8Array(16);
             crypto.getRandomValues(buf);
@@ -58,11 +49,9 @@
                         fullName: session.fullName,
                         tenant_id: session.tenant_id
                     };
-                    logger.log('✅ تم استعادة الجلسة من localStorage');
                     return true;
                 }
             } catch (e) {
-                logger.warn('فشل استعادة الجلسة، جارٍ حذف البيانات التالفة');
                 localStorage.removeItem('app_session');
             }
             return false;
@@ -72,17 +61,16 @@
             this._user = val;
             this._tenantId = val ? (val.tenant_id || null) : null;
             if (val) {
-                try {
-                    localStorage.setItem('app_session', JSON.stringify({
-                        id: val.id,
-                        email: val.email,
-                        fullName: val.fullName,
-                        tenant_id: val.tenant_id,
-                        loginTime: new Date().toLocaleString('ar-EG')
-                    }));
-                } catch (e) { /* تجاهل */ }
+                const session = {
+                    id: val.id,
+                    email: val.email,
+                    fullName: val.fullName,
+                    tenant_id: val.tenant_id,
+                    loginTime: new Date().toLocaleString('en-US')
+                };
+                try { localStorage.setItem('app_session', JSON.stringify(session)); } catch (e) {}
             } else {
-                try { localStorage.removeItem('app_session'); } catch (e) { /* تجاهل */ }
+                try { localStorage.removeItem('app_session'); } catch (e) {}
                 this._cache.clear();
                 this._cacheTimes.clear();
             }
@@ -120,23 +108,9 @@
     };
     window.SessionStore = SessionStore;
 
-    // تنظيف دوري للكاش
-    setInterval(() => {
-        const now = Date.now();
-        for (const [key, expiry] of SessionStore._cacheTimes) {
-            if (now > expiry) {
-                SessionStore._cache.delete(key);
-                SessionStore._cacheTimes.delete(key);
-            }
-        }
-    }, 60000);
-
     // ---------- تهيئة Supabase ----------
     function initSupabase() {
-        if (typeof supabase === 'undefined') {
-            logger.warn('مكتبة Supabase غير محملة بعد');
-            return false;
-        }
+        if (typeof supabase === 'undefined') return false;
         try {
             const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
@@ -149,26 +123,24 @@
                 global: { headers: { 'X-Client-Info': 'hesaby/4.0' } }
             });
             window.supabaseClient = client;
-            logger.log('✅ تم تهيئة Supabase client');
             return true;
         } catch (e) {
-            logger.error('❌ فشل تهيئة Supabase', e);
+            console.error('Supabase init failed:', e);
             return false;
         }
     }
 
     if (!initSupabase()) {
-        let retryCount = 0;
-        const maxRetries = 10;
-        const retryInterval = setInterval(() => {
-            if (window.supabaseClient || retryCount >= maxRetries) {
-                clearInterval(retryInterval);
+        let retries = 0;
+        const interval = setInterval(() => {
+            if (window.supabaseClient || retries >= 10) {
+                clearInterval(interval);
                 return;
             }
             if (typeof supabase !== 'undefined' && initSupabase()) {
-                clearInterval(retryInterval);
+                clearInterval(interval);
             }
-            retryCount++;
+            retries++;
         }, 1500);
     }
 
@@ -176,14 +148,15 @@
         setTimeout(() => SessionStore.restoreSession(), 100);
     });
 
-    // دالة مساعدة للحصول على العميل
-    window.getSupabaseClient = () => {
-        return new Promise(resolve => {
-            if (window.supabaseClient) return resolve(window.supabaseClient);
-            const check = setInterval(() => {
-                if (window.supabaseClient) { clearInterval(check); resolve(window.supabaseClient); }
-            }, 100);
-        });
-    };
-
+    async function getLocalDBAsync() {
+        if (!window.localDB) return null;
+        try {
+            await window.localDB.initPromise;
+            return window.localDB.ready ? window.localDB : null;
+        } catch (e) {
+            console.warn('localDB not ready', e);
+            return null;
+        }
+    }
+    window.getLocalDBAsync = getLocalDBAsync;
 })();
