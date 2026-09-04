@@ -1,5 +1,5 @@
 /* =============================================
-   supabase-db.js - دوال قاعدة البيانات (مُحسَّن ومتوافق مع IndexedDB)
+   supabase-db.js - دوال قاعدة البيانات (مصحح)
    ============================================= */
 (function() {
     'use strict';
@@ -8,20 +8,69 @@
         return window.supabaseClient;
     }
 
-    // ---------- دوال سحابية مساعدة ----------
+    // ---------- دوال سحابية مساعدة (تنظف البيانات) ----------
     const _cloud = {
-        saveProduct: async (p) => { const { error } = await getClient().from('products').upsert(p, { onConflict: 'id' }); if (error) throw error; },
-        saveParty: async (p) => { const { error } = await getClient().from('parties').upsert(p, { onConflict: 'id' }); if (error) throw error; },
-        saveInvoice: async (inv) => { const { error } = await getClient().from('invoices').upsert(inv, { onConflict: 'id' }); if (error) throw error; },
-        savePurchase: async (pur) => { const { error } = await getClient().from('purchases').upsert(pur, { onConflict: 'id' }); if (error) throw error; },
-        saveTransaction: async (t) => { const { error } = await getClient().from('transactions').upsert(t, { onConflict: 'id' }); if (error) throw error; },
-        saveReturn: async (r) => { const { error } = await getClient().from('returns').upsert(r, { onConflict: 'id' }); if (error) throw error; },
-        saveJournalEntry: async (e) => { const { error } = await getClient().from('journal_entries').upsert(e, { onConflict: 'id' }); if (error) throw error; },
-        deleteProduct: async (p) => { const { error } = await getClient().from('products').update({ deleted_at: new Date().toISOString() }).eq('id', p.id); if (error) throw error; },
-        deleteParty: async (p) => { const { error } = await getClient().from('parties').update({ deleted_at: new Date().toISOString() }).eq('id', p.id); if (error) throw error; }
+        _clean(data) {
+            if (!data || typeof data !== 'object') return data;
+            const copy = { ...data };
+            delete copy._operation;
+            delete copy._tempId;
+            delete copy._offline;
+            delete copy.updated_at;
+            delete copy.version;
+            return copy;
+        },
+        saveProduct: async (p) => {
+            const clean = _cloud._clean(p);
+            const { error } = await getClient().from('products').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        saveParty: async (p) => {
+            const clean = _cloud._clean(p);
+            const { error } = await getClient().from('parties').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        saveInvoice: async (inv) => {
+            const clean = _cloud._clean(inv);
+            const { error } = await getClient().from('invoices').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        savePurchase: async (pur) => {
+            const clean = _cloud._clean(pur);
+            const { error } = await getClient().from('purchases').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        saveTransaction: async (t) => {
+            const clean = _cloud._clean(t);
+            const { error } = await getClient().from('transactions').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        saveReturn: async (r) => {
+            const clean = _cloud._clean(r);
+            const { error } = await getClient().from('returns').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        saveJournalEntry: async (e) => {
+            const clean = _cloud._clean(e);
+            const { error } = await getClient().from('journal_entries').upsert(clean, { onConflict: 'id' });
+            if (error) throw error;
+        },
+        deleteProduct: async (p) => {
+            const clean = _cloud._clean(p);
+            const { error } = await getClient().from('products')
+                .update({ deleted_at: clean.deleted_at || new Date().toISOString() })
+                .eq('id', clean.id);
+            if (error) throw error;
+        },
+        deleteParty: async (p) => {
+            const clean = _cloud._clean(p);
+            const { error } = await getClient().from('parties')
+                .update({ deleted_at: clean.deleted_at || new Date().toISOString() })
+                .eq('id', clean.id);
+            if (error) throw error;
+        }
     };
 
-    // ---------- مُولّد UUID ----------
     function generateUUID() {
         if (window.generateUUID) return window.generateUUID();
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -30,17 +79,16 @@
         });
     }
 
-    // ---------- طبقة Offline ----------
     function offlineGet(storeName, cloudFetcher, forceRefresh = false) {
         if (window.OfflineLayer && typeof window.OfflineLayer.get === 'function') {
             return window.OfflineLayer.get(storeName, cloudFetcher, forceRefresh);
         }
         if (!getClient()) {
-            console.warn('Supabase client غير متوفر ولا OfflineLayer');
+            console.warn('No Supabase client, returning empty');
             return Promise.resolve([]);
         }
         return cloudFetcher().catch(err => {
-            console.error(`فشل جلب ${storeName}`, err);
+            console.error(`Failed to fetch ${storeName}`, err);
             return [];
         });
     }
@@ -49,10 +97,11 @@
         if (window.OfflineLayer && typeof window.OfflineLayer.save === 'function') {
             return window.OfflineLayer.save(storeName, data, cloudSaver, isNew);
         }
-        if (!getClient()) {
-            return Promise.reject(new Error('غير متصل ولا توجد قاعدة بيانات محلية'));
-        }
-        return cloudSaver(data);
+        if (!getClient()) throw new Error('غير متصل ولا توجد قاعدة بيانات محلية');
+        return cloudSaver(data).catch(err => {
+            console.error(`Failed to save ${storeName}`, err);
+            throw err;
+        });
     }
 
     function invalidateDataCache(storeName) {
@@ -61,12 +110,11 @@
         }
     }
 
-    // ---------- تحويل وحدات المنتج (دعم علاقات و JSON) ----------
     function transformProducts(rawProducts) {
         return rawProducts.map(p => {
             const units = (p.product_units || []).map(u => ({
                 id: u.id,
-                name: u.unit_name || u.name,
+                name: u.unit_name,
                 price: u.price,
                 cost: u.cost,
                 factor: u.factor,
@@ -76,200 +124,344 @@
                 barcode: u.barcode
             }));
             if (units.length === 0) {
-                let parsedUnits = [];
-                if (p.units) {
-                    if (typeof p.units === 'string') {
-                        try { parsedUnits = JSON.parse(p.units); } catch { parsedUnits = []; }
-                    } else if (Array.isArray(p.units)) {
-                        parsedUnits = p.units;
-                    }
-                }
-                parsedUnits.forEach(u => units.push({
-                    name: u.name || 'وحدة',
-                    price: u.price || 0,
-                    cost: u.cost || 0,
-                    factor: u.factor || 1,
-                    stock: u.stock || 0,
-                    minPrice: u.min_price || 0,
-                    maxPrice: u.max_price || 0
-                }));
-                if (units.length === 0) {
-                    units.push({ name: 'وحدة', price: p.price || 0, cost: p.cost || 0, factor: 1, stock: p.stock || 0, minPrice: 0, maxPrice: 0 });
-                }
+                units.push({
+                    name: 'وحدة',
+                    price: p.price || 0,
+                    cost: p.cost || 0,
+                    factor: 1,
+                    stock: p.stock || 0,
+                    minPrice: 0,
+                    maxPrice: 0
+                });
             }
-            return { ...p, units, product_units: undefined };
+            return {
+                ...p,
+                units,
+                product_units: undefined
+            };
         });
     }
 
-    // ========== كائن DB العام ==========
     window.DB = {
+        _cloudSaveProduct: _cloud.saveProduct,
+        _cloudSaveParty: _cloud.saveParty,
+        _cloudSaveInvoice: _cloud.saveInvoice,
+        _cloudSavePurchase: _cloud.savePurchase,
+        _cloudSaveTransaction: _cloud.saveTransaction,
+        _cloudSaveReturn: _cloud.saveReturn,
+        _cloudSaveJournalEntry: _cloud.saveJournalEntry,
+        _cloudDeleteProduct: _cloud.deleteProduct,
+        _cloudDeleteParty: _cloud.deleteParty,
+
         getProducts: (force) => offlineGet('products', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
-            try {
-                const { data, error } = await client.from('products').select('*, product_units(*)').is('deleted_at', null).order('name');
-                if (!error) return transformProducts(data || []);
-                console.warn('product_units join failed:', error.message);
-            } catch (e) {}
-            const { data, error } = await client.from('products').select('*').is('deleted_at', null).order('name');
+            const { data, error } = await client
+                .from('products')
+                .select('*, product_units(*)')
+                .is('deleted_at', null)
+                .order('name');
             if (error) throw error;
             return transformProducts(data || []);
         }, force),
 
         saveProduct(p) {
             const isNew = !p.id;
-            return offlineSave('products', { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.saveProduct, isNew);
+            const product = {
+                ...p,
+                id: p.id || generateUUID(),
+                _operation: isNew ? 'INSERT' : 'UPDATE'
+            };
+            return offlineSave('products', product, _cloud.saveProduct, isNew);
         },
-        deleteProduct: (id) => offlineSave('products', { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' }, _cloud.deleteProduct, false),
 
-        getParties: (type) => offlineGet('parties' + (type ? '_' + type : ''), async () => {
-            const client = getClient();
-            if (!client) throw new Error('غير متصل');
-            let q = client.from('parties').select('*').is('deleted_at', null).order('name');
-            if (type) q = q.eq('type', type);
-            const { data, error } = await q;
-            if (error) throw error;
-            return data || [];
-        }),
+        deleteProduct: (id) => {
+            const data = { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' };
+            return offlineSave('products', data, _cloud.deleteProduct, false);
+        },
+
+        getParties: (type) => {
+            const storeKey = 'parties' + (type ? '_' + type : '');
+            return offlineGet(storeKey, async () => {
+                const client = getClient();
+                if (!client) throw new Error('غير متصل');
+                let q = client.from('parties').select('*').is('deleted_at', null).order('name');
+                if (type) q = q.eq('type', type);
+                const { data, error } = await q;
+                if (error) throw error;
+                return data || [];
+            });
+        },
+
         saveParty(p) {
             const isNew = !p.id;
-            return offlineSave('parties', { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.saveParty, isNew);
+            const party = { ...p, id: p.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+            return offlineSave('parties', party, _cloud.saveParty, isNew);
         },
-        deleteParty: (id) => offlineSave('parties', { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' }, _cloud.deleteParty, false),
+
+        deleteParty: (id) => {
+            const data = { id, deleted_at: new Date().toISOString(), _operation: 'UPDATE' };
+            return offlineSave('parties', data, _cloud.deleteParty, false);
+        },
 
         getInvoices: () => offlineGet('invoices', async () => {
-            const { data, error } = await getClient().from('invoices').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('invoices')
+                .select('*')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
         saveInvoice(inv) {
             const isNew = !inv.id;
-            return offlineSave('invoices', { ...inv, id: inv.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.saveInvoice, isNew);
+            const invoice = { ...inv, id: inv.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+            return offlineSave('invoices', invoice, _cloud.saveInvoice, isNew);
         },
+
         getHeldInvoices: () => offlineGet('held_invoices', async () => {
-            const { data, error } = await getClient().from('invoices').select('*').eq('type', 'sale').eq('status', 'held').is('deleted_at', null);
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('invoices')
+                .select('*')
+                .eq('type', 'sale')
+                .eq('status', 'held')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
         getInvoicesLight: () => offlineGet('invoices_light', async () => {
-            const { data, error } = await getClient().from('invoices').select('id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status').is('deleted_at', null).order('created_at', { ascending: false });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('invoices')
+                .select('id, invoice_number, date, created_at, type, customer_id, customer_name, total, paid, remaining, status')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
         getInvoiceById: async (id) => {
-            const { data, error } = await getClient().from('invoices').select('*').eq('id', id).maybeSingle();
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('invoices')
+                .select('*')
+                .eq('id', id)
+                .maybeSingle();
             if (error) throw error;
             return data || null;
         },
+
         createSaleInvoice: async (inv) => {
-            const { data, error } = await getClient().rpc('create_sale_invoice', { p_data: inv });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client.rpc('create_sale_invoice', { p_data: inv });
             if (error) throw new Error(error.message);
             if (!data.success) throw new Error(data.error);
             invalidateDataCache('invoices');
+            invalidateDataCache('invoices_light');
             return data;
         },
+
         editSaleInvoice: async (inv) => {
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
             try {
-                const { data: rpcData, error } = await getClient().rpc('edit_sale_invoice', { p_data: inv });
-                if (!error && rpcData && rpcData.success !== false) return rpcData;
-                throw error || new Error(rpcData?.error);
+                const { data: rpcData, error: rpcError } = await client.rpc('edit_sale_invoice', { p_data: inv });
+                if (!rpcError && rpcData) {
+                    if (rpcData.success === false) throw new Error(rpcData.error);
+                    invalidateDataCache('invoices');
+                    return rpcData;
+                }
+                throw rpcError || new Error('RPC غير متوفرة');
             } catch (e) {
-                console.warn('edit_sale_invoice fallback:', e);
-                const { error: updateError } = await getClient().from('invoices').upsert(inv, { onConflict: 'id' });
+                console.warn('edit_sale_invoice RPC failed, fallback to upsert:', e);
+                const { error: updateError } = await client.from('invoices').upsert(inv, { onConflict: 'id' });
                 if (updateError) throw updateError;
+                invalidateDataCache('invoices');
                 return { success: true };
             }
         },
 
         getPurchases: () => offlineGet('purchases', async () => {
-            const { data, error } = await getClient().from('purchases').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('purchases')
+                .select('*')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
         savePurchase(pur) {
             const isNew = !pur.id;
-            return offlineSave('purchases', { ...pur, id: pur.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.savePurchase, isNew);
+            const purchase = { ...pur, id: pur.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+            return offlineSave('purchases', purchase, _cloud.savePurchase, isNew);
         },
+
         getPurchasesLight: () => offlineGet('purchases_light', async () => {
-            const { data, error } = await getClient().from('purchases').select('id, date, created_at, supplier_id, supplier_name, total, paid, remaining, status').is('deleted_at', null).order('created_at', { ascending: false });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('purchases')
+                .select('id, date, created_at, supplier_id, supplier_name, total, paid, remaining, status')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
+        getPurchaseById: async (id) => {
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('purchases')
+                .select('*')
+                .eq('id', id)
+                .maybeSingle();
+            if (error) throw error;
+            return data || null;
+        },
+
         createPurchaseInvoice: async (inv) => {
-            const { data, error } = await getClient().rpc('create_purchase_invoice', { p_data: inv });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client.rpc('create_purchase_invoice', { p_data: inv });
             if (error) throw new Error(error.message);
             if (!data.success) throw new Error(data.error);
             invalidateDataCache('purchases');
+            invalidateDataCache('purchases_light');
             return data;
         },
 
         getTransactions: () => offlineGet('transactions', async () => {
-            const { data, error } = await getClient().from('transactions').select('*').is('deleted_at', null).order('date', { ascending: false });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('transactions')
+                .select('*')
+                .is('deleted_at', null)
+                .order('date', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
         saveTransaction(t) {
             const isNew = !t.id;
-            return offlineSave('transactions', { ...t, id: t.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.saveTransaction, isNew);
+            const trans = { ...t, id: t.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+            return offlineSave('transactions', trans, _cloud.saveTransaction, isNew);
         },
 
-        getReturns: (type) => offlineGet('returns' + (type ? '_' + type : ''), async () => {
-            let q = getClient().from('returns').select('*').is('deleted_at', null).order('date', { ascending: false });
-            if (type) q = q.eq('type', type);
-            const { data, error } = await q;
-            if (error) throw error;
-            return data || [];
-        }),
+        getReturns: (type) => {
+            const storeKey = 'returns' + (type ? '_' + type : '');
+            return offlineGet(storeKey, async () => {
+                const client = getClient();
+                if (!client) throw new Error('غير متصل');
+                let q = client.from('returns').select('*').is('deleted_at', null).order('date', { ascending: false });
+                if (type) q = q.eq('type', type);
+                const { data, error } = await q;
+                if (error) throw error;
+                return data || [];
+            });
+        },
+
         saveReturn(r) {
             const isNew = !r.id;
-            return offlineSave('returns', { ...r, id: r.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.saveReturn, isNew);
+            const ret = { ...r, id: r.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+            return offlineSave('returns', ret, _cloud.saveReturn, isNew);
         },
 
         getJournalEntries: () => offlineGet('journal_entries', async () => {
-            const { data, error } = await getClient().from('journal_entries').select('*').is('deleted_at', null).order('date', { ascending: false });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('journal_entries')
+                .select('*')
+                .is('deleted_at', null)
+                .order('date', { ascending: false });
             if (error) throw error;
             return data || [];
         }),
+
         saveJournalEntry(e) {
             const isNew = !e.id;
-            return offlineSave('journal_entries', { ...e, id: e.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' }, _cloud.saveJournalEntry, isNew);
+            const entry = { ...e, id: e.id || generateUUID(), _operation: isNew ? 'INSERT' : 'UPDATE' };
+            return offlineSave('journal_entries', entry, _cloud.saveJournalEntry, isNew);
         },
 
         getAccounts: () => offlineGet('accounts', async () => {
-            const { data, error } = await getClient().from('accounts').select('*').is('deleted_at', null).order('name');
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client
+                .from('accounts')
+                .select('*')
+                .is('deleted_at', null)
+                .order('name');
             if (error) throw error;
             return data || [];
         }),
 
         getSettings: () => offlineGet('settings', async () => {
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
             const tenantId = window.SessionStore?.tenantId;
             if (!tenantId) return {};
-            const { data, error } = await getClient().from('settings').select('data').eq('tenant_id', tenantId).maybeSingle();
+            const { data, error } = await client
+                .from('settings')
+                .select('data')
+                .eq('tenant_id', tenantId)
+                .maybeSingle();
             if (error && error.code !== 'PGRST116') throw error;
             return data?.data || {};
         }),
+
         saveSettings: async (s) => {
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
             const tenantId = window.SessionStore?.tenantId;
             if (!tenantId) throw new Error('لا يوجد معرف مستأجر');
-            const { data, error } = await getClient().from('settings').upsert({ tenant_id: tenantId, data: s }, { onConflict: 'tenant_id' }).select('data').single();
+            const { data, error } = await client
+                .from('settings')
+                .upsert({ tenant_id: tenantId, data: s }, { onConflict: 'tenant_id' })
+                .select('data')
+                .single();
             if (error) throw error;
             invalidateDataCache('settings');
             return data.data;
         },
 
         generateInvoiceNumber: async () => {
-            const { data, error } = await getClient().rpc('next_sequence', { p_name: 'inv_' + new Date().getFullYear().toString().slice(-2) });
-            if (error) throw new Error(error.message);
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client.rpc('next_sequence', {
+                p_name: 'inv_' + new Date().getFullYear().toString().slice(-2)
+            });
+            if (error) throw new Error('فشل توليد رقم الفاتورة: ' + error.message);
             return data;
         },
 
         getAllTenantsData: async () => {
-            const { data, error } = await getClient().rpc('get_all_tenants_data');
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { data, error } = await client.rpc('get_all_tenants_data');
             if (error) throw error;
             return data || [];
         },
+
         deleteTenant: async (tenantId) => {
-            const { error } = await getClient().rpc('delete_tenant', { p_tenant_id: tenantId });
+            const client = getClient();
+            if (!client) throw new Error('غير متصل');
+            const { error } = await client.rpc('delete_tenant', { p_tenant_id: tenantId });
             if (error) throw error;
         }
     };
