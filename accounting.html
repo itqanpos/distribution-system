@@ -1,35 +1,355 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المحاسبة · حسابي</title>
-    
-    <link rel="icon" href="./icons/icon-192x192.png">
+
+    <!-- PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/accounting.css">
-    
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
-    
-    <script src="./js/db-local.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- الخطوط والأيقونات -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-dark: #1d4ed8;
+            --success: #10b981;
+            --success-light: #dcfce7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: 0.2s ease;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        [data-theme="dark"] {
+            --primary: #6366f1;
+            --primary-light: rgba(99,102,241,0.2);
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --success-light: rgba(16,185,129,0.2);
+            --danger: #ef4444;
+            --danger-light: rgba(239,68,68,0.2);
+            --warning: #f59e0b;
+            --warning-light: rgba(245,158,11,0.2);
+            --bg-body: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-light: #334155;
+            --border-medium: #475569;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #loading-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 9999; transition: width 0.3s ease; }
+
+        #offline-banner {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: var(--danger); color: white;
+            text-align: center; padding: 6px;
+            font-size: 0.8rem; font-weight: 600;
+            z-index: 9998; transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        body.offline #offline-banner { transform: translateY(0); }
+
+        .navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--bg-surface); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0 16px;
+            height: calc(56px + var(--safe-top));
+            padding-top: var(--safe-top);
+            position: sticky; top: 0; z-index: 110;
+            flex-shrink: 0;
+        }
+        .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
+        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
+        .logo { display: flex; align-items: center; gap: 8px; }
+        .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .nav-actions { position: relative; }
+        .navbar-icon-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
+        }
+        .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
+
+        .more-dropdown {
+            position: absolute; top: 48px; left: 0;
+            background: var(--bg-surface); border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg); min-width: 200px;
+            z-index: 200; display: none; flex-direction: column;
+            overflow: hidden; border: 1px solid var(--border-light);
+        }
+        .more-dropdown.show { display: flex; }
+        .more-dropdown a {
+            padding: 12px 18px; color: var(--text-primary);
+            text-decoration: none; display: flex; align-items: center;
+            gap: 10px; font-weight: 500; font-size: 0.85rem; transition: background var(--transition);
+        }
+        .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
+        .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.35); z-index: 149;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .sidebar-overlay.show { opacity: 1; visibility: visible; }
+        .sidebar {
+            position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
+            height: 100%; background: var(--bg-surface); border-left: 1px solid var(--border-light);
+            padding: calc(20px + var(--safe-top)) 12px 20px 12px;
+            z-index: 150;
+            transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+            overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
+        .sidebar.open { right: 0; }
+        .sidebar-user { text-align: center; margin-bottom: 20px; }
+        .sidebar-avatar { width: 64px; height: 64px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: 700; font-size: 1.5rem; }
+        .sidebar-user h4 { color: var(--text-primary); }
+        .menu { list-style: none; }
+        .menu-section { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 12px 8px; }
+        .menu-item { display: flex; align-items: center; padding: 12px 14px; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); font-size: 0.85rem; transition: all var(--transition); }
+        .menu-item i { width: 22px; margin-left: 10px; }
+        .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
+        .menu-item.active { background: var(--primary-light); color: var(--primary); }
+
+        /* محتوى الصفحة */
+        .page-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .page-header h1 { font-size: 1.5rem; font-weight: 800; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 18px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition);
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        /* ملخص الحسابات */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all var(--transition);
+        }
+        .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .stat-icon {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+        }
+        .stat-info h3 { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+        .stat-info .value { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); }
+        .stat-icon.blue { background: var(--primary-light); color: var(--primary); }
+        .stat-icon.green { background: var(--success-light); color: var(--success); }
+        .stat-icon.orange { background: var(--warning-light); color: var(--warning); }
+        .stat-icon.red { background: var(--danger-light); color: var(--danger); }
+        .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
+
+        /* جدول القيود */
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 20px;
+        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th {
+            text-align: right; padding: 12px;
+            color: var(--text-secondary); font-weight: 700;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border-light);
+        }
+        .data-table td { padding: 12px; border-bottom: 1px solid var(--border-light); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover { background: var(--bg-input); }
+
+        .debit { color: var(--danger); font-weight: 700; }
+        .credit { color: var(--success); font-weight: 700; }
+
+        .filters-bar {
+            display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+        }
+        .filters-bar input, .filters-bar select {
+            padding: 10px 14px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            outline: none;
+        }
+        .filters-bar input { flex: 1; min-width: 200px; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 250;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            width: 90%;
+            max-width: 550px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .modal-header h2 { font-size: 1.2rem; }
+        .modal-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+        .entry-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .entry-row select, .entry-row input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            transition: all var(--transition);
+        }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { opacity: 0.9; }
+        .error-msg { color: var(--danger); font-size: 0.8rem; margin-top: 8px; }
+
+        @media (max-width: 768px) {
+            .page-header h1 { font-size: 1.2rem; }
+            .filters-bar { flex-direction: column; }
+            .filters-bar input, .filters-bar select { width: 100%; }
+        }
+    </style>
 </head>
 <body>
+    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
+    <div id="loading-bar"></div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- الشريط العلوي مع زر النقاط الثلاث -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
             <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
@@ -44,21 +364,16 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="addJournalEntryBtn"><i class="fas fa-plus"></i> قيد جديد</a>
-                    <a href="#" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> تحديث البيانات</a>
-                    <div class="dropdown-divider"></div>
                     <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <div class="dropdown-divider"></div>
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -73,78 +388,455 @@
             <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
             <li><a class="menu-item active" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
             <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./sales-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المبيعات</span></a></li>
-            <li><a class="menu-item" href="./purchase-returns.html"><i class="fas fa-undo-alt"></i><span>مرتجعات المشتريات</span></a></li>
             <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
             <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
             <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
         </ul>
     </aside>
 
-    <!-- المحتوى الرئيسي -->
-    <main class="main-content">
+    <main class="page-content">
         <div class="page-header">
-            <div class="page-title"><h1><i class="fas fa-calculator"></i> المحاسبة</h1></div>
-            <div class="header-actions">
-                <button class="btn btn-primary" id="addJournalEntryBtn2"><i class="fas fa-plus"></i> قيد جديد</button>
+            <h1>المحاسبة</h1>
+            <button class="btn-primary" id="addEntryBtn">
+                <i class="fas fa-plus"></i> قيد جديد
+            </button>
+        </div>
+
+        <!-- ملخص الحسابات -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-cash-register"></i></div>
+                <div class="stat-info">
+                    <h3>الصندوق</h3>
+                    <div class="value" id="cashBalance">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-university"></i></div>
+                <div class="stat-info">
+                    <h3>البنوك</h3>
+                    <div class="value" id="bankBalance">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <h3>العملاء</h3>
+                    <div class="value" id="customersBalance">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-truck"></i></div>
+                <div class="stat-info">
+                    <h3>الموردين</h3>
+                    <div class="value" id="suppliersBalance">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-info">
+                    <h3>الإيرادات</h3>
+                    <div class="value" id="revenueTotal">0.00 ج.م</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-chart-pie"></i></div>
+                <div class="stat-info">
+                    <h3>المصروفات</h3>
+                    <div class="value" id="expenseTotal">0.00 ج.م</div>
+                </div>
             </div>
         </div>
 
-        <!-- علامات التبويب -->
-        <div class="tabs-container">
-            <button class="tab-btn active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> لوحة المعلومات</button>
-            <button class="tab-btn" data-tab="journal"><i class="fas fa-book"></i> دفتر اليومية</button>
-            <button class="tab-btn" data-tab="trial-balance"><i class="fas fa-balance-scale"></i> ميزان المراجعة</button>
-            <button class="tab-btn" data-tab="income"><i class="fas fa-file-invoice-dollar"></i> قائمة الدخل</button>
-            <button class="tab-btn" data-tab="accounts"><i class="fas fa-sitemap"></i> شجرة الحسابات</button>
+        <!-- فلترة -->
+        <div class="filters-bar">
+            <input type="text" id="searchInput" placeholder="🔍 بحث بالبيان أو رقم القيد...">
+            <select id="entryTypeFilter">
+                <option value="">كل الأنواع</option>
+                <option value="journal">قيود يومية</option>
+                <option value="invoice">فواتير</option>
+                <option value="payment">مدفوعات</option>
+            </select>
         </div>
 
-        <!-- المحتوى الديناميكي للتبويبات -->
-        <div id="tabContent" class="tab-content">
-            <!-- يتم إنشاء المحتوى ديناميكياً -->
+        <!-- جدول القيود -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>البيان</th>
+                        <th>النوع</th>
+                        <th>مدين</th>
+                        <th>دائن</th>
+                    </tr>
+                </thead>
+                <tbody id="entriesTableBody">
+                    <tr><td colspan="5" style="text-align:center;color:var(--text-muted);">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
         </div>
     </main>
 
-    <!-- مودال إضافة قيد محاسبي -->
-    <div class="modal" id="journalEntryModal">
+    <!-- Modal إضافة قيد -->
+    <div class="modal" id="entryModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">قيد محاسبي جديد</h2>
+                <h2>قيد محاسبي جديد</h2>
                 <button id="closeModalBtn">&times;</button>
             </div>
-            <form id="journalEntryForm">
-                <input type="hidden" id="entryId">
-                <div class="form-row">
-                    <div class="form-group flex-1">
-                        <label>التاريخ</label>
-                        <input type="date" id="entryDate" required>
-                    </div>
-                    <div class="form-group flex-2">
-                        <label>البيان</label>
-                        <input type="text" id="entryDescription" placeholder="وصف القيد..." required>
-                    </div>
+            <div class="form-group">
+                <label>التاريخ</label>
+                <input type="date" id="entryDate">
+            </div>
+            <div class="form-group">
+                <label>البيان</label>
+                <input type="text" id="entryDescription" placeholder="مثال: تسوية صندوق">
+            </div>
+            <div id="entryRows">
+                <!-- صفوف القيد -->
+                <div class="entry-row">
+                    <select class="account-select">
+                        <option value="">اختر الحساب</option>
+                    </select>
+                    <input type="number" class="debit-input" placeholder="مدين" min="0" step="0.01">
+                    <input type="number" class="credit-input" placeholder="دائن" min="0" step="0.01">
                 </div>
-                
-                <div class="section-title"><i class="fas fa-list"></i> تفاصيل القيد</div>
-                <div id="entryLines"></div>
-                <button type="button" class="btn btn-outline btn-full" id="addEntryLineBtn"><i class="fas fa-plus-circle"></i> إضافة سطر</button>
-                
-                <div class="balance-check" id="balanceCheck">
-                    <span>مجموع مدين: <strong id="totalDebit">0.00</strong></span>
-                    <span>مجموع دائن: <strong id="totalCredit">0.00</strong></span>
-                    <span>الفرق: <strong id="balanceDiff" class="text-danger">0.00</strong></span>
+                <div class="entry-row">
+                    <select class="account-select">
+                        <option value="">اختر الحساب</option>
+                    </select>
+                    <input type="number" class="debit-input" placeholder="مدين" min="0" step="0.01">
+                    <input type="number" class="credit-input" placeholder="دائن" min="0" step="0.01">
                 </div>
-
-                <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ القيد</button>
-                    <button type="button" class="btn btn-cancel" id="cancelModalBtn">إلغاء</button>
-                </div>
-            </form>
+            </div>
+            <button type="button" class="btn" id="addRowBtn" style="background:var(--bg-input);margin-bottom:12px;">
+                <i class="fas fa-plus"></i> إضافة سطر
+            </button>
+            <button class="btn btn-success" id="saveEntryBtn">حفظ القيد</button>
+            <div class="error-msg" id="errorMsg"></div>
         </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toastContainer"></div>
 
-    <script src="./js/accounting.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/supabase-offline.js"></script>
+    <script src="./js/supabase-db.js"></script>
+    <script src="./js/toast.js"></script>
+
+    <script>
+        (() => {
+            const loadingBar = document.getElementById('loading-bar');
+            const cashBalanceEl = document.getElementById('cashBalance');
+            const bankBalanceEl = document.getElementById('bankBalance');
+            const customersBalanceEl = document.getElementById('customersBalance');
+            const suppliersBalanceEl = document.getElementById('suppliersBalance');
+            const revenueTotalEl = document.getElementById('revenueTotal');
+            const expenseTotalEl = document.getElementById('expenseTotal');
+            const searchInput = document.getElementById('searchInput');
+            const entryTypeFilter = document.getElementById('entryTypeFilter');
+            const tableBody = document.getElementById('entriesTableBody');
+            const addEntryBtn = document.getElementById('addEntryBtn');
+            const entryModal = document.getElementById('entryModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const entryDate = document.getElementById('entryDate');
+            const entryDescription = document.getElementById('entryDescription');
+            const entryRows = document.getElementById('entryRows');
+            const addRowBtn = document.getElementById('addRowBtn');
+            const saveEntryBtn = document.getElementById('saveEntryBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const moreMenuBtn = document.getElementById('moreMenuBtn');
+            const moreDropdown = document.getElementById('moreDropdown');
+            const logoutBtn = document.getElementById('logoutBtn');
+
+            let allEntries = [];
+            let allAccounts = [];
+            let currentUser = null;
+
+            function fmtMoney(v) {
+                return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+            }
+
+            function waitForCore(timeoutMs = 8000) {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const check = () => {
+                        if (window.App && window.DB) resolve();
+                        else if (Date.now() - start > timeoutMs) reject(new Error('Core not loaded'));
+                        else setTimeout(check, 200);
+                    };
+                    check();
+                });
+            }
+
+            // تحميل البيانات
+            async function loadData() {
+                try {
+                    const [entriesRes, accountsRes] = await Promise.allSettled([
+                        DB.getJournalEntries(),
+                        DB.getAccounts()
+                    ]);
+                    allEntries = entriesRes.status === 'fulfilled' ? entriesRes.value : [];
+                    allAccounts = accountsRes.status === 'fulfilled' ? accountsRes.value : [];
+                    if (!allAccounts.length) {
+                        // حسابات افتراضية إذا لم تكن موجودة
+                        allAccounts = [
+                            { id: 'cash', name: 'الصندوق', type: 'asset' },
+                            { id: 'bank', name: 'البنك', type: 'asset' },
+                            { id: 'customers', name: 'العملاء', type: 'asset' },
+                            { id: 'suppliers', name: 'الموردين', type: 'liability' },
+                            { id: 'revenue', name: 'الإيرادات', type: 'revenue' },
+                            { id: 'expenses', name: 'المصروفات', type: 'expense' }
+                        ];
+                    }
+                    updateSummary();
+                    renderTable(allEntries);
+                    populateAccountOptions();
+                } catch (e) {
+                    console.error('Failed to load accounting data:', e);
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">فشل تحميل البيانات</td></tr>';
+                }
+            }
+
+            function updateSummary() {
+                let cash = 0, bank = 0, customers = 0, suppliers = 0, revenue = 0, expenses = 0;
+                allAccounts.forEach(acc => {
+                    const balance = acc.balance || 0;
+                    if (acc.type === 'asset') {
+                        if (acc.name?.includes('الصندوق') || acc.id === 'cash') cash += balance;
+                        else if (acc.name?.includes('البنك') || acc.id === 'bank') bank += balance;
+                        else if (acc.name?.includes('العملاء') || acc.id === 'customers') customers += balance;
+                    } else if (acc.type === 'liability') {
+                        if (acc.name?.includes('الموردين') || acc.id === 'suppliers') suppliers += Math.abs(balance);
+                    } else if (acc.type === 'revenue') {
+                        revenue += balance;
+                    } else if (acc.type === 'expense') {
+                        expenses += Math.abs(balance);
+                    }
+                });
+                // بديل: حساب من القيود إذا لم تكن الأرصدة محدثة
+                if (!allAccounts.length || allAccounts.every(a => !a.balance)) {
+                    allEntries.forEach(entry => {
+                        const account = entry.account_name || '';
+                        const amount = Number(entry.debit) || Number(entry.credit) || 0;
+                        if (entry.type === 'income') revenue += amount;
+                        else if (entry.type === 'expense') expenses += amount;
+                    });
+                }
+                cashBalanceEl.textContent = fmtMoney(cash);
+                bankBalanceEl.textContent = fmtMoney(bank);
+                customersBalanceEl.textContent = fmtMoney(customers);
+                suppliersBalanceEl.textContent = fmtMoney(suppliers);
+                revenueTotalEl.textContent = fmtMoney(revenue);
+                expenseTotalEl.textContent = fmtMoney(expenses);
+            }
+
+            function renderTable(entries) {
+                if (!entries.length) {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">لا توجد قيود</td></tr>';
+                    return;
+                }
+                tableBody.innerHTML = entries.map(entry => {
+                    const debit = Number(entry.debit) || 0;
+                    const credit = Number(entry.credit) || 0;
+                    return `
+                        <tr>
+                            <td>${entry.date || ''}</td>
+                            <td>${entry.description || entry.note || '-'}</td>
+                            <td>${entry.entry_type || 'journal'}</td>
+                            <td class="debit">${debit ? fmtMoney(debit) : '-'}</td>
+                            <td class="credit">${credit ? fmtMoney(credit) : '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            function populateAccountOptions() {
+                document.querySelectorAll('.account-select').forEach(sel => {
+                    sel.innerHTML = '<option value="">اختر الحساب</option>' +
+                        allAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+                });
+            }
+
+            function filterEntries() {
+                const term = searchInput.value.trim().toLowerCase();
+                const type = entryTypeFilter.value;
+                const filtered = allEntries.filter(entry => {
+                    const matchesSearch = !term ||
+                        (entry.description && entry.description.toLowerCase().includes(term)) ||
+                        (entry.note && entry.note.toLowerCase().includes(term));
+                    const matchesType = !type || (entry.entry_type || 'journal') === type;
+                    return matchesSearch && matchesType;
+                });
+                renderTable(filtered);
+            }
+
+            // إضافة سطر جديد
+            addRowBtn.addEventListener('click', () => {
+                const row = document.createElement('div');
+                row.className = 'entry-row';
+                row.innerHTML = `
+                    <select class="account-select">
+                        <option value="">اختر الحساب</option>
+                    </select>
+                    <input type="number" class="debit-input" placeholder="مدين" min="0" step="0.01">
+                    <input type="number" class="credit-input" placeholder="دائن" min="0" step="0.01">
+                    <button class="remove-row" style="background:none;border:none;color:var(--danger);cursor:pointer;"><i class="fas fa-times"></i></button>
+                `;
+                entryRows.appendChild(row);
+                populateAccountOptions();
+                row.querySelector('.remove-row').addEventListener('click', () => row.remove());
+            });
+
+            // حفظ القيد
+            saveEntryBtn.addEventListener('click', async () => {
+                errorMsg.textContent = '';
+                if (!entryDate.value) {
+                    errorMsg.textContent = 'يرجى اختيار التاريخ';
+                    return;
+                }
+                if (!entryDescription.value.trim()) {
+                    errorMsg.textContent = 'يرجى إدخال البيان';
+                    return;
+                }
+
+                const rows = entryRows.querySelectorAll('.entry-row');
+                const lines = [];
+                let totalDebit = 0, totalCredit = 0;
+
+                rows.forEach(row => {
+                    const accountId = row.querySelector('.account-select').value;
+                    const debit = parseFloat(row.querySelector('.debit-input').value) || 0;
+                    const credit = parseFloat(row.querySelector('.credit-input').value) || 0;
+                    if (accountId && (debit > 0 || credit > 0)) {
+                        const account = allAccounts.find(a => a.id === accountId);
+                        lines.push({
+                            account_id: accountId,
+                            account_name: account ? account.name : '',
+                            debit: debit,
+                            credit: credit
+                        });
+                        totalDebit += debit;
+                        totalCredit += credit;
+                    }
+                });
+
+                if (!lines.length) {
+                    errorMsg.textContent = 'يرجى إضافة بند واحد على الأقل';
+                    return;
+                }
+                if (Math.abs(totalDebit - totalCredit) > 0.01) {
+                    errorMsg.textContent = 'يجب أن يتساوى مجموع المدين مع مجموع الدائن';
+                    return;
+                }
+
+                try {
+                    const entry = {
+                        id: crypto.randomUUID ? crypto.randomUUID() : 'je-' + Date.now(),
+                        date: entryDate.value,
+                        description: entryDescription.value.trim(),
+                        entry_type: 'journal',
+                        lines: lines,
+                        total_debit: totalDebit,
+                        total_credit: totalCredit,
+                        tenant_id: currentUser?.tenant_id,
+                        created_by: currentUser?.id
+                    };
+                    await DB.saveJournalEntry(entry);
+                    entryModal.classList.remove('open');
+                    entryDescription.value = '';
+                    entryDate.value = '';
+                    entryRows.innerHTML = `
+                        <div class="entry-row">
+                            <select class="account-select"><option value="">اختر الحساب</option></select>
+                            <input type="number" class="debit-input" placeholder="مدين" min="0" step="0.01">
+                            <input type="number" class="credit-input" placeholder="دائن" min="0" step="0.01">
+                        </div>
+                        <div class="entry-row">
+                            <select class="account-select"><option value="">اختر الحساب</option></select>
+                            <input type="number" class="debit-input" placeholder="مدين" min="0" step="0.01">
+                            <input type="number" class="credit-input" placeholder="دائن" min="0" step="0.01">
+                        </div>
+                    `;
+                    populateAccountOptions();
+                    window.Toast.success('تم حفظ القيد');
+                    await loadData();
+                } catch (e) {
+                    console.error('Save entry failed:', e);
+                    errorMsg.textContent = e.message || 'فشل حفظ القيد';
+                }
+            });
+
+            // فتح المودال
+            addEntryBtn.addEventListener('click', () => {
+                entryDate.value = new Date().toISOString().split('T')[0];
+                errorMsg.textContent = '';
+                entryModal.classList.add('open');
+                populateAccountOptions();
+            });
+            closeModalBtn.addEventListener('click', () => entryModal.classList.remove('open'));
+            entryModal.addEventListener('click', (e) => {
+                if (e.target === entryModal) entryModal.classList.remove('open');
+            });
+
+            // البحث والفلترة
+            searchInput.addEventListener('input', filterEntries);
+            entryTypeFilter.addEventListener('change', filterEntries);
+
+            // ربط القائمة والشريط العلوي
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                sidebarOverlay.classList.toggle('show');
+            });
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
+            });
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('show');
+                });
+            });
+            moreMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                moreDropdown.classList.toggle('show');
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
+            });
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) await App.logout();
+            });
+
+            async function initAccounting() {
+                loadingBar.style.width = '80%';
+                try {
+                    await waitForCore();
+                    await App.requireAuth();
+                    App.initUserInterface();
+                    currentUser = await App.getCurrentUser();
+                    await loadData();
+                    loadingBar.style.width = '100%';
+                } catch (e) {
+                    console.error('Accounting init failed:', e);
+                    loadingBar.style.background = 'var(--danger)';
+                } finally {
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+                }
+            }
+
+            initAccounting();
+        })();
+    </script>
 </body>
 </html>
