@@ -4,134 +4,767 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>المنتجات · حسابي</title>
+
     <!-- PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="حسابي">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
+
+    <!-- الخطوط والأيقونات -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./css/products.css">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-dark: #1d4ed8;
+            --success: #10b981;
+            --success-light: #dcfce7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: 0.2s ease;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        [data-theme="dark"] {
+            --primary: #6366f1;
+            --primary-light: rgba(99,102,241,0.2);
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --success-light: rgba(16,185,129,0.2);
+            --danger: #ef4444;
+            --danger-light: rgba(239,68,68,0.2);
+            --warning: #f59e0b;
+            --warning-light: rgba(245,158,11,0.2);
+            --bg-body: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-light: #334155;
+            --border-medium: #475569;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #loading-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 9999; transition: width 0.3s ease; }
+
+        #offline-banner {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: var(--danger); color: white;
+            text-align: center; padding: 6px;
+            font-size: 0.8rem; font-weight: 600;
+            z-index: 9998; transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        body.offline #offline-banner { transform: translateY(0); }
+
+        .navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--bg-surface); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0 16px;
+            height: calc(56px + var(--safe-top));
+            padding-top: var(--safe-top);
+            position: sticky; top: 0; z-index: 110;
+            flex-shrink: 0;
+        }
+        .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
+        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
+        .logo { display: flex; align-items: center; gap: 8px; }
+        .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .nav-actions { position: relative; }
+        .navbar-icon-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
+        }
+        .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
+
+        .more-dropdown {
+            position: absolute; top: 48px; left: 0;
+            background: var(--bg-surface); border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg); min-width: 200px;
+            z-index: 200; display: none; flex-direction: column;
+            overflow: hidden; border: 1px solid var(--border-light);
+        }
+        .more-dropdown.show { display: flex; }
+        .more-dropdown a {
+            padding: 12px 18px; color: var(--text-primary);
+            text-decoration: none; display: flex; align-items: center;
+            gap: 10px; font-weight: 500; font-size: 0.85rem; transition: background var(--transition);
+        }
+        .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
+        .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.35); z-index: 149;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .sidebar-overlay.show { opacity: 1; visibility: visible; }
+        .sidebar {
+            position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
+            height: 100%; background: var(--bg-surface); border-left: 1px solid var(--border-light);
+            padding: calc(20px + var(--safe-top)) 12px 20px 12px;
+            z-index: 150;
+            transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+            overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
+        .sidebar.open { right: 0; }
+        .sidebar-user { text-align: center; margin-bottom: 20px; }
+        .sidebar-avatar { width: 64px; height: 64px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: 700; font-size: 1.5rem; }
+        .sidebar-user h4 { color: var(--text-primary); }
+        .menu { list-style: none; }
+        .menu-section { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 12px 8px; }
+        .menu-item { display: flex; align-items: center; padding: 12px 14px; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); font-size: 0.85rem; transition: all var(--transition); }
+        .menu-item i { width: 22px; margin-left: 10px; }
+        .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
+        .menu-item.active { background: var(--primary-light); color: var(--primary); }
+
+        /* محتوى الصفحة */
+        .page-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .page-header h1 { font-size: 1.5rem; font-weight: 800; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 18px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition);
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .filters-bar input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th {
+            text-align: right; padding: 12px;
+            color: var(--text-secondary); font-weight: 700;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border-light);
+        }
+        .data-table td { padding: 12px; border-bottom: 1px solid var(--border-light); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover { background: var(--bg-input); }
+
+        .unit-badge {
+            display: inline-block;
+            background: var(--bg-input);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 2px 6px;
+            margin: 2px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .action-btn {
+            background: none;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--primary);
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+        .action-btn.delete { color: var(--danger); }
+        .action-btn.delete:hover { background: var(--danger-light); border-color: var(--danger); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 250;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .modal-header h2 { font-size: 1.2rem; }
+        .modal-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            outline: none;
+        }
+        .form-group input:focus { border-color: var(--primary); }
+
+        .units-section { margin-top: 20px; border-top: 1px solid var(--border-light); padding-top: 16px; }
+        .units-section h3 { font-size: 1rem; margin-bottom: 12px; }
+        .unit-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .unit-card .unit-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .unit-card input {
+            padding: 8px;
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.8rem;
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            width: 100%;
+        }
+        .unit-card .remove-unit {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .add-unit-btn {
+            background: var(--bg-input);
+            border: 1px dashed var(--border-medium);
+            border-radius: var(--radius-sm);
+            padding: 8px;
+            width: 100%;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .add-unit-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            width: 100%;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: all var(--transition);
+        }
+        .btn-success:hover { opacity: 0.9; }
+        .error-msg { color: var(--danger); font-size: 0.8rem; margin-top: 8px; }
+
+        @media (max-width: 768px) {
+            .page-header h1 { font-size: 1.2rem; }
+            .filters-bar { flex-direction: column; }
+            .unit-card .unit-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
 </head>
 <body>
+    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
+    <div id="loading-bar"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-<nav class="navbar" id="mainNavbar">
-    <div class="navbar-left">
-        <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-        <div class="logo">
-            <img src="./icons/icon-192x192.png" alt="حسابي" style="width:36px;height:36px;object-fit:contain;border-radius:10px;">
-            <h2>حسابي</h2>
-        </div>
-    </div>
-    <div class="navbar-right">
-        <button class="navbar-icon-btn" id="refreshBtn" title="تحديث البيانات"><i class="fas fa-sync-alt"></i></button>
-    </div>
-</nav>
-
-<aside class="sidebar" id="sidebar">
-    <div class="sidebar-user">
-        <div class="sidebar-avatar" id="sidebarAvatar">U</div>
-        <h4 id="sidebarUserName">مدير النظام</h4>
-    </div>
-    <ul class="menu">
-        <div class="menu-section">الرئيسية</div>
-        <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-        <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-        <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-        <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-        <li><a class="menu-item active" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-        <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
-    </ul>
-</aside>
-
-<main class="main-content">
-    <div class="page-header">
-        <div class="page-title">
-            <h1><i class="fas fa-boxes"></i> المنتجات</h1>
-            <span class="product-count" id="productCount">0 منتج</span>
-        </div>
-        <button class="btn btn-primary" id="addProductBtn"><i class="fas fa-plus"></i> إضافة منتج</button>
-    </div>
-    <div class="toolbar">
-        <div class="search-wrapper">
-            <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="ابحث بالاسم أو الكود أو الباركود..." autocomplete="off">
-        </div>
-        <div class="view-toggle">
-            <button class="view-btn active" data-view="grid"><i class="fas fa-th-large"></i></button>
-            <button class="view-btn" data-view="table"><i class="fas fa-list"></i></button>
-        </div>
-    </div>
-    <div id="productsContainer" class="products-grid"></div>
-</main>
-
-<!-- مودال إضافة / تعديل منتج -->
-<div class="modal" id="productModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="modalTitle">إضافة منتج جديد</h2>
-            <button class="close-btn" id="closeModalBtn">&times;</button>
-        </div>
-        <form id="productForm" novalidate>
-            <div class="form-section">
-                <h3 class="section-title">البيانات الأساسية</h3>
-                <div class="form-group">
-                    <label>اسم المنتج <span class="required">*</span></label>
-                    <input type="text" id="prodName" placeholder="مثال: كيلو سكر" required>
-                    <div class="error-message" id="nameError"></div>
+    <nav class="navbar" id="mainNavbar">
+        <div class="navbar-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
                 </div>
-                <div class="form-row">
-                    <div class="form-group"><label>الباركود</label><input type="text" id="prodBarcode" placeholder="اختياري"></div>
-                    <div class="form-group"><label>الكود (SKU)</label><input type="text" id="prodCode" placeholder="اختياري"></div>
+                <div class="logo-text"><h2>حسابي</h2></div>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <div class="nav-actions">
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="more-dropdown" id="moreDropdown">
+                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
                 </div>
             </div>
-            <div class="form-section">
-                <h3 class="section-title">التسعير والوحدة</h3>
-                <div class="form-row">
-                    <div class="form-group"><label>اسم الوحدة <span class="required">*</span></label><input type="text" id="prodUnitName" placeholder="مثال: كيس" required><div class="error-message" id="unitError"></div></div>
-                    <div class="form-group"><label>عامل التحويل</label><input type="number" id="prodFactor" step="0.001" min="0.001" value="1"><small>عدد الوحدات الصغرى</small></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group"><label>سعر البيع <span class="required">*</span></label><input type="number" id="prodPrice" step="0.01" min="0" placeholder="0.00" required><div class="error-message" id="priceError"></div></div>
-                    <div class="form-group"><label>سعر التكلفة</label><input type="number" id="prodCost" step="0.01" min="0" placeholder="0.00"></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group"><label>أدنى سعر بيع</label><input type="number" id="prodMinPrice" step="0.01" min="0" placeholder="0.00"></div>
-                    <div class="form-group"><label>أقصى سعر بيع</label><input type="number" id="prodMaxPrice" step="0.01" min="0" placeholder="0.00"></div>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-cancel" id="cancelBtn">إلغاء</button>
-                <button type="submit" class="btn btn-primary" id="saveBtn">حفظ المنتج</button>
-            </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </nav>
 
-<!-- مودال تأكيد الحذف -->
-<div class="modal" id="deleteModal">
-    <div class="modal-content" style="max-width:400px; text-align:center;">
-        <div class="modal-header"><h3>تأكيد الحذف</h3><button class="close-btn" id="closeDeleteModalBtn">&times;</button></div>
-        <p id="deleteMsg" style="margin-bottom:20px;"></p>
-        <div class="modal-actions" style="justify-content:center;">
-            <button class="btn btn-cancel" id="cancelDeleteBtn">إلغاء</button>
-            <button class="btn btn-danger" id="confirmDeleteBtn">حذف</button>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
+            <h4 id="sidebarUserName">مدير النظام</h4>
+        </div>
+        <ul class="menu">
+            <div class="menu-section">الرئيسية</div>
+            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
+            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
+            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
+            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
+            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
+            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
+            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
+            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
+            <li><a class="menu-item active" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
+            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <main class="page-content">
+        <div class="page-header">
+            <h1>المنتجات</h1>
+            <button class="btn-primary" id="addProductBtn"><i class="fas fa-plus"></i> منتج جديد</button>
+        </div>
+
+        <div class="filters-bar">
+            <input type="text" id="searchInput" placeholder="🔍 بحث بالاسم أو الباركود...">
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الباركود</th>
+                        <th>الوحدات</th>
+                        <th>المخزون</th>
+                        <th>السعر الأساسي</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="productsTableBody">
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- مودال إضافة / تعديل منتج -->
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">منتج جديد</h2>
+                <button id="closeProductModal">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>اسم المنتج</label>
+                <input type="text" id="productName" placeholder="مثال: سكر">
+            </div>
+            <div class="form-group">
+                <label>الباركود</label>
+                <input type="text" id="productBarcode" placeholder="باركود المنتج">
+            </div>
+            <div class="form-group">
+                <label>الكود</label>
+                <input type="text" id="productCode" placeholder="كود داخلي اختياري">
+            </div>
+            <div class="form-group">
+                <label>صورة المنتج (رابط)</label>
+                <input type="text" id="productImage" placeholder="https://...">
+            </div>
+
+            <div class="units-section">
+                <h3>الوحدات والأسعار</h3>
+                <div id="unitsContainer"></div>
+                <button type="button" class="add-unit-btn" id="addUnitBtn"><i class="fas fa-plus"></i> إضافة وحدة</button>
+            </div>
+
+            <button class="btn-success" id="saveProductBtn" style="margin-top:20px;">حفظ المنتج</button>
+            <div class="error-msg" id="errorMsg"></div>
         </div>
     </div>
-</div>
 
-<div class="toast" id="toastContainer"></div>
+    <div class="toast" id="toastContainer"></div>
 
-<!-- ملفات الجافاسكريبت بالترتيب -->
-<script src="./js/supabase-core.js"></script>
-<script src="./js/supabase-auth.js"></script>
-<script src="./js/db-local.js"></script>
-<script src="./js/supabase-offline.js"></script>
-<script src="./js/supabase-db.js"></script>
-<script src="./js/toast.js"></script>
-<script src="./js/pos/pos-core.js"></script> <!-- مهم: يحتوي على U و أدوات مساعدة -->
-<script src="./js/products.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/supabase-offline.js"></script>
+    <script src="./js/supabase-db.js"></script>
+    <script src="./js/toast.js"></script>
+
+    <script>
+        (() => {
+            const loadingBar = document.getElementById('loading-bar');
+            const searchInput = document.getElementById('searchInput');
+            const tableBody = document.getElementById('productsTableBody');
+            const addProductBtn = document.getElementById('addProductBtn');
+            const productModal = document.getElementById('productModal');
+            const closeProductModal = document.getElementById('closeProductModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const productName = document.getElementById('productName');
+            const productBarcode = document.getElementById('productBarcode');
+            const productCode = document.getElementById('productCode');
+            const productImage = document.getElementById('productImage');
+            const unitsContainer = document.getElementById('unitsContainer');
+            const addUnitBtn = document.getElementById('addUnitBtn');
+            const saveProductBtn = document.getElementById('saveProductBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const moreMenuBtn = document.getElementById('moreMenuBtn');
+            const moreDropdown = document.getElementById('moreDropdown');
+            const logoutBtn = document.getElementById('logoutBtn');
+
+            let allProducts = [];
+            let currentUser = null;
+            let editingProductId = null;
+
+            function fmtMoney(v) {
+                return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+            }
+
+            function waitForCore(timeoutMs = 8000) {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const check = () => {
+                        if (window.App && window.DB) resolve();
+                        else if (Date.now() - start > timeoutMs) reject(new Error('Core not loaded'));
+                        else setTimeout(check, 200);
+                    };
+                    check();
+                });
+            }
+
+            async function loadProducts() {
+                try {
+                    allProducts = await DB.getProducts() || [];
+                    renderTable(allProducts);
+                } catch (e) {
+                    console.error('Failed to load products:', e);
+                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">فشل تحميل المنتجات</td></tr>';
+                }
+            }
+
+            function renderTable(products) {
+                if (!products.length) {
+                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">لا توجد منتجات</td></tr>';
+                    return;
+                }
+                tableBody.innerHTML = products.map(p => {
+                    const units = p.units || [];
+                    const baseUnit = units[0] || {};
+                    const stock = baseUnit.stock || 0;
+                    const price = baseUnit.price || 0;
+                    const unitsHtml = units.length ? units.map(u => `<span class="unit-badge">${u.name} (${u.factor || 1})</span>`).join('') : '-';
+                    return `
+                        <tr>
+                            <td>${p.name}</td>
+                            <td>${p.barcode || '-'}</td>
+                            <td>${unitsHtml}</td>
+                            <td>${stock}</td>
+                            <td>${fmtMoney(price)}</td>
+                            <td>
+                                <button class="action-btn edit" data-id="${p.id}"><i class="fas fa-edit"></i></button>
+                                <button class="action-btn delete" data-id="${p.id}"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tableBody.querySelectorAll('.action-btn.edit').forEach(btn => {
+                    btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+                });
+                tableBody.querySelectorAll('.action-btn.delete').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
+                            await deleteProduct(btn.dataset.id);
+                        }
+                    });
+                });
+            }
+
+            function filterProducts() {
+                const term = searchInput.value.trim().toLowerCase();
+                if (!term) { renderTable(allProducts); return; }
+                const filtered = allProducts.filter(p => p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.includes(term)) || (p.code && p.code.includes(term)));
+                renderTable(filtered);
+            }
+
+            // فتح مودال جديد
+            function openAddModal() {
+                editingProductId = null;
+                modalTitle.textContent = 'منتج جديد';
+                productName.value = '';
+                productBarcode.value = '';
+                productCode.value = '';
+                productImage.value = '';
+                unitsContainer.innerHTML = '';
+                addUnitRow(); // وحدة افتراضية
+                errorMsg.textContent = '';
+                productModal.classList.add('open');
+            }
+
+            // فتح مودال تعديل
+            function openEditModal(id) {
+                const product = allProducts.find(p => p.id === id);
+                if (!product) return;
+                editingProductId = id;
+                modalTitle.textContent = 'تعديل منتج';
+                productName.value = product.name || '';
+                productBarcode.value = product.barcode || '';
+                productCode.value = product.code || '';
+                productImage.value = product.image_url || '';
+                unitsContainer.innerHTML = '';
+                const units = product.units || [];
+                if (units.length) {
+                    units.forEach(u => addUnitRow(u));
+                } else {
+                    addUnitRow();
+                }
+                errorMsg.textContent = '';
+                productModal.classList.add('open');
+            }
+
+            // إضافة صف وحدة
+            function addUnitRow(unitData = {}) {
+                const row = document.createElement('div');
+                row.className = 'unit-card';
+                row.innerHTML = `
+                    <div class="unit-row">
+                        <input type="text" class="unit-name" placeholder="اسم الوحدة (علبة/كرتونة)" value="${unitData.name || ''}">
+                        <input type="number" class="unit-factor" placeholder="عامل التحويل" step="0.001" value="${unitData.factor || 1}">
+                        <input type="number" class="unit-price" placeholder="سعر البيع" step="0.01" value="${unitData.price || ''}">
+                        <input type="number" class="unit-cost" placeholder="التكلفة" step="0.01" value="${unitData.cost || ''}">
+                        <input type="number" class="unit-stock" placeholder="المخزون" step="0.001" value="${unitData.stock || ''}">
+                        <input type="text" class="unit-barcode" placeholder="باركود" value="${unitData.barcode || ''}">
+                        <button type="button" class="remove-unit"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="unit-row" style="margin-top:6px;">
+                        <input type="number" class="unit-min-price" placeholder="أدنى سعر" step="0.01" value="${unitData.minPrice || ''}">
+                        <input type="number" class="unit-max-price" placeholder="أقصى سعر" step="0.01" value="${unitData.maxPrice || ''}">
+                    </div>
+                `;
+                row.querySelector('.remove-unit').addEventListener('click', () => row.remove());
+                unitsContainer.appendChild(row);
+            }
+
+            addUnitBtn.addEventListener('click', () => addUnitRow());
+
+            // حفظ المنتج
+            saveProductBtn.addEventListener('click', async () => {
+                errorMsg.textContent = '';
+                const name = productName.value.trim();
+                if (!name) { errorMsg.textContent = 'يرجى إدخال اسم المنتج'; return; }
+
+                const unitCards = unitsContainer.querySelectorAll('.unit-card');
+                const units = [];
+                unitCards.forEach(card => {
+                    const name = card.querySelector('.unit-name').value.trim();
+                    if (!name) return;
+                    const factor = parseFloat(card.querySelector('.unit-factor').value) || 1;
+                    const price = parseFloat(card.querySelector('.unit-price').value) || 0;
+                    const cost = parseFloat(card.querySelector('.unit-cost').value) || 0;
+                    const stock = parseFloat(card.querySelector('.unit-stock').value) || 0;
+                    const barcode = card.querySelector('.unit-barcode').value.trim();
+                    const minPrice = parseFloat(card.querySelector('.unit-min-price').value) || 0;
+                    const maxPrice = parseFloat(card.querySelector('.unit-max-price').value) || 0;
+                    units.push({ name, factor, price, cost, stock, barcode, minPrice, maxPrice });
+                });
+
+                if (!units.length) { errorMsg.textContent = 'يرجى إضافة وحدة واحدة على الأقل'; return; }
+
+                const product = {
+                    id: editingProductId || crypto.randomUUID(),
+                    name,
+                    barcode: productBarcode.value.trim(),
+                    code: productCode.value.trim(),
+                    image_url: productImage.value.trim(),
+                    units,
+                    // توافق مع بعض الأنظمة التي تضع السعر والمخزون في الخصائص الرئيسية
+                    price: units[0].price,
+                    cost: units[0].cost,
+                    stock: units[0].stock,
+                    barcode_main: productBarcode.value.trim()
+                };
+
+                try {
+                    await DB.saveProduct(product, !editingProductId);
+                    productModal.classList.remove('open');
+                    window.Toast.success('تم حفظ المنتج');
+                    await loadProducts();
+                } catch (e) {
+                    console.error('Save product failed:', e);
+                    errorMsg.textContent = e.message || 'فشل حفظ المنتج';
+                }
+            });
+
+            async function deleteProduct(id) {
+                try {
+                    await DB.deleteProduct(id);
+                    await loadProducts();
+                    window.Toast.success('تم حذف المنتج');
+                } catch (e) {
+                    console.error('Delete failed:', e);
+                    window.Toast.error('فشل حذف المنتج');
+                }
+            }
+
+            searchInput.addEventListener('input', filterProducts);
+            addProductBtn.addEventListener('click', openAddModal);
+            closeProductModal.addEventListener('click', () => productModal.classList.remove('open'));
+            productModal.addEventListener('click', (e) => {
+                if (e.target === productModal) productModal.classList.remove('open');
+            });
+
+            // ربط القائمة والشريط العلوي
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                sidebarOverlay.classList.toggle('show');
+            });
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
+            });
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('show');
+                });
+            });
+            moreMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                moreDropdown.classList.toggle('show');
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
+            });
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) await App.logout();
+            });
+
+            async function initProductsPage() {
+                loadingBar.style.width = '80%';
+                try {
+                    await waitForCore();
+                    await App.requireAuth();
+                    App.initUserInterface();
+                    currentUser = await App.getCurrentUser();
+                    await loadProducts();
+                    loadingBar.style.width = '100%';
+                } catch (e) {
+                    console.error('Products init failed:', e);
+                    loadingBar.style.background = 'var(--danger)';
+                } finally {
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+                }
+            }
+
+            initProductsPage();
+        })();
+    </script>
 </body>
 </html>
