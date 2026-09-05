@@ -1,14 +1,11 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار 8.3 - تصحيحات نهائية)
-   - إزالة كاملة لوظائف الباركود (كاميرا وHID)
-   - إصلاح تحميل البيانات وتجاهل الكاش الفارغ
-   - تصحيح الدفع الآجل
-   - إزالة المنتج المحذوف من السلة في Realtime
-   - تحسين إدارة الذاكرة في Virtual Scrolling
+   pos.js - نقطة البيع (إصدار 8.4 - إصلاح نهائي)
+   - إعادة بناء الأحداث لضمان عمل جميع الأزرار
+   - إزالة وظائف الباركود بالكامل (مع بقاء الأزرار في HTML)
+   - تحسين تحميل البيانات وإصلاح الدفع الآجل
    ============================================= */
 'use strict';
 
-// ---------- ثوابت النصوص المتكررة ----------
 const CASH_CUSTOMER_LABEL = 'نقدي (بدون عميل)';
 
 const U = {
@@ -41,7 +38,7 @@ const POS = {
     cache: {
         prods: new Map(),
         custs: new Map(),
-        barcode: new Map(), // سيظل فارغًا للتوافق مع أي استخدام مستقبلي
+        barcode: new Map(),
         _maxCacheSize: 500,
         _setWithLimit(map, key, value) {
             if (map.size >= this._maxCacheSize) {
@@ -58,7 +55,7 @@ const POS = {
         this._cacheDOM();
         this._applySafeArea();
         this._bindKeyboardShortcuts();
-        this._bind();
+        this._bind(); // ربط الأحداث
         this._connStatus();
         this._setupErrorMonitoring();
         this._setupRealtimeSync();
@@ -84,7 +81,7 @@ const POS = {
             'menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown',
             'holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn',
             'productSearchInput','customerSearchInput','customerBalanceDisplay',
-            'productDropdown','customerDropdown',
+            'productDropdown','customerDropdown','barcodeScannerBtn',
             'cartItemsContainer','discountValue','discountType','itemTypesCount',
             'totalPieces','subtotal','netTotal','payBtn',
             'unitQuantityModal','modalProductName','unitButtons','selectedQuantity',
@@ -96,7 +93,7 @@ const POS = {
             'heldInvoicesModal','heldInvoicesList','closeHeldModalBtn',
             'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
             'sidebarAvatar','sidebarUserName',
-            'tabletProductSearchInput','productGrid',
+            'tabletProductSearchInput','productGrid','tabletBarcodeBtn',
             'profitDisplay',
             'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn'
         ];
@@ -144,10 +141,9 @@ const POS = {
                     const deletedId = payload.old?.id;
                     if (deletedId) {
                         this.state.products = this.state.products.filter(p => p.id !== deletedId);
-                        // إزالة من السلة أيضًا إذا كان موجودًا
                         this.state.cart = this.state.cart.filter(item => item.productId !== deletedId);
                         this._buildCache();
-                        this._renderCart(); // لإعادة حساب الإجمالي
+                        this._renderCart();
                         this._debouncedRenderGrid();
                     }
                     return;
@@ -192,17 +188,36 @@ const POS = {
     _bind() {
         const on = (id, ev, fn) => { if (this.el[id]) this.el[id].addEventListener(ev, fn); };
 
-        on('menuToggle', 'click', () => { this.el.sidebar?.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        on('sidebarOverlay', 'click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => { this.el.sidebar?.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }));
+        // القائمة الجانبية
+        on('menuToggle', 'click', () => {
+            console.log('تم الضغط على menuToggle');
+            this.el.sidebar?.classList.toggle('open');
+            this.el.sidebarOverlay?.classList.toggle('show');
+        });
+        on('sidebarOverlay', 'click', () => {
+            this.el.sidebar?.classList.remove('open');
+            this.el.sidebarOverlay?.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(l => l.addEventListener('click', () => {
+            this.el.sidebar?.classList.remove('open');
+            this.el.sidebarOverlay?.classList.remove('show');
+        }));
 
-        on('moreMenuBtn', 'click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
+        // القائمة المنسدلة
+        on('moreMenuBtn', 'click', (e) => {
+            e.stopPropagation();
+            console.log('تم الضغط على moreMenuBtn');
+            this.el.moreDropdown?.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show');
+        });
         on('returnSaleBtn', 'click', (e) => { e.preventDefault(); this.openReturn(); this.el.moreDropdown?.classList.remove('show'); });
         on('holdInvoiceBtn', 'click', (e) => { e.preventDefault(); this.holdInvoice(); this.el.moreDropdown?.classList.remove('show'); });
         on('heldInvoicesBtn', 'click', (e) => { e.preventDefault(); this.loadHeld(); this.el.moreDropdown?.classList.remove('show'); });
         on('logoutBtn', 'click', (e) => { e.preventDefault(); if (confirm('هل أنت متأكد؟')) App.logout(); });
 
+        // البحث في المنتجات (تابلت)
         on('tabletProductSearchInput', 'input', U.debounce(() => this._filterTabletProducts(), 150));
         if (this.el.productGrid) {
             this.el.productGrid.addEventListener('click', (e) => {
@@ -211,6 +226,7 @@ const POS = {
             });
         }
 
+        // البحث في المنتجات (هاتف)
         on('productSearchInput', 'input', U.debounce(() => this._filterProducts(), 150));
         on('productDropdown', 'click', (e) => {
             const item = e.target.closest('.dropdown-item');
@@ -218,6 +234,7 @@ const POS = {
         });
         document.addEventListener('click', (e) => { if (!e.target.closest('.search-header')) this._hideProdDropdown(); });
 
+        // البحث عن العملاء
         on('customerSearchInput', 'input', U.debounce(() => this._filterCustomers(), 150));
         on('customerDropdown', 'click', (e) => {
             const item = e.target.closest('.dropdown-item');
@@ -235,32 +252,41 @@ const POS = {
         });
         document.addEventListener('click', (e) => { if (!e.target.closest('.customer-box')) this._hideCustDropdown(); });
 
+        // الخصومات
         on('discountValue', 'input', () => { this.state.discountValue = +this.el.discountValue.value || 0; this._updateTotals(); this._saveCart(); });
         on('discountType', 'change', () => { this.state.discountType = this.el.discountType.value; this._updateTotals(); this._saveCart(); });
+
+        // الدفع
         on('payBtn', 'click', () => this._openPayment());
-
-        on('addToCartBtn', 'click', () => this._addToCart());
-        on('closeUnitModalBtn', 'click', () => { this._closeModal('unitQuantityModal'); });
-
-        on('confirmAndPrintBtn', 'click', (e) => { e.preventDefault(); this._completePayment(); });
+        on('confirmAndPrintBtn', 'click', (e) => {
+            e.preventDefault();
+            console.log('تم الضغط على confirmAndPrintBtn');
+            this._completePayment();
+        });
         on('closePaymentModalBtn', 'click', () => this._closeModal('paymentModal'));
         on('paymentMethod', 'change', () => this._togglePaymentFields());
         on('cashAmount', 'input', () => this._previewPayment());
         on('transferAmount', 'input', () => this._previewPayment());
 
+        // إضافة منتج
+        on('addToCartBtn', 'click', () => this._addToCart());
+        on('closeUnitModalBtn', 'click', () => this._closeModal('unitQuantityModal'));
+
+        // الفواتير المعلقة
         on('closeHeldModalBtn', 'click', () => this._closeModal('heldInvoicesModal'));
 
+        // الإيصال
         on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
         on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
         on('printReceiptBtn', 'click', () => this._printReceipt());
-        // الطابعة الحرارية غير مفعلة بشكل افتراضي
-        // if (this.el.thermalPrintBtn) this.el.thermalPrintBtn.addEventListener('click', () => this._printThermal());
 
+        // أحداث السلة
         if (this.el.cartItemsContainer) {
             this.el.cartItemsContainer.addEventListener('change', e => this._onCartChange(e));
             this.el.cartItemsContainer.addEventListener('click', e => this._onCartClick(e));
         }
 
+        // أزرار الوحدات
         if (this.el.unitButtons && !this.state._unitButtonsBound) {
             this.el.unitButtons.addEventListener('click', (e) => {
                 const btn = e.target.closest('.unit-btn');
@@ -269,6 +295,7 @@ const POS = {
             this.state._unitButtonsBound = true;
         }
 
+        // أزرار تكرار الصنف
         on('duplicateIncreaseBtn', 'click', () => {
             if (this._duplicateCallback) { this._duplicateCallback(true); this._duplicateCallback = null; }
             this._closeModal('duplicateProductModal');
@@ -501,9 +528,8 @@ const POS = {
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
 
     openReturn() {
-        // سيتم ربطها بصفحة المرتجعات لاحقًا
+        // صفحة المرتجعات قيد التطوير حالياً
         window.Toast?.info('صفحة المرتجعات قيد التطوير');
-        // window.location.href = './sales-returns.html';
     },
 
     _calcTotals() {
@@ -720,7 +746,6 @@ const POS = {
             const diff = (m === 'credit') ? -net : U.round(paid - net, 2);
             const oldBal = cust?.balance || 0;
 
-            // التحقق من اختيار عميل للدفع الآجل
             if (m === 'credit' && !cust) {
                 window.Toast?.error('يجب اختيار عميل للدفع الآجل');
                 this.state.busy = false; this.el.confirmAndPrintBtn.disabled = false; return;
@@ -1052,14 +1077,11 @@ const POS = {
 
 window.POS = POS;
 
-/* =============================================
-   بدء تلقائي عند تحميل الصفحة
-   ============================================= */
+/* بدء تلقائي */
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         if (window.POS) window.POS.init();
     });
 } else {
-    // DOM جاهز بالفعل
     window.POS?.init();
 }
