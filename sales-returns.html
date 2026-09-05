@@ -83,7 +83,6 @@
         }
 
         #loading-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 9999; transition: width 0.3s ease; }
-
         #offline-banner {
             position: fixed; top: 0; left: 0; right: 0;
             background: var(--danger); color: white;
@@ -319,6 +318,113 @@
         .data-table tr:last-child td { border-bottom: none; }
         .data-table tr:hover { background: var(--bg-input); }
 
+        .action-btn {
+            background: none;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--primary);
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+
+        /* Modal للإيصال */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 250;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .modal-header h2 { font-size: 1.2rem; }
+        .modal-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+
+        .receipt-preview {
+            background: #fffef7;
+            color: #000;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.85rem;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            direction: rtl;
+            line-height: 1.6;
+        }
+        .receipt-preview .receipt-header {
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+        .receipt-preview .receipt-sub {
+            text-align: center;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+        .receipt-preview hr {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
+        .receipt-preview .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .receipt-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .receipt-preview table th,
+        .receipt-preview table td {
+            padding: 4px;
+            text-align: right;
+            border-bottom: 1px dashed #ccc;
+        }
+        .receipt-preview table th { font-weight: 700; }
+        .receipt-preview .receipt-total {
+            font-weight: 800;
+            font-size: 1rem;
+        }
+        .receipt-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .receipt-actions .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+        }
+        .btn-print { background: var(--primary); color: white; }
+        .btn-close { background: var(--bg-input); color: var(--text-primary); }
+
         @media (max-width: 768px) {
             .page-content { padding: 16px; }
             .page-header h1 { font-size: 1.2rem; }
@@ -435,6 +541,7 @@
 
             <div class="btn-row">
                 <button class="btn btn-success" id="saveReturnBtn"><i class="fas fa-save"></i> حفظ المرتجع</button>
+                <button class="btn btn-primary" id="printReturnBtn" style="display:none;"><i class="fas fa-print"></i> طباعة</button>
                 <button class="btn btn-cancel" onclick="location.href='./pos.html'">إلغاء</button>
             </div>
             <div class="error-msg" id="errorMsg"></div>
@@ -462,6 +569,21 @@
         </div>
     </main>
 
+    <!-- Modal لعرض إيصال المرتجع -->
+    <div class="modal" id="returnReceiptModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إيصال المرتجع</h2>
+                <button id="closeReturnReceiptModal">&times;</button>
+            </div>
+            <div class="receipt-preview" id="returnReceiptPreview"></div>
+            <div class="receipt-actions">
+                <button class="btn btn-print" id="printReturnReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-close" id="closeReturnReceiptBtn">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toastContainer"></div>
 
     <!-- Scripts -->
@@ -485,8 +607,14 @@
             const refundMethod = document.getElementById('refundMethod');
             const returnNotes = document.getElementById('returnNotes');
             const saveReturnBtn = document.getElementById('saveReturnBtn');
+            const printReturnBtn = document.getElementById('printReturnBtn');
             const errorMsg = document.getElementById('errorMsg');
             const returnsTableBody = document.getElementById('returnsTableBody');
+            const returnReceiptModal = document.getElementById('returnReceiptModal');
+            const closeReturnReceiptModal = document.getElementById('closeReturnReceiptModal');
+            const closeReturnReceiptBtn = document.getElementById('closeReturnReceiptBtn');
+            const printReturnReceiptBtn = document.getElementById('printReturnReceiptBtn');
+            const returnReceiptPreview = document.getElementById('returnReceiptPreview');
             const menuToggle = document.getElementById('menuToggle');
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -498,6 +626,18 @@
             let returnItems = [];
             let selectedInvoice = null;
             let currentUser = null;
+            let lastSavedReturn = null;
+
+            // دالة آمنة للتوست
+            function safeToast(message, type = 'success') {
+                if (window.Toast && typeof window.Toast[type] === 'function') {
+                    window.Toast[type](message);
+                } else if (window.Toast && typeof window.Toast.show === 'function') {
+                    window.Toast.show(message, type);
+                } else {
+                    alert(message);
+                }
+            }
 
             function fmtMoney(v) {
                 return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
@@ -682,8 +822,11 @@
                 };
 
                 try {
-                    await DB.saveReturn(returnObj);
-                    window.Toast.success('تم حفظ المرتجع');
+                    const result = await DB.saveReturn(returnObj);
+                    lastSavedReturn = returnObj;
+                    safeToast('تم حفظ المرتجع');
+                    // إظهار زر الطباعة
+                    printReturnBtn.style.display = 'flex';
                     // إعادة تعيين النموذج
                     originalInvoiceId.value = '';
                     invoiceSearch.value = '';
@@ -699,6 +842,48 @@
                     errorMsg.textContent = e.message || 'فشل حفظ المرتجع';
                 }
             }
+
+            // طباعة إيصال المرتجع
+            function showReturnReceipt(returnObj) {
+                if (!returnObj) return;
+                const items = returnObj.items || [];
+                let itemsHtml = '';
+                items.forEach(item => {
+                    itemsHtml += `<tr><td>${item.productName} - ${item.unitName}</td><td>${item.qty}</td><td>${fmtMoney(item.price)}</td><td>${fmtMoney(item.total)}</td></tr>`;
+                });
+                const html = `
+                    <div class="receipt-header">إيصال مرتجع</div>
+                    <div class="receipt-sub">رقم: ${returnObj.id.substring(0,8)}</div>
+                    <hr>
+                    <div class="receipt-row"><span>العميل:</span><span>${returnObj.customer_name || 'نقدي'}</span></div>
+                    <div class="receipt-row"><span>التاريخ:</span><span>${returnObj.date}</span></div>
+                    <div class="receipt-row"><span>السبب:</span><span>${returnObj.reason}</span></div>
+                    <hr>
+                    <table><thead><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+                    <hr>
+                    <div class="receipt-row receipt-total"><span>الإجمالي:</span><span>${fmtMoney(returnObj.total)}</span></div>
+                `;
+                returnReceiptPreview.innerHTML = html;
+                returnReceiptModal.classList.add('open');
+            }
+
+            printReturnBtn.addEventListener('click', () => showReturnReceipt(lastSavedReturn));
+            closeReturnReceiptModal.addEventListener('click', () => returnReceiptModal.classList.remove('open'));
+            closeReturnReceiptBtn.addEventListener('click', () => returnReceiptModal.classList.remove('open'));
+            returnReceiptModal.addEventListener('click', (e) => {
+                if (e.target === returnReceiptModal) returnReceiptModal.classList.remove('open');
+            });
+
+            printReturnReceiptBtn.addEventListener('click', () => {
+                const content = returnReceiptPreview.innerHTML;
+                const printWindow = window.open('', '_blank', 'width=400,height=600');
+                if (printWindow) {
+                    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;background:white;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:5px;border-bottom:1px dashed #ccc}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${content}</body></html>`);
+                    printWindow.document.close();
+                    printWindow.focus();
+                    setTimeout(() => printWindow.print(), 300);
+                }
+            });
 
             saveReturnBtn.addEventListener('click', saveReturn);
 
