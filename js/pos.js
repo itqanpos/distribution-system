@@ -1,10 +1,10 @@
 /* =============================================
-   pos.js - نقطة البيع (إصدار 8.2 - تصحيحات حرجة)
-   1. دمج أصناف مكررة (مضمون)
-   2. فحص مخزون قبل الحفظ
-   3. Offline Queue أساسي
-   4. Activity Log
-   5. تحديث ذكي للمنتجات عبر Realtime
+   pos.js - نقطة البيع (إصدار 8.3 - تصحيحات نهائية)
+   - إزالة كاملة لوظائف الباركود (كاميرا وHID)
+   - إصلاح تحميل البيانات وتجاهل الكاش الفارغ
+   - تصحيح الدفع الآجل
+   - إزالة المنتج المحذوف من السلة في Realtime
+   - تحسين إدارة الذاكرة في Virtual Scrolling
    ============================================= */
 'use strict';
 
@@ -34,11 +34,6 @@ const POS = {
         currentUser: null,
         resumedInvoiceId: null,
         _unitButtonsBound: false,
-        _barcodeStream: null,
-        _barcodeAnimFrame: null,
-        _barcodeBuffer: '',
-        _barcodeTimer: null,
-        _lastKeyTime: 0,
         _observer: null,
         _offlineSales: [],
         _activityLog: []
@@ -46,7 +41,7 @@ const POS = {
     cache: {
         prods: new Map(),
         custs: new Map(),
-        barcode: new Map(),
+        barcode: new Map(), // سيظل فارغًا للتوافق مع أي استخدام مستقبلي
         _maxCacheSize: 500,
         _setWithLimit(map, key, value) {
             if (map.size >= this._maxCacheSize) {
@@ -66,21 +61,21 @@ const POS = {
         this._bind();
         this._connStatus();
         this._setupErrorMonitoring();
-        this._setupBarcodeBuffer();
         this._setupRealtimeSync();
+
         window.addEventListener('online', () => { this._connStatus(); this._syncOfflineSales(); });
         window.addEventListener('offline', () => this._connStatus());
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 this._saveCart();
                 this._savePaymentDraft();
-                this._stopBarcodeScan();
             }
         });
+
         await this._loadData();
         await this._sidebarUser();
         this._restorePaymentDraft();
-        window.addEventListener('beforeunload', () => { this._stopBarcodeScan(); this._saveCart(); this._savePaymentDraft(); });
+        window.addEventListener('beforeunload', () => { this._saveCart(); this._savePaymentDraft(); });
         console.log('✅ POS.init() completed');
     },
 
@@ -89,7 +84,7 @@ const POS = {
             'menuToggle','sidebar','sidebarOverlay','moreMenuBtn','moreDropdown',
             'holdInvoiceBtn','heldInvoicesBtn','logoutBtn','returnSaleBtn',
             'productSearchInput','customerSearchInput','customerBalanceDisplay',
-            'productDropdown','customerDropdown','barcodeScannerBtn',
+            'productDropdown','customerDropdown',
             'cartItemsContainer','discountValue','discountType','itemTypesCount',
             'totalPieces','subtotal','netTotal','payBtn',
             'unitQuantityModal','modalProductName','unitButtons','selectedQuantity',
@@ -101,7 +96,7 @@ const POS = {
             'heldInvoicesModal','heldInvoicesList','closeHeldModalBtn',
             'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
             'sidebarAvatar','sidebarUserName',
-            'tabletProductSearchInput','productGrid','tabletBarcodeBtn',
+            'tabletProductSearchInput','productGrid',
             'profitDisplay',
             'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn'
         ];
@@ -149,7 +144,10 @@ const POS = {
                     const deletedId = payload.old?.id;
                     if (deletedId) {
                         this.state.products = this.state.products.filter(p => p.id !== deletedId);
+                        // إزالة من السلة أيضًا إذا كان موجودًا
+                        this.state.cart = this.state.cart.filter(item => item.productId !== deletedId);
                         this._buildCache();
+                        this._renderCart(); // لإعادة حساب الإجمالي
                         this._debouncedRenderGrid();
                     }
                     return;
@@ -180,37 +178,6 @@ const POS = {
         this._renderProductGrid();
     }, 200),
 
-    /* ---------- Barcode Buffer ---------- */
-    _setupBarcodeBuffer() {
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-            const now = Date.now();
-            if (e.key === 'Enter') {
-                if (this.state._barcodeBuffer.length > 5) {
-                    this._searchBarcode(this.state._barcodeBuffer);
-                }
-                this.state._barcodeBuffer = '';
-                this.state._lastKeyTime = 0;
-                return;
-            }
-            if (e.key.length === 1) {
-                if (this.state._lastKeyTime && (now - this.state._lastKeyTime > 50)) {
-                    this.state._barcodeBuffer = '';
-                }
-                this.state._lastKeyTime = now;
-                this.state._barcodeBuffer += e.key;
-                clearTimeout(this.state._barcodeTimer);
-                this.state._barcodeTimer = setTimeout(() => {
-                    if (this.state._barcodeBuffer.length > 5) {
-                        this._searchBarcode(this.state._barcodeBuffer);
-                    }
-                    this.state._barcodeBuffer = '';
-                    this.state._lastKeyTime = 0;
-                }, 150);
-            }
-        });
-    },
-
     _bindKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
@@ -237,7 +204,6 @@ const POS = {
         on('logoutBtn', 'click', (e) => { e.preventDefault(); if (confirm('هل أنت متأكد؟')) App.logout(); });
 
         on('tabletProductSearchInput', 'input', U.debounce(() => this._filterTabletProducts(), 150));
-        on('tabletBarcodeBtn', 'click', () => this._scanBarcode());
         if (this.el.productGrid) {
             this.el.productGrid.addEventListener('click', (e) => {
                 const card = e.target.closest('.product-card');
@@ -251,7 +217,6 @@ const POS = {
             if (item?.dataset.id) { this._openUnitModal(item.dataset.id); this._hideProdDropdown(); this.el.productSearchInput.value = ''; }
         });
         document.addEventListener('click', (e) => { if (!e.target.closest('.search-header')) this._hideProdDropdown(); });
-        on('barcodeScannerBtn', 'click', () => this._scanBarcode());
 
         on('customerSearchInput', 'input', U.debounce(() => this._filterCustomers(), 150));
         on('customerDropdown', 'click', (e) => {
@@ -275,7 +240,7 @@ const POS = {
         on('payBtn', 'click', () => this._openPayment());
 
         on('addToCartBtn', 'click', () => this._addToCart());
-        on('closeUnitModalBtn', 'click', () => { this._stopBarcodeScan(); this._closeModal('unitQuantityModal'); });
+        on('closeUnitModalBtn', 'click', () => { this._closeModal('unitQuantityModal'); });
 
         on('confirmAndPrintBtn', 'click', (e) => { e.preventDefault(); this._completePayment(); });
         on('closePaymentModalBtn', 'click', () => this._closeModal('paymentModal'));
@@ -288,8 +253,8 @@ const POS = {
         on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
         on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
         on('printReceiptBtn', 'click', () => this._printReceipt());
-        // تعطيل الطباعة الحرارية حتى يتم إصلاحها إن لزم
-        // on('thermalPrintBtn', 'click', () => this._printThermal());
+        // الطابعة الحرارية غير مفعلة بشكل افتراضي
+        // if (this.el.thermalPrintBtn) this.el.thermalPrintBtn.addEventListener('click', () => this._printThermal());
 
         if (this.el.cartItemsContainer) {
             this.el.cartItemsContainer.addEventListener('change', e => this._onCartChange(e));
@@ -354,12 +319,10 @@ const POS = {
             let custs = [];
             if (this.state.db) {
                 console.log('🌐 جلب من السحابة (DB) مع تجاهل الكاش');
-                // مسح كاش الجلسة لضمان عدم استخدام بيانات قديمة فارغة
                 if (window.SessionStore) {
                     window.SessionStore.invalidate('offline_products');
                     window.SessionStore.invalidate('offline_parties');
                 }
-                // فرض التحديث من السحابة (force = true)
                 this.state.products = await DB.getProducts(true) || [];
                 custs = await DB.getParties('customer', true) || [];
             } else if (U.localReady()) {
@@ -372,15 +335,12 @@ const POS = {
                 custs = [];
             }
 
-            // فلترة العملاء فقط
             this.state.customers = custs.filter(c => c.type === 'customer');
             
-            // معالجة الوحدات إن كانت نصية
             this.state.products.forEach(p => {
                 if (typeof p.units === 'string') {
                     try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
                 }
-                // التأكد من وجود وحدات وإلا نضيف وحدة افتراضية
                 if (!p.units || !Array.isArray(p.units) || p.units.length === 0) {
                     p.units = [{
                         name: 'وحدة',
@@ -396,7 +356,6 @@ const POS = {
 
             console.log(`✅ تم تحميل ${this.state.products.length} منتج و ${this.state.customers.length} عميل`);
             
-            // إذا كانت النتيجة فارغة رغم الاتصال، نحاول مرة أخرى بعد تأخير
             if (this.state.products.length === 0 && navigator.onLine) {
                 console.warn('⚠️ لم يتم جلب منتجات، محاولة مرة أخرى...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -455,11 +414,11 @@ const POS = {
         }
         if (this.state._observer) this.state._observer.disconnect();
         grid.innerHTML = '';
-        const fragment = document.createDocumentFragment();
         const cardsPerBatch = 20;
         let currentBatch = 0;
 
         const renderBatch = () => {
+            const batchFragment = document.createDocumentFragment();
             const start = currentBatch * cardsPerBatch;
             const end = Math.min(start + cardsPerBatch, products.length);
             for (let i = start; i < end; i++) {
@@ -472,9 +431,9 @@ const POS = {
                 card.innerHTML = `<div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">${U.escape(p.name)}</div>
                     <div style="font-size:0.8rem;color:var(--text-secondary);">${U.fmtMoney(price)}</div>
                     <div style="font-size:0.7rem;color:${stock > 0 ? 'var(--success)' : 'var(--danger)'};">${stock > 0 ? 'متوفر: ' + stock : 'نفذ'}</div>`;
-                fragment.appendChild(card);
+                batchFragment.appendChild(card);
             }
-            grid.appendChild(fragment);
+            grid.appendChild(batchFragment);
             currentBatch++;
             if (end < products.length) {
                 const sentinel = document.createElement('div');
@@ -541,67 +500,10 @@ const POS = {
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
 
-    /* ---------- Barcode Scanner ---------- */
-    _stopBarcodeScan() {
-        if (this.state._barcodeStream) {
-            this.state._barcodeStream.getTracks().forEach(t => t.stop());
-            this.state._barcodeStream = null;
-        }
-        if (this.state._barcodeAnimFrame) {
-            cancelAnimationFrame(this.state._barcodeAnimFrame);
-            this.state._barcodeAnimFrame = null;
-        }
-        if (this._barcodeVideo) {
-            this._barcodeVideo.remove();
-            this._barcodeVideo = null;
-        }
-    },
-    _scanBarcode() {
-        this._stopBarcodeScan();
-        if (!('BarcodeDetector' in window)) { window.Toast?.error('المتصفح لا يدعم مسح الباركود'); return; }
-        const video = document.createElement('video'); 
-        video.setAttribute('playsinline', ''); 
-        video.style.display = 'none';
-        document.body.appendChild(video);
-        this._barcodeVideo = video;
-
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
-            this.state._barcodeStream = stream;
-            video.srcObject = stream; 
-            video.play();
-            const detector = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','qr_code'] });
-            const scan = async () => {
-                if (video.readyState >= 2) {
-                    try {
-                        const barcodes = await detector.detect(video);
-                        if (barcodes.length) {
-                            this._stopBarcodeScan();
-                            this._searchBarcode(barcodes[0].rawValue);
-                            return;
-                        }
-                    } catch {}
-                }
-                this.state._barcodeAnimFrame = requestAnimationFrame(scan);
-            };
-            this.state._barcodeAnimFrame = requestAnimationFrame(scan);
-            window.Toast?.info('وجّه الكاميرا نحو الباركود');
-        }).catch(() => { 
-            window.Toast?.error('تعذر الوصول للكاميرا'); 
-            this._stopBarcodeScan();
-        });
-    },
-    _searchBarcode(code) {
-        const found = this.cache.barcode.get(code);
-        if (found) {
-            this._openUnitModal(found.id);
-        } else {
-            this.el.productSearchInput.value = code;
-            this._filterProducts();
-        }
-    },
-
     openReturn() {
-        window.location.href = './sales-returns.html';
+        // سيتم ربطها بصفحة المرتجعات لاحقًا
+        window.Toast?.info('صفحة المرتجعات قيد التطوير');
+        // window.location.href = './sales-returns.html';
     },
 
     _calcTotals() {
@@ -812,10 +714,17 @@ const POS = {
             if (m === 'cash') cash = +this.el.cashAmount?.value || 0;
             else if (m === 'transfer') trans = +this.el.transferAmount?.value || 0;
             else if (m === 'mixed') { cash = +this.el.cashAmount?.value || 0; trans = +this.el.transferAmount?.value || 0; }
-            const used = (m === 'credit') ? 0 : this.state.usedBalance || 0;
+            const cust = this._getCust();
+            let used = (m === 'credit') ? 0 : this.state.usedBalance || 0;
             const paid = (m === 'credit') ? 0 : U.round(cash + trans + used, 2);
             const diff = (m === 'credit') ? -net : U.round(paid - net, 2);
-            const cust = this._getCust(), oldBal = cust?.balance || 0;
+            const oldBal = cust?.balance || 0;
+
+            // التحقق من اختيار عميل للدفع الآجل
+            if (m === 'credit' && !cust) {
+                window.Toast?.error('يجب اختيار عميل للدفع الآجل');
+                this.state.busy = false; this.el.confirmAndPrintBtn.disabled = false; return;
+            }
 
             if (diff > 0 && cust && !confirm(`سيتم إضافة ${U.fmtMoney(diff)} إلى رصيد العميل. متابعة؟`)) {
                 this.state.busy = false; this.el.confirmAndPrintBtn.disabled = false; return;
@@ -847,7 +756,7 @@ const POS = {
                 subtotal: sub, discount: disc, total: net,
                 cash_paid: cash, transfer_paid: trans, used_customer_balance: used,
                 paid, remaining: diff >= 0 ? 0 : -diff,
-                customer_credit_added: diff > 0 ? diff : 0,
+                customer_credit_added: m === 'credit' ? net : (diff > 0 ? diff : 0),
                 change_amount: diff > 0 ? diff : 0,
                 status: m === 'credit' ? 'credit' : (diff >= 0 ? 'paid' : 'partial'),
                 notes: this.el.paymentNotes?.value || '',
