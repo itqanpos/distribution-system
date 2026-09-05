@@ -1,436 +1,340 @@
-/* =============================================
-   sales-returns.js - مرتجعات المبيعات
-   ============================================= */
+(() => {
+    'use strict';
 
-'use strict';
+    const loadingBar = document.getElementById('loading-bar');
+    const invoiceSearch = document.getElementById('invoiceSearch');
+    const invoiceDropdown = document.getElementById('invoiceDropdown');
+    const originalInvoiceId = document.getElementById('originalInvoiceId');
+    const returnReason = document.getElementById('returnReason');
+    const returnItemsTable = document.getElementById('returnItemsTable');
+    const returnSubtotal = document.getElementById('returnSubtotal');
+    const refundMethod = document.getElementById('refundMethod');
+    const returnNotes = document.getElementById('returnNotes');
+    const saveReturnBtn = document.getElementById('saveReturnBtn');
+    const printReturnBtn = document.getElementById('printReturnBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    const returnsTableBody = document.getElementById('returnsTableBody');
+    const returnReceiptModal = document.getElementById('returnReceiptModal');
+    const closeReturnReceiptModal = document.getElementById('closeReturnReceiptModal');
+    const closeReturnReceiptBtn = document.getElementById('closeReturnReceiptBtn');
+    const printReturnReceiptBtn = document.getElementById('printReturnReceiptBtn');
+    const returnReceiptPreview = document.getElementById('returnReceiptPreview');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const moreMenuBtn = document.getElementById('moreMenuBtn');
+    const moreDropdown = document.getElementById('moreDropdown');
+    const logoutBtn = document.getElementById('logoutBtn');
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
-        },
-        formatDate: (dateStr) => {
-            if (!dateStr) return '';
-            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-            catch (e) { return dateStr; }
-        },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
-    };
-}
+    let allInvoices = [];
+    let allReturns = [];
+    let returnItems = [];
+    let selectedInvoice = null;
+    let currentUser = null;
+    let lastSavedReturn = null;
 
-const SalesReturns = {
-    returns: [],
-    invoices: [],
-    products: [],
-    customers: [],
-
-    init() {
-        this.cacheElements();
-        this.bindEvents();
-        if (window.App) {
-            if (!App.requireAuth()) return;
-            App.initUserInterface();
+    function safeToast(message, type = 'success') {
+        if (window.Toast && typeof window.Toast[type] === 'function') {
+            window.Toast[type](message);
+        } else if (window.Toast && typeof window.Toast.show === 'function') {
+            window.Toast.show(message, type);
+        } else {
+            alert(message);
         }
-        this.loadData();
-    },
+    }
 
-    cacheElements() {
-        this.el = {
-            menuToggle: document.getElementById('menuToggle'),
-            sidebar: document.getElementById('sidebar'),
-            sidebarOverlay: document.getElementById('sidebarOverlay'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            userProfileBtn: document.getElementById('userProfileBtn'),
-            userDropdown: document.getElementById('userDropdown'),
-            searchInput: document.getElementById('searchInput'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            returnsBody: document.getElementById('returnsBody'),
-            newReturnBtn: document.getElementById('newReturnBtn'),
-            returnModal: document.getElementById('returnModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            closeModalBtn: document.getElementById('closeModalBtn'),
-            cancelModalBtn: document.getElementById('cancelModalBtn'),
-            returnForm: document.getElementById('returnForm'),
-            returnId: document.getElementById('returnId'),
-            invoiceSearchInput: document.getElementById('invoiceSearchInput'),
-            invoiceList: document.getElementById('invoiceList'),
-            invoiceItemsContainer: document.getElementById('invoiceItemsContainer'),
-            directProductSection: document.getElementById('directProductSection'),
-            directProductInput: document.getElementById('directProductInput'),
-            directQuantity: document.getElementById('directQuantity'),
-            directProductUnits: document.getElementById('directProductUnits'),
-            directPrice: document.getElementById('directPrice'),
-            returnMethod: document.getElementById('returnMethod'),
-            returnDate: document.getElementById('returnDate'),
-            returnReason: document.getElementById('returnReason'),
-            returnTotal: document.getElementById('returnTotal'),
-            totalReturns: document.getElementById('totalReturns'),
-            returnCount: document.getElementById('returnCount'),
-            todayReturns: document.getElementById('todayReturns'),
-            toast: document.getElementById('toast'),
-            productList: document.getElementById('productList'),
-            invoiceSelectionSection: document.getElementById('invoiceSelectionSection')
-        };
-    },
+    function fmtMoney(v) {
+        return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+    }
 
-    bindEvents() {
-        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-
-        this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay?.classList.toggle('show');
+    function waitForCore(timeoutMs = 8000) {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+                if (window.App && window.DB) resolve();
+                else if (Date.now() - start > timeoutMs) reject(new Error('Core not loaded'));
+                else setTimeout(check, 200);
+            };
+            check();
         });
-        this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
-        });
-        document.querySelectorAll('.menu-item').forEach(link => {
-            link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
-                this.el.sidebarOverlay?.classList.remove('show');
+    }
+
+    async function loadData() {
+        try {
+            const [invoicesRes, returnsRes] = await Promise.allSettled([
+                DB.getInvoices(),
+                DB.getReturns('sale')
+            ]);
+            allInvoices = invoicesRes.status === 'fulfilled' ? invoicesRes.value : [];
+            const returns = returnsRes.status === 'fulfilled' ? returnsRes.value : [];
+            allReturns = returns;
+            renderReturnsTable(allReturns);
+        } catch (e) {
+            console.error('Failed to load returns data:', e);
+            returnsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">فشل تحميل المرتجعات</td></tr>';
+        }
+    }
+
+    function renderReturnsTable(returns) {
+        if (!returns.length) {
+            returnsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">لا توجد مرتجعات</td></tr>';
+            return;
+        }
+        returnsTableBody.innerHTML = returns.map(r => `
+            <tr>
+                <td>${r.date || ''}</td>
+                <td>${r.original_invoice_number || r.original_invoice_id?.substring(0,8) || '-'}</td>
+                <td>${r.customer_name || '-'}</td>
+                <td>${r.reason || '-'}</td>
+                <td>${fmtMoney(r.total)}</td>
+            </tr>
+        `).join('');
+    }
+
+    invoiceSearch.addEventListener('input', () => {
+        const term = invoiceSearch.value.trim().toLowerCase();
+        if (!term) {
+            invoiceDropdown.classList.remove('show');
+            return;
+        }
+        const filtered = allInvoices.filter(inv => inv.type === 'sale' && inv.status !== 'voided' && (
+            (inv.invoice_number && inv.invoice_number.toLowerCase().includes(term)) ||
+            (inv.customer_name && inv.customer_name.toLowerCase().includes(term))
+        ));
+        invoiceDropdown.innerHTML = filtered.length ? filtered.map(inv => `
+            <div class="dropdown-item" data-id="${inv.id}">
+                <span>${inv.invoice_number || inv.id?.substring(0,8)} - ${inv.customer_name || 'نقدي'}</span>
+                <span style="font-weight:600;">${fmtMoney(inv.total)}</span>
+            </div>
+        `).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">لا توجد فواتير مطابقة</div>';
+        invoiceDropdown.classList.add('show');
+    });
+
+    invoiceDropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.dropdown-item');
+        if (item && item.dataset.id) {
+            const inv = allInvoices.find(i => i.id === item.dataset.id);
+            if (inv) {
+                selectedInvoice = inv;
+                originalInvoiceId.value = inv.id;
+                invoiceSearch.value = `${inv.invoice_number || ''} - ${inv.customer_name || 'نقدي'}`;
+                invoiceDropdown.classList.remove('show');
+                populateReturnItems(inv);
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.form-group')) {
+            invoiceDropdown.classList.remove('show');
+        }
+    });
+
+    function populateReturnItems(inv) {
+        const items = inv.items || [];
+        if (!items.length) {
+            returnItemsTable.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">لا توجد منتجات في هذه الفاتورة</td></tr>';
+            returnItems = [];
+            updateReturnTotals();
+            return;
+        }
+        returnItems = items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            unitName: item.unitName,
+            soldQty: Number(item.quantity) || 0,
+            qty: Number(item.quantity) || 0,
+            price: Number(item.price) || 0,
+            total: (Number(item.quantity) || 0) * (Number(item.price) || 0)
+        }));
+        renderReturnItems();
+    }
+
+    function renderReturnItems() {
+        if (!returnItems.length) {
+            returnItemsTable.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">اختر فاتورة أولاً</td></tr>';
+            updateReturnTotals();
+            return;
+        }
+        returnItemsTable.innerHTML = returnItems.map((item, idx) => `
+            <tr>
+                <td>${item.productName} - ${item.unitName}</td>
+                <td>${item.soldQty}</td>
+                <td><input type="number" class="return-qty" data-idx="${idx}" value="${item.qty}" min="0" max="${item.soldQty}" step="0.001"></td>
+                <td>${fmtMoney(item.price)}</td>
+                <td>${fmtMoney(item.total)}</td>
+                <td><button class="remove-btn" data-idx="${idx}"><i class="fas fa-times"></i></button></td>
+            </tr>
+        `).join('');
+
+        returnItemsTable.querySelectorAll('.return-qty').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+                const idx = e.target.dataset.idx;
+                const qty = parseFloat(e.target.value) || 0;
+                if (qty < 0) { e.target.value = 0; return; }
+                if (qty > returnItems[idx].soldQty) { e.target.value = returnItems[idx].soldQty; return; }
+                returnItems[idx].qty = qty;
+                returnItems[idx].total = qty * returnItems[idx].price;
+                updateReturnTotals();
             });
         });
 
-        this.el.logoutBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (window.App) App.logout();
-            else window.location.href = './index.html';
+        returnItemsTable.querySelectorAll('.remove-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = e.target.closest('.remove-btn').dataset.idx;
+                returnItems.splice(idx, 1);
+                renderReturnItems();
+            });
         });
 
-        this.el.searchInput?.addEventListener('input', () => this.renderTable());
-        this.el.refreshBtn?.addEventListener('click', () => this.loadData());
-        this.el.newReturnBtn?.addEventListener('click', () => this.openModal());
-        this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.returnForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveReturn(); });
+        updateReturnTotals();
+    }
 
-        this.el.invoiceSearchInput?.addEventListener('input', () => this.onInvoiceSearch());
-        this.el.directProductInput?.addEventListener('input', () => this.onDirectProductInput());
-    },
+    function updateReturnTotals() {
+        const total = returnItems.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+        returnSubtotal.textContent = fmtMoney(total);
+    }
 
-    async loadData() {
-        try {
-            if (Utils.isDBReady()) {
-                this.returns = await DB.getSalesReturns?.() || [];
-                this.invoices = (await DB.getInvoices?.() || []).filter(i => i.type === 'sale');
-                this.products = await DB.getProducts?.() || [];
-                this.customers = await DB.getParties?.('customer') || [];
-            } else if (Utils.hasLocalDB()) {
-                this.returns = await localDB.getAll('sales_returns') || [];
-                const allInvoices = await localDB.getAll('invoices') || [];
-                this.invoices = allInvoices.filter(i => i.type === 'sale');
-                this.products = await localDB.getAll('products') || [];
-                const allParties = await localDB.getAll('parties') || [];
-                this.customers = allParties.filter(p => p.type === 'customer');
-            } else {
-                this.returns = [];
-                this.invoices = [];
-                this.products = [];
-                this.customers = [];
-            }
-            this.populateInvoiceDatalist();
-            this.populateProductDatalist();
-            this.updateStats();
-            this.renderTable();
-        } catch (err) {
-            console.error('فشل تحميل بيانات المرتجعات:', err);
-            this.el.returnsBody.innerHTML = '<tr><td colspan="7" class="empty-message">فشل تحميل البيانات</td></tr>';
+    async function saveReturn() {
+        errorMsg.textContent = '';
+        if (!originalInvoiceId.value) {
+            errorMsg.textContent = 'يرجى اختيار الفاتورة الأصلية';
+            return;
         }
-    },
-
-    populateInvoiceDatalist() {
-        if (!this.el.invoiceList) return;
-        this.el.invoiceList.innerHTML = this.invoices.map(inv => {
-            const customerName = inv.customer_name || 'نقدي';
-            return `<option value="${inv.id?.substring(0, 8)} - ${customerName}" data-id="${inv.id}">${inv.id?.substring(0, 8)} - ${customerName}</option>`;
-        }).join('');
-    },
-
-    populateProductDatalist() {
-        if (!this.el.productList) return;
-        this.el.productList.innerHTML = this.products.map(p =>
-            `<option value="${p.name}" data-id="${p.id}">${p.name}</option>`
-        ).join('');
-    },
-
-    updateStats() {
-        const total = this.returns.reduce((s, r) => s + (r.total || 0), 0);
-        const today = Utils.getToday();
-        const todayTotal = this.returns.filter(r => r.date === today).reduce((s, r) => s + (r.total || 0), 0);
-        if (this.el.totalReturns) this.el.totalReturns.textContent = Utils.formatMoney(total);
-        if (this.el.returnCount) this.el.returnCount.textContent = this.returns.length;
-        if (this.el.todayReturns) this.el.todayReturns.textContent = Utils.formatMoney(todayTotal);
-    },
-
-    renderTable() {
-        const term = this.el.searchInput?.value.trim().toLowerCase() || '';
-        let filtered = this.returns.filter(r => {
-            return !term || (r.id || '').toLowerCase().includes(term) ||
-                (r.invoice_number || '').toLowerCase().includes(term) ||
-                (r.customer_name || '').toLowerCase().includes(term);
-        });
-        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-        if (!filtered.length) {
-            this.el.returnsBody.innerHTML = '<tr><td colspan="7" class="empty-message">لا توجد مرتجعات</td></tr>';
+        const validItems = returnItems.filter(item => item.qty > 0);
+        if (!validItems.length) {
+            errorMsg.textContent = 'يرجى تحديد كمية مرتجعة واحدة على الأقل';
             return;
         }
 
-        this.el.returnsBody.innerHTML = filtered.map(r => `
-            <tr>
-                <td>${r.id?.substring(0, 8) || '-'}</td>
-                <td>${Utils.formatDate(r.date)}</td>
-                <td>${r.invoice_number || 'مباشر'}</td>
-                <td>${r.customer_name || '-'}</td>
-                <td>${r.items?.length || 0}</td>
-                <td>${Utils.formatMoney(r.total)}</td>
-                <td class="action-icons">
-                    <i class="fas fa-eye" onclick="SalesReturns.viewReturn('${r.id}')"></i>
-                </td>
-            </tr>
-        `).join('');
-    },
-
-    onReturnTypeChange() {
-        const type = document.querySelector('input[name="returnType"]:checked')?.value;
-        this.el.invoiceSelectionSection.style.display = (type === 'direct_product') ? 'none' : 'block';
-        this.el.directProductSection.style.display = (type === 'direct_product') ? 'block' : 'none';
-        this.el.invoiceItemsContainer.innerHTML = '';
-        this.el.returnTotal.textContent = '0.00 ج.م';
-    },
-
-    onInvoiceSearch() {
-        const val = this.el.invoiceSearchInput?.value || '';
-        const option = Array.from(this.el.invoiceList?.querySelectorAll('option') || []).find(o => o.value === val);
-        if (option && option.dataset.id) {
-            this.loadInvoiceItems(option.dataset.id);
-        }
-    },
-
-    loadInvoiceItems(invoiceId) {
-        const invoice = this.invoices.find(i => i.id === invoiceId);
-        if (!invoice) return;
-
-        const returnType = document.querySelector('input[name="returnType"]:checked')?.value;
-        let html = '';
-
-        if (returnType === 'full_invoice') {
-            html = '<p style="margin:8px 0;">سيتم إرجاع جميع أصناف الفاتورة</p>';
-            (invoice.items || []).forEach(item => {
-                html += `<div class="invoice-item-row" style="opacity:0.7;">
-                    <span class="item-info">${item.productName} - ${item.unitName}</span>
-                    <span>${item.quantity} × ${Utils.formatMoney(item.price)}</span>
-                </div>`;
-            });
-        } else if (returnType === 'single_item') {
-            html = '<p style="margin:8px 0; color:var(--gray-600);">اختر الأصناف المراد إرجاعها وحدد الكمية:</p>';
-            (invoice.items || []).forEach((item, idx) => {
-                html += `<div class="invoice-item-row">
-                    <input type="checkbox" id="item_${idx}" data-idx="${idx}" onchange="SalesReturns.updateReturnTotal()">
-                    <span class="item-info">${item.productName} - ${item.unitName}</span>
-                    <input type="number" class="item-qty" value="${item.quantity}" min="0.001" max="${item.quantity}" step="0.001" data-idx="${idx}" oninput="SalesReturns.updateReturnTotal()" disabled>
-                    <span>× ${Utils.formatMoney(item.price)}</span>
-                </div>`;
-            });
-        }
-        this.el.invoiceItemsContainer.innerHTML = html;
-
-        // ربط تغيير حالة checkbox
-        this.el.invoiceItemsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', () => {
-                const qtyInput = this.el.invoiceItemsContainer.querySelector(`.item-qty[data-idx="${cb.dataset.idx}"]`);
-                if (qtyInput) qtyInput.disabled = !cb.checked;
-                this.updateReturnTotal();
-            });
-        });
-
-        this.updateReturnTotal();
-    },
-
-    updateReturnTotal() {
-        const returnType = document.querySelector('input[name="returnType"]:checked')?.value;
-        let total = 0;
-
-        if (returnType === 'full_invoice') {
-            const val = this.el.invoiceSearchInput?.value || '';
-            const option = Array.from(this.el.invoiceList?.querySelectorAll('option') || []).find(o => o.value === val);
-            if (option?.dataset.id) {
-                const invoice = this.invoices.find(i => i.id === option.dataset.id);
-                if (invoice) total = invoice.total || 0;
-            }
-        } else if (returnType === 'single_item') {
-            const val = this.el.invoiceSearchInput?.value || '';
-            const option = Array.from(this.el.invoiceList?.querySelectorAll('option') || []).find(o => o.value === val);
-            if (option?.dataset.id) {
-                const invoice = this.invoices.find(i => i.id === option.dataset.id);
-                if (invoice?.items) {
-                    invoice.items.forEach((item, idx) => {
-                        const cb = this.el.invoiceItemsContainer.querySelector(`#item_${idx}`);
-                        const qtyInput = this.el.invoiceItemsContainer.querySelector(`.item-qty[data-idx="${idx}"]`);
-                        if (cb?.checked && qtyInput) {
-                            const qty = parseFloat(qtyInput.value) || 0;
-                            total += Math.min(qty, item.quantity) * item.price;
-                        }
-                    });
-                }
-            }
-        } else if (returnType === 'direct_product') {
-            const qty = parseFloat(this.el.directQuantity?.value) || 0;
-            const price = parseFloat(this.el.directPrice?.value) || 0;
-            total = qty * price;
-        }
-
-        this.el.returnTotal.textContent = Utils.formatMoney(total);
-    },
-
-    onDirectProductInput() {
-        const val = this.el.directProductInput?.value || '';
-        const option = Array.from(this.el.productList?.querySelectorAll('option') || []).find(o => o.value === val);
-        if (option?.dataset.id) {
-            const product = this.products.find(p => p.id === option.dataset.id);
-            if (product?.units) {
-                // عرض الوحدات
-                this.el.directProductUnits.innerHTML = `
-                    <div class="form-group"><label>الوحدة</label>
-                        <select id="directUnitSelect" onchange="SalesReturns.onDirectUnitChange()">
-                            ${product.units.map((u, i) => `<option value="${i}" data-price="${u.price || 0}">${u.name}</option>`).join('')}
-                        </select>
-                    </div>
-                `;
-                this.onDirectUnitChange();
-            }
-        }
-        this.updateReturnTotal();
-    },
-
-    onDirectUnitChange() {
-        const select = document.getElementById('directUnitSelect');
-        if (select) {
-            const selected = select.options[select.selectedIndex];
-            if (selected?.dataset.price) {
-                this.el.directPrice.value = selected.dataset.price;
-            }
-        }
-        this.updateReturnTotal();
-    },
-
-    openModal() {
-        this.el.returnId.value = '';
-        this.el.returnDate.value = Utils.getToday();
-        this.el.returnReason.value = '';
-        this.el.invoiceSearchInput.value = '';
-        this.el.invoiceItemsContainer.innerHTML = '';
-        this.el.returnTotal.textContent = '0.00 ج.م';
-        document.querySelector('input[name="returnType"][value="full_invoice"]').checked = true;
-        this.onReturnTypeChange();
-        this.el.returnModal.classList.add('open');
-    },
-
-    closeModal() {
-        this.el.returnModal.classList.remove('open');
-    },
-
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-    },
-
-    async saveReturn() {
-        const returnType = document.querySelector('input[name="returnType"]:checked')?.value;
-        const date = this.el.returnDate?.value || Utils.getToday();
-        const reason = this.el.returnReason?.value.trim();
-        const method = this.el.returnMethod?.value;
-        let total = 0;
-        let items = [];
-        let invoiceId = null;
-        let customerName = '';
+        const total = validItems.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+        const returnObj = {
+            id: crypto.randomUUID ? crypto.randomUUID() : 'ret-' + Date.now(),
+            type: 'sale',
+            date: new Date().toISOString().split('T')[0],
+            original_invoice_id: originalInvoiceId.value,
+            original_invoice_number: selectedInvoice?.invoice_number || '',
+            customer_id: selectedInvoice?.customer_id || null,
+            customer_name: selectedInvoice?.customer_name || 'نقدي',
+            reason: returnReason.value,
+            refund_method: refundMethod.value,
+            items: validItems.map(i => ({...i})),
+            total: total,
+            notes: returnNotes.value.trim(),
+            tenant_id: currentUser?.tenant_id,
+            created_by: currentUser?.id
+        };
 
         try {
-            if (returnType === 'full_invoice') {
-                const val = this.el.invoiceSearchInput?.value || '';
-                const option = Array.from(this.el.invoiceList?.querySelectorAll('option') || []).find(o => o.value === val);
-                if (!option?.dataset.id) { alert('اختر فاتورة'); return; }
-                const invoice = this.invoices.find(i => i.id === option.dataset.id);
-                if (!invoice) { alert('الفاتورة غير موجودة'); return; }
-                invoiceId = invoice.id;
-                customerName = invoice.customer_name || '';
-                items = invoice.items || [];
-                total = invoice.total || 0;
-            } else if (returnType === 'single_item') {
-                const val = this.el.invoiceSearchInput?.value || '';
-                const option = Array.from(this.el.invoiceList?.querySelectorAll('option') || []).find(o => o.value === val);
-                if (!option?.dataset.id) { alert('اختر فاتورة'); return; }
-                const invoice = this.invoices.find(i => i.id === option.dataset.id);
-                if (!invoice) { alert('الفاتورة غير موجودة'); return; }
-                invoiceId = invoice.id;
-                customerName = invoice.customer_name || '';
-                invoice.items.forEach((item, idx) => {
-                    const cb = this.el.invoiceItemsContainer.querySelector(`#item_${idx}`);
-                    const qtyInput = this.el.invoiceItemsContainer.querySelector(`.item-qty[data-idx="${idx}"]`);
-                    if (cb?.checked && qtyInput) {
-                        const qty = Math.min(parseFloat(qtyInput.value) || 0, item.quantity);
-                        if (qty > 0) {
-                            items.push({ ...item, quantity: qty });
-                            total += qty * item.price;
-                        }
-                    }
-                });
-                if (!items.length) { alert('اختر صنفاً واحداً على الأقل'); return; }
-            } else if (returnType === 'direct_product') {
-                const val = this.el.directProductInput?.value || '';
-                const option = Array.from(this.el.productList?.querySelectorAll('option') || []).find(o => o.value === val);
-                if (!option?.dataset.id) { alert('اختر منتجاً'); return; }
-                const product = this.products.find(p => p.id === option.dataset.id);
-                const qty = parseFloat(this.el.directQuantity?.value) || 0;
-                const price = parseFloat(this.el.directPrice?.value) || 0;
-                if (qty <= 0 || price <= 0) { alert('الكمية والسعر مطلوبان'); return; }
-                const unitSelect = document.getElementById('directUnitSelect');
-                const unitName = unitSelect?.options[unitSelect.selectedIndex]?.text || '';
-                items = [{ productName: product.name, unitName, quantity: qty, price }];
-                total = qty * price;
-            }
+            await DB.saveReturn(returnObj);
+            lastSavedReturn = returnObj;
+            safeToast('تم حفظ المرتجع');
+            printReturnBtn.style.display = 'flex';
 
-            const returnData = {
-                id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
-                date,
-                type: 'sales_return',
-                invoice_id: invoiceId,
-                customer_name: customerName,
-                items,
-                total,
-                reason,
-                method
-            };
+            // إضافة المرتجع للجدول المحلي فورًا
+            allReturns.push(returnObj);
+            renderReturnsTable(allReturns);
 
-            // حفظ + تحديث المخزون
-            if (Utils.isDBReady()) {
-                // await DB.saveSalesReturn(returnData);
-                // ... تحديث المخزون ...
-            } else if (Utils.hasLocalDB()) {
-                await localDB.put('sales_returns', returnData);
-            }
-            this.closeModal();
-            await this.loadData();
-            this.showToast('تم حفظ المرتجع بنجاح');
-        } catch (err) {
-            console.error(err);
-            alert('فشل حفظ المرتجع');
+            // إعادة تعيين النموذج
+            originalInvoiceId.value = '';
+            invoiceSearch.value = '';
+            returnReason.value = 'damaged';
+            refundMethod.value = 'cash';
+            returnNotes.value = '';
+            returnItems = [];
+            returnItemsTable.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">اختر فاتورة أولاً</td></tr>';
+            returnSubtotal.textContent = '0.00 ج.م';
+        } catch (e) {
+            console.error('Save return failed:', e);
+            errorMsg.textContent = e.message || 'فشل حفظ المرتجع';
         }
-    },
-
-    viewReturn(id) {
-        const ret = this.returns.find(r => r.id === id);
-        if (!ret) return;
-        alert(`مرتجع ${ret.id} بقيمة ${Utils.formatMoney(ret.total)}`);
     }
-};
 
-window.SalesReturns = SalesReturns;
-document.addEventListener('DOMContentLoaded', () => SalesReturns.init());
+    function showReturnReceipt(returnObj) {
+        if (!returnObj) return;
+        const items = returnObj.items || [];
+        let itemsHtml = '';
+        items.forEach(item => {
+            itemsHtml += `<tr><td>${item.productName} - ${item.unitName}</td><td>${item.qty}</td><td>${fmtMoney(item.price)}</td><td>${fmtMoney(item.total)}</td></tr>`;
+        });
+        const html = `
+            <div class="receipt-header">إيصال مرتجع</div>
+            <div class="receipt-sub">رقم: ${returnObj.id.substring(0,8)}</div>
+            <hr>
+            <div class="receipt-row"><span>العميل:</span><span>${returnObj.customer_name || 'نقدي'}</span></div>
+            <div class="receipt-row"><span>التاريخ:</span><span>${returnObj.date}</span></div>
+            <div class="receipt-row"><span>السبب:</span><span>${returnObj.reason}</span></div>
+            <hr>
+            <table><thead><tr><th>الصنف</th><th>كمية</th><th>سعر</th><th>إجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+            <hr>
+            <div class="receipt-row receipt-total"><span>الإجمالي:</span><span>${fmtMoney(returnObj.total)}</span></div>
+        `;
+        returnReceiptPreview.innerHTML = html;
+        returnReceiptModal.classList.add('open');
+    }
+
+    printReturnBtn.addEventListener('click', () => showReturnReceipt(lastSavedReturn));
+    closeReturnReceiptModal.addEventListener('click', () => returnReceiptModal.classList.remove('open'));
+    closeReturnReceiptBtn.addEventListener('click', () => returnReceiptModal.classList.remove('open'));
+    returnReceiptModal.addEventListener('click', (e) => {
+        if (e.target === returnReceiptModal) returnReceiptModal.classList.remove('open');
+    });
+
+    printReturnReceiptBtn.addEventListener('click', () => {
+        const content = returnReceiptPreview.innerHTML;
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+            printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;background:white;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:5px;border-bottom:1px dashed #ccc}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${content}</body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => printWindow.print(), 300);
+        }
+    });
+
+    saveReturnBtn.addEventListener('click', saveReturn);
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        sidebarOverlay.classList.toggle('show');
+    });
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('show');
+    });
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('show');
+        });
+    });
+    moreMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moreDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
+    });
+    logoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (confirm('هل أنت متأكد من تسجيل الخروج؟')) await App.logout();
+    });
+
+    async function initReturnsPage() {
+        loadingBar.style.width = '80%';
+        try {
+            await waitForCore();
+            await App.requireAuth();
+            App.initUserInterface();
+            currentUser = await App.getCurrentUser();
+            await loadData();
+            loadingBar.style.width = '100%';
+        } catch (e) {
+            console.error('Returns page init failed:', e);
+            loadingBar.style.background = 'var(--danger)';
+        } finally {
+            setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+        }
+    }
+
+    initReturnsPage();
+})();
