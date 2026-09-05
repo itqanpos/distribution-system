@@ -59,6 +59,7 @@ const POS = {
     el: {},
 
     async init() {
+        console.log('🟢 POS.init() started');
         this._cacheDOM();
         this._applySafeArea();
         this._bindKeyboardShortcuts();
@@ -80,6 +81,7 @@ const POS = {
         await this._sidebarUser();
         this._restorePaymentDraft();
         window.addEventListener('beforeunload', () => { this._stopBarcodeScan(); this._saveCart(); this._savePaymentDraft(); });
+        console.log('✅ POS.init() completed');
     },
 
     _cacheDOM() {
@@ -97,13 +99,14 @@ const POS = {
             'remainingDisplay','balanceAfterLabel','balanceAfter','paymentNotes',
             'confirmAndPrintBtn','closePaymentModalBtn',
             'heldInvoicesModal','heldInvoicesList','closeHeldModalBtn',
-            'receiptModal','receiptPrintArea','printReceiptBtn','thermalPrintBtn','skipPrintBtn','closeReceiptModalBtn',
+            'receiptModal','receiptPrintArea','printReceiptBtn','skipPrintBtn','closeReceiptModalBtn',
             'sidebarAvatar','sidebarUserName',
             'tabletProductSearchInput','productGrid','tabletBarcodeBtn',
             'profitDisplay',
             'duplicateProductModal','duplicateProductMsg','duplicateIncreaseBtn','duplicateCancelBtn'
         ];
         ids.forEach(id => { const el = document.getElementById(id); if (el) this.el[id] = el; });
+        console.log('🔍 Elements cached:', Object.keys(this.el).length, 'from', ids.length);
     },
 
     _applySafeArea() {
@@ -177,7 +180,7 @@ const POS = {
         this._renderProductGrid();
     }, 200),
 
-    /* ---------- Barcode Buffer (محسّن للماسحات HID) ---------- */
+    /* ---------- Barcode Buffer ---------- */
     _setupBarcodeBuffer() {
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
@@ -285,7 +288,8 @@ const POS = {
         on('closeReceiptModalBtn', 'click', () => this._closeModal('receiptModal'));
         on('skipPrintBtn', 'click', () => this._closeModal('receiptModal'));
         on('printReceiptBtn', 'click', () => this._printReceipt());
-        on('thermalPrintBtn', 'click', () => this._printThermal());
+        // تعطيل الطباعة الحرارية حتى يتم إصلاحها إن لزم
+        // on('thermalPrintBtn', 'click', () => this._printThermal());
 
         if (this.el.cartItemsContainer) {
             this.el.cartItemsContainer.addEventListener('change', e => this._onCartChange(e));
@@ -300,19 +304,12 @@ const POS = {
             this.state._unitButtonsBound = true;
         }
 
-        // ربط مودال تكرار الصنف
         on('duplicateIncreaseBtn', 'click', () => {
-            if (this._duplicateCallback) {
-                this._duplicateCallback(true);
-                this._duplicateCallback = null;
-            }
+            if (this._duplicateCallback) { this._duplicateCallback(true); this._duplicateCallback = null; }
             this._closeModal('duplicateProductModal');
         });
         on('duplicateCancelBtn', 'click', () => {
-            if (this._duplicateCallback) {
-                this._duplicateCallback(false);
-                this._duplicateCallback = null;
-            }
+            if (this._duplicateCallback) { this._duplicateCallback(false); this._duplicateCallback = null; }
             this._closeModal('duplicateProductModal');
         });
     },
@@ -337,37 +334,82 @@ const POS = {
     },
 
     async _loadData() {
+        console.log('📦 Loading data...');
         this.state.db = U.dbReady();
         await this._fetchProdsAndCusts();
         this._buildCache();
         this._restoreCart();
         this._loadEditInvoice();
         this._renderProductGrid();
-        if (!this.state.products.length) window.Toast?.info('لا توجد منتجات');
+        if (!this.state.products.length) {
+            console.warn('⚠️ لا توجد منتجات');
+            window.Toast?.info('لا توجد منتجات');
+        } else {
+            console.log(`✅ تم تحميل ${this.state.products.length} منتج`);
+        }
     },
 
     async _fetchProdsAndCusts() {
         try {
             let custs = [];
             if (this.state.db) {
-                this.state.products = await DB.getProducts() || [];
-                custs = await DB.getParties('customer') || [];
+                console.log('🌐 جلب من السحابة (DB) مع تجاهل الكاش');
+                // مسح كاش الجلسة لضمان عدم استخدام بيانات قديمة فارغة
+                if (window.SessionStore) {
+                    window.SessionStore.invalidate('offline_products');
+                    window.SessionStore.invalidate('offline_parties');
+                }
+                // فرض التحديث من السحابة (force = true)
+                this.state.products = await DB.getProducts(true) || [];
+                custs = await DB.getParties('customer', true) || [];
             } else if (U.localReady()) {
+                console.log('💾 جلب من IndexedDB (وضع عدم الاتصال)');
                 this.state.products = await localDB.getAll('products') || [];
                 custs = await localDB.getAll('parties') || [];
             } else {
+                console.error('❌ لا يوجد مصدر بيانات متاح');
                 this.state.products = [];
                 custs = [];
             }
+
+            // فلترة العملاء فقط
             this.state.customers = custs.filter(c => c.type === 'customer');
+            
+            // معالجة الوحدات إن كانت نصية
             this.state.products.forEach(p => {
-                if (typeof p.units === 'string') try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
+                if (typeof p.units === 'string') {
+                    try { p.units = JSON.parse(p.units); } catch (e) { p.units = []; }
+                }
+                // التأكد من وجود وحدات وإلا نضيف وحدة افتراضية
+                if (!p.units || !Array.isArray(p.units) || p.units.length === 0) {
+                    p.units = [{
+                        name: 'وحدة',
+                        price: p.price || 0,
+                        cost: p.cost || 0,
+                        factor: 1,
+                        stock: p.stock || 0,
+                        minPrice: 0,
+                        maxPrice: 0
+                    }];
+                }
             });
+
+            console.log(`✅ تم تحميل ${this.state.products.length} منتج و ${this.state.customers.length} عميل`);
+            
+            // إذا كانت النتيجة فارغة رغم الاتصال، نحاول مرة أخرى بعد تأخير
+            if (this.state.products.length === 0 && navigator.onLine) {
+                console.warn('⚠️ لم يتم جلب منتجات، محاولة مرة أخرى...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                this.state.products = await DB.getProducts(true) || [];
+                custs = await DB.getParties('customer', true) || [];
+                this.state.customers = custs.filter(c => c.type === 'customer');
+            }
+
         } catch (e) {
             console.error('فشل تحميل البيانات:', e);
             this.state.products = [];
             this.state.customers = [];
-            window.Toast?.error('فشل تحميل البيانات');
+            window.Toast?.error('فشل تحميل البيانات، تحقق من الاتصال');
         }
     },
 
@@ -499,7 +541,7 @@ const POS = {
     },
     _hideProdDropdown() { this.el.productDropdown?.classList.remove('show'); },
 
-    /* ---------- Barcode Scanner (كاميرا + Buffer) ---------- */
+    /* ---------- Barcode Scanner ---------- */
     _stopBarcodeScan() {
         if (this.state._barcodeStream) {
             this.state._barcodeStream.getTracks().forEach(t => t.stop());
@@ -650,7 +692,7 @@ const POS = {
         }
     },
 
-    /* ---------- Modal الوحدات (مع مودال التكرار) ---------- */
+    /* ---------- Modal الوحدات ---------- */
     _openUnitModal(id) {
         const p = this.cache.prods.get(String(id)); if (!p?.units?.length) { window.Toast?.info('المنتج غير موجود'); return; }
         this.state.selectedProduct = p; this.state.selectedUnit = p.units[0];
@@ -689,10 +731,8 @@ const POS = {
         const unitName = u?.name || '';
         const cost = u?.cost || 0;
 
-        // التحقق من تكرار الصنف
         const exist = this.state.cart.find(i => i.productId === product.id && i.unitName === unitName);
         if (exist) {
-            // عرض مودال التأكيد
             this.el.duplicateProductMsg.textContent = `الصنف ${product.name} موجود بالفعل بالكمية ${exist.quantity}. هل تريد زيادة الكمية؟`;
             this.state.addingItem = true;
             this._duplicateCallback = (confirmed) => {
@@ -1024,7 +1064,7 @@ const POS = {
         window.Toast?.success('تم الاسترجاع');
     },
 
-    /* ---------- الإيصال (مع خيار الطباعة الحرارية) ---------- */
+    /* ---------- الإيصال ---------- */
     _showReceipt(inv, cust, items, totals, oldBal, pay) {
         const s = JSON.parse(localStorage.getItem('app_settings') || '{}'), name = s?.company?.name || 'حسابي', phone = s?.company?.phone || '', foot = s?.print?.footer_message || 'شكراً لتعاملكم معنا';
         const fmt = v => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1052,68 +1092,6 @@ const POS = {
             iframe.contentDocument.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Cairo',sans-serif;direction:rtl}</style></head><body>${content}</body></html>`);
             iframe.contentDocument.close(); iframe.contentWindow.focus(); iframe.contentWindow.print();
             setTimeout(() => { document.body.removeChild(iframe); }, 1000);
-        }
-    },
-
-    async _printThermal() {
-        try {
-            // استخدام مكتبة escpos (يجب تحميلها مسبقاً)
-            if (!window.escpos) {
-                window.Toast?.error('مكتبة الطباعة الحرارية غير محملة');
-                return;
-            }
-
-            // قائمة بأشهر الطابعات الحرارية (vendorId, productId)
-            const knownPrinters = [
-                { vendorId: 0x04b8, productId: 0x0202 }, // Epson TM-T20 (USB)
-                { vendorId: 0x04b8, productId: 0x0e15 }, // Epson TM-T20II
-                { vendorId: 0x04b8, productId: 0x0e28 }, // Epson TM-T88V
-                { vendorId: 0x04b8, productId: 0x0e41 }, // Epson TM-T88VI
-                { vendorId: 0x0519, productId: 0x0003 }, // Star TSP100 (USB)
-                { vendorId: 0x0519, productId: 0x0005 }, // Star TSP650
-                { vendorId: 0x0fe6, productId: 0x811e }, // Xprinter XP-58II
-                { vendorId: 0x0416, productId: 0x5011 }, // Bixolon SRP-350
-                { vendorId: 0x0fe6, productId: 0x811e }, // Generic 58mm
-            ];
-
-            // محاولة طلب جهاز USB مع فلترة مبدئية
-            let device;
-            try {
-                device = await navigator.usb.requestDevice({
-                    filters: knownPrinters.map(p => ({ vendorId: p.vendorId, productId: p.productId }))
-                });
-            } catch (filterError) {
-                // إذا لم تعمل الفلاتر، نعرض جميع الأجهزة
-                console.warn('لم يتم العثور على طابعة معروفة، عرض جميع أجهزة USB...');
-                device = await navigator.usb.requestDevice({ filters: [] });
-            }
-
-            await device.open();
-            await device.selectConfiguration(1);
-            await device.claimInterface(0);
-
-            const encoder = new escpos.Encoder();
-            const receipt = this.el.receiptPrintArea.innerText; // نستخدم النص فقط للتبسيط
-            encoder
-                .align('ct')
-                .size(1, 1)
-                .text('حسابي')
-                .text('---------------------')
-                .align('rt')
-                .text(receipt)
-                .cut('partial');
-
-            const data = encoder.encode();
-            await device.transferOut(1, data);
-            await device.close();
-            window.Toast?.success('تمت الطباعة');
-        } catch (e) {
-            console.error(e);
-            if (e.name === 'NotFoundError') {
-                window.Toast?.error('لم يتم العثور على طابعة. تأكد من توصيلها.');
-            } else {
-                window.Toast?.error('فشلت الطباعة الحرارية');
-            }
         }
     },
 
@@ -1164,3 +1142,15 @@ const POS = {
 };
 
 window.POS = POS;
+
+/* =============================================
+   بدء تلقائي عند تحميل الصفحة
+   ============================================= */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.POS) window.POS.init();
+    });
+} else {
+    // DOM جاهز بالفعل
+    window.POS?.init();
+}
