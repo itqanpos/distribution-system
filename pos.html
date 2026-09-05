@@ -152,3 +152,96 @@
                 <div class="summary-row"><span>الإجمالي:</span> <span id="paySubtotal">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الخصم:</span> <span id="payDiscount">0.00 ج.م</span></div>
                 <div class="summary-row"><span>الصافي:</span> <span id="payNet">0.00 ج.م</span></div>
+                <div class="summary-row">
+                    <span id="currentBalanceLabel">الرصيد الحالي:</span>
+                    <span id="currentBalance" style="font-weight: 700;">0.00 ج.م</span>
+                </div>
+            </div>
+            <div class="form-group"><label>طريقة الدفع</label>
+                <select id="paymentMethod">
+                    <option value="cash">نقدي</option>
+                    <option value="transfer">تحويل</option>
+                    <option value="mixed">مختلط (نقدي + تحويل)</option>
+                    <option value="credit">آجل</option>
+                </select>
+            </div>
+            <div id="cashField" class="form-group"><label>المبلغ النقدي</label><input type="number" id="cashAmount" min="0" step="0.01" value="0"></div>
+            <div id="transferField" class="form-group" style="display:none;"><label>المبلغ المحول</label><input type="number" id="transferAmount" min="0" step="0.01" value="0"></div>
+            <div class="summary-row"><span>المتبقي / الفائض:</span> <span id="remainingDisplay">0.00 ج.م</span></div>
+            <div class="summary-row">
+                <span id="balanceAfterLabel">الرصيد بعد الدفع:</span>
+                <span id="balanceAfter" style="font-weight: 700;">0.00 ج.م</span>
+            </div>
+            <div class="form-group"><label>ملاحظات</label><input type="text" id="paymentNotes"></div>
+            <button class="btn btn-success" id="confirmAndPrintBtn">تأكيد وطباعة</button>
+        </div>
+    </div>
+
+    <!-- مودال الفواتير المعلقة -->
+    <div class="modal" id="heldInvoicesModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header"><h2>الفواتير المعلقة</h2><button id="closeHeldModalBtn">&times;</button></div>
+            <div id="heldInvoicesList"></div>
+        </div>
+    </div>
+
+    <!-- مودال الإيصال -->
+    <div class="modal" id="receiptModal">
+        <div class="modal-content receipt-modal-content">
+            <div class="receipt-header"><button id="closeReceiptModalBtn" class="close-btn">&times;</button></div>
+            <div id="receiptPrintArea"></div>
+            <div class="receipt-actions">
+                <button class="btn btn-primary" id="printReceiptBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-primary" id="thermalPrintBtn"><i class="fas fa-print"></i> حرارية</button>
+                <button class="btn btn-cancel" id="skipPrintBtn">متابعة بدون طباعة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تأكيد تكرار الصنف -->
+    <div class="modal" id="duplicateProductModal">
+        <div class="modal-content" style="max-width: 360px; text-align: center;">
+            <h3 style="margin-bottom: 12px;">الصنف موجود مسبقاً</h3>
+            <p id="duplicateProductMsg" style="margin-bottom: 20px; color: var(--text-secondary);"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="duplicateIncreaseBtn" style="flex: 1;">زيادة الكمية</button>
+                <button class="btn btn-cancel" id="duplicateCancelBtn" style="flex: 1;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/supabase-offline.js"></script>
+    <script src="./js/supabase-db.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="./js/pos.js"></script>
+
+    <!-- تهيئة نقطة البيع -->
+    <script>
+        (async function() {
+            const loadingBar = document.getElementById('loading-bar');
+            try {
+                if (window.POS && typeof window.POS.init === 'function') {
+                    loadingBar.style.width = '80%';
+                    await window.POS.init();
+                    loadingBar.style.width = '100%';
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+                } else {
+                    console.error('POS module not loaded');
+                    loadingBar.style.background = 'var(--danger)';
+                }
+            } catch (e) {
+                console.error('POS init failed:', e);
+                loadingBar.style.background = 'var(--danger)';
+                if (window.Toast) Toast.error('فشل تحميل نقطة البيع');
+            }
+        })();
+    </script>
+</body>
+</html>
