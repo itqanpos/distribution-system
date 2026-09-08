@@ -3,6 +3,7 @@
    - بدون كاميرا
    - دعم الوحدات المتعددة (product_units)
    - safeToast لتجنب الأخطاء
+   - تحسينات: جلب المخزون الذكي، هروب كامل في الإيصال، دعم WebUSB آمن، تحسين IntersectionObserver، إلخ.
    ============================================= */
 'use strict';
 
@@ -16,7 +17,18 @@ const U = {
     escape: (s) => { const div = document.createElement('div'); div.appendChild(document.createTextNode(s)); return div.innerHTML; },
     debounce: (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; },
     round: (v, d = 2) => Number(Math.round(v + 'e' + d) + 'e-' + d),
-    uuid: () => (crypto?.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
+    uuid: () => {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        } else {
+            // fallback للمتصفحات القديمة
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    },
     dbReady: () => !!(window.DB && window.supabaseClient),
     localReady: () => !!(window.localDB?.ready),
     cssVar: (name, fallback = '') => { const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v || fallback; },
@@ -80,10 +92,18 @@ const POS = {
                 this._savePaymentDraft();
             }
         });
+        // تحذير عند مغادرة الصفحة إذا كانت السلة غير فارغة
+        window.addEventListener('beforeunload', (e) => {
+            if (this.state.cart.length > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+            this._saveCart();
+            this._savePaymentDraft();
+        });
         await this._loadData();
         await this._sidebarUser();
         this._restorePaymentDraft();
-        window.addEventListener('beforeunload', () => { this._saveCart(); this._savePaymentDraft(); });
     },
 
     _cacheDOM() {
@@ -431,11 +451,15 @@ const POS = {
     _renderProductGrid(products = this.state.products) {
         const grid = this.el.productGrid;
         if (!grid) return;
+        // إلغاء أي observer سابق
+        if (this.state._observer) {
+            this.state._observer.disconnect();
+            this.state._observer = null;
+        }
         if (!products.length) {
             grid.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);">لا توجد منتجات</div>';
             return;
         }
-        if (this.state._observer) this.state._observer.disconnect();
         grid.innerHTML = '';
         const fragment = document.createDocumentFragment();
         const cardsPerBatch = 20;
@@ -900,29 +924,34 @@ const POS = {
         }
     },
 
-    _checkStock() {
-        let productsToCheck = this.state.products;
-        if (navigator.onLine && this.state.db) {
-            return DB.getProducts(true).then(fresh => {
-                if (fresh) productsToCheck = fresh;
-                for (const item of this.state.cart) {
-                    const product = productsToCheck.find(p => p.id === item.productId);
-                    if (!product) return { ok: false, error: `المنتج ${item.productName} لم يعد متوفراً` };
-                    const unit = product.units?.find(u => u.name === item.unitName);
-                    const factor = unit?.factor || 1;
-                    const required = item.quantity * factor;
-                    const stock = product.units?.[0]?.stock || 0;
-                    if (required > stock) return { ok: false, error: `المخزون غير كافٍ للصنف ${item.productName}` };
-                }
-                return { ok: true, products: productsToCheck };
-            }).catch(() => this._localStockCheck());
+    async _checkStock() {
+        const items = this.state.cart;
+        const productIds = [...new Set(items.map(i => i.productId))];
+
+        // إذا كنا متصلين ولدينا DB ولدينا دالة جلب المنتجات بالمعرفات
+        if (navigator.onLine && this.state.db && window.DB?.getProductsByIds) {
+            try {
+                const freshProducts = await DB.getProductsByIds(productIds);
+                // دمج المنتجات المحدثة في state.products وفي الكاش
+                freshProducts.forEach(p => {
+                    const idx = this.state.products.findIndex(sp => sp.id === p.id);
+                    if (idx !== -1) this.state.products[idx] = p;
+                    else this.state.products.push(p);
+                    this._updateProductInCache(p);
+                });
+                return this._validateStockAgainst(freshProducts);
+            } catch (e) {
+                console.warn('فشل جلب المخزون المحدث، استخدام المحلي', e);
+                return this._validateStockAgainst(this.state.products);
+            }
+        } else {
+            return this._validateStockAgainst(this.state.products);
         }
-        return this._localStockCheck();
     },
 
-    _localStockCheck() {
+    _validateStockAgainst(products) {
         for (const item of this.state.cart) {
-            const product = this.cache.prods.get(item.productId);
+            const product = products.find(p => p.id === item.productId);
             if (!product) return { ok: false, error: `المنتج ${item.productName} غير موجود` };
             const unit = product.units?.find(u => u.name === item.unitName);
             const factor = unit?.factor || 1;
@@ -930,7 +959,7 @@ const POS = {
             const stock = product.units?.[0]?.stock || 0;
             if (required > stock) return { ok: false, error: `المخزون غير كافٍ للصنف ${item.productName}` };
         }
-        return { ok: true, products: this.state.products };
+        return { ok: true, products };
     },
 
     _updateLocalStock(products) {
@@ -1033,6 +1062,7 @@ const POS = {
         try {
             const d = JSON.parse(raw);
             if (d.cart && d.cart.length) {
+                // استخدام confirm مرة واحدة فقط
                 if (confirm('تم العثور على عملية بيع غير مكتملة. هل تريد استكمالها؟')) {
                     setTimeout(async () => {
                         if (!this.state.products.length) await this._loadData();
@@ -1172,6 +1202,7 @@ const POS = {
             const lineTotal = U.round(it.price * it.quantity, 2);
             itemsHtml += `<tr><td>${U.escape(it.productName)} - ${U.escape(it.unitName)}</td><td style="text-align:center;">${it.quantity}</td><td style="text-align:center;">${fmt(it.price)}</td><td style="text-align:left;">${fmt(lineTotal)}</td></tr>`;
         }
+        // استخدام U.escape لجميع الحقول النصية
         const receiptHtml = `<div style="font-family:'Cairo',sans-serif;font-size:13px;line-height:1.5;text-align:right;direction:rtl;padding:10px;width:80mm;max-width:100%;margin:0 auto;background:white;"><div style="text-align:center;font-weight:bold;font-size:16px;margin-bottom:5px;">${U.escape(name)}</div>${phone ? `<div style="text-align:center;font-size:12px;margin-bottom:10px;">هاتف: ${U.escape(phone)}</div>` : ''}<hr style="border-top:1px dashed #000;margin:10px 0;"><div style="display:flex;justify-content:space-between;"><span>العميل:</span> <strong>${U.escape(cust?.name || 'نقدى')}</strong></div><div style="display:flex;justify-content:space-between;"><span>رقم الفاتورة:</span> <strong>${U.escape(inv.invoice_number || inv.id?.substring(0, 8))}</strong></div><div style="display:flex;justify-content:space-between;"><span>التاريخ:</span> ${U.fmtDate(inv.date)}</div><hr style="border-top:1px dashed #000;margin:10px 0;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr><th>الصنف</th><th style="text-align:center;">كمية</th><th style="text-align:center;">سعر</th><th style="text-align:left;">إجمالي</th></tr></thead><tbody>${itemsHtml}</tbody></table><hr style="border-top:1px dashed #000;margin:10px 0;"><div style="display:flex;justify-content:space-between;font-weight:bold;"><span>الإجمالي:</span> ${fmt(totals.sub)}</div>${totals.disc > 0 ? `<div style="display:flex;justify-content:space-between;"><span>الخصم:</span> ${fmt(totals.disc)}</div>` : ''}<div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>الصافي:</span> ${fmt(totals.net)}</div><hr style="border-top:1px dashed #000;margin:10px 0;"><div style="display:flex;justify-content:space-between;"><span>نقدي:</span> ${fmt(pay.cash || 0)}</div><div style="display:flex;justify-content:space-between;"><span>تحويل:</span> ${fmt(pay.trans || 0)}</div>${used > 0 ? `<div style="display:flex;justify-content:space-between;"><span>من رصيد:</span> ${fmt(used)}</div>` : ''}<div style="display:flex;justify-content:space-between;font-weight:bold;"><span>المدفوع:</span> ${fmt(U.round((pay.cash || 0) + (pay.trans || 0) + used, 2))}</div>${diff > 0 ? `<div style="display:flex;justify-content:space-between;color:green;"><span>فائض (أضيف للرصيد):</span> ${fmt(diff)}</div>` : ''}${diff < 0 ? `<div style="display:flex;justify-content:space-between;color:red;"><span>متبقي:</span> ${fmt(-diff)}</div>` : ''}${cust && cust.name !== CASH_CUSTOMER_STORED ? `<hr style="border-top:1px dashed #000;margin:10px 0;"><div style="display:flex;justify-content:space-between;"><span>الرصيد السابق:</span> ${fmt(oldBal)}</div>${used > 0 ? `<div style="display:flex;justify-content:space-between;"><span>خصم:</span> -${fmt(used)}</div>` : ''}${diff > 0 ? `<div style="display:flex;justify-content:space-between;color:green;"><span>إضافة:</span> +${fmt(diff)}</div>` : ''}${diff < 0 ? `<div style="display:flex;justify-content:space-between;color:red;"><span>متبقي للدفع:</span> ${fmt(-diff)}</div>` : ''}<div style="display:flex;justify-content:space-between;font-weight:bold;"><span>الرصيد الحالي:</span> ${fmt(newBalance)}</div>` : ''}<hr style="border-top:1px dashed #000;margin:10px 0;"><div style="text-align:center;font-weight:bold;">${U.escape(foot)}</div></div>`;
         this.el.receiptPrintArea.innerHTML = receiptHtml;
         this._showModal('receiptModal');
@@ -1198,11 +1229,16 @@ const POS = {
     },
 
     async _printThermal() {
+        // فحص الدعم
+        if (!navigator.usb) {
+            U.safeToast('متصفحك لا يدعم الطباعة الحرارية عبر USB', 'error');
+            return;
+        }
+        if (!window.escpos) {
+            U.safeToast('مكتبة الطباعة الحرارية غير محملة', 'error');
+            return;
+        }
         try {
-            if (!window.escpos) {
-                U.safeToast('مكتبة الطباعة الحرارية غير محملة', 'error');
-                return;
-            }
             const device = await navigator.usb.requestDevice({ filters: [] });
             await device.open();
             await device.selectConfiguration(1);
