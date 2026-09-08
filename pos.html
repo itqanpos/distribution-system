@@ -28,7 +28,7 @@
 
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle" id="menuToggle" aria-label="فتح القائمة" aria-expanded="false"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
                     <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
@@ -40,7 +40,7 @@
         </div>
         <div class="navbar-right">
             <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
+                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد" aria-label="قائمة المزيد"><i class="fas fa-ellipsis-v"></i></button>
                 <div class="more-dropdown" id="moreDropdown">
                     <a href="#" id="returnSaleBtn"><i class="fas fa-undo-alt"></i> فاتورة مرتجع مبيعات</a>
                     <div class="dropdown-divider"></div>
@@ -214,34 +214,15 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-core.js"></script>
-    <script src="./js/supabase-auth.js"></script>
-    <script src="./js/db-local.js"></script>
-    <script src="./js/supabase-offline.js"></script>
-    <script src="./js/supabase-db.js"></script>
-    <script src="./js/toast.js"></script>
-    <script src="./js/pos.js"></script>
+    <!-- تحميل محلي مع defer -->
+    <script defer src="./js/supabase-core.js"></script>
+    <script defer src="./js/supabase-auth.js"></script>
+    <script defer src="./js/db-local.js"></script>
+    <script defer src="./js/supabase-offline.js"></script>
+    <script defer src="./js/supabase-db.js"></script>
+    <script defer src="./js/toast.js"></script>
+    <script defer src="./js/pos.js"></script>
 
-    <!-- تهيئة نقطة البيع -->
-    <script>
-        (async function() {
-            const loadingBar = document.getElementById('loading-bar');
-            try {
-                if (window.POS && typeof window.POS.init === 'function') {
-                    loadingBar.style.width = '80%';
-                    await window.POS.init();
-                    loadingBar.style.width = '100%';
-                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
-                } else {
-                    console.error('POS module not loaded');
-                    loadingBar.style.background = 'var(--danger)';
-                }
-            } catch (e) {
-                console.error('POS init failed:', e);
-                loadingBar.style.background = 'var(--danger)';
-                if (window.Toast) Toast.error('فشل تحميل نقطة البيع');
-            }
-        })();
-    </script>
+    <!-- ملاحظة: تم حذف سكربت التهيئة المزدوج، وسيتم التهيئة تلقائياً من pos.js -->
 </body>
 </html>
