@@ -1,365 +1,287 @@
 /* =============================================
-   dashboard.css - تنسيقات لوحة التحكم
-   بنفس هوية نقطة البيع
+   dashboard.js - منطق لوحة التحكم
    ============================================= */
+(async function() {
+    'use strict';
 
-:root {
-    --primary: #2563eb;
-    --primary-light: #eff6ff;
-    --primary-dark: #1d4ed8;
-    --success: #10b981;
-    --success-light: #dcfce7;
-    --danger: #ef4444;
-    --danger-light: #fee2e2;
-    --warning: #f59e0b;
-    --warning-light: #fef3c7;
-    --bg-body: #f8fafc;
-    --bg-surface: #ffffff;
-    --bg-card: #ffffff;
-    --bg-input: #f8fafc;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --border-light: #e2e8f0;
-    --border-medium: #cbd5e1;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --transition: 0.2s ease;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-}
+    // ========== عناصر DOM ==========
+    const loadingBar = document.getElementById('loading-bar');
+    const statsGrid = document.getElementById('statsGrid');
+    const summaryContent = document.getElementById('summaryContent');
+    const recentInvoicesContent = document.getElementById('recentInvoicesContent');
+    const currentDateEl = document.getElementById('currentDate');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const viewAllInvoicesBtn = document.getElementById('viewAllInvoices');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const sidebarAvatar = document.getElementById('sidebarAvatar');
+    const sidebarUserName = document.getElementById('sidebarUserName');
+    const mainNavbar = document.getElementById('mainNavbar');
 
-[data-theme="dark"] {
-    --primary: #6366f1;
-    --primary-light: rgba(99,102,241,0.2);
-    --primary-dark: #4f46e5;
-    --success: #10b981;
-    --success-light: rgba(16,185,129,0.2);
-    --danger: #ef4444;
-    --danger-light: rgba(239,68,68,0.2);
-    --warning: #f59e0b;
-    --warning-light: rgba(245,158,11,0.2);
-    --bg-body: #0f172a;
-    --bg-surface: #1e293b;
-    --bg-card: #1e293b;
-    --bg-input: #334155;
-    --text-primary: #f1f5f9;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --border-light: #334155;
-    --border-medium: #475569;
-}
+    // ========== دوال مساعدة ==========
+    function safeToast(msg, type = 'error') {
+        if (window.Toast && typeof window.Toast[type] === 'function') {
+            window.Toast[type](msg);
+        } else if (window.Toast && typeof window.Toast.show === 'function') {
+            window.Toast.show(msg, type);
+        } else {
+            alert(msg);
+        }
+    }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+    function formatCurrency(value) {
+        return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+    }
 
-body {
-    font-family: 'Cairo', sans-serif;
-    background: var(--bg-body);
-    color: var(--text-primary);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
+    function showLoading() {
+        loadingBar.style.width = '80%';
+    }
 
-/* شريط التحميل */
-#loading-bar {
-    position: fixed; top: 0; left: 0; height: 3px;
-    background: var(--primary); width: 0%; z-index: 9999;
-    transition: width 0.3s ease;
-}
+    function hideLoading() {
+        loadingBar.style.width = '100%';
+        setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+    }
 
-/* بالونة عدم الاتصال */
-#offline-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: var(--danger);
-    color: white;
-    text-align: center;
-    padding: 6px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    z-index: 9998;
-    transform: translateY(-100%);
-    transition: transform 0.3s ease;
-}
-body.offline #offline-banner { transform: translateY(0); }
+    function updateConnStatus() {
+        const isOffline = !navigator.onLine;
+        document.body.classList.toggle('offline', isOffline);
+        if (mainNavbar) mainNavbar.classList.toggle('offline', isOffline);
+    }
 
-/* ========== الشريط العلوي ========== */
-.navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--bg-surface);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-light);
-    padding: 0 16px;
-    height: calc(56px + var(--safe-top));
-    padding-top: var(--safe-top);
-    position: sticky;
-    top: 0;
-    z-index: 110;
-    flex-shrink: 0;
-}
-.navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
-.menu-toggle {
-    background: none; border: none;
-    color: var(--text-primary);
-    font-size: 1.4rem;
-    cursor: pointer;
-}
-.logo { display: flex; align-items: center; gap: 8px; }
-.logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-.navbar-icon-btn {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: none; border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 1.2rem;
-    transition: all var(--transition);
-}
-.navbar-icon-btn:hover {
-    background: var(--bg-input);
-    color: var(--primary);
-    transform: rotate(90deg);
-}
+    function showSkeleton() {
+        statsGrid.innerHTML = Array(6).fill(0).map(() => `
+            <div class="skeleton-card">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <div style="width:50px;height:50px;background:var(--bg-input);border-radius:12px;"></div>
+                    <div style="flex:1;">
+                        <div style="height:14px;background:var(--bg-input);border-radius:6px;margin-bottom:8px;"></div>
+                        <div style="height:24px;background:var(--bg-input);border-radius:6px;"></div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
 
-/* ========== القائمة الجانبية ========== */
-.sidebar-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.35);
-    z-index: 149;
-    opacity: 0; visibility: hidden;
-    transition: 0.3s;
-}
-.sidebar-overlay.show { opacity: 1; visibility: visible; }
-.sidebar {
-    position: fixed;
-    top: 0;
-    right: -320px;
-    width: 280px;
-    max-width: 85vw;
-    height: 100%;
-    background: var(--bg-surface);
-    border-left: 1px solid var(--border-light);
-    padding: calc(20px + var(--safe-top)) 12px 20px 12px;
-    z-index: 150;
-    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
-    overflow-y: auto;
-    box-shadow: var(--shadow-lg);
-}
-.sidebar.open { right: 0; }
-.sidebar-user { text-align: center; margin-bottom: 20px; }
-.sidebar-avatar {
-    width: 64px; height: 64px;
-    background: var(--primary);
-    color: white;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 10px;
-    font-weight: 700;
-    font-size: 1.5rem;
-}
-.sidebar-user h4 { color: var(--text-primary); }
-.menu { list-style: none; }
-.menu-section {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    padding: 12px 8px;
-}
-.menu-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 14px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    border-radius: var(--radius-sm);
-    font-size: 0.85rem;
-    transition: all var(--transition);
-}
-.menu-item i { width: 22px; margin-left: 10px; }
-.menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
-.menu-item.active { background: var(--primary-light); color: var(--primary); }
+    // ========== ربط القائمة الجانبية ==========
+    function bindSidebar() {
+        if (menuToggle && sidebar && sidebarOverlay) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                sidebarOverlay.classList.toggle('show');
+            });
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
+            });
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('show');
+                });
+            });
+        }
+    }
 
-/* ========== المحتوى الرئيسي ========== */
-.main-content {
-    flex: 1;
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
-}
+    // ========== تحميل بيانات المستخدم ==========
+    async function loadUserInfo() {
+        try {
+            if (!window.App?.getCurrentUser) return;
+            const user = await App.getCurrentUser();
+            if (user) {
+                if (sidebarAvatar) sidebarAvatar.textContent = (user.fullName || 'U')[0].toUpperCase();
+                if (sidebarUserName) sidebarUserName.textContent = user.fullName || user.email || 'مدير';
+            }
+        } catch (e) {
+            console.warn('فشل تحميل بيانات المستخدم', e);
+        }
+    }
 
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-.page-header h1 { font-size: 1.8rem; font-weight: 800; }
-.page-header p { color: var(--text-muted); font-size: 0.9rem; }
+    // ========== تحميل الإحصائيات ==========
+    async function loadDashboardStats() {
+        if (!statsGrid) return;
+        showLoading();
+        showSkeleton();
 
-/* ========== كروت الإحصائيات ========== */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-    margin-bottom: 30px;
-}
-.stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    transition: all var(--transition);
-    cursor: default;
-}
-.stat-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-    border-color: var(--primary);
-}
-.stat-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    flex-shrink: 0;
-}
-.stat-icon.green { background: var(--success-light); color: var(--success); }
-.stat-icon.blue { background: var(--primary-light); color: var(--primary); }
-.stat-icon.orange { background: var(--warning-light); color: var(--warning); }
-.stat-icon.purple { background: #ede9fe; color: #8b5cf6; }
-.stat-icon.teal { background: #ccfbf1; color: #14b8a6; }
-.stat-icon.rose { background: #ffe4e6; color: #f43f5e; }
+        try {
+            const [invoicesRes, purchasesRes, productsRes, partiesRes] = await Promise.allSettled([
+                DB.getInvoices().catch(() => []),
+                DB.getPurchases().catch(() => []),
+                DB.getProducts().catch(() => []),
+                DB.getParties().catch(() => [])
+            ]);
 
-.stat-info h3 {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-}
-.stat-info p {
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: var(--text-primary);
-}
+            const invoices = invoicesRes.status === 'fulfilled' ? invoicesRes.value : [];
+            const purchases = purchasesRes.status === 'fulfilled' ? purchasesRes.value : [];
+            const products = productsRes.status === 'fulfilled' ? productsRes.value : [];
+            const parties = partiesRes.status === 'fulfilled' ? partiesRes.value : [];
 
-/* ========== البطاقات السفلية ========== */
-.charts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-.chart-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    padding: 20px;
-}
-.chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-.chart-header h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.btn-sm {
-    background: var(--primary-light);
-    color: var(--primary);
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 6px 14px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: all var(--transition);
-}
-.btn-sm:hover { background: var(--primary); color: white; }
-.chart-body { min-height: 150px; }
+            const today = new Date().toISOString().split('T')[0];
 
-.summary-row-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border-light);
-}
-.summary-row-item:last-child { border-bottom: none; }
-.summary-row-item .label { color: var(--text-secondary); font-size: 0.9rem; }
-.summary-row-item .value { font-weight: 700; font-size: 0.95rem; }
+            // الحسابات
+            const todaySales = invoices
+                .filter(inv => inv.date === today && inv.type === 'sale')
+                .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
 
-.invoice-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border-light);
-    font-size: 0.85rem;
-}
-.invoice-item:last-child { border-bottom: none; }
-.invoice-number { font-weight: 700; color: var(--primary); }
-.invoice-customer { color: var(--text-secondary); }
-.invoice-total { font-weight: 700; }
+            const todayPurchases = purchases
+                .filter(p => p.date === today)
+                .reduce((sum, p) => sum + (Number(p.total) || 0), 0);
 
-.skeleton-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    padding: 20px;
-    animation: pulse 1.5s infinite;
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
+            const pendingInvoices = invoices.filter(inv =>
+                ['held', 'partial', 'pending'].includes(inv.status)
+            ).length;
 
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-}
-.empty-state i {
-    font-size: 3rem;
-    margin-bottom: 16px;
-    color: var(--border-medium);
-}
+            const productsCount = products.length;
+            const customersCount = parties.filter(p => p.type === 'customer').length;
+            const suppliersCount = parties.filter(p => p.type === 'supplier').length;
 
-/* ========== التجاوب ========== */
-@media (max-width: 768px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .charts-grid { grid-template-columns: 1fr; }
-    .main-content { padding: 12px; }
-    .page-header h1 { font-size: 1.4rem; }
-    .stat-card { padding: 14px; gap: 12px; }
-    .stat-icon { width: 40px; height: 40px; font-size: 1.2rem; }
-    .stat-info p { font-size: 1.1rem; }
-}
-@media (max-width: 480px) {
-    .stats-grid { grid-template-columns: 1fr; }
-    .navbar { padding: 0 10px; }
-    .main-content { padding: 10px; }
-}
+            // بناء الكروت
+            const stats = [
+                { label: 'مبيعات اليوم', value: formatCurrency(todaySales), icon: 'fa-chart-line', colorClass: 'green' },
+                { label: 'مشتريات اليوم', value: formatCurrency(todayPurchases), icon: 'fa-truck', colorClass: 'blue' },
+                { label: 'فواتير معلقة', value: pendingInvoices, icon: 'fa-clock', colorClass: 'orange' },
+                { label: 'المنتجات', value: productsCount, icon: 'fa-box', colorClass: 'purple' },
+                { label: 'العملاء', value: customersCount, icon: 'fa-users', colorClass: 'teal' },
+                { label: 'الموردين', value: suppliersCount, icon: 'fa-user-tie', colorClass: 'rose' }
+            ];
+
+            statsGrid.innerHTML = stats.map(stat => `
+                <div class="stat-card">
+                    <div class="stat-icon ${stat.colorClass}">
+                        <i class="fas ${stat.icon}"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>${stat.label}</h3>
+                        <p>${stat.value}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            // الملخص السريع
+            if (summaryContent) {
+                summaryContent.innerHTML = `
+                    <div class="summary-row-item">
+                        <span class="label">إجمالي المبيعات اليوم</span>
+                        <span class="value text-success">${formatCurrency(todaySales)}</span>
+                    </div>
+                    <div class="summary-row-item">
+                        <span class="label">إجمالي المشتريات اليوم</span>
+                        <span class="value text-danger">${formatCurrency(todayPurchases)}</span>
+                    </div>
+                    <div class="summary-row-item">
+                        <span class="label">فواتير معلقة</span>
+                        <span class="value" style="color: var(--warning);">${pendingInvoices}</span>
+                    </div>
+                    <div class="summary-row-item">
+                        <span class="label">إجمالي المنتجات</span>
+                        <span class="value">${productsCount}</span>
+                    </div>
+                `;
+            }
+
+            // أحدث الفواتير
+            if (recentInvoicesContent) {
+                const recent = invoices.slice(0, 5);
+                if (recent.length) {
+                    recentInvoicesContent.innerHTML = recent.map(inv => `
+                        <div class="invoice-item">
+                            <span class="invoice-number">${inv.invoice_number || inv.id?.substring(0, 8)}</span>
+                            <span class="invoice-customer">${inv.customer_name || 'نقدي'}</span>
+                            <span class="invoice-total">${formatCurrency(inv.total)}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    recentInvoicesContent.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>لا توجد فواتير حديثة</p>
+                        </div>
+                    `;
+                }
+            }
+        } catch (e) {
+            console.error('فشل تحميل الإحصائيات:', e);
+            statsGrid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>تعذر تحميل البيانات</p>
+                </div>
+            `;
+            safeToast('تعذر تحميل البيانات', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // ========== إعداد Realtime ==========
+    function setupRealtimeSync() {
+        if (!window.supabaseClient) return;
+        window.supabaseClient
+            .channel('dashboard-updates')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+                loadDashboardStats();
+            })
+            .subscribe();
+    }
+
+    // ========== عرض التاريخ ==========
+    function displayCurrentDate() {
+        if (currentDateEl) {
+            const now = new Date();
+            currentDateEl.textContent = now.toLocaleDateString('ar-EG', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+    }
+
+    // ========== التهيئة ==========
+    async function init() {
+        try {
+            // التحقق من النواة
+            if (!window.App || !window.DB) {
+                safeToast('النواة غير محملة', 'error');
+                return;
+            }
+
+            // المصادقة
+            const authorized = await App.requireAuth();
+            if (!authorized) return;
+
+            // صلاحيات
+            if (!App.requireRole || !(await App.requireRole(['admin', 'rep']))) return;
+
+            // تحديث واجهة المستخدم
+            App.initUserInterface?.();
+
+            // ربط العناصر
+            bindSidebar();
+            updateConnStatus();
+            displayCurrentDate();
+            await loadUserInfo();
+            await loadDashboardStats();
+            setupRealtimeSync();
+
+            // أحداث
+            if (refreshBtn) refreshBtn.addEventListener('click', loadDashboardStats);
+            if (viewAllInvoicesBtn) viewAllInvoicesBtn.addEventListener('click', () => {
+                window.location.href = './invoices.html';
+            });
+
+            // حالة الاتصال
+            window.addEventListener('online', () => {
+                updateConnStatus();
+                loadDashboardStats();
+            });
+            window.addEventListener('offline', updateConnStatus);
+
+        } catch (e) {
+            console.error('خطأ في التهيئة:', e);
+            safeToast('فشل تحميل لوحة التحكم', 'error');
+        }
+    }
+
+    init();
+})();
