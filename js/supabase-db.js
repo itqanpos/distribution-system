@@ -1,5 +1,8 @@
 /* =============================================
-   supabase-db.js - دوال قاعدة البيانات (DB) - إصدار محسّن بالكامل
+   supabase-db.js - دوال قاعدة البيانات (DB) - إصدار مُصحح
+   - إصلاح createPurchaseInvoice لقيد supplierId
+   - إزالة supplier_name من جميع الإدراجات
+   - دعم offlineSave و offlineGet بشكل كامل
    ============================================= */
 (function() {
     'use strict';
@@ -127,6 +130,7 @@
         _cloudDeleteProduct: _cloud.deleteProduct,
         _cloudDeleteParty: _cloud.deleteParty,
 
+        // ---------- المنتجات ----------
         getProducts: (force) => offlineGet('products', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -146,7 +150,7 @@
             const product = {
                 ...p,
                 id: p.id || generateUUID(),
-                _operation: isNew ? 'INSERT' : 'UPDATE',
+                _operation: isNew ? 'INSERT' : 'UPDATE'
             };
             return offlineSave('products', product, _cloud.saveProduct, isNew);
         },
@@ -160,6 +164,7 @@
             return offlineSave('products', data, _cloud.deleteProduct, false);
         },
 
+        // ---------- الأطراف ----------
         getParties: (type, force = false) => offlineGet('parties', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -189,6 +194,7 @@
             return offlineSave('parties', data, _cloud.deleteParty, false);
         },
 
+        // ---------- الفواتير ----------
         getInvoices: () => offlineGet('invoices', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -208,6 +214,8 @@
                 id: inv.id || generateUUID(),
                 _operation: isNew ? 'INSERT' : 'UPDATE'
             };
+            // تأكيد عدم إرسال supplier_name
+            delete invoice.supplier_name;
             return offlineSave('invoices', invoice, _cloud.saveInvoice, isNew);
         },
 
@@ -256,6 +264,8 @@
         createSaleInvoice: async (inv) => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
+            // حذف supplier_name إن وجد
+            delete inv.supplier_name;
             const { data, error } = await client.rpc('create_sale_invoice', { p_data: inv });
             if (error) throw new Error(error.message);
             if (!data.success) throw new Error(data.error);
@@ -266,6 +276,7 @@
         editSaleInvoice: async (inv) => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
+            delete inv.supplier_name;
             const { data, error } = await client.rpc('edit_sale_invoice', { p_data: inv });
             if (error) throw new Error(error.message);
             if (data && !data.success) throw new Error(data.error);
@@ -273,6 +284,7 @@
             return data;
         },
 
+        // ---------- المشتريات ----------
         getPurchases: () => offlineGet('purchases', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -292,6 +304,7 @@
                 id: pur.id || generateUUID(),
                 _operation: isNew ? 'INSERT' : 'UPDATE'
             };
+            delete purchase.supplier_name;
             return offlineSave('purchases', purchase, _cloud.savePurchase, isNew);
         },
 
@@ -324,6 +337,13 @@
         createPurchaseInvoice: async (inv) => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
+            // حذف supplier_name نهائياً
+            delete inv.supplier_name;
+            // التأكد من أن supplierId قيمة صحيحة أو null
+            if (inv.supplierId === undefined || inv.supplierId === '') {
+                inv.supplierId = null;
+            }
+            // استخدام RPC مخصص للمشتريات
             const { data, error } = await client.rpc('create_purchase_invoice', { p_data: inv });
             if (error) throw new Error(error.message);
             if (!data.success) throw new Error(data.error);
@@ -331,6 +351,7 @@
             return data;
         },
 
+        // ---------- المعاملات ----------
         getTransactions: () => offlineGet('transactions', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -353,6 +374,7 @@
             return offlineSave('transactions', trans, _cloud.saveTransaction, isNew);
         },
 
+        // ---------- المرتجعات ----------
         getReturns: (type) => offlineGet('returns', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -373,6 +395,7 @@
             return offlineSave('returns', ret, _cloud.saveReturn, isNew);
         },
 
+        // ---------- القيود المحاسبية ----------
         getJournalEntries: () => offlineGet('journal_entries', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -395,6 +418,7 @@
             return offlineSave('journal_entries', entry, _cloud.saveJournalEntry, isNew);
         },
 
+        // ---------- الحسابات ----------
         getAccounts: () => offlineGet('accounts', async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -407,6 +431,7 @@
             return data || [];
         }),
 
+        // ---------- الإعدادات ----------
         getSettings: async () => {
             return offlineGet('settings', async () => {
                 const client = getClient();
@@ -440,6 +465,7 @@
             return data.data;
         },
 
+        // ---------- أرقام الفواتير ----------
         generateInvoiceNumber: async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
@@ -450,6 +476,7 @@
             return data;
         },
 
+        // ---------- إدارة المستأجرين ----------
         getAllTenantsData: async () => {
             const client = getClient();
             if (!client) throw new Error('غير متصل');
