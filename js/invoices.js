@@ -1,5 +1,5 @@
 /* =============================================
-   invoices.js - منطق صفحة الفواتير
+   invoices.js - منطق صفحة الفواتير (مصحح)
    ============================================= */
 (async function() {
     'use strict';
@@ -22,10 +22,21 @@
     const invoiceDetailsModal = document.getElementById('invoiceDetailsModal');
     const invoiceDetailsContent = document.getElementById('invoiceDetailsContent');
     const closeDetailsModalBtn = document.getElementById('closeDetailsModalBtn');
+    const closeDetailsModalBtn2 = document.getElementById('closeDetailsModalBtn2');
+    const printInvoiceBtn = document.getElementById('printInvoiceBtn');
     const newInvoiceBtn = document.getElementById('newInvoiceBtn');
     const exportBtn = document.getElementById('exportBtn');
 
     let allInvoices = [];
+
+    // ========== دالة debounce محلية ==========
+    function debounce(fn, ms) {
+        let t;
+        return (...args) => {
+            clearTimeout(t);
+            t = setTimeout(() => fn(...args), ms);
+        };
+    }
 
     // ========== دوال مساعدة ==========
     function safeToast(msg, type = 'error') {
@@ -190,7 +201,6 @@
             </tr>
         `).join('');
 
-        // ربط أزرار العرض والتعديل
         invoicesTableBody.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', () => openInvoiceDetails(btn.dataset.id));
         });
@@ -242,7 +252,7 @@
         });
     }
 
-    // ========== فتح تفاصيل الفاتورة ==========
+    // ========== فتح تفاصيل الفاتورة (بنمط الإيصال) ==========
     async function openInvoiceDetails(id) {
         try {
             const invoice = await DB.getInvoiceById(id);
@@ -250,7 +260,7 @@
                 safeToast('الفاتورة غير موجودة', 'error');
                 return;
             }
-            renderInvoiceDetails(invoice);
+            renderInvoiceReceipt(invoice);
             invoiceDetailsModal.classList.add('open');
         } catch (e) {
             console.error(e);
@@ -258,35 +268,53 @@
         }
     }
 
-    function renderInvoiceDetails(inv) {
+    function renderInvoiceReceipt(inv) {
+        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        const shopName = settings?.company?.name || 'حسابي';
+        const shopPhone = settings?.company?.phone || '';
+        const footerMsg = settings?.print?.footer_message || 'شكراً لتعاملكم معنا';
+
+        let itemsHtml = '';
+        if (inv.items && inv.items.length) {
+            itemsHtml = inv.items.map(item => `
+                <tr>
+                    <td>${item.productName} - ${item.unitName}</td>
+                    <td style="text-align:center;">${item.quantity}</td>
+                    <td style="text-align:center;">${formatCurrency(item.price)}</td>
+                    <td style="text-align:left;">${formatCurrency(item.price * item.quantity)}</td>
+                </tr>
+            `).join('');
+        }
+
         invoiceDetailsContent.innerHTML = `
-            <div class="detail-row"><span class="label">رقم الفاتورة:</span><span class="value">${inv.invoice_number || inv.id?.substring(0, 8)}</span></div>
-            <div class="detail-row"><span class="label">التاريخ:</span><span class="value">${formatDate(inv.date)}</span></div>
-            <div class="detail-row"><span class="label">العميل:</span><span class="value">${inv.customer_name || 'نقدي'}</span></div>
-            <div class="detail-row"><span class="label">النوع:</span><span class="value">${getTypeLabel(inv.type)}</span></div>
-            <div class="detail-row"><span class="label">الإجمالي:</span><span class="value">${formatCurrency(inv.total)}</span></div>
-            <div class="detail-row"><span class="label">الخصم:</span><span class="value">${formatCurrency(inv.discount)}</span></div>
-            <div class="detail-row"><span class="label">الصافي:</span><span class="value">${formatCurrency(inv.total - inv.discount)}</span></div>
-            <div class="detail-row"><span class="label">المدفوع:</span><span class="value">${formatCurrency(inv.paid)}</span></div>
-            <div class="detail-row"><span class="label">المتبقي:</span><span class="value">${formatCurrency(inv.remaining)}</span></div>
-            <div class="detail-row"><span class="label">الحالة:</span><span class="value">${getStatusBadge(inv.status)}</span></div>
-            ${inv.items && inv.items.length ? `
-                <div style="margin-top: 16px;">
-                    <h4 style="margin-bottom: 8px;">المنتجات:</h4>
-                    ${inv.items.map(item => `
-                        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--border-light);">
-                            <span>${item.productName} - ${item.unitName}</span>
-                            <span>${item.quantity} × ${formatCurrency(item.price)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : ''}
+            <div class="receipt-body">
+                <div class="shop-name">${shopName}</div>
+                ${shopPhone ? `<div class="shop-phone">هاتف: ${shopPhone}</div>` : ''}
+                <hr>
+                <div class="receipt-row"><span class="label">العميل:</span> <span class="value">${inv.customer_name || 'نقدي'}</span></div>
+                <div class="receipt-row"><span class="label">رقم الفاتورة:</span> <span class="value">${inv.invoice_number || inv.id?.substring(0, 8)}</span></div>
+                <div class="receipt-row"><span class="label">التاريخ:</span> <span class="value">${formatDate(inv.date)}</span></div>
+                <hr>
+                <table class="receipt-items-table">
+                    <thead>
+                        <tr><th>الصنف</th><th style="text-align:center;">كمية</th><th style="text-align:center;">سعر</th><th style="text-align:left;">إجمالي</th></tr>
+                    </thead>
+                    <tbody>${itemsHtml || '<tr><td colspan="4" style="text-align:center;">لا توجد عناصر</td></tr>'}</tbody>
+                </table>
+                <hr>
+                <div class="receipt-row"><span class="label">الإجمالي:</span> <span class="value">${formatCurrency(inv.total)}</span></div>
+                ${inv.discount > 0 ? `<div class="receipt-row"><span class="label">الخصم:</span> <span class="value">${formatCurrency(inv.discount)}</span></div>` : ''}
+                <div class="receipt-row"><span class="label">الصافي:</span> <span class="value">${formatCurrency(inv.total - inv.discount)}</span></div>
+                <div class="receipt-row"><span class="label">المدفوع:</span> <span class="value">${formatCurrency(inv.paid)}</span></div>
+                <div class="receipt-row"><span class="label">المتبقي:</span> <span class="value">${formatCurrency(inv.remaining)}</span></div>
+                <hr>
+                <div style="text-align:center; font-weight: bold;">${footerMsg}</div>
+            </div>
         `;
     }
 
     // ========== التعديل في نقطة البيع ==========
     function editInPOS(id) {
-        // تخزين معرف الفاتورة في localStorage لتلتقطه نقطة البيع
         localStorage.setItem('edit_invoice_id', id);
         window.location.href = './pos.html';
     }
@@ -324,6 +352,18 @@
         URL.revokeObjectURL(link.href);
     }
 
+    // ========== طباعة الفاتورة ==========
+    function printInvoice() {
+        const content = invoiceDetailsContent.innerHTML;
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+            printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;background:white;padding:10px;}</style></head><body>${content}</body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => printWindow.print(), 300);
+        }
+    }
+
     // ========== إعداد Realtime ==========
     function setupRealtimeSync() {
         if (!window.supabaseClient) return;
@@ -353,17 +393,22 @@
 
             // الأحداث
             refreshBtn?.addEventListener('click', loadInvoices);
-            searchInput?.addEventListener('input', U.debounce(applyFilters, 300));
+            searchInput?.addEventListener('input', debounce(applyFilters, 300));
             statusFilter?.addEventListener('change', applyFilters);
             typeFilter?.addEventListener('change', applyFilters);
             dateFilter?.addEventListener('change', applyFilters);
-            closeDetailsModalBtn?.addEventListener('click', () => invoiceDetailsModal.classList.remove('open'));
             newInvoiceBtn?.addEventListener('click', createNewInvoice);
             exportBtn?.addEventListener('click', exportInvoices);
 
-            // إغلاق المودال عند النقر خارج المحتوى
+            // إغلاق المودال
+            const closeModal = () => {
+                invoiceDetailsModal.classList.remove('open');
+            };
+            closeDetailsModalBtn?.addEventListener('click', closeModal);
+            closeDetailsModalBtn2?.addEventListener('click', closeModal);
+            printInvoiceBtn?.addEventListener('click', printInvoice);
             invoiceDetailsModal.addEventListener('click', (e) => {
-                if (e.target === invoiceDetailsModal) invoiceDetailsModal.classList.remove('open');
+                if (e.target === invoiceDetailsModal) closeModal();
             });
 
             window.addEventListener('online', loadInvoices);
