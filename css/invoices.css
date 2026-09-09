@@ -1,5 +1,6 @@
 /* =============================================
    invoices.css - تنسيقات صفحة الفواتير
+   متوافق مع الشاشات الصغيرة والكبيرة
    ============================================= */
 
 :root {
@@ -201,6 +202,8 @@ body.offline #offline-banner { transform: translateY(0); }
 .btn-primary:hover { background: var(--primary-dark); }
 .btn-success { background: var(--success); color: white; }
 .btn-success:hover { background: #059669; }
+.btn-cancel { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-medium); }
+.btn-cancel:hover { background: var(--border-light); }
 .btn-sm {
     padding: 6px 12px;
     font-size: 0.8rem;
@@ -270,7 +273,7 @@ body.offline #offline-banner { transform: translateY(0); }
     outline: none;
 }
 
-/* ========== عرض الفواتير ========== */
+/* ========== عرض الفواتير (جدول) ========== */
 .table-wrapper {
     display: block;
     overflow-x: auto;
@@ -365,53 +368,13 @@ body.offline #offline-banner { transform: translateY(0); }
         font-weight: 700;
         font-size: 0.9rem;
     }
+    .page-header h1 { font-size: 1.4rem; }
+    .main-content { padding: 12px; }
+    .filters-bar { padding: 12px; }
+    .search-box { min-width: 100%; }
+    .filter-group { width: 100%; }
+    .filter-group select { flex: 1; min-width: 0; }
 }
-
-/* ========== مودال التفاصيل ========== */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.4);
-    z-index: 250;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-}
-.modal.open { display: flex; }
-.modal-content {
-    background: var(--bg-surface);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    width: 90%;
-    max-width: 600px;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: var(--shadow-lg);
-}
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-.modal-header h2 { font-size: 1.2rem; }
-.modal-header button {
-    background: none;
-    border: none;
-    font-size: 1.6rem;
-    cursor: pointer;
-    color: var(--text-secondary);
-}
-.detail-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border-light);
-    font-size: 0.9rem;
-}
-.detail-row .label { color: var(--text-secondary); }
-.detail-row .value { font-weight: 600; }
 
 /* ========== الحالة الفارغة ========== */
 .empty-state {
@@ -426,4 +389,140 @@ body.offline #offline-banner { transform: translateY(0); }
     font-size: 4rem;
     margin-bottom: 16px;
     color: var(--border-medium);
+}
+
+/* ========== المودال العام ========== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 250;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+.modal.open { display: flex; }
+
+/* ========== مودال تفاصيل الفاتورة (نمط الإيصال) ========== */
+.receipt-modal-content {
+    max-width: 380px !important;
+    width: 90%;
+    background: #fffef7;
+    color: #000;
+    padding: 0 !important;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+.receipt-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 12px;
+    background: #fff;
+    border-bottom: 1px dashed #ccc;
+    flex-shrink: 0;
+}
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+}
+.close-btn:hover { color: #000; }
+.receipt-body {
+    padding: 16px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: right;
+    direction: rtl;
+    overflow-y: auto;
+    flex: 1;
+}
+.receipt-body .shop-name {
+    text-align: center;
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+.receipt-body .shop-phone {
+    text-align: center;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+.receipt-body hr {
+    border-top: 1px dashed #000;
+    margin: 10px 0;
+}
+.receipt-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 4px 0;
+}
+.receipt-row .label {
+    color: #333;
+}
+.receipt-row .value {
+    font-weight: 600;
+}
+.receipt-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.receipt-items-table th,
+.receipt-items-table td {
+    padding: 4px;
+    border-bottom: 1px dashed #ddd;
+    text-align: right;
+}
+.receipt-items-table th:last-child,
+.receipt-items-table td:last-child {
+    text-align: left;
+}
+.receipt-actions {
+    display: flex;
+    gap: 10px;
+    padding: 12px;
+    background: #fff;
+    border-top: 1px dashed #ccc;
+    flex-shrink: 0;
+}
+.receipt-actions .btn {
+    flex: 1;
+    justify-content: center;
+}
+
+/* ========== تجاوب إضافي ========== */
+@media (max-width: 480px) {
+    .receipt-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    .receipt-body {
+        padding: 12px;
+        font-size: 12px;
+    }
+    .receipt-actions {
+        padding: 8px;
+        gap: 6px;
+    }
+    .receipt-actions .btn {
+        padding: 8px;
+        font-size: 12px;
+    }
+    .btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    .header-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
 }
