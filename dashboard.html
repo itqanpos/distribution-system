@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="description" content="لوحة التحكم - نظام حسابي">
     <title>لوحة التحكم · حسابي</title>
 
     <!-- PWA -->
@@ -19,18 +18,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- ملفات CSS -->
-    <link rel="stylesheet" href="./css/pos.css">
+
+    <!-- ملف التنسيقات -->
     <link rel="stylesheet" href="./css/dashboard.css">
 </head>
 <body>
-    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
     <div id="loading-bar"></div>
+    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- الشريط العلوي -->
     <nav class="navbar" id="mainNavbar">
         <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle" aria-label="فتح القائمة" aria-expanded="false"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
             <div class="logo">
                 <div class="logo-icon">
                     <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
@@ -41,15 +41,11 @@
             </div>
         </div>
         <div class="navbar-right">
-            <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد" aria-label="قائمة المزيد"><i class="fas fa-ellipsis-v"></i></button>
-                <div class="more-dropdown" id="moreDropdown">
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
-                </div>
-            </div>
+            <button class="navbar-icon-btn" id="refreshBtn" title="تحديث البيانات"><i class="fas fa-sync-alt"></i></button>
         </div>
     </nav>
 
+    <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user">
             <div class="sidebar-avatar" id="sidebarAvatar">U</div>
@@ -70,94 +66,48 @@
         </ul>
     </aside>
 
-    <div class="main-content dashboard-content">
-        <!-- رأس لوحة التحكم -->
-        <div class="dashboard-header">
+    <!-- المحتوى الرئيسي -->
+    <main class="main-content">
+        <div class="page-header">
             <h1>لوحة التحكم</h1>
-            <p id="dashboardDate"></p>
+            <p id="currentDate"></p>
         </div>
 
-        <!-- الصف الأول: البطاقات الأساسية -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
-                <div class="stat-info">
-                    <h3>مبيعات اليوم</h3>
-                    <p id="todaySales">0.00 ج.م</p>
+        <!-- كروت الإحصائيات -->
+        <div class="stats-grid" id="statsGrid">
+            <!-- تُملأ ديناميكيًا -->
+        </div>
+
+        <!-- الرسوم البيانية والملخصات -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3><i class="fas fa-chart-pie"></i> ملخص سريع</h3>
+                </div>
+                <div id="summaryContent" class="chart-body">
+                    <!-- يُملأ ديناميكيًا -->
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
-                <div class="stat-info">
-                    <h3>فواتير اليوم</h3>
-                    <p id="todayInvoices">0</p>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3><i class="fas fa-history"></i> أحدث الفواتير</h3>
+                    <button class="btn-sm" id="viewAllInvoices">عرض الكل</button>
                 </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-boxes"></i></div>
-                <div class="stat-info">
-                    <h3>المنتجات</h3>
-                    <p id="totalProducts">0</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
-                <div class="stat-info">
-                    <h3>العملاء</h3>
-                    <p id="totalCustomers">0</p>
+                <div id="recentInvoicesContent" class="chart-body">
+                    <!-- يُملأ ديناميكيًا -->
                 </div>
             </div>
         </div>
+    </main>
 
-        <!-- الصف الثاني: بطاقات إضافية عملية -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
-                <div class="stat-info">
-                    <h3>مبيعات الأسبوع</h3>
-                    <p id="weekSales">0.00 ج.م</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-pause-circle"></i></div>
-                <div class="stat-info">
-                    <h3>فواتير معلقة</h3>
-                    <p id="heldInvoices">0</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="stat-info">
-                    <h3>منتجات منخفضة</h3>
-                    <p id="lowStock">0</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-trophy"></i></div>
-                <div class="stat-info">
-                    <h3>أفضل منتج</h3>
-                    <p id="bestProduct">-</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- أحدث الفواتير -->
-        <div class="recent-invoices">
-            <h2>أحدث الفواتير</h2>
-            <div id="recentInvoicesList"></div>
-        </div>
-    </div>
-
-    <div class="toast" id="toastContainer"></div>
-
-    <!-- Scripts -->
+    <!-- السكربتات (الترتيب مهم) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script defer src="./js/supabase-core.js"></script>
-    <script defer src="./js/supabase-auth.js"></script>
-    <script defer src="./js/db-local.js"></script>
-    <script defer src="./js/supabase-offline.js"></script>
-    <script defer src="./js/supabase-db.js"></script>
-    <script defer src="./js/toast.js"></script>
-    <script defer src="./js/dashboard.js"></script>
+    <script src="./js/supabase-core.js"></script>
+    <script src="./js/supabase-auth.js"></script>
+    <script src="./js/db-local.js"></script>
+    <script src="./js/supabase-offline.js"></script>
+    <script src="./js/supabase-db.js"></script>
+    <script src="./js/toast.js"></script>
+    <script src="./js/dashboard.js"></script>
 </body>
 </html>
