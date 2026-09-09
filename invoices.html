@@ -106,7 +106,7 @@
             </div>
         </div>
 
-        <!-- عرض الفواتير (جدول على الشاشات الكبيرة، بطاقات على الصغيرة) -->
+        <!-- عرض الفواتير -->
         <div class="invoices-container">
             <!-- جدول للشاشات الكبيرة -->
             <div class="table-wrapper">
@@ -142,15 +142,18 @@
         </div>
     </main>
 
-    <!-- مودال تفاصيل الفاتورة -->
+    <!-- مودال تفاصيل الفاتورة (بنمط الإيصال) -->
     <div class="modal" id="invoiceDetailsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>تفاصيل الفاتورة</h2>
-                <button id="closeDetailsModalBtn">&times;</button>
+        <div class="modal-content receipt-modal-content">
+            <div class="receipt-header">
+                <button id="closeDetailsModalBtn" class="close-btn">&times;</button>
             </div>
             <div id="invoiceDetailsContent">
-                <!-- تُملأ ديناميكيًا -->
+                <!-- سيتم ملؤه ديناميكيًا بنمط الإيصال -->
+            </div>
+            <div class="receipt-actions">
+                <button class="btn btn-primary" id="printInvoiceBtn"><i class="fas fa-print"></i> طباعة</button>
+                <button class="btn btn-cancel" id="closeDetailsModalBtn2">إغلاق</button>
             </div>
         </div>
     </div>
