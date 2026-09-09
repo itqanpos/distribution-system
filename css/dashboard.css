@@ -1,5 +1,5 @@
 /* =============================================
-   dashboard.css - لوحة التحكم
+   dashboard.css - لوحة التحكم (بدون رسم بياني)
    ============================================= */
 
 .dashboard-content {
@@ -60,6 +60,7 @@
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
+    flex-shrink: 0;
 }
 
 .stat-info h3 {
@@ -74,28 +75,9 @@
     font-weight: 700;
     color: var(--text-primary);
     margin: 5px 0 0;
-}
-
-/* حاوية الرسم البياني */
-.chart-container {
-    background: var(--card-bg, #ffffff);
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    margin-bottom: 30px;
-    border: 1px solid var(--border-light, #e2e8f0);
-}
-
-.chart-container h2 {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 15px;
-}
-
-.chart-container canvas {
-    max-height: 300px;
-    width: 100% !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* أحدث الفواتير */
@@ -168,6 +150,11 @@
     color: #1e40af;
 }
 
+.status-held {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 .empty-message {
     text-align: center;
     color: var(--text-muted);
@@ -187,5 +174,8 @@
     }
     .stat-icon {
         margin-bottom: 10px;
+    }
+    .stat-info p {
+        font-size: 1.1rem;
     }
 }
