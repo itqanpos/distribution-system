@@ -1,283 +1,319 @@
 /* =============================================
-   customers.js - العملاء والموردين (إصدار مُحسَّن)
+   customers.js - منطق صفحة العملاء والموردين
    ============================================= */
+(async function() {
+    'use strict';
 
-'use strict';
+    // عناصر DOM
+    const loadingBar = document.getElementById('loading-bar');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const sidebarAvatar = document.getElementById('sidebarAvatar');
+    const sidebarUserName = document.getElementById('sidebarUserName');
+    const searchInput = document.getElementById('searchInput');
+    const typeFilter = document.getElementById('typeFilter');
+    const tableBody = document.getElementById('tableBody');
+    const cardsWrapper = document.getElementById('cardsWrapper');
+    const emptyState = document.getElementById('emptyState');
+    const addCustomerBtn = document.getElementById('addCustomerBtn');
+    const partyModal = document.getElementById('partyModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const partyName = document.getElementById('partyName');
+    const partyType = document.getElementById('partyType');
+    const partyPhone = document.getElementById('partyPhone');
+    const partyBalance = document.getElementById('partyBalance');
+    const partyNotes = document.getElementById('partyNotes');
+    const saveBtn = document.getElementById('saveBtn');
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
-        },
-        formatDate: (dateStr) => {
-            if (!dateStr) return '';
-            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-            catch (e) { return dateStr; }
-        },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase && typeof DB.getParties === 'function'),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
-    };
-}
+    let allParties = [];
+    let editingId = null;
 
-const Customers = {
-    parties: [],
-    currentTab: 'customer',
-    editingId: null,
-
-    init() {
-        this.cacheElements();
-        this.bindEvents();
-        if (window.App) {
-            if (!App.requireAuth()) return;
-            App.initUserInterface();
-        }
-        this.loadData();
-    },
-
-    cacheElements() {
-        this.el = {
-            menuToggle: document.getElementById('menuToggle'),
-            sidebar: document.getElementById('sidebar'),
-            sidebarOverlay: document.getElementById('sidebarOverlay'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            userProfileBtn: document.getElementById('userProfileBtn'),
-            userDropdown: document.getElementById('userDropdown'),
-            tabBtns: document.querySelectorAll('.tab-btn'),
-            partiesBody: document.getElementById('partiesBody'),
-            addPartyBtn: document.getElementById('addPartyBtn'),
-            partyModal: document.getElementById('partyModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            closePartyModalBtn: document.getElementById('closePartyModalBtn'),
-            cancelPartyModalBtn: document.getElementById('cancelPartyModalBtn'),
-            partyForm: document.getElementById('partyForm'),
-            partyId: document.getElementById('partyId'),
-            partyName: document.getElementById('partyName'),
-            partyType: document.getElementById('partyType'),
-            partyPhone: document.getElementById('partyPhone'),
-            partyAddress: document.getElementById('partyAddress'),
-            partyBalance: document.getElementById('partyBalance'),
-            // ⭐ عناصر التسوية
-            settlementModal: document.getElementById('settlementModal'),
-            closeSettlementBtn: document.getElementById('closeSettlementBtn'),
-            cancelSettlementBtn: document.getElementById('cancelSettlementBtn'),
-            settlementForm: document.getElementById('settlementForm'),
-            settlementPartyId: document.getElementById('settlementPartyId'),
-            settlementDate: document.getElementById('settlementDate'),
-            settlementAmount: document.getElementById('settlementAmount'),
-            settlementType: document.getElementById('settlementType'),
-            settlementMethod: document.getElementById('settlementMethod'),
-            settlementNotes: document.getElementById('settlementNotes'),
-            // إحصائيات
-            customerCount: document.getElementById('customerCount'),
-            supplierCount: document.getElementById('supplierCount'),
-            totalCustomerBalance: document.getElementById('totalCustomerBalance'),
-            totalSupplierBalance: document.getElementById('totalSupplierBalance'),
-            toast: document.getElementById('toast')
+    // ========== دوال مساعدة ==========
+    function debounce(fn, ms) {
+        let t;
+        return (...args) => {
+            clearTimeout(t);
+            t = setTimeout(() => fn(...args), ms);
         };
-    },
+    }
 
-    bindEvents() {
-        // الشريط الجانبي والمستخدم
-        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
+    function safeToast(msg, type = 'error') {
+        if (window.Toast && typeof window.Toast[type] === 'function') {
+            window.Toast[type](msg);
+        } else if (window.Toast && typeof window.Toast.show === 'function') {
+            window.Toast.show(msg, type);
+        } else {
+            alert(msg);
+        }
+    }
 
-        this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay?.classList.toggle('show');
+    function formatCurrency(value) {
+        return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+    }
+
+    function showLoading() { loadingBar.style.width = '80%'; }
+    function hideLoading() {
+        loadingBar.style.width = '100%';
+        setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+    }
+
+    function getTypeBadge(type) {
+        return type === 'customer'
+            ? '<span class="type-badge type-customer">عميل</span>'
+            : '<span class="type-badge type-supplier">مورد</span>';
+    }
+
+    function getBalanceClass(balance) {
+        if (balance > 0) return 'balance-positive';
+        if (balance < 0) return 'balance-negative';
+        return '';
+    }
+
+    function getBalanceLabel(balance) {
+        if (balance > 0) return `دائن ${formatCurrency(balance)}`;
+        if (balance < 0) return `مدين ${formatCurrency(-balance)}`;
+        return 'لا رصيد';
+    }
+
+    // ========== ربط القائمة الجانبية ==========
+    function bindSidebar() {
+        menuToggle?.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('show');
         });
-        this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
+        sidebarOverlay?.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('show');
         });
-        document.querySelectorAll('.menu-item').forEach(link => {
-            link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
-                this.el.sidebarOverlay?.classList.remove('show');
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
             });
         });
+    }
 
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
-
-        // التبويبات
-        this.el.tabBtns.forEach(btn => btn.addEventListener('click', () => {
-            this.el.tabBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            this.currentTab = btn.dataset.tab;
-            this.renderTable();
-        }));
-
-        // إضافة طرف
-        this.el.addPartyBtn?.addEventListener('click', () => this.openPartyModal());
-        this.el.closePartyModalBtn?.addEventListener('click', () => this.closeModal(this.el.partyModal));
-        this.el.cancelPartyModalBtn?.addEventListener('click', () => this.closeModal(this.el.partyModal));
-        this.el.partyForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveParty(); });
-
-        // التسوية
-        this.el.closeSettlementBtn?.addEventListener('click', () => this.closeModal(this.el.settlementModal));
-        this.el.cancelSettlementBtn?.addEventListener('click', () => this.closeModal(this.el.settlementModal));
-        this.el.settlementForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveSettlement(); });
-    },
-
-    async loadData() {
+    // ========== تحميل بيانات المستخدم ==========
+    async function loadUserInfo() {
+        if (!window.App?.getCurrentUser) return;
         try {
-            if (Utils.isDBReady()) {
-                const customers = await DB.getParties('customer') || [];
-                const suppliers = await DB.getParties('supplier') || [];
-                this.parties = [...customers, ...suppliers];
-            } else if (Utils.hasLocalDB()) {
-                const allParties = await localDB.getAll('parties') || [];
-                this.parties = allParties;
-            } else {
-                this.parties = [];
+            const user = await App.getCurrentUser();
+            if (user) {
+                sidebarAvatar.textContent = (user.fullName || 'U')[0].toUpperCase();
+                sidebarUserName.textContent = user.fullName || user.email || 'مدير';
             }
-            this.updateStats();
-            this.renderTable();
-        } catch (err) {
-            console.error('فشل تحميل بيانات الأطراف:', err);
-            this.el.partiesBody.innerHTML = '<tr><td colspan="5" class="empty-message">فشل تحميل البيانات</td></tr>';
+        } catch (e) { /* silent */ }
+    }
+
+    // ========== جلب الجهات ==========
+    async function loadParties() {
+        showLoading();
+        try {
+            allParties = await DB.getParties() || [];
+            applyFilters();
+        } catch (e) {
+            console.error('فشل جلب الجهات:', e);
+            safeToast('تعذر تحميل البيانات', 'error');
+            showEmptyState(true);
+        } finally {
+            hideLoading();
         }
-    },
+    }
 
-    updateStats() {
-        const customers = this.parties.filter(p => p.type === 'customer');
-        const suppliers = this.parties.filter(p => p.type === 'supplier');
-        const totalCustBal = customers.reduce((s, c) => s + (c.balance || 0), 0);
-        const totalSuppBal = suppliers.reduce((s, s_) => s + (s_.balance || 0), 0);
+    // ========== تطبيق الفلاتر ==========
+    function applyFilters() {
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        const type = typeFilter.value;
 
-        if (this.el.customerCount) this.el.customerCount.textContent = customers.length;
-        if (this.el.supplierCount) this.el.supplierCount.textContent = suppliers.length;
-        if (this.el.totalCustomerBalance) this.el.totalCustomerBalance.textContent = Utils.formatMoney(totalCustBal);
-        if (this.el.totalSupplierBalance) this.el.totalSupplierBalance.textContent = Utils.formatMoney(totalSuppBal);
-    },
+        let filtered = [...allParties];
 
-    renderTable() {
-        let list = this.parties.filter(p => p.type === this.currentTab);
-        if (!list.length) {
-            this.el.partiesBody.innerHTML = `<tr><td colspan="5" class="empty-message">لا يوجد ${this.currentTab === 'customer' ? 'عملاء' : 'موردين'}</td></tr>`;
+        if (searchTerm) {
+            filtered = filtered.filter(p =>
+                (p.name || '').toLowerCase().includes(searchTerm) ||
+                (p.phone || '').includes(searchTerm)
+            );
+        }
+        if (type) filtered = filtered.filter(p => p.type === type);
+
+        if (!filtered.length) {
+            showEmptyState(true);
+            tableBody.innerHTML = '';
+            cardsWrapper.innerHTML = '';
             return;
         }
+        showEmptyState(false);
+        renderTable(filtered);
+        renderCards(filtered);
+    }
 
-        this.el.partiesBody.innerHTML = list.map(p => `
+    function showEmptyState(show) {
+        emptyState.style.display = show ? 'block' : 'none';
+    }
+
+    // ========== عرض الجدول ==========
+    function renderTable(parties) {
+        tableBody.innerHTML = parties.map(p => `
             <tr>
-                <td>${p.name || '-'}</td>
+                <td>${p.name}</td>
+                <td>${getTypeBadge(p.type)}</td>
                 <td>${p.phone || '-'}</td>
-                <td>${p.address || '-'}</td>
-                <td>${Utils.formatMoney(p.balance || 0)}</td>
-                <td class="action-icons">
-                    <i class="fas fa-edit" onclick="Customers.openPartyModal('${p.id}')"></i>
-                    <i class="fas fa-money-bill-wave" onclick="Customers.openSettlement('${p.id}')"></i>
-                    <i class="fas fa-history" onclick="Customers.viewHistory('${p.id}')"></i>
+                <td class="${getBalanceClass(p.balance)}">${getBalanceLabel(p.balance)}</td>
+                <td>
+                    <button class="btn-sm btn-outline edit-btn" data-id="${p.id}"><i class="fas fa-edit"></i></button>
+                    <button class="btn-sm btn-outline delete-btn" data-id="${p.id}"><i class="fas fa-trash" style="color: var(--danger);"></i></button>
                 </td>
             </tr>
         `).join('');
-    },
+        bindActions(tableBody);
+    }
 
-    openPartyModal(partyId = null) {
-        this.editingId = partyId;
-        this.el.modalTitle.textContent = partyId ? 'تعديل طرف' : 'طرف جديد';
-        const party = partyId ? this.parties.find(p => p.id === partyId) : null;
-        this.el.partyId.value = party?.id || '';
-        this.el.partyName.value = party?.name || '';
-        this.el.partyType.value = party?.type || 'customer';
-        this.el.partyPhone.value = party?.phone || '';
-        this.el.partyAddress.value = party?.address || '';
-        this.el.partyBalance.value = party?.balance || 0;
-        this.el.partyModal.classList.add('open');
-    },
+    // ========== عرض البطاقات ==========
+    function renderCards(parties) {
+        cardsWrapper.innerHTML = parties.map(p => `
+            <div class="party-card">
+                <div class="party-card-header">
+                    <span class="value">${p.name}</span>
+                    ${getTypeBadge(p.type)}
+                </div>
+                <div class="party-card-body">
+                    <div><div class="label">الهاتف</div><div class="value">${p.phone || '-'}</div></div>
+                    <div><div class="label">الرصيد</div><div class="value ${getBalanceClass(p.balance)}">${getBalanceLabel(p.balance)}</div></div>
+                </div>
+                <div class="party-card-footer">
+                    <button class="btn-sm btn-outline edit-btn" data-id="${p.id}"><i class="fas fa-edit"></i> تعديل</button>
+                    <button class="btn-sm btn-outline delete-btn" data-id="${p.id}"><i class="fas fa-trash"></i> حذف</button>
+                </div>
+            </div>
+        `).join('');
+        bindActions(cardsWrapper);
+    }
 
-    closeModal(modal) {
-        if (modal) modal.classList.remove('open');
-    },
+    // ========== ربط أزرار الإجراءات ==========
+    function bindActions(container) {
+        container.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+        });
+        container.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => deleteParty(btn.dataset.id));
+        });
+    }
 
-    async saveParty() {
-        const name = this.el.partyName?.value.trim();
-        if (!name) return alert('الاسم مطلوب');
+    // ========== فتح مودال الإضافة ==========
+    function openAddModal() {
+        editingId = null;
+        modalTitle.textContent = 'إضافة جهة';
+        partyName.value = '';
+        partyType.value = 'customer';
+        partyPhone.value = '';
+        partyBalance.value = '0';
+        partyNotes.value = '';
+        partyModal.classList.add('open');
+    }
 
-        const partyData = {
-            id: this.editingId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
+    // ========== فتح مودال التعديل ==========
+    function openEditModal(id) {
+        const party = allParties.find(p => p.id === id);
+        if (!party) return;
+        editingId = id;
+        modalTitle.textContent = 'تعديل جهة';
+        partyName.value = party.name || '';
+        partyType.value = party.type || 'customer';
+        partyPhone.value = party.phone || '';
+        partyBalance.value = party.balance || 0;
+        partyNotes.value = party.notes || '';
+        partyModal.classList.add('open');
+    }
+
+    // ========== حفظ (إضافة أو تعديل) ==========
+    async function saveParty() {
+        const name = partyName.value.trim();
+        if (!name) {
+            safeToast('الاسم مطلوب', 'warning');
+            return;
+        }
+        const data = {
+            id: editingId || undefined,
             name,
-            type: this.el.partyType?.value || 'customer',
-            phone: this.el.partyPhone?.value.trim() || null,
-            address: this.el.partyAddress?.value.trim() || null,
-            balance: parseFloat(this.el.partyBalance?.value) || 0
+            type: partyType.value,
+            phone: partyPhone.value.trim(),
+            balance: +partyBalance.value || 0,
+            notes: partyNotes.value.trim(),
+            _operation: editingId ? 'UPDATE' : 'INSERT'
         };
 
+        saveBtn.disabled = true;
         try {
-            if (Utils.isDBReady()) await DB.saveParty(partyData);
-            else if (Utils.hasLocalDB()) await localDB.put('parties', partyData);
-            this.closeModal(this.el.partyModal);
-            await this.loadData();
-            this.showToast('تم حفظ الطرف بنجاح');
-        } catch (err) {
-            console.error(err);
-            alert('فشل حفظ الطرف');
+            await DB.saveParty(data);
+            safeToast(editingId ? 'تم التعديل' : 'تمت الإضافة', 'success');
+            partyModal.classList.remove('open');
+            await loadParties();
+        } catch (e) {
+            console.error(e);
+            safeToast('فشل الحفظ', 'error');
+        } finally {
+            saveBtn.disabled = false;
         }
-    },
-
-    openSettlement(partyId) {
-        const party = this.parties.find(p => p.id === partyId);
-        if (!party) return;
-        this.el.settlementPartyId.value = party.id;
-        this.el.settlementDate.value = Utils.getToday();
-        this.el.settlementAmount.value = Math.abs(party.balance || 0);
-        this.el.settlementType.value = party.balance > 0 ? 'income' : 'expense';
-        this.el.settlementModal.classList.add('open');
-    },
-
-    async saveSettlement() {
-        const partyId = this.el.settlementPartyId?.value;
-        const amount = parseFloat(this.el.settlementAmount?.value) || 0;
-        const type = this.el.settlementType?.value;
-        const date = this.el.settlementDate?.value || Utils.getToday();
-        const method = this.el.settlementMethod?.value;
-        const notes = this.el.settlementNotes?.value.trim();
-
-        if (!partyId || amount <= 0) return alert('المبلغ مطلوب');
-
-        const party = this.parties.find(p => p.id === partyId);
-        if (!party) return;
-
-        // تحديث رصيد الطرف
-        party.balance = (party.balance || 0) + (type === 'expense' ? amount : -amount);
-
-        try {
-            // حفظ الطرف والحركة المالية
-            if (Utils.isDBReady()) {
-                await DB.saveParty(party);
-                await DB.saveTransaction({
-                    id: crypto.randomUUID(), date, type,
-                    amount, description: `تسوية ${party.name} - ${notes || ''}`, payment_method: method
-                });
-            } else if (Utils.hasLocalDB()) {
-                await localDB.put('parties', party);
-                const trans = { id: crypto.randomUUID(), date, type, amount, description: notes, payment_method: method };
-                await localDB.put('transactions', trans);
-            }
-            this.closeModal(this.el.settlementModal);
-            await this.loadData();
-            this.showToast('تمت التسوية بنجاح');
-        } catch (err) {
-            console.error(err);
-            alert('فشلت التسوية');
-        }
-    },
-
-    viewHistory(partyId) {
-        const party = this.parties.find(p => p.id === partyId);
-        if (!party) return;
-        alert(`سجل حركات ${party.name} - قيد التطوير`);
-    },
-
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     }
-};
 
-window.Customers = Customers;
-document.addEventListener('DOMContentLoaded', () => Customers.init());
+    // ========== حذف جهة ==========
+    async function deleteParty(id) {
+        if (!confirm('هل أنت متأكد من الحذف؟')) return;
+        try {
+            await DB.deleteParty(id);
+            safeToast('تم الحذف', 'success');
+            await loadParties();
+        } catch (e) {
+            console.error(e);
+            safeToast('فشل الحذف', 'error');
+        }
+    }
+
+    // ========== إعداد Realtime ==========
+    function setupRealtimeSync() {
+        if (!window.supabaseClient) return;
+        window.supabaseClient
+            .channel('parties-updates')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'parties' }, () => {
+                loadParties();
+            })
+            .subscribe();
+    }
+
+    // ========== التهيئة ==========
+    async function init() {
+        try {
+            if (!window.App || !window.DB) {
+                safeToast('النواة غير محملة', 'error');
+                return;
+            }
+            const authorized = await App.requireAuth();
+            if (!authorized) return;
+            if (!App.requireRole || !(await App.requireRole(['admin']))) return;
+
+            bindSidebar();
+            await loadUserInfo();
+            await loadParties();
+            setupRealtimeSync();
+
+            refreshBtn?.addEventListener('click', loadParties);
+            searchInput?.addEventListener('input', debounce(applyFilters, 300));
+            typeFilter?.addEventListener('change', applyFilters);
+            addCustomerBtn?.addEventListener('click', openAddModal);
+            saveBtn?.addEventListener('click', saveParty);
+            closeModalBtn?.addEventListener('click', () => partyModal.classList.remove('open'));
+            partyModal.addEventListener('click', (e) => {
+                if (e.target === partyModal) partyModal.classList.remove('open');
+            });
+            window.addEventListener('online', loadParties);
+
+        } catch (e) {
+            console.error('فشل التهيئة:', e);
+            safeToast('تعذر تحميل الصفحة', 'error');
+        }
+    }
+
+    init();
+})();
