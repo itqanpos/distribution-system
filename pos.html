@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
     <title>نقطة البيع · حسابي</title>
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
@@ -31,7 +31,7 @@
         </div>
         <div class="topbar__right">
             <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
-            <button class="icon-btn" id="holdBtn" title="تعليق الفاتورة"><i class="fas fa-pause"></i></button>
+            <button class="icon-btn" id="holdBtn" title="تعليق"><i class="fas fa-pause"></i></button>
             <button class="icon-btn" id="heldBtn" title="الفواتير المعلقة">
                 <i class="fas fa-bookmark"></i>
                 <span class="badge" id="heldCount" style="display:none">0</span>
@@ -63,11 +63,15 @@
     <main class="layout">
 
         <!-- منطقة المنتجات -->
-        <section class="products-area">
+        <section class="products-area" id="productsArea">
+            <!-- زر إغلاق للجوال -->
+            <button class="mobile-close-btn" id="closeProductsBtn">
+                <i class="fas fa-times"></i>
+            </button>
+
             <div class="search-bar">
                 <i class="fas fa-search"></i>
-                <input type="text" id="productSearch" placeholder="ابحث عن منتج... (F2)">
-                <button class="icon-btn icon-btn--sm" id="scanBtn" title="مسح باركود"><i class="fas fa-barcode"></i></button>
+                <input type="text" id="productSearch" placeholder="ابحث عن منتج..." inputmode="search" autocomplete="off">
             </div>
 
             <div class="category-tabs" id="categoryTabs"></div>
@@ -83,7 +87,7 @@
             <div class="customer-section">
                 <div class="customer-input-wrap">
                     <i class="fas fa-user"></i>
-                    <input type="text" id="customerSearch" placeholder="عميل نقدي (F1)" autocomplete="off">
+                    <input type="text" id="customerSearch" placeholder="عميل نقدي" autocomplete="off">
                     <button class="icon-btn icon-btn--sm" id="clearCustomerBtn" title="مسح">
                         <i class="fas fa-times"></i>
                     </button>
@@ -114,7 +118,7 @@
                 <div class="summary-row summary-row--discount">
                     <span>الخصم</span>
                     <div class="discount-wrap">
-                        <input type="number" id="discountValue" value="0" min="0" step="0.01">
+                        <input type="number" id="discountValue" value="0" min="0" step="0.01" inputmode="decimal">
                         <select id="discountType">
                             <option value="amount">ج.م</option>
                             <option value="percent">%</option>
@@ -132,12 +136,19 @@
                     </button>
                     <button class="btn btn--primary btn--lg" id="checkoutBtn" disabled>
                         <i class="fas fa-check-circle"></i> دفع
-                        <small>F4</small>
                     </button>
                 </div>
             </div>
         </aside>
     </main>
+
+    <!-- زر عائم لفتح المنتجات على الجوال -->
+    <button class="fab-products" id="fabProductsBtn" title="عرض المنتجات">
+        <i class="fas fa-box-open"></i>
+    </button>
+
+    <!-- طبقة معتمة للجوال -->
+    <div class="products-overlay" id="productsOverlay"></div>
 
     <!-- ========== مودال: اختيار الوحدة والكمية ========== -->
     <div class="modal" id="unitModal">
@@ -219,10 +230,9 @@
                     <input type="number" id="cardInput" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
                 </div>
 
-               14 <div class="change-display"px id="changeDisplay">
-                    <span>;
-المتبقي:</span>
-                    <strong    font-weight id="changeValue">0.00 ج.م</strong>
+                <div class="change-display" id="changeDisplay">
+                    <span>المتبقي:</span>
+                    <strong id="changeValue">0.00 ج.م</strong>
                 </div>
 
                 <div class="form-group" style="margin-top:16px;">
