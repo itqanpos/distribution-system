@@ -1,6 +1,6 @@
 /* =============================================
    dashboard.js - Dashboard Logic
-   متوافق مع التصميم الأصلي
+   Version: 3.0.2 - With session wait
    ============================================= */
 (function() {
     'use strict';
@@ -17,10 +17,31 @@
     async function init() {
         console.log('🚀 Dashboard init...');
 
-        // 1. التحقق من المصادقة
+        // 1. انتظر حتى يُحمَّل Supabase
+        let attempts = 0;
+        while (!window.DB?.client && attempts < 50) {
+            await new Promise(r => setTimeout(r, 100));
+            attempts++;
+        }
+
+        if (!window.DB?.client) {
+            console.error('❌ Supabase لم يُحمَّل');
+            showToast('تعذر الاتصال بالخادم', 'error');
+            return;
+        }
+
+        console.log('✅ Supabase ready');
+
+        // 2. انتظر قليلاً لاستعادة الجلسة
+        await new Promise(r => setTimeout(r, 300));
+
+        // 3. التحقق من المصادقة
         try {
             currentUser = await Auth.requireAuth();
-            if (!currentUser) return;
+            if (!currentUser) {
+                console.log('⏹️ لا يوجد مستخدم، إيقاف التحميل');
+                return;
+            }
         } catch (e) {
             console.error('Auth failed:', e);
             return;
@@ -28,19 +49,21 @@
 
         console.log('👤 User:', currentUser.email);
 
-        // 2. تحديث الواجهة
+        // 4. تحديث الواجهة
         updateUserUI();
         updateDate();
         updateConnStatus();
 
-        // 3. ربط الأحداث
+        // 5. ربط الأحداث
         bindEvents();
 
-        // 4. تحميل البيانات
+        // 6. تحميل البيانات
         await loadDashboardData();
 
-        // 5. إخفاء شريط التحميل
+        // 7. إخفاء شريط التحميل
         hideLoadingBar();
+
+        console.log('✅ Dashboard ready');
     }
 
     /* ============ User UI ============ */
@@ -117,14 +140,23 @@
         });
     }
 
-    /* ============ Toast بسيط ============ */
+    /* ============ Toast ============ */
     function showToast(msg, type = 'info') {
-        // إنشاء الحاوية إذا لم توجد
         let stack = $('#toastStack');
         if (!stack) {
             stack = document.createElement('div');
             stack.id = 'toastStack';
-            stack.className = 'toast-stack';
+            stack.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                z-index: 99999;
+                pointer-events: none;
+            `;
             document.body.appendChild(stack);
         }
 
@@ -135,14 +167,35 @@
             info: 'info-circle'
         };
 
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+
         const toast = document.createElement('div');
-        toast.className = `toast toast--${type}`;
-        toast.innerHTML = `<i class="fas fa-${icons[type] || 'info-circle'}"></i> ${msg}`;
+        toast.style.cssText = `
+            padding: 12px 22px;
+            background: ${colors[type] || colors.info};
+            color: #fff;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s;
+            pointer-events: auto;
+        `;
+        toast.innerHTML = `<i class="fas fa-${icons[type] || 'info-circle'}"></i> <span>${msg}</span>`;
         stack.appendChild(toast);
 
         setTimeout(() => {
             toast.style.opacity = '0';
             toast.style.transform = 'translateY(10px)';
+            toast.style.transition = 'all 0.3s';
             setTimeout(() => toast.remove(), 300);
         }, 2500);
     }
@@ -198,15 +251,18 @@
     function showSkeleton() {
         const grid = $('#statsGrid');
         if (!grid) return;
-        grid.innerHTML = Array(6).fill(0).map(() => `
-            <div class="stat-card" style="opacity: 0.5;">
-                <div style="width:52px;height:52px;background:var(--bg-input);border-radius:14px;"></div>
+        
+        const skeletonCard = `
+            <div style="background:var(--bg-elev,#fff);border:1px solid var(--border,#e2e8f0);border-radius:16px;padding:18px;display:flex;align-items:center;gap:14px;opacity:0.6;">
+                <div style="width:52px;height:52px;background:var(--bg-sunken,#f8fafc);border-radius:14px;"></div>
                 <div style="flex:1;">
-                    <div style="height:14px;background:var(--bg-input);border-radius:6px;margin-bottom:8px;"></div>
-                    <div style="height:22px;background:var(--bg-input);border-radius:6px;"></div>
+                    <div style="height:14px;background:var(--bg-sunken,#f8fafc);border-radius:6px;margin-bottom:8px;"></div>
+                    <div style="height:22px;background:var(--bg-sunken,#f8fafc);border-radius:6px;width:60%;"></div>
                 </div>
             </div>
-        `).join('');
+        `;
+        
+        grid.innerHTML = Array(6).fill(skeletonCard).join('');
     }
 
     /* ============ Render Stats ============ */
@@ -301,13 +357,13 @@
         grid.innerHTML = stats.map(s => {
             const c = colorMap[s.color] || colorMap.blue;
             return `
-                <div class="stat-card">
-                    <div class="stat-icon" style="background:${c.bg};color:${c.fg};">
+                <div class="stat-card" style="background:var(--bg-elev,#fff);border:1px solid var(--border,#e2e8f0);border-radius:16px;padding:18px;display:flex;align-items:center;gap:14px;transition:all 0.2s;">
+                    <div style="width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:22px;flex-shrink:0;background:${c.bg};color:${c.fg};">
                         <i class="fas ${s.icon}"></i>
                     </div>
-                    <div class="stat-info">
-                        <h3>${s.label}</h3>
-                        <p>${s.value}</p>
+                    <div style="flex:1;min-width:0;">
+                        <h3 style="font-size:13px;font-weight:700;color:var(--text-muted,#64748b);margin-bottom:4px;">${s.label}</h3>
+                        <p style="font-size:20px;font-weight:800;color:var(--text,#0f172a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.value}</p>
                     </div>
                 </div>
             `;
@@ -339,26 +395,30 @@
 
         const net = totalSales - totalPurchases;
 
+        const rowStyle = 'display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border,#e2e8f0);';
+        const labelStyle = 'color:var(--text-muted,#64748b);font-weight:600;';
+        const valueStyle = 'font-weight:800;';
+
         el.innerHTML = `
-            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);font-weight:600;">عدد فواتير البيع</span>
-                <strong>${salesCount}</strong>
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">عدد فواتير البيع</span>
+                <strong style="${valueStyle}">${salesCount}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);font-weight:600;">عدد فواتير الشراء</span>
-                <strong>${purchasesCount}</strong>
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">عدد فواتير الشراء</span>
+                <strong style="${valueStyle}">${purchasesCount}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);font-weight:600;">إجمالي المبيعات</span>
-                <strong style="color:var(--success);">${U.money(totalSales)}</strong>
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">إجمالي المبيعات</span>
+                <strong style="${valueStyle}color:var(--success,#10b981);">${U.money(totalSales)}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);font-weight:600;">إجمالي المشتريات</span>
-                <strong style="color:var(--danger);">${U.money(totalPurchases)}</strong>
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">إجمالي المشتريات</span>
+                <strong style="${valueStyle}color:var(--danger,#ef4444);">${U.money(totalPurchases)}</strong>
             </div>
             <div style="display:flex;justify-content:space-between;padding:10px 0;">
-                <span style="color:var(--text-muted);font-weight:600;">صافي اليوم</span>
-                <strong style="color:var(--primary);">${U.money(net)}</strong>
+                <span style="${labelStyle}">صافي اليوم</span>
+                <strong style="${valueStyle}color:var(--primary,#4f46e5);">${U.money(net)}</strong>
             </div>
         `;
     }
@@ -372,7 +432,7 @@
 
         if (!recent.length) {
             el.innerHTML = `
-                <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+                <div style="text-align:center;padding:40px 20px;color:var(--text-muted,#64748b);">
                     <i class="fas fa-inbox" style="font-size:40px;opacity:0.3;margin-bottom:12px;display:block;"></i>
                     <p>لا توجد فواتير حديثة</p>
                 </div>
@@ -381,9 +441,9 @@
         }
 
         el.innerHTML = recent.map(inv => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
-                <span style="color:var(--primary);font-weight:700;">${U.escape(inv.invoice_number || '---')}</span>
-                <span style="color:var(--text-soft);">${U.escape(inv.customer_name || inv.supplier_name || 'نقدي')}</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border,#e2e8f0);font-size:13px;gap:8px;">
+                <span style="color:var(--primary,#4f46e5);font-weight:700;">${U.escape(inv.invoice_number || '---')}</span>
+                <span style="color:var(--text-soft,#334155);flex:1;text-align:center;">${U.escape(inv.customer_name || inv.supplier_name || 'نقدي')}</span>
                 <strong>${U.money(inv.total)}</strong>
             </div>
         `).join('');
