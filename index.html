@@ -3,152 +3,638 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>تسجيل الدخول · نظام POS</title>
+    <meta name="description" content="نظام POS - إدارة المبيعات والمخزون والمحاسبة">
     <meta name="theme-color" content="#4f46e5">
+    <title>تسجيل الدخول · نظام POS</title>
+
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="./icons/icon-192.png">
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Base Styles -->
     <link rel="stylesheet" href="./css/main.css">
+
     <style>
+        /* ============ Auth Page ============ */
         body.auth-page {
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
             padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow-x: hidden;
         }
+
+        /* خلفية متحركة */
+        .bg-shapes {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .bg-shapes span {
+            position: absolute;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            animation: float 20s infinite ease-in-out;
+        }
+        .bg-shapes span:nth-child(1) { width: 300px; height: 300px; top: -100px; right: -100px; animation-delay: 0s; }
+        .bg-shapes span:nth-child(2) { width: 200px; height: 200px; bottom: -50px; left: -50px; animation-delay: 5s; }
+        .bg-shapes span:nth-child(3) { width: 150px; height: 150px; top: 50%; left: 10%; animation-delay: 10s; }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.1); }
+        }
+
+        /* البطاقة */
         .auth-card {
+            position: relative;
+            z-index: 1;
             width: 100%;
             max-width: 440px;
             background: var(--bg-elev);
             border-radius: 24px;
             padding: 40px 32px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: cardIn 0.5s ease;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+            animation: cardIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         @keyframes cardIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
+
+        /* الشعار */
         .auth-logo {
-            width: 72px; height: 72px;
-            margin: 0 auto 20px;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
             background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            border-radius: 20px;
-            display: grid; place-items: center;
+            border-radius: 22px;
+            display: grid;
+            place-items: center;
             color: #fff;
-            font-size: 32px;
-            box-shadow: 0 12px 30px -8px #4f46e5;
+            font-size: 36px;
+            box-shadow: 0 12px 30px -8px rgba(79, 70, 229, 0.6);
+            animation: pulse 3s infinite;
         }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 12px 30px -8px rgba(79, 70, 229, 0.6); }
+            50% { box-shadow: 0 16px 40px -8px rgba(79, 70, 229, 0.8); }
+        }
+
+        /* العنوان */
         .auth-title {
             text-align: center;
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 800;
-            margin-bottom: 6px;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
         .auth-subtitle {
             text-align: center;
             color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 28px;
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 32px;
         }
+
+        /* رسالة الخطأ */
+        .auth-alert {
+            display: none;
+            padding: 12px 16px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            align-items: center;
+            gap: 10px;
+        }
+        .auth-alert.show { display: flex; }
+        .auth-alert i { font-size: 18px; }
+
+        /* حقول الإدخال */
+        .input-wrap {
+            position: relative;
+            margin-bottom: 18px;
+        }
+        .input-wrap i.input-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-faint);
+            font-size: 16px;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+        .input-wrap input {
+            width: 100%;
+            padding: 15px 46px 15px 46px;
+            border: 2px solid var(--border);
+            background: var(--bg-sunken);
+            color: var(--text);
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            outline: none;
+            transition: all 0.25s;
+            font-family: 'Cairo', sans-serif;
+        }
+        .input-wrap input:focus {
+            border-color: var(--primary);
+            background: var(--bg-elev);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+        }
+        .input-wrap input:focus ~ i.input-icon {
+            color: var(--primary);
+        }
+        .input-wrap input::placeholder {
+            color: var(--text-faint);
+            font-weight: 500;
+        }
+
+        /* زر إظهار كلمة المرور */
+        .toggle-pass {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-faint);
+            cursor: pointer;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+        .toggle-pass:hover {
+            background: var(--bg-hover);
+            color: var(--primary);
+        }
+
+        /* زر الدخول */
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.25s;
+            margin-top: 8px;
+            box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.5);
+            font-family: 'Cairo', sans-serif;
+        }
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px -6px rgba(79, 70, 229, 0.6);
+        }
+        .btn-login:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .btn-login .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .btn-login.loading .btn-text { display: none; }
+        .btn-login.loading .spinner { display: inline-block; }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* رابط التسجيل */
         .auth-footer {
             text-align: center;
-            margin-top: 24px;
+            margin-top: 28px;
             color: var(--text-muted);
             font-size: 14px;
+            font-weight: 500;
         }
         .auth-footer a {
             color: var(--primary);
             font-weight: 700;
             text-decoration: none;
+            transition: all 0.2s;
+        }
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ============ شريط التحميل ============ */
+        #loading-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(90deg, #4f46e5, #10b981);
+            z-index: 99999;
+            transition: width 0.3s ease;
+        }
+
+        /* ============ شاشة الخطأ ============ */
+        #errorScreen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #0f172a;
+            z-index: 100000;
+            padding: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+        #errorScreen.show { display: flex; }
+        .error-content {
+            max-width: 500px;
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            color: #f1f5f9;
+            border: 1px solid #334155;
+        }
+        .error-content i {
+            font-size: 60px;
+            color: #ef4444;
+            margin-bottom: 20px;
+        }
+        .error-content h2 {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+        .error-content p {
+            font-size: 15px;
+            color: #94a3b8;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        .error-content code {
+            display: block;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #f59e0b;
+            text-align: left;
+            direction: ltr;
+            margin: 12px 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .error-content .btn-retry {
+            padding: 12px 28px;
+            background: #4f46e5;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 15px;
+            font-family: 'Cairo', sans-serif;
+        }
+        .error-content .btn-retry:hover {
+            background: #4338ca;
+        }
+
+        /* ============ Mobile ============ */
+        @media (max-width: 480px) {
+            .auth-card {
+                padding: 32px 22px;
+                border-radius: 20px;
+            }
+            .auth-logo {
+                width: 68px;
+                height: 68px;
+                font-size: 30px;
+            }
+            .auth-title {
+                font-size: 24px;
+            }
+            .input-wrap input {
+                padding: 14px 42px 14px 42px;
+                font-size: 14px;
+            }
+            .btn-login {
+                padding: 14px;
+                font-size: 16px;
+            }
         }
     </style>
 </head>
 <body class="auth-page">
+
+    <!-- شريط التحميل -->
+    <div id="loading-bar"></div>
+
+    <!-- خلفية متحركة -->
+    <div class="bg-shapes">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <!-- شاشة الخطأ (تظهر فقط عند فشل التحميل) -->
+    <div id="errorScreen">
+        <div class="error-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h2>حدث خطأ في تحميل النظام</h2>
+            <p>تعذر تحميل بعض ملفات النظام. هذا غالباً بسبب:</p>
+            <code id="errorDetails">جاري التشخيص...</code>
+            <p>الرجاء:</p>
+            <p style="text-align:right; margin: 0; padding-right: 20px;">
+                1. تحقق من اتصالك بالإنترنت<br>
+                2. امسح الكاش (Ctrl + Shift + R)<br>
+                3. تأكد من رفع جميع ملفات <code style="display:inline">js/</code> على السيرفر
+            </p>
+            <button class="btn-retry" onclick="location.reload(true)">إعادة المحاولة</button>
+        </div>
+    </div>
+
+    <!-- البطاقة -->
     <div class="auth-card">
-        <div class="auth-logo"><i class="fas fa-cash-register"></i></div>
+        <div class="auth-logo">
+            <i class="fas fa-cash-register"></i>
+        </div>
+
         <h1 class="auth-title">نظام POS</h1>
         <p class="auth-subtitle">نظام إدارة المبيعات والمخزون</p>
-        
-        <form id="loginForm">
-            <div class="form-group">
-                <label>البريد الإلكتروني</label>
-                <div class="input-wrap">
-                    <i class="fas fa-envelope"></i>
-                    <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
-                </div>
+
+        <!-- رسالة خطأ -->
+        <div class="auth-alert" id="authAlert">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="authAlertText"></span>
+        </div>
+
+        <!-- نموذج -->
+        <form id="loginForm" autocomplete="on">
+            <div class="input-wrap">
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="البريد الإلكتروني"
+                    required
+                    autocomplete="email"
+                    inputmode="email"
+                    autocapitalize="none"
+                    spellcheck="false"
+                >
+                <i class="fas fa-envelope input-icon"></i>
             </div>
-            
-            <div class="form-group">
-                <label>كلمة المرور</label>
-                <div class="input-wrap">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-                </div>
+
+            <div class="input-wrap">
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="كلمة المرور"
+                    required
+                    autocomplete="current-password"
+                >
+                <i class="fas fa-lock input-icon"></i>
+                <button type="button" class="toggle-pass" id="togglePass" aria-label="إظهار كلمة المرور">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
-            
-            <button type="submit" class="btn btn--primary btn--lg btn--block" id="loginBtn">
-                <span class="btn__text">تسجيل الدخول</span>
-                <span class="spinner" hidden><i class="fas fa-circle-notch fa-spin"></i></span>
+
+            <button type="submit" class="btn-login" id="loginBtn">
+                <span class="btn-text">تسجيل الدخول</span>
+                <span class="spinner"></span>
             </button>
         </form>
-        
+
         <div class="auth-footer">
             ليس لديك حساب؟ <a href="./signup.html">أنشئ متجرك الآن</a>
         </div>
     </div>
-    
+
+    <!-- ============ السكربتات ============ -->
+    <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ملفات النظام -->
     <script src="./js/config.js"></script>
     <script src="./js/utils.js"></script>
     <script src="./js/db.js"></script>
     <script src="./js/auth.js"></script>
+
+    <!-- سكربت الصفحة -->
     <script>
     (function() {
-        const form = document.getElementById('loginForm');
-        const btn = document.getElementById('loginBtn');
-        const btnText = btn.querySelector('.btn__text');
-        const spinner = btn.querySelector('.spinner');
-        
-        // If already logged in, redirect
-        window.addEventListener('load', async () => {
-            await new Promise(r => setTimeout(r, 500));
-            const user = await Auth.getCurrentUser();
-            if (user) {
-                location.href = Auth.getRedirect(user);
-            }
-        });
-        
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            
-            btn.disabled = true;
-            btnText.hidden = true;
-            spinner.hidden = false;
-            
-            try {
-                const result = await Auth.login(email, password);
-                if (result.success) {
-                    location.href = result.redirect;
-                }
-            } catch (err) {
-                alert(err.message);
-                btn.disabled = false;
-                btnText.hidden = false;
-                spinner.hidden = true;
-            }
-        });
-        
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+        'use strict';
+
+        /* ============ التشخيص ============ */
+        const REQUIRED = [
+            { name: 'config.js', check: () => typeof window.APP_CONFIG !== 'undefined' },
+            { name: 'utils.js', check: () => typeof window.U !== 'undefined' },
+            { name: 'db.js', check: () => typeof window.DB !== 'undefined' },
+            { name: 'auth.js', check: () => typeof window.Auth !== 'undefined' },
+            { name: 'supabase', check: () => typeof window.supabase !== 'undefined' }
+        ];
+
+        function diagnose() {
+            const missing = [];
+            REQUIRED.forEach(item => {
+                if (!item.check()) missing.push(item.name);
+            });
+            return missing;
         }
+
+        function showErrorScreen(details) {
+            const screen = document.getElementById('errorScreen');
+            const detailsEl = document.getElementById('errorDetails');
+            if (screen && detailsEl) {
+                detailsEl.textContent = details;
+                screen.classList.add('show');
+            }
+        }
+
+        function showAlert(msg) {
+            const alert = document.getElementById('authAlert');
+            const text = document.getElementById('authAlertText');
+            if (alert && text) {
+                text.textContent = msg;
+                alert.classList.add('show');
+                setTimeout(() => alert.classList.remove('show'), 5000);
+            }
+        }
+
+        /* ============ بدء التشغيل ============ */
+        window.addEventListener('load', async () => {
+            console.log('%c🔍 بدء تشخيص النظام...', 'color: #4f46e5; font-weight: bold;');
+
+            // عرض الملفات المفقودة
+            const missing = diagnose();
+            
+            if (missing.length > 0) {
+                console.error('❌ ملفات مفقودة:', missing.join(', '));
+                showErrorScreen(
+                    `الملفات المفقودة:\n${missing.join('\n')}\n\n` +
+                    `الحل:\n` +
+                    `1. تأكد من رفع مجلد js/ كاملاً\n` +
+                    `2. تحقق من المسار في GitHub: /js/${missing[0]}`
+                );
+                return;
+            }
+
+            console.log('%c✅ جميع الملفات محملة بنجاح', 'color: #10b981; font-weight: bold;');
+            console.log('%c📦 APP_CONFIG:', 'color: #64748b;', window.APP_CONFIG);
+            console.log('%c🔗 Supabase URL:', 'color: #64748b;', window.APP_CONFIG?.SUPABASE_URL);
+
+            // التحقق من إعدادات Supabase
+            if (!window.APP_CONFIG?.SUPABASE_URL || window.APP_CONFIG.SUPABASE_URL.includes('YOUR-PROJECT')) {
+                console.error('❌ SUPABASE_URL غير مهيأ');
+                showErrorScreen(
+                    'ملف js/config.js يحتوي على قيم افتراضية.\n\n' +
+                    'الحل:\n' +
+                    'عدّل js/config.js وأضف:\n' +
+                    'SUPABASE_URL و SUPABASE_ANON_KEY'
+                );
+                return;
+            }
+
+            // التحقق من الجلسة الحالية
+            try {
+                const user = await window.Auth.getCurrentUser();
+                if (user) {
+                    console.log('%c👤 مستخدم مسجل:', 'color: #10b981;', user.email);
+                    const target = window.Auth.getRedirect(user);
+                    console.log('%c↪️ إعادة التوجيه إلى:', 'color: #4f46e5;', target);
+                    location.href = target;
+                    return;
+                }
+            } catch (e) {
+                console.warn('⚠️ فشل التحقق من الجلسة:', e);
+            }
+
+            // تفعيل النموذج
+            initForm();
+        });
+
+        /* ============ النموذج ============ */
+        function initForm() {
+            const form = document.getElementById('loginForm');
+            const btn = document.getElementById('loginBtn');
+            const emailInput = document.getElementById('email');
+            const passInput = document.getElementById('password');
+            const togglePass = document.getElementById('togglePass');
+
+            // إظهار/إخفاء كلمة المرور
+            togglePass?.addEventListener('click', () => {
+                const isPass = passInput.type === 'password';
+                passInput.type = isPass ? 'text' : 'password';
+                const icon = togglePass.querySelector('i');
+                icon.classList.toggle('fa-eye', !isPass);
+                icon.classList.toggle('fa-eye-slash', isPass);
+            });
+
+            // إرسال النموذج
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const email = emailInput.value.trim();
+                const password = passInput.value;
+
+                // التحقق
+                if (!email || !password) {
+                    showAlert('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+                    return;
+                }
+                if (!email.includes('@')) {
+                    showAlert('صيغة البريد الإلكتروني غير صحيحة');
+                    return;
+                }
+                if (password.length < 6) {
+                    showAlert('كلمة المرور قصيرة جداً');
+                    return;
+                }
+
+                // تعطيل الزر
+                btn.disabled = true;
+                btn.classList.add('loading');
+
+                try {
+                    console.log('🔐 جاري تسجيل الدخول...');
+                    const result = await window.Auth.login(email, password);
+
+                    if (result?.success) {
+                        console.log('%c✅ تسجيل الدخول ناجح', 'color: #10b981; font-weight: bold;');
+                        console.log('↪️ التوجيه إلى:', result.redirect);
+                        location.href = result.redirect || './dashboard.html';
+                    } else {
+                        throw new Error('فشل تسجيل الدخول');
+                    }
+                } catch (err) {
+                    console.error('❌ فشل تسجيل الدخول:', err);
+                    showAlert(err.message || 'حدث خطأ غير متوقع');
+
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    passInput.value = '';
+                    passInput.focus();
+                }
+            });
+
+            // Focus on email
+            emailInput.focus();
+
+            // خدمة Worker (تسجيل صامت)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(() => console.log('✅ Service Worker registered'))
+                    .catch(err => console.warn('⚠️ SW registration failed:', err));
+            }
+
+            // حالة الاتصال
+            function updateConnStatus() {
+                document.body.classList.toggle('is-offline', !navigator.onLine);
+            }
+            window.addEventListener('online', updateConnStatus);
+            window.addEventListener('offline', updateConnStatus);
+            updateConnStatus();
+        }
+
+        // إخفاء شريط التحميل
+        setTimeout(() => {
+            const bar = document.getElementById('loading-bar');
+            if (bar) bar.style.width = '100%';
+            setTimeout(() => { if (bar) bar.style.width = '0%'; }, 300);
+        }, 500);
+
     })();
     </script>
 </body>
