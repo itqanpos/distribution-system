@@ -1,117 +1,399 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>لوحة التحكم · حسابي</title>
+/* =============================================
+   dashboard.js - Dashboard Logic
+   متوافق مع التصميم الأصلي
+   ============================================= */
+(function() {
+    'use strict';
 
-    <!-- PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="حسابي">
-    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => [...document.querySelectorAll(s)];
 
-    <!-- الخطوط والأيقونات -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    let currentUser = null;
+    let allInvoices = [];
+    let allParties = [];
+    let allProducts = [];
 
-    <!-- التنسيقات -->
-    <link rel="stylesheet" href="./css/main.css">
-    <link rel="stylesheet" href="./css/dashboard.css">
-</head>
-<body>
-    <div id="loading-bar"></div>
-    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    /* ============ Init ============ */
+    async function init() {
+        console.log('🚀 Dashboard init...');
 
-    <!-- الشريط العلوي -->
-    <nav class="navbar" id="mainNavbar">
-        <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <div class="logo">
-                <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+        // 1. التحقق من المصادقة
+        try {
+            currentUser = await Auth.requireAuth();
+            if (!currentUser) return;
+        } catch (e) {
+            console.error('Auth failed:', e);
+            return;
+        }
+
+        console.log('👤 User:', currentUser.email);
+
+        // 2. تحديث الواجهة
+        updateUserUI();
+        updateDate();
+        updateConnStatus();
+
+        // 3. ربط الأحداث
+        bindEvents();
+
+        // 4. تحميل البيانات
+        await loadDashboardData();
+
+        // 5. إخفاء شريط التحميل
+        hideLoadingBar();
+    }
+
+    /* ============ User UI ============ */
+    function updateUserUI() {
+        const avatar = $('#sidebarAvatar');
+        const name = $('#sidebarUserName');
+
+        if (avatar) {
+            avatar.textContent = (currentUser.fullName || 'U')[0].toUpperCase();
+        }
+        if (name) {
+            name.textContent = currentUser.fullName || currentUser.email || 'مدير';
+        }
+    }
+
+    function updateDate() {
+        const el = $('#currentDate');
+        if (!el) return;
+        el.textContent = new Date().toLocaleDateString('ar-EG', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    function updateConnStatus() {
+        const online = navigator.onLine;
+        document.body.classList.toggle('is-offline', !online);
+        const navbar = $('#mainNavbar');
+        if (navbar) navbar.classList.toggle('offline', !online);
+    }
+
+    /* ============ Bind Events ============ */
+    function bindEvents() {
+        // القائمة الجانبية
+        $('#menuToggle')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.add('open');
+            $('#sidebarOverlay')?.classList.add('show');
+        });
+        $('#sidebarOverlay')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.remove('open');
+            $('#sidebarOverlay')?.classList.remove('show');
+        });
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                $('#sidebar')?.classList.remove('open');
+                $('#sidebarOverlay')?.classList.remove('show');
+            });
+        });
+
+        // تحديث
+        $('#refreshBtn')?.addEventListener('click', async () => {
+            showToast('جاري التحديث...', 'info');
+            DB.clearCache();
+            await loadDashboardData();
+            showToast('تم التحديث', 'success');
+        });
+
+        // عرض كل الفواتير
+        $('#viewAllInvoices')?.addEventListener('click', () => {
+            location.href = './invoices.html';
+        });
+
+        // حالة الاتصال
+        window.addEventListener('online', () => {
+            updateConnStatus();
+            showToast('عاد الاتصال بالإنترنت', 'success');
+            loadDashboardData();
+        });
+        window.addEventListener('offline', () => {
+            updateConnStatus();
+            showToast('انقطع الاتصال بالإنترنت', 'warning');
+        });
+    }
+
+    /* ============ Toast بسيط ============ */
+    function showToast(msg, type = 'info') {
+        // إنشاء الحاوية إذا لم توجد
+        let stack = $('#toastStack');
+        if (!stack) {
+            stack = document.createElement('div');
+            stack.id = 'toastStack';
+            stack.className = 'toast-stack';
+            document.body.appendChild(stack);
+        }
+
+        const icons = {
+            success: 'check-circle',
+            error: 'times-circle',
+            warning: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type}`;
+        toast.innerHTML = `<i class="fas fa-${icons[type] || 'info-circle'}"></i> ${msg}`;
+        stack.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    }
+
+    /* ============ Loading Bar ============ */
+    function showLoading() {
+        const bar = $('#loading-bar');
+        if (bar) bar.style.width = '70%';
+    }
+
+    function hideLoadingBar() {
+        const bar = $('#loading-bar');
+        if (bar) {
+            bar.style.width = '100%';
+            setTimeout(() => { bar.style.width = '0%'; }, 300);
+        }
+    }
+
+    /* ============ Load Data ============ */
+    async function loadDashboardData() {
+        showLoading();
+        showSkeleton();
+
+        try {
+            const [invoices, parties, products] = await Promise.allSettled([
+                DB.getInvoices(true).catch(() => []),
+                DB.getParties(null, true).catch(() => []),
+                DB.getProducts(true).catch(() => [])
+            ]);
+
+            allInvoices = invoices.status === 'fulfilled' ? (invoices.value || []) : [];
+            allParties = parties.status === 'fulfilled' ? (parties.value || []) : [];
+            allProducts = products.status === 'fulfilled' ? (products.value || []) : [];
+
+            console.log('📊 Data loaded:', {
+                invoices: allInvoices.length,
+                parties: allParties.length,
+                products: allProducts.length
+            });
+
+            renderStats();
+            renderSummary();
+            renderRecentInvoices();
+        } catch (e) {
+            console.error('Dashboard load error:', e);
+            showToast('تعذر تحميل البيانات', 'error');
+        } finally {
+            hideLoadingBar();
+        }
+    }
+
+    /* ============ Skeleton ============ */
+    function showSkeleton() {
+        const grid = $('#statsGrid');
+        if (!grid) return;
+        grid.innerHTML = Array(6).fill(0).map(() => `
+            <div class="stat-card" style="opacity: 0.5;">
+                <div style="width:52px;height:52px;background:var(--bg-input);border-radius:14px;"></div>
+                <div style="flex:1;">
+                    <div style="height:14px;background:var(--bg-input);border-radius:6px;margin-bottom:8px;"></div>
+                    <div style="height:22px;background:var(--bg-input);border-radius:6px;"></div>
                 </div>
-                <div class="logo-text"><h2>حسابي</h2></div>
             </div>
-        </div>
-        <div class="navbar-right">
-            <button class="navbar-icon-btn" id="refreshBtn" title="تحديث البيانات"><i class="fas fa-sync-alt"></i></button>
-        </div>
-    </nav>
+        `).join('');
+    }
 
-    <!-- القائمة الجانبية -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-user">
-            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
-            <h4 id="sidebarUserName">مدير النظام</h4>
-        </div>
-        <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item active" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
-        </ul>
-    </aside>
+    /* ============ Render Stats ============ */
+    function renderStats() {
+        const grid = $('#statsGrid');
+        if (!grid) return;
 
-    <!-- المحتوى الرئيسي -->
-    <main class="main-content">
-        <div class="page-header">
-            <h1>لوحة التحكم</h1>
-            <p id="currentDate"></p>
-        </div>
+        const today = U.today();
 
-        <!-- كروت الإحصائيات -->
-        <div class="stats-grid" id="statsGrid">
-            <!-- تُملأ ديناميكيًا -->
-        </div>
+        // مبيعات اليوم
+        const todaySales = allInvoices
+            .filter(inv => {
+                const invDate = inv.date || (inv.created_at || '').slice(0, 10);
+                return invDate === today && inv.type === 'sale';
+            })
+            .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
 
-        <!-- الرسوم البيانية والملخصات -->
-        <div class="charts-grid">
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3><i class="fas fa-chart-pie"></i> ملخص سريع</h3>
+        // مشتريات اليوم
+        const todayPurchases = allInvoices
+            .filter(inv => {
+                const invDate = inv.date || (inv.created_at || '').slice(0, 10);
+                return invDate === today && inv.type === 'purchase';
+            })
+            .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+
+        // فواتير معلقة
+        const heldCount = allInvoices.filter(inv =>
+            ['held', 'partial', 'credit'].includes(inv.status)
+        ).length;
+
+        // العملاء
+        const customersCount = allParties.filter(p =>
+            p.type === 'customer' || p.type === 'both'
+        ).length;
+
+        // الموردين
+        const suppliersCount = allParties.filter(p =>
+            p.type === 'supplier' || p.type === 'both'
+        ).length;
+
+        // المنتجات
+        const productsCount = allProducts.length;
+
+        const stats = [
+            {
+                label: 'مبيعات اليوم',
+                value: U.money(todaySales),
+                icon: 'fa-chart-line',
+                color: 'green'
+            },
+            {
+                label: 'مشتريات اليوم',
+                value: U.money(todayPurchases),
+                icon: 'fa-truck',
+                color: 'blue'
+            },
+            {
+                label: 'فواتير معلقة',
+                value: heldCount,
+                icon: 'fa-clock',
+                color: 'orange'
+            },
+            {
+                label: 'المنتجات',
+                value: productsCount,
+                icon: 'fa-box',
+                color: 'purple'
+            },
+            {
+                label: 'العملاء',
+                value: customersCount,
+                icon: 'fa-users',
+                color: 'teal'
+            },
+            {
+                label: 'الموردين',
+                value: suppliersCount,
+                icon: 'fa-user-tie',
+                color: 'rose'
+            }
+        ];
+
+        const colorMap = {
+            green: { bg: 'rgba(16,185,129,0.15)', fg: '#10b981' },
+            blue: { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' },
+            orange: { bg: 'rgba(245,158,11,0.15)', fg: '#f59e0b' },
+            purple: { bg: 'rgba(139,92,246,0.15)', fg: '#8b5cf6' },
+            teal: { bg: 'rgba(20,184,166,0.15)', fg: '#14b8a6' },
+            rose: { bg: 'rgba(244,63,94,0.15)', fg: '#f43f5e' }
+        };
+
+        grid.innerHTML = stats.map(s => {
+            const c = colorMap[s.color] || colorMap.blue;
+            return `
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:${c.bg};color:${c.fg};">
+                        <i class="fas ${s.icon}"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>${s.label}</h3>
+                        <p>${s.value}</p>
+                    </div>
                 </div>
-                <div id="summaryContent" class="chart-body">
-                    <!-- يُملأ ديناميكيًا -->
-                </div>
+            `;
+        }).join('');
+    }
+
+    /* ============ Render Summary ============ */
+    function renderSummary() {
+        const el = $('#summaryContent');
+        if (!el) return;
+
+        const today = U.today();
+
+        const todayInvoices = allInvoices.filter(inv => {
+            const invDate = inv.date || (inv.created_at || '').slice(0, 10);
+            return invDate === today;
+        });
+
+        const salesCount = todayInvoices.filter(i => i.type === 'sale').length;
+        const purchasesCount = todayInvoices.filter(i => i.type === 'purchase').length;
+
+        const totalSales = todayInvoices
+            .filter(i => i.type === 'sale')
+            .reduce((s, i) => s + (Number(i.total) || 0), 0);
+
+        const totalPurchases = todayInvoices
+            .filter(i => i.type === 'purchase')
+            .reduce((s, i) => s + (Number(i.total) || 0), 0);
+
+        const net = totalSales - totalPurchases;
+
+        el.innerHTML = `
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);font-weight:600;">عدد فواتير البيع</span>
+                <strong>${salesCount}</strong>
             </div>
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3><i class="fas fa-history"></i> أحدث الفواتير</h3>
-                    <button class="btn-sm" id="viewAllInvoices">عرض الكل</button>
-                </div>
-                <div id="recentInvoicesContent" class="chart-body">
-                    <!-- يُملأ ديناميكيًا -->
-                </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);font-weight:600;">عدد فواتير الشراء</span>
+                <strong>${purchasesCount}</strong>
             </div>
-        </div>
-    </main>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);font-weight:600;">إجمالي المبيعات</span>
+                <strong style="color:var(--success);">${U.money(totalSales)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);font-weight:600;">إجمالي المشتريات</span>
+                <strong style="color:var(--danger);">${U.money(totalPurchases)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;">
+                <span style="color:var(--text-muted);font-weight:600;">صافي اليوم</span>
+                <strong style="color:var(--primary);">${U.money(net)}</strong>
+            </div>
+        `;
+    }
 
-    <!-- ============ السكربتات (الترتيب مهم) ============ -->
-    <!-- 1. Supabase CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    /* ============ Render Recent Invoices ============ */
+    function renderRecentInvoices() {
+        const el = $('#recentInvoicesContent');
+        if (!el) return;
 
-    <!-- 2. ملفات النظام الأساسية -->
-    <script src="./js/config.js"></script>
-    <script src="./js/utils.js"></script>
-    <script src="./js/db.js"></script>
-    <script src="./js/auth.js"></script>
+        const recent = allInvoices.slice(0, 5);
 
-    <!-- 3. سكربت الصفحة -->
-    <script src="./js/dashboard.js"></script>
-</body>
-</html>
+        if (!recent.length) {
+            el.innerHTML = `
+                <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+                    <i class="fas fa-inbox" style="font-size:40px;opacity:0.3;margin-bottom:12px;display:block;"></i>
+                    <p>لا توجد فواتير حديثة</p>
+                </div>
+            `;
+            return;
+        }
+
+        el.innerHTML = recent.map(inv => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+                <span style="color:var(--primary);font-weight:700;">${U.escape(inv.invoice_number || '---')}</span>
+                <span style="color:var(--text-soft);">${U.escape(inv.customer_name || inv.supplier_name || 'نقدي')}</span>
+                <strong>${U.money(inv.total)}</strong>
+            </div>
+        `).join('');
+    }
+
+    /* ============ Start ============ */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+})();
