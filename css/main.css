@@ -103,8 +103,6 @@ button, input, select, textarea {
 .btn--lg { padding: 14px 22px; font-size: 1rem; }
 .btn--sm { padding: 8px 14px; font-size: 0.82rem; }
 .btn--block { width: 100%; }
-.btn--icon { padding: 8px; width: 40px; height: 40px; border-radius: 50%; }
-.btn .spinner { display: inline-block; }
 
 /* ========== Forms ========== */
 .form-group { margin-bottom: 16px; }
@@ -136,9 +134,7 @@ button, input, select, textarea {
     box-shadow: 0 0 0 4px var(--primary-light);
 }
 
-.input-wrap {
-    position: relative;
-}
+.input-wrap { position: relative; }
 .input-wrap i {
     position: absolute;
     right: 14px;
