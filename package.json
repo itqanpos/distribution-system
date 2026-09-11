@@ -1,3 +1,37 @@
-# في مجلد المشروع الرئيسي
-npm init -y
-npm install express cors body-parser
+{
+  "name": "hesaby-distribution-system",
+  "version": "2.0.0",
+  "description": "نظام إدارة المبيعات والمخزون والمحاسبة - PWA متكامل",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -l 3000",
+    "start": "npx serve . -l 3000",
+    "lint": "npx eslint js/**/*.js",
+    "format": "npx prettier --write \"**/*.{js,css,html,json,md}\"",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "pos",
+    "point-of-sale",
+    "inventory",
+    "pwa",
+    "supabase",
+    "arabic"
+  ],
+  "author": "Hesaby Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.0",
+    "prettier": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ]
+}
