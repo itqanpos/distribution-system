@@ -1,58 +1,60 @@
-# ملفات النظام المؤقتة
+# ========== Dependencies ==========
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ========== Environment ==========
+.env
+.env.local
+.env.*.local
+*.env
+
+# ========== Build outputs ==========
+dist/
+build/
+*.min.js
+*.min.css
+
+# ========== IDE ==========
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+
+# ========== OS ==========
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ملفات المحرر
-.vscode/
-.idea/
-*.sublime-*
-
-# ملفات السجل
+# ========== Logs ==========
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log.*
 
-# ملفات التبعيات (إذا كنت تستخدم npm)
-node_modules/
+# ========== Cache ==========
+.cache/
+.parcel-cache/
+.eslintcache
 
-# ملفات بيئة التطوير المحلية
-.env
-.env.local
-.env.*.local
-
-# مجلدات البناء والإخراج
-dist/
-build/
-out/
-
-# ملفات مؤقتة للتطبيقات
-*.tmp
-*.temp
-
-# ملفات قاعدة البيانات المحلية (مثل SQLite)
-*.db
-*.sqlite
-*.sqlite3
-
-# ملفات النسخ الاحتياطي
+# ========== Backups ==========
 *.bak
 *.backup
+*.old
 
-# ملفات مضغوطة
-*.zip
-*.tar.gz
-*.rar
+# ========== Temporary ==========
+tmp/
+temp/
+*.tmp
 
-# ملفات الوسائط الكبيرة (إذا لم تكن ضرورية للمشروع)
-*.mp4
-*.mov
-*.avi
-*.wmv
-*.flv
+# ========== Database dumps ==========
+*.sql.gz
+*.dump
+supabase/.temp/
 
-# استثناءات: نريد تتبع الأيقونات
-!icon-192.png
-!icon-512.png
-
-# مجلد رفع الملفات (إذا كان هناك مجلد لرفع المستخدمين)
-uploads/
+# ========== PWA generated ==========
+sw-generated.js
