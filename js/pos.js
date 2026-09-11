@@ -1,5 +1,5 @@
 /* =============================================
-   pos.js - Point of Sale Logic
+   pos.js - Point of Sale Logic v2.0
    ============================================= */
 (function() {
     'use strict';
@@ -7,7 +7,6 @@
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => [...document.querySelectorAll(s)];
 
-    /* ============ State ============ */
     const State = {
         products: [],
         customers: [],
@@ -27,7 +26,6 @@
     async function init() {
         console.log('🚀 POS init...');
 
-        // انتظر Supabase
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
@@ -41,7 +39,6 @@
 
         await new Promise(r => setTimeout(r, 300));
 
-        // المصادقة
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -52,16 +49,14 @@
 
         console.log('👤 User:', State.currentUser.email);
 
-        // تحديث الواجهة
         updateUserUI();
         updateConnStatus();
-
-        // ربط الأحداث
         bindEvents();
-        restoreCart();
 
-        // تحميل البيانات
+        // استعادة السلة بعد التحميل
         await loadData();
+        restoreCart();
+        renderCart();
 
         hideLoadingBar();
         console.log('✅ POS ready');
@@ -96,7 +91,6 @@
     function updateUserUI() {
         const avatar = $('#userAvatar');
         const name = $('#sidebarUserName');
-
         if (avatar) avatar.textContent = (State.currentUser.fullName || 'U')[0].toUpperCase();
         if (name) name.textContent = State.currentUser.fullName || 'مدير';
     }
@@ -183,6 +177,22 @@
         });
     }
 
+    /* ============ Mobile Products Panel ============ */
+    function openProductsPanel() {
+        const area = $('#productsArea');
+        const overlay = $('#productsOverlay');
+        area?.classList.add('show');
+        overlay?.classList.add('show');
+        setTimeout(() => $('#productSearch')?.focus(), 350);
+    }
+
+    function closeProductsPanel() {
+        const area = $('#productsArea');
+        const overlay = $('#productsOverlay');
+        area?.classList.remove('show');
+        overlay?.classList.remove('show');
+    }
+
     /* ============ Unit Modal ============ */
     function openUnitModal(productId) {
         const product = State.products.find(p => p.id === productId);
@@ -200,6 +210,10 @@
         ).join('');
 
         updateUnitFields();
+
+        // إغلاق لوحة المنتجات على الجوال
+        if (window.innerWidth <= 900) closeProductsPanel();
+
         openModal('unitModal');
 
         setTimeout(() => {
@@ -208,7 +222,7 @@
                 qtyInput.focus();
                 qtyInput.select();
             }
-        }, 150);
+        }, 200);
     }
 
     function updateUnitFields() {
@@ -281,7 +295,7 @@
                     <div class="cart-item__unit">${U.escape(item.unitName)} · ${U.money(item.price)}</div>
                     <div class="cart-item__controls">
                         <button class="qty-btn" data-action="dec"><i class="fas fa-minus"></i></button>
-                        <input type="number" class="cart-item__qty" value="${item.quantity}" min="0.001" step="0.001" data-action="qty">
+                        <input type="number" class="cart-item__qty" value="${item.quantity}" min="0.001" step="0.001" data-action="qty" inputmode="decimal">
                         <button class="qty-btn" data-action="inc"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
@@ -454,7 +468,7 @@
         updateChange();
 
         openModal('paymentModal');
-        setTimeout(() => $('#cashInput').focus(), 150);
+        setTimeout(() => $('#cashInput').focus(), 200);
     }
 
     function calculateTotals() {
@@ -489,7 +503,7 @@
             Math.ceil(net / 50) * 50,
             Math.ceil(net / 100) * 100
         ];
-        const uniq = [...new Set(opts.map(v => Math.round(v)))];
+        const uniq = [...new Set(opts.map(v => Math.round(v)).filter(v => v > 0))];
 
         $('#quickCash').innerHTML = uniq.map(v =>
             `<button data-amount="${v}">${v}</button>`
@@ -549,33 +563,24 @@
 
         const remaining = U.round(net - paid);
 
-        // للدفع الآجل، يجب اختيار عميل
         if (method === 'credit' && !State.selectedCustomer) {
             showToast('يجب اختيار عميل للدفع الآجل', 'warning');
             return;
         }
 
-        // تأكيد الدفع الجزئي
         if (remaining > 0 && method !== 'credit') {
-            if (!confirm(`المتبقي ${U.money(remaining)}. سيتم تسجيله كدين على العميل. متابعة؟`)) {
-                return;
-            }
+            if (!confirm(`المتبقي ${U.money(remaining)}. سيتم تسجيله كدين على العميل. متابعة؟`)) return;
         }
 
-        // تأكيد الدفع الآجل
         if (method === 'credit' && State.selectedCustomer) {
-            if (!confirm(`سيتم تسجيل ${U.money(net)} كدين على العميل. متابعة؟`)) {
-                return;
-            }
+            if (!confirm(`سيتم تسجيل ${U.money(net)} كدين على العميل. متابعة؟`)) return;
         }
 
         $('#confirmPayBtn').disabled = true;
 
         try {
-            // توليد رقم الفاتورة
             const invoiceNumber = await DB.generateInvoiceNumber();
 
-            // إنشاء الفاتورة
             const invoice = {
                 id: U.uuid(),
                 invoice_number: invoiceNumber,
@@ -601,10 +606,8 @@
 
             if (!result.success) throw new Error('فشل حفظ الفاتورة');
 
-            // عرض الإيصال
             showReceipt(invoice);
 
-            // تنظيف السلة
             State.cart = [];
             State.discount = 0;
             State.selectedCustomer = null;
@@ -616,7 +619,6 @@
             renderCart();
             saveCart();
 
-            // تحديث المخزون محلياً
             await reloadProducts();
 
             showToast('تم البيع بنجاح', 'success');
@@ -842,13 +844,12 @@
         $('#discountValue').value = State.discount;
         $('#discountType').value = State.discountType;
 
-        // إزالة من القائمة
         const updated = held.filter(h => h.id !== id);
-        U.ls.set('heldInvoicesCount', updated);
+        U.ls.set('heldInvoices', updated);
 
         renderCart();
         saveCart();
-        updateHeld();
+        updateHeldCount();
         closeModal('heldModal');
         showToast('تم استرجاع الفاتورة', 'success');
     }
@@ -865,7 +866,10 @@
 
     function restoreCart() {
         const data = U.ls.get('posCart');
-        if (!data?.cart?.length) return;
+        if (!data?.cart?.length) {
+            updateHeldCount();
+            return;
+        }
 
         State.cart = data.cart || [];
         State.discount = data.discount || 0;
@@ -878,6 +882,9 @@
 
         $('#discountValue').value = State.discount;
         $('#discountType').value = State.discountType;
+
+        renderCart();
+        updateHeldCount();
     }
 
     /* ============ Modals ============ */
@@ -898,7 +905,7 @@
             stack.id = 'toastStack';
             stack.style.cssText = `
                 position: fixed;
-                bottom: 20px;
+                bottom: calc(20px + var(--safe-bottom, 0px));
                 left: 50%;
                 transform: translateX(-50%);
                 display: flex;
@@ -1021,6 +1028,11 @@
             }
         });
 
+        // Mobile products panel
+        $('#fabProductsBtn')?.addEventListener('click', openProductsPanel);
+        $('#closeProductsBtn')?.addEventListener('click', closeProductsPanel);
+        $('#productsOverlay')?.addEventListener('click', closeProductsPanel);
+
         // Checkout
         $('#checkoutBtn')?.addEventListener('click', openPayment);
         $('#clearCartBtn')?.addEventListener('click', clearCart);
@@ -1037,7 +1049,7 @@
             saveCart();
         });
 
-        // Customer search
+        // Customer
         $('#customerSearch')?.addEventListener('focus', (e) => {
             renderCustomerDropdown(e.target.value);
         });
@@ -1077,7 +1089,6 @@
             showToast('تمت الإضافة للسلة', 'success');
         });
 
-        // Enter in unit qty
         $('#unitQty')?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') $('#unitAddBtn').click();
         });
@@ -1110,8 +1121,9 @@
             });
         });
 
-        // Keyboard shortcuts
+        // Keyboard shortcuts (desktop only)
         document.addEventListener('keydown', (e) => {
+            if (window.innerWidth <= 900) return;
             if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch') {
                 if (e.key === 'Escape') e.target.blur();
                 return;
@@ -1122,6 +1134,7 @@
             if (e.key === 'F5') { e.preventDefault(); holdCurrentSale(); }
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+                closeProductsPanel();
             }
         });
 
