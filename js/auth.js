@@ -1,6 +1,6 @@
 /* =============================================
-   auth.js - Authentication (Fixed Signup)
-   Version: 3.0.1
+   auth.js - Authentication (Fixed with Session Wait)
+   Version: 3.0.2
    ============================================= */
 (function() {
     'use strict';
@@ -40,6 +40,31 @@
         onChange(fn) {
             this._listeners.push(fn);
             if (this.user) fn(this.user);
+        },
+        
+        /* ============================================
+           Wait for Session (new)
+           ============================================ */
+        async waitForSession(maxWait = 5000) {
+            if (!window.DB?.client) return null;
+            
+            const start = Date.now();
+            
+            while (Date.now() - start < maxWait) {
+                try {
+                    const { data: { session } } = await window.DB.client.auth.getSession();
+                    if (session) {
+                        console.log('✅ الجلسة جاهزة');
+                        return session;
+                    }
+                } catch (e) {
+                    // تجاهل الأخطاء المؤقتة
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            console.warn('⚠️ انتهت مهلة انتظار الجلسة');
+            return null;
         },
         
         /* ============================================
@@ -106,7 +131,7 @@
         },
         
         /* ============================================
-           Signup (FIXED - Login first, then create profile)
+           Signup (FIXED)
            ============================================ */
         async signup(email, password, fullName, storeName, phone = '') {
             if (!window.DB?.client) throw new Error('System not ready');
@@ -119,7 +144,7 @@
             
             console.log('📝 [1/5] إنشاء مستخدم Auth...');
             
-            // ✅ 1. إنشاء مستخدم Auth
+            // 1. إنشاء مستخدم Auth
             const { data: authData, error: authError } = await window.DB.client.auth.signUp({
                 email, 
                 password,
@@ -141,17 +166,15 @@
             
             console.log('✅ [1/5] تم إنشاء مستخدم Auth:', authData.user.id);
             
-            // ✅ 2. إذا كان المستخدم يحتاج تأكيد بريد، تنبيه
+            // 2. التحقق من الحاجة لتأكيد البريد
             if (!authData.session) {
                 console.warn('⚠️ يحتاج تأكيد بريد إلكتروني');
-                // نحاول تسجيل الدخول
                 const { error: signInError } = await window.DB.client.auth.signInWithPassword({ 
                     email, 
                     password 
                 });
                 
                 if (signInError) {
-                    // إذا فشل تسجيل الدخول بسبب التحقق من البريد
                     if (signInError.message.includes('Email not confirmed')) {
                         throw new Error('يرجى تأكيد بريدك الإلكتروني أولاً ثم تسجيل الدخول');
                     }
@@ -161,7 +184,7 @@
             
             console.log('📝 [2/5] تسجيل الدخول...');
             
-            // ✅ 3. تسجيل الدخول للتأكد من وجود session
+            // 3. تسجيل الدخول للتأكد من وجود session
             const { error: signInError } = await window.DB.client.auth.signInWithPassword({ 
                 email, 
                 password 
@@ -169,10 +192,9 @@
             
             if (signInError) {
                 console.warn('Sign in after signup failed:', signInError);
-                // لا نرمي خطأ - المستخدم مُنشأ لكن الجلسة قد تحتاج انتظار
             }
             
-            // ✅ 4. إنشاء profile (المستخدم الآن مسجل → RLS يعمل)
+            // 4. إنشاء profile
             console.log('📝 [3/5] إنشاء profile...');
             
             await new Promise(r => setTimeout(r, 300));
@@ -208,7 +230,7 @@
                 console.log('✅ [3/5] تم إنشاء profile');
             }
             
-            // ✅ 5. إنشاء المتجر
+            // 5. إنشاء المتجر
             console.log('📝 [4/5] إنشاء المتجر...');
             
             const tenantName = storeName || `متجر ${fullName}`;
@@ -228,7 +250,7 @@
                 console.warn('⚠️ Tenant creation exception:', e);
             }
             
-            // ✅ 6. تحميل بيانات المستخدم النهائية
+            // 6. تحميل بيانات المستخدم النهائية
             console.log('📝 [5/5] تحميل بيانات المستخدم...');
             
             await new Promise(r => setTimeout(r, 500));
@@ -259,20 +281,30 @@
             this.user = null;
             this._notify(null);
             
-            // توجيه
             if (!location.pathname.includes('index.html') && location.pathname !== '/') {
                 location.href = './index.html';
             }
         },
         
         /* ============================================
-           Auth Guards
+           Require Auth (FIXED with session wait)
            ============================================ */
         async requireAuth() {
+            // انتظر تحميل الجلسة من localStorage
+            await this.waitForSession();
+            
             const user = await this.getCurrentUser();
             if (!user) {
+                console.warn('⚠️ لا توجد جلسة نشطة، تحويل لتسجيل الدخول');
                 if (!location.pathname.includes('index.html') && location.pathname !== '/') {
-                    location.href = './index.html';
+                    // محاولة أخيرة بعد انتظار قصير
+                    await new Promise(r => setTimeout(r, 500));
+                    const retryUser = await this.getCurrentUser();
+                    if (!retryUser) {
+                        location.href = './index.html';
+                        return null;
+                    }
+                    return retryUser;
                 }
                 return null;
             }
