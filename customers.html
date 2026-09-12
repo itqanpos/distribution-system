@@ -75,7 +75,6 @@
     <!-- ============ المحتوى الرئيسي ============ -->
     <main class="main-container">
 
-        <!-- رأس الصفحة -->
         <div class="page-head">
             <div class="page-head__info">
                 <h1>العملاء والموردين</h1>
@@ -87,7 +86,6 @@
             </button>
         </div>
 
-        <!-- تبويبات -->
         <div class="tabs-bar">
             <button class="tab-btn active" data-type="customer">
                 <i class="fas fa-users"></i>
@@ -101,12 +99,8 @@
             </button>
         </div>
 
-        <!-- ملخص سريع -->
-        <div class="summary-cards" id="summaryCards">
-            <!-- يُملأ ديناميكياً -->
-        </div>
+        <div class="summary-cards" id="summaryCards"></div>
 
-        <!-- شريط البحث والفلاتر -->
         <div class="filters-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
@@ -130,19 +124,9 @@
             </select>
         </div>
 
-        <!-- قائمة العملاء/الموردين -->
         <div class="parties-container">
-            <!-- عرض الشبكة (للشاشات الكبيرة) -->
-            <div class="parties-grid-view" id="partiesGridView">
-                <!-- تُملأ ديناميكياً -->
-            </div>
-
-            <!-- عرض القائمة (للجوال) -->
-            <div class="parties-list-view" id="partiesListView">
-                <!-- تُملأ ديناميكياً -->
-            </div>
-
-            <!-- حالة فارغة -->
+            <div class="parties-grid-view" id="partiesGridView"></div>
+            <div class="parties-list-view" id="partiesListView"></div>
             <div class="empty-state" id="emptyState" style="display:none;">
                 <i class="fas fa-user-plus"></i>
                 <h3>لا توجد جهات</h3>
@@ -151,12 +135,9 @@
                     <i class="fas fa-plus"></i> إضافة
                 </button>
             </div>
-
-            <!-- Skeleton -->
             <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
         </div>
 
-        <!-- زر عائم للإضافة -->
         <button class="fab-add" id="fabAddBtn" aria-label="إضافة جهة">
             <i class="fas fa-plus"></i>
         </button>
@@ -179,7 +160,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="partyType">النوع <span class="required">*</span></label>
+                        <label>النوع <span class="required">*</span></label>
                         <div class="type-selector">
                             <button type="button" class="type-btn active" data-type="customer">
                                 <i class="fas fa-user"></i>
@@ -250,15 +231,109 @@
                 <h2>تفاصيل الحساب</h2>
                 <button class="icon-btn" data-close="viewPartyModal"><i class="fas fa-times"></i></button>
             </div>
-            <div class="modal__body" id="viewPartyBody">
-                <!-- يُملأ ديناميكياً -->
+            <div class="modal__body" id="viewPartyBody"></div>
+            <div class="modal__footer" style="flex-wrap:wrap;">
+                <button class="btn btn--ghost" id="viewInvoicesBtn" style="flex:1;min-width:100px;">
+                    <i class="fas fa-file-invoice"></i> الفواتير
+                </button>
+                <button class="btn btn--ghost" id="viewEditBtn" style="flex:1;min-width:100px;">
+                    <i class="fas fa-edit"></i> تعديل
+                </button>
+                <button class="btn btn--success" id="viewPaymentBtn" style="flex:1.2;min-width:120px;">
+                    <i class="fas fa-hand-holding-usd"></i> <span id="viewPaymentBtnText">تحصيل</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ مودال التحصيل / السداد ============ -->
+    <div class="modal" id="paymentModal">
+        <div class="modal__content modal__content--sm">
+            <div class="modal__header">
+                <h2 id="paymentModalTitle">تحصيل من عميل</h2>
+                <button class="icon-btn" data-close="paymentModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body">
+                <input type="hidden" id="paymentPartyId">
+                <input type="hidden" id="paymentType">
+
+                <div class="payment-target">
+                    <div class="payment-target__avatar" id="paymentAvatar">A</div>
+                    <div class="payment-target__info">
+                        <strong id="paymentPartyName">-</strong>
+                        <small id="paymentCurrentBalance">-</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentAmount">المبلغ <span class="required">*</span></label>
+                    <input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal">
+                    <div class="quick-amounts" id="quickAmounts"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>طريقة الدفع</label>
+                    <div class="payment-methods payment-methods--compact">
+                        <button type="button" class="method-btn active" data-method="cash">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>نقدي</span>
+                        </button>
+                        <button type="button" class="method-btn" data-method="transfer">
+                            <i class="fas fa-exchange-alt"></i>
+                            <span>تحويل</span>
+                        </button>
+                        <button type="button" class="method-btn" data-method="card">
+                            <i class="fas fa-credit-card"></i>
+                            <span>بطاقة</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="paymentMethod" value="cash">
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentReference">رقم المرجع / الشيك</label>
+                    <input type="text" id="paymentReference" placeholder="اختياري">
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentNotesInput">ملاحظات</label>
+                    <input type="text" id="paymentNotesInput" placeholder="اختياري">
+                </div>
+
+                <div class="balance-preview" id="balancePreview">
+                    <span>الرصيد بعد العملية</span>
+                    <strong id="newBalanceDisplay">0.00 ج.م</strong>
+                </div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" id="viewStatementBtn">
-                    <i class="fas fa-list-alt"></i> كشف حساب
+                <button class="btn btn--ghost" data-close="paymentModal">إلغاء</button>
+                <button class="btn btn--success" id="confirmPaymentBtn">
+                    <i class="fas fa-check"></i> تأكيد
                 </button>
-                <button class="btn btn--primary" id="viewEditBtn">
-                    <i class="fas fa-edit"></i> تعديل
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ مودال فواتير الطرف ============ -->
+    <div class="modal" id="partyInvoicesModal">
+        <div class="modal__content modal__content--lg">
+            <div class="modal__header">
+                <h2 id="partyInvoicesTitle">فواتير الحساب</h2>
+                <button class="icon-btn" data-close="partyInvoicesModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body">
+                <div class="party-invoices-filters">
+                    <button class="filter-pill active" data-filter="all">الكل</button>
+                    <button class="filter-pill" data-filter="sale">مبيعات</button>
+                    <button class="filter-pill" data-filter="purchase">مشتريات</button>
+                    <button class="filter-pill" data-filter="credit">آجلة</button>
+                </div>
+                <div id="partyInvoicesList"></div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="partyInvoicesModal">إغلاق</button>
+                <button class="btn btn--primary" id="gotoInvoicesBtn">
+                    <i class="fas fa-external-link-alt"></i> عرض في الفواتير
                 </button>
             </div>
         </div>
@@ -285,25 +360,6 @@
                 <button class="btn btn--ghost" data-close="confirmDeleteModal">إلغاء</button>
                 <button class="btn btn--danger" id="confirmDeleteBtn">
                     <i class="fas fa-trash"></i> حذف نهائياً
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============ مودال كشف حساب ============ -->
-    <div class="modal" id="statementModal">
-        <div class="modal__content modal__content--lg">
-            <div class="modal__header">
-                <h2 id="statementTitle">كشف حساب</h2>
-                <button class="icon-btn" data-close="statementModal"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal__body" id="statementBody">
-                <!-- يُملأ ديناميكياً -->
-            </div>
-            <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="statementModal">إغلاق</button>
-                <button class="btn btn--primary" id="printStatementBtn">
-                    <i class="fas fa-print"></i> طباعة
                 </button>
             </div>
         </div>
