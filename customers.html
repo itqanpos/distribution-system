@@ -2,162 +2,321 @@
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>العملاء والموردين · حسابي</title>
-
-    <!-- PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="حسابي">
-    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+    <title>العملاء والموردين · نظام POS</title>
+    <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-
-    <!-- الخطوط والأيقونات -->
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- ملف التنسيقات -->
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./css/pos.css">
     <link rel="stylesheet" href="./css/customers.css">
 </head>
 <body>
     <div id="loading-bar"></div>
-    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
+    <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- الشريط العلوي -->
-    <nav class="navbar" id="mainNavbar">
-        <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <div class="logo">
-                <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+    <!-- ============ الشريط العلوي ============ -->
+    <header class="topbar">
+        <div class="topbar__left">
+            <button class="icon-btn" id="menuBtn" aria-label="القائمة"><i class="fas fa-bars"></i></button>
+            <div class="brand">
+                <div class="brand__logo">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <i class="fas fa-users" style="display:none;"></i>
                 </div>
-                <div class="logo-text"><h2>حسابي</h2></div>
+                <div class="brand__text">
+                    <span class="brand__name">العملاء والموردين</span>
+                    <span class="brand__status" id="connStatus">متصل</span>
+                </div>
             </div>
         </div>
-        <div class="navbar-right">
-            <button class="navbar-icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
+        <div class="topbar__right">
+            <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="exportBtn" title="تصدير"><i class="fas fa-download"></i></button>
+            <button class="icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
+            <div class="user-chip">
+                <div class="user-chip__avatar" id="userAvatar">U</div>
+            </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- القائمة الجانبية -->
+    <!-- ============ القائمة الجانبية ============ -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-user">
-            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
-            <h4 id="sidebarUserName">مدير النظام</h4>
+        <div class="sidebar__header">
+            <div class="brand__logo">
+                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                <i class="fas fa-cash-register" style="display:none;"></i>
+            </div>
+            <h3 id="sidebarUserName">مدير</h3>
         </div>
-        <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item active" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
-        </ul>
+        <nav class="sidebar__nav">
+            <a href="./dashboard.html" class="nav-item"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a>
+            <a href="./pos.html" class="nav-item"><i class="fas fa-cash-register"></i> نقطة البيع</a>
+            <a href="./invoices.html" class="nav-item"><i class="fas fa-file-invoice"></i> الفواتير</a>
+            <a href="./purchases.html" class="nav-item"><i class="fas fa-shopping-cart"></i> المشتريات</a>
+            <a href="./returns.html" class="nav-item"><i class="fas fa-undo-alt"></i> المرتجعات</a>
+            <a href="./cashbox.html" class="nav-item"><i class="fas fa-money-bill-wave"></i> الصندوق</a>
+            <a href="./accounting.html" class="nav-item"><i class="fas fa-calculator"></i> المحاسبة</a>
+            <a href="./reports.html" class="nav-item"><i class="fas fa-chart-bar"></i> التقارير</a>
+            <a href="./customers.html" class="nav-item active"><i class="fas fa-users"></i> العملاء</a>
+            <a href="./suppliers.html" class="nav-item"><i class="fas fa-truck"></i> الموردين</a>
+            <a href="./products.html" class="nav-item"><i class="fas fa-boxes"></i> المنتجات</a>
+            <a href="./inventory.html" class="nav-item"><i class="fas fa-warehouse"></i> المخزون</a>
+            <a href="./users.html" class="nav-item"><i class="fas fa-user-shield"></i> المستخدمين</a>
+            <a href="./settings.html" class="nav-item"><i class="fas fa-cog"></i> الإعدادات</a>
+            <a href="#" class="nav-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+        </nav>
     </aside>
 
-    <!-- المحتوى الرئيسي -->
-    <main class="main-content">
-        <div class="page-header">
-            <h1>العملاء والموردين</h1>
-            <button class="btn btn-primary" id="addCustomerBtn"><i class="fas fa-plus"></i> إضافة جديد</button>
+    <!-- ============ المحتوى الرئيسي ============ -->
+    <main class="main-container">
+
+        <!-- رأس الصفحة -->
+        <div class="page-head">
+            <div class="page-head__info">
+                <h1>العملاء والموردين</h1>
+                <p id="partiesCount">0 جهة</p>
+            </div>
+            <button class="btn btn--primary" id="addPartyBtn">
+                <i class="fas fa-plus"></i>
+                <span>إضافة جديد</span>
+            </button>
+        </div>
+
+        <!-- تبويبات -->
+        <div class="tabs-bar">
+            <button class="tab-btn active" data-type="customer">
+                <i class="fas fa-users"></i>
+                <span>العملاء</span>
+                <span class="tab-count" id="customersTabCount">0</span>
+            </button>
+            <button class="tab-btn" data-type="supplier">
+                <i class="fas fa-truck"></i>
+                <span>الموردين</span>
+                <span class="tab-count" id="suppliersTabCount">0</span>
+            </button>
+        </div>
+
+        <!-- ملخص سريع -->
+        <div class="summary-cards" id="summaryCards">
+            <!-- يُملأ ديناميكياً -->
         </div>
 
         <!-- شريط البحث والفلاتر -->
         <div class="filters-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="ابحث بالاسم أو الهاتف...">
+                <input type="text" id="searchInput" placeholder="ابحث بالاسم، الهاتف، أو البريد..." autocomplete="off">
+                <button class="search-clear" id="clearSearchBtn" style="display:none;">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <select id="typeFilter">
-                <option value="">الكل</option>
-                <option value="customer">عملاء</option>
-                <option value="supplier">موردين</option>
+            <select id="balanceFilter" class="filter-select">
+                <option value="">كل الأرصدة</option>
+                <option value="debit">عليه دين (مدين)</option>
+                <option value="credit">له رصيد (دائن)</option>
+                <option value="zero">لا رصيد</option>
+            </select>
+            <select id="sortFilter" class="filter-select">
+                <option value="name">الاسم (أ-ي)</option>
+                <option value="name-desc">الاسم (ي-أ)</option>
+                <option value="balance">الرصيد (تصاعدي)</option>
+                <option value="balance-desc">الرصيد (تنازلي)</option>
+                <option value="recent">الأحدث</option>
             </select>
         </div>
 
-        <!-- عرض الجهات -->
-        <div class="container-box">
-            <!-- جدول للشاشات الكبيرة -->
-            <div class="table-wrapper">
-                <table class="parties-table">
-                    <thead>
-                        <tr>
-                            <th>الاسم</th>
-                            <th>النوع</th>
-                            <th>الهاتف</th>
-                            <th>الرصيد</th>
-                            <th>الحالة</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                </table>
+        <!-- قائمة العملاء/الموردين -->
+        <div class="parties-container">
+            <!-- عرض الشبكة (للشاشات الكبيرة) -->
+            <div class="parties-grid-view" id="partiesGridView">
+                <!-- تُملأ ديناميكياً -->
             </div>
 
-            <!-- بطاقات للشاشات الصغيرة -->
-            <div class="cards-wrapper" id="cardsWrapper"></div>
-
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <i class="fas fa-users"></i>
-                <p>لا توجد جهات مطابقة</p>
+            <!-- عرض القائمة (للجوال) -->
+            <div class="parties-list-view" id="partiesListView">
+                <!-- تُملأ ديناميكياً -->
             </div>
+
+            <!-- حالة فارغة -->
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <i class="fas fa-user-plus"></i>
+                <h3>لا توجد جهات</h3>
+                <p id="emptyStateText">ابدأ بإضافة عميل جديد</p>
+                <button class="btn btn--primary" onclick="document.getElementById('addPartyBtn').click()">
+                    <i class="fas fa-plus"></i> إضافة
+                </button>
+            </div>
+
+            <!-- Skeleton -->
+            <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
         </div>
+
+        <!-- زر عائم للإضافة -->
+        <button class="fab-add" id="fabAddBtn" aria-label="إضافة جهة">
+            <i class="fas fa-plus"></i>
+        </button>
     </main>
 
-    <!-- مودال إضافة/تعديل -->
+    <!-- ============ مودال إضافة/تعديل جهة ============ -->
     <div class="modal" id="partyModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">إضافة جهة</h2>
-                <button id="closeModalBtn">&times;</button>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 id="partyModalTitle">إضافة عميل جديد</h2>
+                <button class="icon-btn" data-close="partyModal"><i class="fas fa-times"></i></button>
             </div>
-            <div class="form-group">
-                <label>الاسم *</label>
-                <input type="text" id="partyName" placeholder="اسم العميل أو المورد">
+            <div class="modal__body">
+                <form id="partyForm">
+                    <input type="hidden" id="partyId">
+
+                    <div class="form-group">
+                        <label for="partyName">الاسم <span class="required">*</span></label>
+                        <input type="text" id="partyName" required placeholder="مثال: أحمد محمد">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="partyType">النوع <span class="required">*</span></label>
+                        <div class="type-selector">
+                            <button type="button" class="type-btn active" data-type="customer">
+                                <i class="fas fa-user"></i>
+                                <span>عميل</span>
+                            </button>
+                            <button type="button" class="type-btn" data-type="supplier">
+                                <i class="fas fa-truck"></i>
+                                <span>مورد</span>
+                            </button>
+                            <button type="button" class="type-btn" data-type="both">
+                                <i class="fas fa-user-tie"></i>
+                                <span>كلاهما</span>
+                            </button>
+                        </div>
+                        <input type="hidden" id="partyType" value="customer">
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="partyPhone">رقم الهاتف</label>
+                            <input type="tel" id="partyPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                        </div>
+                        <div class="form-group">
+                            <label for="partyEmail">البريد الإلكتروني</label>
+                            <input type="email" id="partyEmail" placeholder="اختياري">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="partyAddress">العنوان</label>
+                        <input type="text" id="partyAddress" placeholder="اختياري">
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="partyBalance">الرصيد الافتتاحي</label>
+                            <input type="number" id="partyBalance" value="0" step="0.01" inputmode="decimal">
+                            <small class="form-hint">
+                                <i class="fas fa-info-circle"></i>
+                                <span>موجب = له رصيد، سالب = عليه دين</span>
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label for="partyCreditLimit">حد الدين</label>
+                            <input type="number" id="partyCreditLimit" value="0" min="0" step="0.01" inputmode="decimal">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="partyNotes">ملاحظات</label>
+                        <textarea id="partyNotes" rows="2" placeholder="ملاحظات اختيارية..."></textarea>
+                    </div>
+                </form>
             </div>
-            <div class="form-group">
-                <label>النوع *</label>
-                <select id="partyType">
-                    <option value="customer">عميل</option>
-                    <option value="supplier">مورد</option>
-                </select>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="partyModal">إلغاء</button>
+                <button class="btn btn--primary" id="savePartyBtn">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
             </div>
-            <div class="form-group">
-                <label>رقم الهاتف</label>
-                <input type="tel" id="partyPhone" placeholder="01xxxxxxxxx">
-            </div>
-            <div class="form-group">
-                <label>الرصيد الافتتاحي</label>
-                <input type="number" id="partyBalance" step="0.01" value="0">
-                <small style="color: var(--text-muted);">موجب = له رصيد، سالب = عليه رصيد</small>
-            </div>
-            <div class="form-group">
-                <label>ملاحظات</label>
-                <textarea id="partyNotes" rows="2" placeholder="ملاحظات اختيارية"></textarea>
-            </div>
-            <button class="btn btn-primary" id="saveBtn">حفظ</button>
         </div>
     </div>
 
-    <!-- السكربتات -->
+    <!-- ============ مودال تفاصيل جهة ============ -->
+    <div class="modal" id="viewPartyModal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2>تفاصيل الحساب</h2>
+                <button class="icon-btn" data-close="viewPartyModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body" id="viewPartyBody">
+                <!-- يُملأ ديناميكياً -->
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" id="viewStatementBtn">
+                    <i class="fas fa-list-alt"></i> كشف حساب
+                </button>
+                <button class="btn btn--primary" id="viewEditBtn">
+                    <i class="fas fa-edit"></i> تعديل
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ مودال تأكيد الحذف ============ -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal__content modal__content--sm">
+            <div class="modal__header">
+                <h2>تأكيد الحذف</h2>
+                <button class="icon-btn" data-close="confirmDeleteModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body">
+                <div class="confirm-delete">
+                    <div class="confirm-delete__icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p>هل أنت متأكد من حذف هذه الجهة؟</p>
+                    <p class="confirm-delete__name" id="deletePartyName"></p>
+                    <small>لا يمكن التراجع عن هذا الإجراء</small>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="confirmDeleteModal">إلغاء</button>
+                <button class="btn btn--danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> حذف نهائياً
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ مودال كشف حساب ============ -->
+    <div class="modal" id="statementModal">
+        <div class="modal__content modal__content--lg">
+            <div class="modal__header">
+                <h2 id="statementTitle">كشف حساب</h2>
+                <button class="icon-btn" data-close="statementModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body" id="statementBody">
+                <!-- يُملأ ديناميكياً -->
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="statementModal">إغلاق</button>
+                <button class="btn btn--primary" id="printStatementBtn">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastStack" class="toast-stack"></div>
+
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-core.js"></script>
-    <script src="./js/supabase-auth.js"></script>
-    <script src="./js/db-local.js"></script>
-    <script src="./js/supabase-offline.js"></script>
-    <script src="./js/supabase-db.js"></script>
-    <script src="./js/toast.js"></script>
+    <script src="./js/config.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/db.js"></script>
+    <script src="./js/auth.js"></script>
     <script src="./js/customers.js"></script>
 </body>
 </html>
