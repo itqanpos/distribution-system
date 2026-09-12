@@ -1,6 +1,6 @@
 /* =============================================
    pos.css - Point of Sale Styles
-   v3.0 - Min/Max Price + Quick Search
+   v5.0 - Direct Product Search + Min/Max Price
    ============================================= */
 
 :root {
@@ -20,7 +20,9 @@ body {
     flex-direction: column;
 }
 
-/* ============ Topbar ============ */
+/* =============================================
+   Topbar
+   ============================================= */
 .topbar {
     height: calc(var(--topbar-h) + var(--safe-top));
     padding: var(--safe-top) calc(14px + var(--safe-right)) 0 calc(14px + var(--safe-left));
@@ -46,6 +48,7 @@ body {
     box-shadow: 0 6px 16px -6px var(--primary);
     overflow: hidden;
     padding: 4px;
+    flex-shrink: 0;
 }
 .brand__logo img {
     width: 100%;
@@ -97,7 +100,9 @@ body {
     font-size: 14px;
 }
 
-/* ============ Sidebar ============ */
+/* =============================================
+   Sidebar
+   ============================================= */
 .sidebar-overlay {
     position: fixed;
     inset: 0;
@@ -162,7 +167,9 @@ body {
 .nav-item:hover { background: var(--bg-sunken); color: var(--text); }
 .nav-item.active { background: var(--primary); color: #fff; }
 
-/* ============ Layout ============ */
+/* =============================================
+   Layout
+   ============================================= */
 .layout {
     flex: 1;
     display: grid;
@@ -172,7 +179,9 @@ body {
     height: calc(100dvh - var(--topbar-h) - var(--safe-top));
 }
 
-/* ============ Products Area ============ */
+/* =============================================
+   Products Area (Desktop)
+   ============================================= */
 .products-area {
     padding: 14px;
     display: flex;
@@ -304,7 +313,9 @@ body {
 .product-card__stock.in { color: var(--success); }
 .product-card__stock.out { color: var(--danger); }
 
-/* ============ Cart Area ============ */
+/* =============================================
+   Cart Area
+   ============================================= */
 .cart-area {
     background: var(--bg-elev);
     border-right: 1px solid var(--border);
@@ -322,6 +333,8 @@ body {
     flex-direction: column;
     gap: 10px;
 }
+
+/* ============ Customer Input ============ */
 .customer-input-wrap {
     position: relative;
     display: flex;
@@ -333,6 +346,7 @@ body {
     color: var(--text-faint);
     pointer-events: none;
     font-size: 14px;
+    z-index: 1;
 }
 .customer-input-wrap input {
     width: 100%;
@@ -345,19 +359,27 @@ body {
     font-weight: 700;
     outline: none;
     font-family: inherit;
+    transition: all 0.2s;
 }
 .customer-input-wrap input:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-light);
 }
+.customer-input-wrap input::placeholder {
+    color: var(--text-faint);
+    font-weight: 500;
+}
 .customer-input-wrap .icon-btn {
     position: absolute;
     left: 4px;
     background: transparent;
+    display: none;
+}
+.customer-input-wrap input:not(:placeholder-shown) ~ .icon-btn {
+    display: grid;
 }
 
-/* ✅ زر البحث السريع */
-/* ============ Product Search Input (بنفس تصميم العميل) ============ */
+/* ============ ✅ Product Input (بنفس تصميم العميل) ============ */
 .product-input-wrap {
     position: relative;
     display: flex;
@@ -369,6 +391,7 @@ body {
     color: var(--text-faint);
     pointer-events: none;
     font-size: 14px;
+    z-index: 1;
 }
 .product-input-wrap input {
     width: 100%;
@@ -401,6 +424,8 @@ body {
     display: grid;
 }
 
+/* ============ Dropdowns ============ */
+.customer-dropdown,
 .product-dropdown {
     position: absolute;
     top: calc(100% - 60px);
@@ -412,12 +437,41 @@ body {
     box-shadow: var(--shadow-lg);
     max-height: 320px;
     overflow-y: auto;
-    z-index: 55;
+    z-index: 60;
     display: none;
     padding: 4px;
 }
+.customer-dropdown.show,
 .product-dropdown.show { display: block; }
 
+/* Customer item */
+.cust-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+}
+.cust-item:last-child { border-bottom: none; }
+.cust-item:hover { background: var(--bg-sunken); }
+.cust-item__name { font-weight: 700; font-size: 13px; }
+.cust-item__phone { font-size: 11px; color: var(--text-muted); }
+.cust-item__balance {
+    font-weight: 800;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.cust-item__balance.pos { background: rgba(16,185,129,0.15); color: var(--success); }
+.cust-item__balance.neg { background: rgba(239,68,68,0.15); color: var(--danger); }
+.cust-item__balance.zero { background: var(--bg-sunken); color: var(--text-muted); }
+
+/* Product item */
 .product-option {
     padding: 10px 12px;
     border-radius: 8px;
@@ -454,7 +508,7 @@ body {
 }
 .product-option__stock {
     font-size: 10px;
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 999px;
     font-weight: 800;
     white-space: nowrap;
@@ -462,7 +516,224 @@ body {
 .product-option__stock.in { background: rgba(16,185,129,0.15); color: var(--success); }
 .product-option__stock.out { background: rgba(239,68,68,0.15); color: var(--danger); }
 
-/* ============ Mobile Close Button ============ */
+.customer-info {
+    font-size: 12px;
+    font-weight: 700;
+    min-height: 16px;
+}
+
+/* =============================================
+   Cart Items
+   ============================================= */
+.cart-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.empty-cart {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-faint);
+}
+.empty-cart i { font-size: 42px; opacity: 0.3; display: block; margin-bottom: 12px; }
+.empty-cart p { font-weight: 700; margin-bottom: 4px; }
+.empty-cart small { font-size: 12px; }
+
+.cart-item {
+    background: var(--bg-sunken);
+    border-radius: 12px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    position: relative;
+    animation: slideIn 0.2s;
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.cart-item__name {
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+.cart-item__unit {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.cart-item__controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+.qty-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elev);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 800;
+    display: grid; place-items: center;
+    font-size: 12px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+.qty-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.cart-item__qty {
+    width: 52px;
+    text-align: center;
+    padding: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elev);
+    color: var(--text);
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+.cart-item__price-input {
+    width: 68px;
+    padding: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elev);
+    color: var(--text);
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 12px;
+    font-family: inherit;
+    text-align: center;
+    outline: none;
+    transition: all 0.2s;
+}
+.cart-item__price-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+.cart-item__price-input.invalid {
+    border-color: var(--danger);
+    background: rgba(239,68,68,0.1);
+    animation: shake 0.3s;
+}
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+.cart-item__price {
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--primary);
+    text-align: left;
+}
+.cart-item__remove {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--danger-light, #fee2e2);
+    color: var(--danger);
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    display: grid; place-items: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.cart-item:hover .cart-item__remove { opacity: 1; }
+@media (max-width: 900px) {
+    .cart-item__remove { opacity: 1; }
+}
+
+/* =============================================
+   Cart Summary
+   ============================================= */
+.cart-summary {
+    padding: 14px;
+    padding-bottom: calc(14px + var(--safe-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--bg-elev);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-soft);
+    font-weight: 600;
+}
+.summary-row > span:last-child { font-weight: 800; color: var(--text); }
+.summary-row--total {
+    padding-top: 10px;
+    border-top: 2px dashed var(--border-strong);
+    font-size: 17px;
+    font-weight: 800;
+}
+.summary-row--total > span:last-child { color: var(--primary); }
+.summary-row--discount {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+}
+.discount-wrap {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+}
+.discount-wrap input {
+    width: 70px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-sunken);
+    color: var(--text);
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+.discount-wrap select {
+    padding: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-sunken);
+    color: var(--text);
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.cart-actions {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 8px;
+    margin-top: 6px;
+}
+.cart-actions .btn {
+    padding: 13px;
+    font-size: 14px;
+}
+
+/* =============================================
+   Mobile Close Button
+   ============================================= */
 .mobile-close-btn {
     position: absolute;
     top: 14px;
@@ -484,7 +755,9 @@ body {
 }
 .mobile-close-btn:active { transform: scale(0.9); }
 
-/* ============ Modals ============ */
+/* =============================================
+   Modals
+   ============================================= */
 .modal {
     position: fixed;
     inset: 0;
@@ -539,6 +812,9 @@ body {
 }
 .modal__footer .btn { flex: 1; }
 
+/* =============================================
+   Form Elements
+   ============================================= */
 .form-group { margin-bottom: 16px; }
 .form-group label {
     display: block;
@@ -568,6 +844,9 @@ body {
 }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* =============================================
+   Unit Chips
+   ============================================= */
 .unit-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .unit-chip {
     padding: 10px 18px;
@@ -588,6 +867,9 @@ body {
     color: #fff;
 }
 
+/* =============================================
+   Stock Info
+   ============================================= */
 .stock-info {
     padding: 12px;
     background: var(--primary-light);
@@ -599,7 +881,9 @@ body {
     margin-top: 12px;
 }
 
-/* ✅ Price Range Hint */
+/* =============================================
+   Price Range Hint
+   ============================================= */
 .price-range-hint {
     margin-top: 10px;
     padding: 10px 14px;
@@ -616,7 +900,9 @@ body {
 .price-range-hint i { font-size: 14px; }
 .price-range-hint strong { font-weight: 800; }
 
-/* ✅ Price Limit Error */
+/* =============================================
+   Price Limit Error
+   ============================================= */
 .price-limit-error {
     margin-top: 10px;
     padding: 10px 14px;
@@ -631,12 +917,10 @@ body {
     gap: 8px;
     animation: shake 0.3s;
 }
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-4px); }
-    75% { transform: translateX(4px); }
-}
 
+/* =============================================
+   Payment
+   ============================================= */
 .payment-summary {
     background: var(--bg-sunken);
     border-radius: 14px;
@@ -728,6 +1012,9 @@ body {
 .change-display strong { font-size: 20px; }
 .change-display.is-short { background: rgba(239,68,68,0.15); color: var(--danger); }
 
+/* =============================================
+   Receipt
+   ============================================= */
 .receipt-toolbar {
     padding: 12px 16px;
     display: flex;
@@ -774,6 +1061,9 @@ body {
 .receipt-table th:last-child,
 .receipt-table td:last-child { text-align: left; }
 
+/* =============================================
+   Held Invoices
+   ============================================= */
 .held-item {
     padding: 14px;
     background: var(--bg-sunken);
@@ -794,7 +1084,9 @@ body {
     font-size: 15px;
 }
 
-/* ============ Responsive ============ */
+/* =============================================
+   Responsive
+   ============================================= */
 @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
 
@@ -857,7 +1149,7 @@ body {
     .user-chip__avatar { width: 32px; height: 32px; font-size: 13px; }
     .payment-methods { grid-template-columns: repeat(2, 1fr); }
     .form-grid { grid-template-columns: 1fr; }
-
-    .product-search-btn__icon { width: 38px; height: 38px; }
-    .product-search-btn__text span { font-size: 13px; }
+    .cart-item__controls { gap: 3px; }
+    .cart-item__qty { width: 46px; }
+    .cart-item__price-input { width: 60px; }
 }
