@@ -1,5 +1,6 @@
 /* =============================================
-   customers.js - Parties Page Logic
+   customers.js - Parties Page Logic v2.0
+   مع التحصيل والسداد والفواتير
    ============================================= */
 (function() {
     'use strict';
@@ -12,11 +13,15 @@
         parties: [],
         filtered: [],
         invoices: [],
+        transactions: [],
         currentUser: null,
         currentType: 'customer',
         editingId: null,
         deletingId: null,
         viewingId: null,
+        paymentPartyId: null,
+        paymentType: null,
+        invoicesFilter: 'all',
         filters: {
             search: '',
             balance: '',
@@ -108,7 +113,6 @@
         State.currentType = type;
         State.filters.search = '';
         
-        // Clear search input
         const searchInput = $('#searchInput');
         if (searchInput) searchInput.value = '';
         const clearBtn = $('#clearSearchBtn');
@@ -118,7 +122,6 @@
             btn.classList.toggle('active', btn.dataset.type === type);
         });
 
-        // Update empty state text
         const emptyText = $('#emptyStateText');
         if (emptyText) {
             emptyText.textContent = type === 'customer' 
@@ -126,6 +129,7 @@
                 : 'ابدأ بإضافة مورد جديد';
         }
 
+        renderSummary();
         applyFilters();
     }
 
@@ -137,9 +141,7 @@
         if (!container) return;
 
         const type = State.currentType;
-        const list = State.parties.filter(p => 
-            p.type === type || p.type === 'both'
-        );
+        const list = State.parties.filter(p => p.type === type || p.type === 'both');
 
         const totalDebit = list
             .filter(p => (p.balance || 0) < 0)
@@ -199,7 +201,6 @@
             p.type === State.currentType || p.type === 'both'
         );
 
-        // Search
         if (State.filters.search) {
             const term = State.filters.search.toLowerCase();
             list = list.filter(p =>
@@ -209,7 +210,6 @@
             );
         }
 
-        // Balance filter
         if (State.filters.balance) {
             list = list.filter(p => {
                 const bal = p.balance || 0;
@@ -220,7 +220,6 @@
             });
         }
 
-        // Sort
         const sort = State.filters.sort;
         list.sort((a, b) => {
             if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'ar');
@@ -283,6 +282,9 @@
         return `
             <div class="party-item" data-id="${p.id}">
                 <div class="party-item__actions">
+                    <button class="icon-action" data-action="payment" title="تحصيل/سداد">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </button>
                     <button class="icon-action" data-action="edit" title="تعديل">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -346,6 +348,9 @@
             } else if (action === 'delete') {
                 e.stopPropagation();
                 openDeleteConfirm(id);
+            } else if (action === 'payment') {
+                e.stopPropagation();
+                openPaymentModal(id);
             } else {
                 openViewModal(id);
             }
@@ -355,6 +360,177 @@
     function showEmpty(show) {
         const el = $('#emptyState');
         if (el) el.style.display = show ? 'block' : 'none';
+    }
+
+    /* ============================================
+       Payment / Collection
+       ============================================ */
+    function openPaymentModal(id) {
+        const p = State.parties.find(x => x.id === id);
+        if (!p) return;
+
+        State.paymentPartyId = id;
+        State.paymentType = p.type === 'supplier' ? 'payment_out' : 'payment_in';
+
+        const title = $('#paymentModalTitle');
+        const avatar = $('#paymentAvatar');
+        const name = $('#paymentPartyName');
+        const balEl = $('#paymentCurrentBalance');
+        const submitBtn = $('#confirmPaymentBtn');
+        const btnText = submitBtn?.querySelector('span') || submitBtn;
+
+        if (title) title.textContent = State.paymentType === 'payment_in' ? 'تحصيل من عميل' : 'سداد لمورد';
+        if (avatar) avatar.textContent = (p.name || '?').trim()[0] || '?';
+        if (name) name.textContent = p.name || '';
+
+        const bal = p.balance || 0;
+        const balLabel = bal < 0 ? `عليه: ${U.money(-bal)}` : bal > 0 ? `له: ${U.money(bal)}` : 'لا رصيد';
+        if (balEl) balEl.textContent = balLabel;
+
+        // Change submit button
+        if (submitBtn) {
+            const newBtn = submitBtn.cloneNode(true);
+            newBtn.innerHTML = `<i class="fas fa-check"></i> ${State.paymentType === 'payment_in' ? 'تحصيل' : 'سداد'}`;
+            submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+            newBtn.addEventListener('click', submitPayment);
+        }
+
+        // Reset fields
+        $('#paymentPartyId').value = id;
+        $('#paymentType').value = State.paymentType;
+        $('#paymentAmount').value = '';
+        $('#paymentReference').value = '';
+        $('#paymentNotesInput').value = '';
+        setPaymentMethod('cash');
+
+        // Suggest amount based on balance
+        renderQuickAmounts(bal);
+
+        // Preview
+        updateBalancePreview();
+
+        openModal('paymentModal');
+        setTimeout(() => $('#paymentAmount')?.focus(), 200);
+
+        // Bind amount input
+        const amountInput = $('#paymentAmount');
+        if (amountInput) {
+            const newInput = amountInput.cloneNode(true);
+            amountInput.parentNode.replaceChild(newInput, amountInput);
+            newInput.addEventListener('input', updateBalancePreview);
+        }
+    }
+
+    function renderQuickAmounts(bal) {
+        const container = $('#quickAmounts');
+        if (!container) return;
+
+        // If customer owes (bal < 0), suggest collecting the full amount
+        // If supplier is owed (bal > 0 for supplier means we owe them?), suggest paying
+        const suggestions = new Set();
+        
+        const absBal = Math.abs(bal);
+        if (absBal > 0) {
+            suggestions.add(Math.round(absBal));
+            if (absBal >= 100) {
+                suggestions.add(Math.round(absBal / 2));
+                suggestions.add(100);
+                suggestions.add(500);
+            } else if (absBal >= 10) {
+                suggestions.add(50);
+                suggestions.add(100);
+            }
+        }
+        suggestions.add(100);
+        suggestions.add(500);
+        suggestions.add(1000);
+
+        const list = [...suggestions].filter(v => v > 0).sort((a, b) => a - b).slice(0, 4);
+
+        container.innerHTML = list.map(v => 
+            `<button type="button" data-amount="${v}">${v}</button>`
+        ).join('');
+
+        container.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = $('#paymentAmount');
+                if (input) {
+                    input.value = btn.dataset.amount;
+                    updateBalancePreview();
+                }
+            });
+        });
+    }
+
+    function setPaymentMethod(method) {
+        $$('.method-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.method === method);
+        });
+        $('#paymentMethod').value = method;
+    }
+
+    function updateBalancePreview() {
+        const p = State.parties.find(x => x.id === State.paymentPartyId);
+        if (!p) return;
+
+        const amount = Number($('#paymentAmount')?.value) || 0;
+        const currentBal = Number(p.balance) || 0;
+        const type = State.paymentType;
+
+        // payment_in: customer pays us → balance increases
+        // payment_out: we pay supplier → balance decreases
+        const newBal = type === 'payment_in' 
+            ? currentBal + amount 
+            : currentBal - amount;
+
+        const el = $('#newBalanceDisplay');
+        const box = $('#balancePreview');
+        
+        if (el) el.textContent = U.money(Math.abs(newBal));
+        if (box) {
+            box.classList.remove('positive', 'negative');
+            if (newBal < 0) box.classList.add('negative');
+            else if (newBal > 0) box.classList.add('positive');
+        }
+    }
+
+    async function submitPayment() {
+        const partyId = $('#paymentPartyId').value;
+        const type = $('#paymentType').value;
+        const amount = Number($('#paymentAmount').value) || 0;
+        const method = $('#paymentMethod').value || 'cash';
+        const reference = $('#paymentReference').value.trim();
+        const notes = $('#paymentNotesInput').value.trim();
+
+        if (amount <= 0) {
+            showToast('أدخل مبلغاً صحيحاً', 'warning');
+            return;
+        }
+
+        const btn = $('#confirmPaymentBtn');
+        if (btn) btn.disabled = true;
+
+        try {
+            await DB.addPayment({
+                party_id: partyId,
+                type,
+                amount,
+                payment_method: method,
+                reference,
+                notes
+            });
+
+            showToast(type === 'payment_in' ? 'تم التحصيل بنجاح' : 'تم السداد بنجاح', 'success');
+            closeModal('paymentModal');
+
+            await loadData();
+
+        } catch (e) {
+            console.error('Payment error:', e);
+            showToast(e.message || 'فشلت العملية', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     }
 
     /* ============================================
@@ -402,9 +578,6 @@
         });
     }
 
-    /* ============================================
-       Save Party
-       ============================================ */
     async function saveParty() {
         const name = $('#partyName')?.value.trim();
         if (!name) {
@@ -415,7 +588,6 @@
         const phone = $('#partyPhone')?.value.trim() || '';
         const email = $('#partyEmail')?.value.trim() || '';
 
-        // Basic email validation
         if (email && !email.includes('@')) {
             showToast('صيغة البريد الإلكتروني غير صحيحة', 'warning');
             return;
@@ -436,8 +608,6 @@
                 credit_limit: +$('#partyCreditLimit')?.value || 0,
                 notes: $('#partyNotes')?.value.trim() || ''
             };
-
-            console.log('💾 Saving party:', data);
 
             await DB.saveParty(data);
 
@@ -521,147 +691,133 @@
             </div>
         `;
 
-        // Bind buttons
-        const editBtn = $('#viewEditBtn');
-        const newEditBtn = editBtn.cloneNode(true);
-        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
-        newEditBtn.addEventListener('click', () => {
-            closeModal('viewPartyModal');
-            setTimeout(() => openPartyModal(id), 200);
-        });
+        // Update footer buttons
+        const payBtnText = $('#viewPaymentBtnText');
+        if (payBtnText) {
+            payBtnText.textContent = p.type === 'supplier' ? 'سداد' : 'تحصيل';
+        }
 
-        const stmtBtn = $('#viewStatementBtn');
-        const newStmtBtn = stmtBtn.cloneNode(true);
-        stmtBtn.parentNode.replaceChild(newStmtBtn, stmtBtn);
-        newStmtBtn.addEventListener('click', () => {
-            closeModal('viewPartyModal');
-            setTimeout(() => openStatement(id), 200);
-        });
+        const payBtn = $('#viewPaymentBtn');
+        if (payBtn) {
+            const newPayBtn = payBtn.cloneNode(true);
+            payBtn.parentNode.replaceChild(newPayBtn, payBtn);
+            newPayBtn.addEventListener('click', () => {
+                closeModal('viewPartyModal');
+                setTimeout(() => openPaymentModal(id), 200);
+            });
+        }
+
+        const editBtn = $('#viewEditBtn');
+        if (editBtn) {
+            const newEditBtn = editBtn.cloneNode(true);
+            editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+            newEditBtn.addEventListener('click', () => {
+                closeModal('viewPartyModal');
+                setTimeout(() => openPartyModal(id), 200);
+            });
+        }
+
+        const invBtn = $('#viewInvoicesBtn');
+        if (invBtn) {
+            const newInvBtn = invBtn.cloneNode(true);
+            invBtn.parentNode.replaceChild(newInvBtn, invBtn);
+            newInvBtn.addEventListener('click', () => {
+                closeModal('viewPartyModal');
+                setTimeout(() => openPartyInvoices(id), 200);
+            });
+        }
 
         openModal('viewPartyModal');
     }
 
     /* ============================================
-       Statement
+       Party Invoices
        ============================================ */
-    function openStatement(id) {
+    function openPartyInvoices(id) {
         const p = State.parties.find(x => x.id === id);
         if (!p) return;
 
-        const title = $('#statementTitle');
-        if (title) title.textContent = `كشف حساب - ${p.name}`;
+        State.viewingId = id;
+        State.invoicesFilter = 'all';
 
-        const body = $('#statementBody');
-        if (!body) return;
+        const title = $('#partyInvoicesTitle');
+        if (title) title.textContent = `فواتير - ${p.name}`;
 
-        // Filter invoices for this party
-        const partyInvoices = State.invoices.filter(inv => 
-            inv.customer_id === id || inv.supplier_id === id
-        );
+        // Reset filter pills
+        $$('.filter-pill').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
 
-        // Calculate totals
-        const sales = partyInvoices.filter(i => i.type === 'sale');
-        const purchases = partyInvoices.filter(i => i.type === 'purchase');
-
-        const totalSales = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const totalPurchases = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
-
-        if (!partyInvoices.length) {
-            body.innerHTML = `
-                <div class="statement-empty">
-                    <i class="fas fa-file-invoice"></i>
-                    <p>لا توجد معاملات</p>
-                    <small style="display:block;margin-top:6px;color:var(--text-muted);">لم يتم إجراء أي فواتير مع هذا الحساب بعد</small>
-                </div>
-            `;
-        } else {
-            const rows = partyInvoices
-                .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
-                .slice(0, 50);
-
-            body.innerHTML = `
-                <div class="statement-summary">
-                    <div class="statement-summary__item">
-                        <label>عدد الفواتير</label>
-                        <strong>${partyInvoices.length}</strong>
-                    </div>
-                    <div class="statement-summary__item">
-                        <label>المبيعات</label>
-                        <strong style="color:var(--success);">${U.money(totalSales)}</strong>
-                    </div>
-                    <div class="statement-summary__item">
-                        <label>المشتريات</label>
-                        <strong style="color:var(--warning);">${U.money(totalPurchases)}</strong>
-                    </div>
-                </div>
-
-                <div class="statement-list">
-                    ${rows.map(inv => {
-                        const isSale = inv.type === 'sale';
-                        const amount = Number(inv.total) || 0;
-                        return `
-                            <div class="statement-row">
-                                <div class="statement-row__icon ${isSale ? 'sale' : 'purchase'}">
-                                    <i class="fas fa-${isSale ? 'arrow-up' : 'arrow-down'}"></i>
-                                </div>
-                                <div class="statement-row__info">
-                                    <strong>${U.escape(inv.invoice_number || '---')}</strong>
-                                    <small>${U.date(inv.date || inv.created_at)} · ${isSale ? 'فاتورة بيع' : 'فاتورة شراء'}</small>
-                                </div>
-                                <div class="statement-row__amount ${isSale ? 'credit' : 'debit'}">
-                                    ${isSale ? '+' : '-'}${U.money(amount)}
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-        }
-
-        openModal('statementModal');
+        renderPartyInvoices(id);
+        openModal('partyInvoicesModal');
     }
 
-    function printStatement() {
-        const title = $('#statementTitle')?.textContent || 'كشف حساب';
-        const content = $('#statementBody')?.innerHTML || '';
+    function renderPartyInvoices(partyId) {
+        const container = $('#partyInvoicesList');
+        if (!container) return;
 
-        const win = window.open('', '_blank', 'width=600,height=800');
-        win.document.write(`
-            <!DOCTYPE html>
-            <html dir="rtl"><head><meta charset="UTF-8">
-            <title>${title}</title>
-            <style>
-                body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; font-size: 13px; }
-                h2 { text-align: center; margin-bottom: 20px; }
-                .statement-summary {
-                    display: grid; grid-template-columns: repeat(3, 1fr);
-                    gap: 10px; margin-bottom: 16px;
-                }
-                .statement-summary__item {
-                    background: #f8fafc; border-radius: 10px; padding: 12px; text-align: center;
-                }
-                .statement-summary__item label { display: block; font-size: 10px; color: #666; margin-bottom: 4px; }
-                .statement-summary__item strong { font-size: 15px; }
-                .statement-row {
-                    display: grid; grid-template-columns: auto 1fr auto;
-                    gap: 12px; padding: 10px; background: #f8fafc;
-                    border-radius: 10px; margin-bottom: 6px; align-items: center;
-                }
-                .statement-row__info strong { display: block; font-size: 13px; }
-                .statement-row__info small { font-size: 11px; color: #666; }
-                .statement-row__amount { font-weight: bold; }
-                .statement-row__amount.credit { color: #10b981; }
-                .statement-row__amount.debit { color: #ef4444; }
-                @media print { body { padding: 0; } }
-            </style>
-            </head><body>
-                <h2>${U.escape(title)}</h2>
-                ${content}
-            </body></html>
-        `);
-        win.document.close();
-        win.focus();
-        setTimeout(() => win.print(), 300);
+        let list = State.invoices.filter(inv => 
+            inv.customer_id === partyId || inv.supplier_id === partyId
+        );
+
+        // Apply filter
+        if (State.invoicesFilter === 'sale') {
+            list = list.filter(i => i.type === 'sale');
+        } else if (State.invoicesFilter === 'purchase') {
+            list = list.filter(i => i.type === 'purchase');
+        } else if (State.invoicesFilter === 'credit') {
+            list = list.filter(i => i.status === 'credit' || i.status === 'partial');
+        }
+
+        // Sort by date descending
+        list.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+
+        if (!list.length) {
+            container.innerHTML = `
+                <div class="party-invoices-empty">
+                    <i class="fas fa-file-invoice"></i>
+                    <p>لا توجد فواتير</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = list.map(inv => {
+            const total = Number(inv.total) || 0;
+            const isPurchase = inv.type === 'purchase';
+            const statusClass = inv.status || 'paid';
+            const statusLabel = {
+                paid: 'مدفوعة',
+                partial: 'جزئية',
+                credit: 'آجلة',
+                held: 'معلقة'
+            }[inv.status] || 'مدفوعة';
+
+            return `
+                <div class="party-invoice-item" data-invoice-id="${inv.id}">
+                    <div class="party-invoice-item__icon ${isPurchase ? 'purchase' : ''}">
+                        <i class="fas fa-${isPurchase ? 'shopping-cart' : 'file-invoice'}"></i>
+                    </div>
+                    <div class="party-invoice-item__info">
+                        <div class="party-invoice-item__number">${U.escape(inv.invoice_number || '---')}</div>
+                        <div class="party-invoice-item__date">${U.date(inv.date || inv.created_at)}</div>
+                    </div>
+                    <div class="party-invoice-item__amount">${U.money(total)}</div>
+                    <div class="party-invoice-item__status ${statusClass}">${statusLabel}</div>
+                </div>
+            `;
+        }).join('');
+
+        // Bind clicks
+        container.querySelectorAll('.party-invoice-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const invoiceId = el.dataset.invoiceId;
+                openInvoiceInInvoicesPage(invoiceId);
+            });
+        });
+    }
+
+    function openInvoiceInInvoicesPage(invoiceId) {
+        // Navigate to invoices page with the invoice parameter
+        window.location.href = `./invoices.html?invoice=${invoiceId}`;
     }
 
     /* ============================================
@@ -817,11 +973,6 @@
         if (listView) listView.style.display = '';
     }
 
-    function showLoading() {
-        const bar = $('#loading-bar');
-        if (bar) bar.style.width = '70%';
-    }
-
     function hideLoadingBar() {
         const bar = $('#loading-bar');
         if (bar) {
@@ -928,10 +1079,7 @@
 
         // Tabs
         $$('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                switchTab(btn.dataset.type);
-                renderSummary();
-            });
+            btn.addEventListener('click', () => switchTab(btn.dataset.type));
         });
 
         // Add
@@ -969,14 +1117,35 @@
             btn.addEventListener('click', () => setPartyType(btn.dataset.type));
         });
 
+        // Payment methods
+        $$('.method-btn').forEach(btn => {
+            btn.addEventListener('click', () => setPaymentMethod(btn.dataset.method));
+        });
+
         // Save
         $('#savePartyBtn')?.addEventListener('click', saveParty);
 
         // Delete
         $('#confirmDeleteBtn')?.addEventListener('click', confirmDelete);
 
-        // Print statement
-        $('#printStatementBtn')?.addEventListener('click', printStatement);
+        // Filter pills (invoices)
+        $$('.filter-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                State.invoicesFilter = pill.dataset.filter;
+                $$('.filter-pill').forEach(b => b.classList.toggle('active', b === pill));
+                if (State.viewingId) renderPartyInvoices(State.viewingId);
+            });
+        });
+
+        // Go to invoices page
+        $('#gotoInvoicesBtn')?.addEventListener('click', () => {
+            if (State.viewingId) {
+                const p = State.parties.find(x => x.id === State.viewingId);
+                if (p) {
+                    window.location.href = `./invoices.html?party=${State.viewingId}&type=${p.type}`;
+                }
+            }
+        });
 
         // Modals
         document.querySelectorAll('[data-close]').forEach(btn => {
