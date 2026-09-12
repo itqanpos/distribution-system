@@ -1,5 +1,6 @@
 /* =============================================
    pos.js - Point of Sale Logic
+   v4.0 - Min/Max Price + Direct Search
    ============================================= */
 (function() {
     'use strict';
@@ -62,7 +63,6 @@
         await loadData();
         restoreCart();
         updateHeldCount();
-        initQuickSearch();
 
         hideLoadingBar();
         console.log('✅ POS ready');
@@ -101,7 +101,6 @@
     function updateUserUI() {
         const avatar = $('#userAvatar');
         const name = $('#sidebarUserName');
-
         if (avatar) avatar.textContent = (State.currentUser.fullName || 'U')[0].toUpperCase();
         if (name) name.textContent = State.currentUser.fullName || 'مدير';
     }
@@ -210,106 +209,27 @@
     }
 
     /* ============================================
-       Quick Search
+       Direct Product Search (بدون مودال)
        ============================================ */
-    function initQuickSearch() {
-        const openBtn = $('#openProductSearchBtn');
-        const modal = $('#quickSearchModal');
-        const overlay = $('#quickSearchOverlay');
-        const closeBtn = $('#closeQuickSearch');
-        const input = $('#quickSearchInput');
-        const results = $('#quickSearchResults');
-
-        if (!openBtn || !modal) return;
-
-        function renderEmpty() {
-            if (!results) return;
-            results.innerHTML = `
-                <div class="quick-search-empty">
-                    <i class="fas fa-search"></i>
-                    <p>ابدأ الكتابة للبحث...</p>
-                </div>
-            `;
-        }
-
-        function openSearch() {
-            modal.classList.add('show');
-            setTimeout(() => input?.focus(), 150);
-        }
-
-        function closeSearch() {
-            modal.classList.remove('show');
-            if (input) input.value = '';
-            renderEmpty();
-        }
-
-        function renderResults(term) {
-            if (!term) { renderEmpty(); return; }
-            if (!results) return;
-
-            const t = term.toLowerCase();
-            const filtered = State.products.filter(p =>
-                (p.name || '').toLowerCase().includes(t) ||
-                (p.barcode || '').includes(term) ||
-                (p.code || '').includes(term)
-            ).slice(0, 30);
-
-            if (!filtered.length) {
-                results.innerHTML = `
-                    <div class="quick-search-empty">
-                        <i class="fas fa-box-open"></i>
-                        <p>لا توجد نتائج</p>
-                    </div>
-                `;
-                return;
+    function openProductSearch() {
+        // على الجوال: افتح لوحة المنتجات
+        if (window.innerWidth <= 900) {
+            $('#productsArea')?.classList.add('show');
+            setTimeout(() => {
+                const input = $('#productSearch');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 350);
+        } else {
+            // على الكمبيوتر: التركيز على حقل البحث
+            const input = $('#productSearch');
+            if (input) {
+                input.focus();
+                input.select();
             }
-
-            results.innerHTML = filtered.map(p => {
-                const base = p.units?.[0] || { price: 0, stock: 0 };
-                const stock = base.stock || 0;
-                const stockClass = stock > 0 ? 'in' : 'out';
-
-                return `
-                    <div class="quick-search-item" data-id="${p.id}">
-                        <div class="quick-search-item__info">
-                            <div class="quick-search-item__name">${U.escape(p.name)}</div>
-                            <div class="quick-search-item__price">${U.money(base.price)}</div>
-                        </div>
-                        <div class="quick-search-item__stock ${stockClass}">${stock}</div>
-                    </div>
-                `;
-            }).join('');
-
-            results.querySelectorAll('.quick-search-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const productId = item.dataset.id;
-                    closeSearch();
-                    setTimeout(() => openUnitModal(productId), 200);
-                });
-            });
         }
-
-        openBtn.addEventListener('click', openSearch);
-        overlay?.addEventListener('click', closeSearch);
-        closeBtn?.addEventListener('click', closeSearch);
-
-        input?.addEventListener('input', U.debounce((e) => {
-            renderResults(e.target.value.trim());
-        }, 150));
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.classList.contains('show')) {
-                closeSearch();
-            }
-        });
-
-        // اختصار F3
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'F3') {
-                e.preventDefault();
-                openSearch();
-            }
-        });
     }
 
     /* ============================================
@@ -331,6 +251,10 @@
         ).join('');
 
         updateUnitFields();
+
+        // إغلاق لوحة المنتجات على الجوال
+        if (window.innerWidth <= 900) $('#productsArea')?.classList.remove('show');
+
         openModal('unitModal');
 
         setTimeout(() => {
@@ -353,6 +277,51 @@
         const max = u === base ? stock : Math.floor(stock / factor);
 
         $('#stockInfo').textContent = `المخزون المتاح: ${max} ${u.name}`;
+
+        // ✅ عرض النطاق السعري
+        updatePriceRangeHint(u);
+    }
+
+    function updatePriceRangeHint(unit) {
+        const hint = $('#priceRangeHint');
+        const errorEl = $('#priceLimitError');
+
+        if (!hint) return;
+
+        const hasMin = unit.minPrice > 0;
+        const hasMax = unit.maxPrice > 0;
+
+        if (hasMin || hasMax) {
+            const minLabel = hasMin ? U.money(unit.minPrice) : 'بدون حد';
+            const maxLabel = hasMax ? U.money(unit.maxPrice) : 'بدون حد';
+            hint.innerHTML = `
+                <i class="fas fa-tags"></i>
+                <span>نطاق السعر المسموح: <strong>${minLabel}</strong> إلى <strong>${maxLabel}</strong></span>
+            `;
+            hint.style.display = 'flex';
+        } else {
+            hint.style.display = 'none';
+        }
+
+        if (errorEl) errorEl.style.display = 'none';
+    }
+
+    function validatePrice(price, unit) {
+        if (!unit) return { valid: true };
+
+        if (unit.minPrice > 0 && price < unit.minPrice) {
+            return {
+                valid: false,
+                message: `لا يمكن أقل من ${U.money(unit.minPrice)}`
+            };
+        }
+        if (unit.maxPrice > 0 && price > unit.maxPrice) {
+            return {
+                valid: false,
+                message: `لا يمكن أعلى من ${U.money(unit.maxPrice)}`
+            };
+        }
+        return { valid: true };
     }
 
     /* ============================================
@@ -364,6 +333,13 @@
 
         const unit = product.units[unitIndex];
         if (!unit) return;
+
+        // ✅ التحقق من النطاق السعري
+        const validation = validatePrice(price, unit);
+        if (!validation.valid) {
+            showToast(validation.message, 'error');
+            return;
+        }
 
         const existing = State.cart.find(i =>
             i.productId === productId && i.unitName === unit.name
@@ -380,7 +356,9 @@
                 quantity: qty,
                 price: price,
                 cost: unit.cost || 0,
-                factor: unit.factor || 1
+                factor: unit.factor || 1,
+                minPrice: unit.minPrice || 0,
+                maxPrice: unit.maxPrice || 0
             });
         }
 
@@ -407,28 +385,41 @@
             return;
         }
 
-        container.innerHTML = State.cart.map((item, idx) => `
-            <div class="cart-item" data-idx="${idx}">
-                <div>
-                    <div class="cart-item__name">${U.escape(item.productName)}</div>
-                    <div class="cart-item__unit">${U.escape(item.unitName)} · ${U.money(item.price)}</div>
-                    <div class="cart-item__controls">
-                        <button class="qty-btn" data-action="dec"><i class="fas fa-minus"></i></button>
-                        <input type="number" class="cart-item__qty" value="${item.quantity}" min="0.001" step="0.001" data-action="qty" inputmode="decimal">
-                        <button class="qty-btn" data-action="inc"><i class="fas fa-plus"></i></button>
-                    </div>
-                </div>
-                <div class="cart-item__price">${U.money(item.price * item.quantity)}</div>
-                <button class="cart-item__remove" data-action="remove"><i class="fas fa-times"></i></button>
-            </div>
-        `).join('');
+        container.innerHTML = State.cart.map((item, idx) => {
+            const hasLimits = (item.minPrice > 0) || (item.maxPrice > 0);
+            const rangeTitle = hasLimits 
+                ? `الحد: ${item.minPrice || 0} - ${item.maxPrice || '∞'}` 
+                : '';
 
+            return `
+                <div class="cart-item" data-idx="${idx}">
+                    <div>
+                        <div class="cart-item__name">${U.escape(item.productName)}</div>
+                        <div class="cart-item__unit">
+                            ${U.escape(item.unitName)}
+                            ${hasLimits ? ` · <span style="color:var(--warning);font-weight:800;">${rangeTitle}</span>` : ''}
+                        </div>
+                        <div class="cart-item__controls">
+                            <button class="qty-btn" data-action="dec"><i class="fas fa-minus"></i></button>
+                            <input type="number" class="cart-item__qty" value="${item.quantity}" min="0.001" step="0.001" data-action="qty" inputmode="decimal">
+                            <button class="qty-btn" data-action="inc"><i class="fas fa-plus"></i></button>
+                            <input type="number" class="cart-item__price-input" value="${item.price}" step="0.01" min="0" data-action="price" inputmode="decimal" title="تعديل السعر">
+                        </div>
+                    </div>
+                    <div class="cart-item__price">${U.money(item.price * item.quantity)}</div>
+                    <button class="cart-item__remove" data-action="remove"><i class="fas fa-times"></i></button>
+                </div>
+            `;
+        }).join('');
+
+        // Bind actions
         container.querySelectorAll('.cart-item').forEach(itemEl => {
             const idx = +itemEl.dataset.idx;
 
+            // Click actions
             itemEl.addEventListener('click', (e) => {
                 const action = e.target.closest('[data-action]')?.dataset.action;
-                if (!action || action === 'qty') return;
+                if (!action || action === 'qty' || action === 'price') return;
 
                 const item = State.cart[idx];
                 if (!item) return;
@@ -445,6 +436,7 @@
                 saveCart();
             });
 
+            // Qty change
             itemEl.querySelector('[data-action="qty"]')?.addEventListener('change', (e) => {
                 const v = +e.target.value;
                 if (!isNaN(v) && v > 0) {
@@ -452,6 +444,37 @@
                     renderCart();
                     saveCart();
                 }
+            });
+
+            // ✅ Price change (with validation)
+            itemEl.querySelector('[data-action="price"]')?.addEventListener('change', (e) => {
+                const input = e.target;
+                const v = +input.value || 0;
+                const item = State.cart[idx];
+
+                if (!item) return;
+
+                // التحقق من النطاق
+                const validation = validatePrice(v, {
+                    minPrice: item.minPrice || 0,
+                    maxPrice: item.maxPrice || 0
+                });
+
+                if (!validation.valid) {
+                    input.classList.add('invalid');
+                    showToast(validation.message, 'error');
+                    // إعادة القيمة الأصلية بعد تأخير بسيط
+                    setTimeout(() => {
+                        input.value = item.price;
+                        input.classList.remove('invalid');
+                    }, 1200);
+                    return;
+                }
+
+                input.classList.remove('invalid');
+                item.price = v;
+                renderCart();
+                saveCart();
             });
         });
 
@@ -1159,7 +1182,10 @@
             }
         });
 
-        // Mobile products panel (close button)
+        // ✅ Quick search button (بدون مودال)
+        $('#openProductSearchBtn')?.addEventListener('click', openProductSearch);
+
+        // Mobile close products panel
         $('#closeProductsBtn')?.addEventListener('click', () => {
             $('#productsArea')?.classList.remove('show');
         });
@@ -1205,6 +1231,22 @@
             updateUnitFields();
         });
 
+        // ✅ Live price validation in unit modal
+        $('#unitPrice')?.addEventListener('input', () => {
+            const price = +$('#unitPrice')?.value || 0;
+            const u = State.selectedUnit;
+            const errorEl = $('#priceLimitError');
+            if (!u || !errorEl) return;
+
+            const validation = validatePrice(price, u);
+            if (!validation.valid) {
+                errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${validation.message}`;
+                errorEl.style.display = 'flex';
+            } else {
+                errorEl.style.display = 'none';
+            }
+        });
+
         $('#unitAddBtn')?.addEventListener('click', () => {
             const idx = State.selectedProduct.units.indexOf(State.selectedUnit);
             const qty = +$('#unitQty').value || 0;
@@ -1212,6 +1254,18 @@
 
             if (qty <= 0) {
                 showToast('أدخل كمية صحيحة', 'warning');
+                return;
+            }
+
+            // ✅ تحقق من السعر
+            const validation = validatePrice(price, State.selectedUnit);
+            if (!validation.valid) {
+                const errorEl = $('#priceLimitError');
+                if (errorEl) {
+                    errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${validation.message}`;
+                    errorEl.style.display = 'flex';
+                }
+                showToast(validation.message, 'error');
                 return;
             }
 
@@ -1250,15 +1304,15 @@
             });
         });
 
-        // Keyboard shortcuts (desktop only)
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (window.innerWidth <= 900) return;
-            if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch' && e.target.id !== 'quickSearchInput') {
+            if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch') {
                 if (e.key === 'Escape') e.target.blur();
                 return;
             }
             if (e.key === 'F1') { e.preventDefault(); $('#customerSearch')?.focus(); }
             if (e.key === 'F2') { e.preventDefault(); $('#productSearch')?.focus(); }
+            if (e.key === 'F3') { e.preventDefault(); openProductSearch(); }
             if (e.key === 'F4') { e.preventDefault(); if (State.cart.length) openPayment(); }
             if (e.key === 'F5') { e.preventDefault(); holdCurrentSale(); }
             if (e.key === 'Escape') {
