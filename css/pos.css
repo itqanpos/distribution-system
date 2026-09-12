@@ -1,5 +1,5 @@
 /* =============================================
-   pos.css - تصميMI الأصلي + Safe Area + زر البحث
+   pos.css - Point of Sale Styles
    ============================================= */
 
 :root {
@@ -36,13 +36,21 @@ body {
 
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand__logo {
-    width: 40px; height: 40px;
+    width: 42px; height: 42px;
     background: linear-gradient(135deg, var(--primary), #7c3aed);
     color: #fff;
     border-radius: 12px;
     display: grid; place-items: center;
     font-size: 18px;
     box-shadow: 0 6px 16px -6px var(--primary);
+    overflow: hidden;
+    padding: 4px;
+}
+.brand__logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
 }
 .brand__text { display: flex; flex-direction: column; line-height: 1.2; }
 .brand__name { font-weight: 800; font-size: 14px; }
@@ -122,7 +130,12 @@ body {
     border-bottom: 1px solid var(--border);
     text-align: center;
 }
-.sidebar__header .brand__logo { margin: 0 auto 12px; }
+.sidebar__header .brand__logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 12px;
+    font-size: 28px;
+}
 .sidebar__header h3 { font-size: 16px; font-weight: 800; }
 .sidebar__nav {
     flex: 1;
@@ -133,7 +146,7 @@ body {
     overflow-y: auto;
 }
 .nav-item {
-    padding: 14px 16px;
+    padding: 13px 16px;
     border-radius: 12px;
     color: var(--text-soft);
     text-decoration: none;
@@ -144,7 +157,7 @@ body {
     gap: 12px;
     transition: all 0.2s;
 }
-.nav-item i { width: 20px; text-align: center; }
+.nav-item i { width: 20px; text-align: center; font-size: 15px; }
 .nav-item:hover { background: var(--bg-sunken); color: var(--text); }
 .nav-item.active { background: var(--primary); color: #fff; }
 
@@ -304,6 +317,9 @@ body {
     border-bottom: 1px solid var(--border);
     position: relative;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 .customer-input-wrap {
     position: relative;
@@ -339,9 +355,112 @@ body {
     background: transparent;
 }
 
+/* ✅ زر البحث عن المنتجات (بديل الزر العائم) */
+.product-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--primary-light), rgba(124, 58, 237, 0.08));
+    border: 2px dashed var(--primary);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: inherit;
+    text-align: right;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+.product-search-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.5s;
+}
+.product-search-btn:hover::before {
+    left: 100%;
+}
+.product-search-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    border-style: solid;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -6px var(--primary);
+}
+.product-search-btn:hover .product-search-btn__text span,
+.product-search-btn:hover .product-search-btn__text small,
+.product-search-btn:hover .product-search-btn__arrow {
+    color: #fff;
+}
+
+.product-search-btn__icon {
+    width: 42px;
+    height: 42px;
+    background: var(--primary);
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: all 0.25s;
+    overflow: hidden;
+    padding: 4px;
+}
+.product-search-btn__icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    filter: brightness(0) invert(1);
+}
+.product-search-btn:hover .product-search-btn__icon {
+    background: #fff;
+}
+.product-search-btn:hover .product-search-btn__icon img {
+    filter: none;
+}
+.product-search-btn:hover .product-search-btn__icon i {
+    color: var(--primary);
+}
+
+.product-search-btn__text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.product-search-btn__text span {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--primary);
+    transition: color 0.25s;
+}
+.product-search-btn__text small {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    transition: color 0.25s;
+}
+.product-search-btn__arrow {
+    color: var(--primary);
+    font-size: 14px;
+    transition: all 0.25s;
+    flex-shrink: 0;
+}
+.product-search-btn:hover .product-search-btn__arrow {
+    transform: translateX(-4px);
+}
+
 .customer-dropdown {
     position: absolute;
-    top: calc(100% - 8px);
+    top: calc(100% - 60px);
     left: 14px;
     right: 14px;
     background: var(--bg-elev);
@@ -380,7 +499,6 @@ body {
 .cust-item__balance.zero { background: var(--bg-sunken); color: var(--text-muted); }
 
 .customer-info {
-    margin-top: 6px;
     font-size: 12px;
     font-weight: 700;
     min-height: 16px;
@@ -580,38 +698,7 @@ body {
 }
 .mobile-close-btn:active { transform: scale(0.9); }
 
-/* =============================================
-   ✅ زر البحث العائم
-   ============================================= */
-.fab-search {
-    display: none;
-    position: fixed;
-    bottom: calc(20px + var(--safe-bottom));
-    left: calc(20px + var(--safe-left));
-    height: 56px;
-    padding: 0 22px;
-    border-radius: 28px;
-    background: linear-gradient(135deg, var(--primary), #7c3aed);
-    color: #fff;
-    border: none;
-    box-shadow: 0 8px 24px -4px rgba(79, 70, 229, 0.5);
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 800;
-    z-index: 150;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.3s;
-    -webkit-tap-highlight-color: transparent;
-    font-family: inherit;
-}
-.fab-search:active { transform: scale(0.93); }
-.fab-search__label { font-size: 14px; font-weight: 800; }
-
-/* =============================================
-   ✅ نافذة البحث السريع
-   ============================================= */
+/* ============ Quick Search Modal ============ */
 .quick-search-modal {
     display: none;
     position: fixed;
@@ -634,17 +721,17 @@ body {
 
 .quick-search-content {
     position: absolute;
-    top: calc(15% + var(--safe-top));
+    top: calc(10% + var(--safe-top));
     left: 50%;
     transform: translateX(-50%);
     width: calc(92% - var(--safe-left) - var(--safe-right));
-    max-width: 500px;
+    max-width: 560px;
     background: var(--bg-elev);
-    border-radius: 16px;
+    border-radius: 20px;
     box-shadow: var(--shadow-lg);
     overflow: hidden;
     animation: slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    max-height: 70vh;
+    max-height: 75vh;
     display: flex;
     flex-direction: column;
 }
@@ -656,13 +743,32 @@ body {
 .quick-search-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px 16px;
+    gap: 12px;
+    padding: 16px 18px;
     border-bottom: 1px solid var(--border);
+    background: var(--bg-elev);
 }
-.quick-search-header > i {
-    color: var(--text-muted);
-    font-size: 16px;
+.quick-search-header__logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    padding: 5px;
+}
+.quick-search-header__logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    filter: brightness(0) invert(1);
+}
+.quick-search-header__logo i {
+    color: #fff;
+    font-size: 18px;
 }
 .quick-search-header input {
     flex: 1;
@@ -680,8 +786,8 @@ body {
     font-weight: 500;
 }
 .quick-search-close {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border: none;
     background: var(--bg-sunken);
     color: var(--text-soft);
@@ -703,7 +809,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 8px;
-    max-height: 55vh;
+    max-height: 60vh;
 }
 .quick-search-empty {
     text-align: center;
@@ -711,7 +817,7 @@ body {
     color: var(--text-faint);
 }
 .quick-search-empty i {
-    font-size: 44px;
+    font-size: 48px;
     opacity: 0.3;
     display: block;
     margin-bottom: 12px;
@@ -745,7 +851,7 @@ body {
 }
 .quick-search-item__price {
     color: var(--primary);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
 }
 .quick-search-item__stock {
@@ -874,7 +980,6 @@ body {
     text-align: center;
 }
 
-/* Payment */
 .payment-summary {
     background: var(--bg-sunken);
     border-radius: 14px;
@@ -966,7 +1071,6 @@ body {
 .change-display strong { font-size: 20px; }
 .change-display.is-short { background: rgba(239,68,68,0.15); color: var(--danger); }
 
-/* Receipt */
 .receipt-toolbar {
     padding: 12px 16px;
     display: flex;
@@ -1013,7 +1117,6 @@ body {
 .receipt-table th:last-child,
 .receipt-table td:last-child { text-align: left; }
 
-/* Held invoices */
 .held-item {
     padding: 14px;
     background: var(--bg-sunken);
@@ -1068,7 +1171,6 @@ body {
     }
 
     .mobile-close-btn { display: flex; }
-    .fab-search { display: flex; }
 
     .cart-area {
         border-right: none;
@@ -1098,4 +1200,7 @@ body {
     .user-chip__avatar { width: 32px; height: 32px; font-size: 13px; }
     .payment-methods { grid-template-columns: repeat(2, 1fr); }
     .form-grid { grid-template-columns: 1fr; }
+
+    .product-search-btn__icon { width: 38px; height: 38px; }
+    .product-search-btn__text span { font-size: 13px; }
 }
