@@ -56,58 +56,28 @@
             <h3 id="sidebarUserName">مدير</h3>
         </div>
         <nav class="sidebar__nav">
-            <a href="./dashboard.html" class="nav-item">
-                <i class="fas fa-tachometer-alt"></i> لوحة التحكم
-            </a>
-            <a href="./pos.html" class="nav-item active">
-                <i class="fas fa-cash-register"></i> نقطة البيع
-            </a>
-            <a href="./invoices.html" class="nav-item">
-                <i class="fas fa-file-invoice"></i> الفواتير
-            </a>
-            <a href="./purchases.html" class="nav-item">
-                <i class="fas fa-shopping-cart"></i> المشتريات
-            </a>
-            <a href="./returns.html" class="nav-item">
-                <i class="fas fa-undo-alt"></i> المرتجعات
-            </a>
-            <a href="./cashbox.html" class="nav-item">
-                <i class="fas fa-money-bill-wave"></i> الصندوق
-            </a>
-            <a href="./accounting.html" class="nav-item">
-                <i class="fas fa-calculator"></i> المحاسبة
-            </a>
-            <a href="./reports.html" class="nav-item">
-                <i class="fas fa-chart-bar"></i> التقارير
-            </a>
-            <a href="./customers.html" class="nav-item">
-                <i class="fas fa-users"></i> العملاء
-            </a>
-            <a href="./suppliers.html" class="nav-item">
-                <i class="fas fa-truck"></i> الموردين
-            </a>
-            <a href="./products.html" class="nav-item">
-                <i class="fas fa-boxes"></i> المنتجات
-            </a>
-            <a href="./inventory.html" class="nav-item">
-                <i class="fas fa-warehouse"></i> المخزون
-            </a>
-            <a href="./users.html" class="nav-item">
-                <i class="fas fa-user-shield"></i> المستخدمين
-            </a>
-            <a href="./settings.html" class="nav-item">
-                <i class="fas fa-cog"></i> الإعدادات
-            </a>
-            <a href="#" class="nav-item" id="logoutBtn">
-                <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
-            </a>
+            <a href="./dashboard.html" class="nav-item"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a>
+            <a href="./pos.html" class="nav-item active"><i class="fas fa-cash-register"></i> نقطة البيع</a>
+            <a href="./invoices.html" class="nav-item"><i class="fas fa-file-invoice"></i> الفواتير</a>
+            <a href="./purchases.html" class="nav-item"><i class="fas fa-shopping-cart"></i> المشتريات</a>
+            <a href="./returns.html" class="nav-item"><i class="fas fa-undo-alt"></i> المرتجعات</a>
+            <a href="./cashbox.html" class="nav-item"><i class="fas fa-money-bill-wave"></i> الصندوق</a>
+            <a href="./accounting.html" class="nav-item"><i class="fas fa-calculator"></i> المحاسبة</a>
+            <a href="./reports.html" class="nav-item"><i class="fas fa-chart-bar"></i> التقارير</a>
+            <a href="./customers.html" class="nav-item"><i class="fas fa-users"></i> العملاء</a>
+            <a href="./suppliers.html" class="nav-item"><i class="fas fa-truck"></i> الموردين</a>
+            <a href="./products.html" class="nav-item"><i class="fas fa-boxes"></i> المنتجات</a>
+            <a href="./inventory.html" class="nav-item"><i class="fas fa-warehouse"></i> المخزون</a>
+            <a href="./users.html" class="nav-item"><i class="fas fa-user-shield"></i> المستخدمين</a>
+            <a href="./settings.html" class="nav-item"><i class="fas fa-cog"></i> الإعدادات</a>
+            <a href="#" class="nav-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
         </nav>
     </aside>
 
     <!-- ============ التخطيط الرئيسي ============ -->
     <main class="layout">
 
-        <!-- منطقة المنتجات (للتابلت والكمبيوتر) -->
+        <!-- منطقة المنتجات -->
         <section class="products-area" id="productsArea">
             <button class="mobile-close-btn" id="closeProductsBtn" aria-label="إغلاق">
                 <i class="fas fa-times"></i>
@@ -120,9 +90,7 @@
 
             <div class="category-tabs" id="categoryTabs"></div>
 
-            <div class="products-grid" id="productsGrid">
-                <!-- تُملأ ديناميكياً -->
-            </div>
+            <div class="products-grid" id="productsGrid"></div>
         </section>
 
         <!-- منطقة السلة -->
@@ -139,7 +107,7 @@
                 <div class="customer-dropdown" id="customerDropdown"></div>
                 <div class="customer-info" id="customerInfo"></div>
 
-                <!-- ✅ زر البحث عن المنتجات (بديل الزر العائم) -->
+                <!-- ✅ زر البحث السريع (بدون مودال) -->
                 <button class="product-search-btn" id="openProductSearchBtn">
                     <div class="product-search-btn__icon">
                         <img src="./icons/icon-192x192.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
@@ -147,7 +115,7 @@
                     </div>
                     <div class="product-search-btn__text">
                         <span>البحث عن منتج</span>
-                        <small>اضغط للبحث أو إضافة صنف</small>
+                        <small>اضغط للبحث السريع (F3)</small>
                     </div>
                     <i class="fas fa-chevron-left product-search-btn__arrow"></i>
                 </button>
@@ -178,12 +146,12 @@
                         <input type="number" id="discountValue" value="0" min="0" step="0.01">
                         <select id="discountType">
                             <option value="amount">ج.م</option>
-                            <option value="percent">%</option>
+                            <option value="percent">total%</option>
                         </select>
                     </div>
-                </div>
-                <div class="summary-row summary-row--total">
-                    <span>الصافي</span>
+               ">
+ </div>
+                <                   div class="summary-row summary-row-- <span>الصافي</span>
                     <span id="netTotal">0.00 ج.م</span>
                 </div>
 
@@ -198,27 +166,6 @@
             </div>
         </aside>
     </main>
-
-    <!-- ============ نافذة البحث السريع عن المنتجات ============ -->
-    <div class="quick-search-modal" id="quickSearchModal">
-        <div class="quick-search-overlay" id="quickSearchOverlay"></div>
-        <div class="quick-search-content">
-            <div class="quick-search-header">
-                <div class="quick-search-header__logo">
-                    <img src="./icons/icon-192x192.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
-                    <i class="fas fa-search" style="display:none;"></i>
-                </div>
-                <input type="text" id="quickSearchInput" placeholder="ابحث عن منتج..." autocomplete="off">
-                <button class="quick-search-close" id="closeQuickSearch" aria-label="إغلاق">&times;</button>
-            </div>
-            <div class="quick-search-results" id="quickSearchResults">
-                <div class="quick-search-empty">
-                    <i class="fas fa-search"></i>
-                    <p>ابدأ الكتابة للبحث...</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- ========== مودال: اختيار الوحدة والكمية ========== -->
     <div class="modal" id="unitModal">
@@ -243,6 +190,9 @@
                     </div>
                 </div>
                 <div class="stock-info" id="stockInfo"></div>
+                <!-- ✅ عرض نطاق السعر المسموح -->
+                <div class="price-range-hint" id="priceRangeHint" style="display:none;"></div>
+                <div class="price-limit-error" id="priceLimitError" style="display:none;"></div>
             </div>
             <div class="modal__footer">
                 <button class="btn btn--ghost" data-close="unitModal">إلغاء</button>
