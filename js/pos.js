@@ -1,6 +1,5 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Design: Topbar + Products Area + Cart Area + Quick Search
    ============================================= */
 (function() {
     'use strict';
@@ -31,7 +30,6 @@
     async function init() {
         console.log('🚀 POS init...');
 
-        // 1. انتظر تحميل Supabase
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
@@ -46,7 +44,6 @@
 
         await new Promise(r => setTimeout(r, 300));
 
-        // 2. المصادقة
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -57,21 +54,14 @@
 
         console.log('👤 User:', State.currentUser.email);
 
-        // 3. تحديث الواجهة
         updateUserUI();
         updateConnStatus();
-
-        // 4. ربط الأحداث
+        initTheme();
         bindEvents();
 
-        // 5. تحميل البيانات
         await loadData();
-
-        // 6. استعادة السلة
         restoreCart();
         updateHeldCount();
-
-        // 7. تفعيل البحث السريع
         initQuickSearch();
 
         hideLoadingBar();
@@ -220,15 +210,106 @@
     }
 
     /* ============================================
-       Mobile Products Panel
+       Quick Search
        ============================================ */
-    function openProductsPanel() {
-        $('#productsArea')?.classList.add('show');
-        setTimeout(() => $('#productSearch')?.focus(), 300);
-    }
+    function initQuickSearch() {
+        const openBtn = $('#openProductSearchBtn');
+        const modal = $('#quickSearchModal');
+        const overlay = $('#quickSearchOverlay');
+        const closeBtn = $('#closeQuickSearch');
+        const input = $('#quickSearchInput');
+        const results = $('#quickSearchResults');
 
-    function closeProductsPanel() {
-        $('#productsArea')?.classList.remove('show');
+        if (!openBtn || !modal) return;
+
+        function renderEmpty() {
+            if (!results) return;
+            results.innerHTML = `
+                <div class="quick-search-empty">
+                    <i class="fas fa-search"></i>
+                    <p>ابدأ الكتابة للبحث...</p>
+                </div>
+            `;
+        }
+
+        function openSearch() {
+            modal.classList.add('show');
+            setTimeout(() => input?.focus(), 150);
+        }
+
+        function closeSearch() {
+            modal.classList.remove('show');
+            if (input) input.value = '';
+            renderEmpty();
+        }
+
+        function renderResults(term) {
+            if (!term) { renderEmpty(); return; }
+            if (!results) return;
+
+            const t = term.toLowerCase();
+            const filtered = State.products.filter(p =>
+                (p.name || '').toLowerCase().includes(t) ||
+                (p.barcode || '').includes(term) ||
+                (p.code || '').includes(term)
+            ).slice(0, 30);
+
+            if (!filtered.length) {
+                results.innerHTML = `
+                    <div class="quick-search-empty">
+                        <i class="fas fa-box-open"></i>
+                        <p>لا توجد نتائج</p>
+                    </div>
+                `;
+                return;
+            }
+
+            results.innerHTML = filtered.map(p => {
+                const base = p.units?.[0] || { price: 0, stock: 0 };
+                const stock = base.stock || 0;
+                const stockClass = stock > 0 ? 'in' : 'out';
+
+                return `
+                    <div class="quick-search-item" data-id="${p.id}">
+                        <div class="quick-search-item__info">
+                            <div class="quick-search-item__name">${U.escape(p.name)}</div>
+                            <div class="quick-search-item__price">${U.money(base.price)}</div>
+                        </div>
+                        <div class="quick-search-item__stock ${stockClass}">${stock}</div>
+                    </div>
+                `;
+            }).join('');
+
+            results.querySelectorAll('.quick-search-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const productId = item.dataset.id;
+                    closeSearch();
+                    setTimeout(() => openUnitModal(productId), 200);
+                });
+            });
+        }
+
+        openBtn.addEventListener('click', openSearch);
+        overlay?.addEventListener('click', closeSearch);
+        closeBtn?.addEventListener('click', closeSearch);
+
+        input?.addEventListener('input', U.debounce((e) => {
+            renderResults(e.target.value.trim());
+        }, 150));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('show')) {
+                closeSearch();
+            }
+        });
+
+        // اختصار F3
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F3') {
+                e.preventDefault();
+                openSearch();
+            }
+        });
     }
 
     /* ============================================
@@ -250,10 +331,6 @@
         ).join('');
 
         updateUnitFields();
-
-        // إغلاق لوحة المنتجات على الجوال
-        if (window.innerWidth <= 900) closeProductsPanel();
-
         openModal('unitModal');
 
         setTimeout(() => {
@@ -1026,101 +1103,6 @@
     }
 
     /* ============================================
-       Quick Search (زر البحث العائم)
-       ============================================ */
-    function initQuickSearch() {
-        const fab = document.getElementById('fabSearchBtn');
-        const modal = document.getElementById('quickSearchModal');
-        const overlay = document.getElementById('quickSearchOverlay');
-        const closeBtn = document.getElementById('closeQuickSearch');
-        const input = document.getElementById('quickSearchInput');
-        const results = document.getElementById('quickSearchResults');
-
-        if (!fab || !modal) return;
-
-        function renderEmpty() {
-            if (!results) return;
-            results.innerHTML = `
-                <div class="quick-search-empty">
-                    <i class="fas fa-search"></i>
-                    <p>ابدأ الكتابة للبحث...</p>
-                </div>
-            `;
-        }
-
-        function openQuickSearch() {
-            modal.classList.add('show');
-            setTimeout(() => input?.focus(), 150);
-        }
-
-        function closeQuickSearch() {
-            modal.classList.remove('show');
-            if (input) input.value = '';
-            renderEmpty();
-        }
-
-        function renderResults(term) {
-            if (!term) { renderEmpty(); return; }
-            if (!results) return;
-
-            const t = term.toLowerCase();
-            const filtered = State.products.filter(p =>
-                (p.name || '').toLowerCase().includes(t) ||
-                (p.barcode || '').includes(term) ||
-                (p.code || '').includes(term)
-            ).slice(0, 25);
-
-            if (!filtered.length) {
-                results.innerHTML = `
-                    <div class="quick-search-empty">
-                        <i class="fas fa-box-open"></i>
-                        <p>لا توجد نتائج</p>
-                    </div>
-                `;
-                return;
-            }
-
-            results.innerHTML = filtered.map(p => {
-                const base = p.units?.[0] || { price: 0, stock: 0 };
-                const stock = base.stock || 0;
-                const stockClass = stock > 0 ? 'in' : 'out';
-
-                return `
-                    <div class="quick-search-item" data-id="${p.id}">
-                        <div class="quick-search-item__info">
-                            <div class="quick-search-item__name">${U.escape(p.name)}</div>
-                            <div class="quick-search-item__price">${U.money(base.price)}</div>
-                        </div>
-                        <div class="quick-search-item__stock ${stockClass}">${stock}</div>
-                    </div>
-                `;
-            }).join('');
-
-            results.querySelectorAll('.quick-search-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const productId = item.dataset.id;
-                    closeQuickSearch();
-                    setTimeout(() => openUnitModal(productId), 200);
-                });
-            });
-        }
-
-        fab.addEventListener('click', openQuickSearch);
-        overlay?.addEventListener('click', closeQuickSearch);
-        closeBtn?.addEventListener('click', closeQuickSearch);
-
-        input?.addEventListener('input', U.debounce((e) => {
-            renderResults(e.target.value.trim());
-        }, 150));
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.classList.contains('show')) {
-                closeQuickSearch();
-            }
-        });
-    }
-
-    /* ============================================
        Events
        ============================================ */
     function bindEvents() {
@@ -1155,7 +1137,7 @@
             await Auth.logout();
         });
 
-        // Product search (desktop/tablet)
+        // Desktop product search
         $('#productSearch')?.addEventListener('input', U.debounce((e) => {
             State.searchTerm = e.target.value.trim();
             renderProductGrid();
@@ -1177,9 +1159,9 @@
             }
         });
 
-        // Mobile products panel
-        $('#fabSearchBtn')?.addEventListener('click', () => {
-            // مفتوح من initQuickSearch
+        // Mobile products panel (close button)
+        $('#closeProductsBtn')?.addEventListener('click', () => {
+            $('#productsArea')?.classList.remove('show');
         });
 
         // Checkout
@@ -1242,7 +1224,7 @@
             if (e.key === 'Enter') $('#unitAddBtn').click();
         });
 
-        // Payment
+        // Payment methods
         $$('.method').forEach(btn => {
             btn.addEventListener('click', () => setPaymentMethod(btn.dataset.method));
         });
@@ -1271,7 +1253,7 @@
         // Keyboard shortcuts (desktop only)
         document.addEventListener('keydown', (e) => {
             if (window.innerWidth <= 900) return;
-            if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch') {
+            if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch' && e.target.id !== 'quickSearchInput') {
                 if (e.key === 'Escape') e.target.blur();
                 return;
             }
@@ -1281,11 +1263,11 @@
             if (e.key === 'F5') { e.preventDefault(); holdCurrentSale(); }
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
-                closeProductsPanel();
+                $('#productsArea')?.classList.remove('show');
             }
         });
 
-        // Connection status
+        // Connection
         window.addEventListener('online', () => {
             updateConnStatus();
             showToast('عاد الاتصال', 'success');
@@ -1300,12 +1282,8 @@
        Start
        ============================================ */
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            initTheme();
-            init();
-        });
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        initTheme();
         init();
     }
 
