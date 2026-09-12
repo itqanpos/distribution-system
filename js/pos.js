@@ -1,6 +1,6 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   v4.0 - Min/Max Price + Direct Search
+   v5.0 - Direct Product Search + Min/Max Price
    ============================================= */
 (function() {
     'use strict';
@@ -154,7 +154,7 @@
     }
 
     /* ============================================
-       Products Grid
+       Products Grid (Desktop)
        ============================================ */
     function renderProductGrid() {
         const grid = $('#productsGrid');
@@ -209,27 +209,121 @@
     }
 
     /* ============================================
-       Direct Product Search (بدون مودال)
+       ✅ Product Search (بنفس تصميم بحث العميل)
        ============================================ */
-    function openProductSearch() {
-        // على الجوال: افتح لوحة المنتجات
-        if (window.innerWidth <= 900) {
-            $('#productsArea')?.classList.add('show');
-            setTimeout(() => {
-                const input = $('#productSearch');
-                if (input) {
-                    input.focus();
-                    input.select();
-                }
-            }, 350);
-        } else {
-            // على الكمبيوتر: التركيز على حقل البحث
-            const input = $('#productSearch');
-            if (input) {
-                input.focus();
-                input.select();
-            }
+    function renderProductDropdown(term) {
+        const dd = $('#productDropdown');
+        if (!dd) return;
+
+        if (!term || term.length < 1) {
+            dd.classList.remove('show');
+            return;
         }
+
+        const t = term.toLowerCase();
+        const filtered = State.products.filter(p =>
+            (p.name || '').toLowerCase().includes(t) ||
+            (p.barcode || '').includes(term) ||
+            (p.code || '').includes(term)
+        ).slice(0, 20);
+
+        if (!filtered.length) {
+            dd.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">لا توجد نتائج</div>`;
+            dd.classList.add('show');
+            return;
+        }
+
+        dd.innerHTML = filtered.map(p => {
+            const base = p.units?.[0] || { price: 0, stock: 0 };
+            const stock = base.stock || 0;
+            const stockClass = stock > 0 ? 'in' : 'out';
+
+            return `
+                <div class="product-option" data-id="${p.id}">
+                    <div class="product-option__info">
+                        <div class="product-option__name">${U.escape(p.name)}</div>
+                        <div class="product-option__meta">${U.money(base.price)} ${p.barcode ? '· ' + U.escape(p.barcode) : ''}</div>
+                    </div>
+                    <div class="product-option__stock ${stockClass}">${stock}</div>
+                </div>
+            `;
+        }).join('');
+
+        dd.classList.add('show');
+
+        dd.querySelectorAll('.product-option').forEach(item => {
+            item.addEventListener('click', () => {
+                const productId = item.dataset.id;
+                const input = $('#productSearchInput');
+                if (input) input.value = '';
+                dd.classList.remove('show');
+                openUnitModal(productId);
+            });
+        });
+    }
+
+    function clearProductSearch() {
+        const input = $('#productSearchInput');
+        if (input) input.value = '';
+        $('#productDropdown')?.classList.remove('show');
+    }
+
+    function bindProductSearch() {
+        const input = $('#productSearchInput');
+        const clearBtn = $('#clearProductBtn');
+
+        if (!input) return;
+
+        // Input search with debounce
+        input.addEventListener('input', U.debounce((e) => {
+            renderProductDropdown(e.target.value.trim());
+        }, 150));
+
+        // Enter key - direct barcode/name search
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const term = e.target.value.trim();
+                if (!term) return;
+
+                // Try barcode first
+                let product = State.products.find(p =>
+                    p.barcode === term || p.code === term
+                );
+
+                // Try name if no barcode match
+                if (!product) {
+                    const t = term.toLowerCase();
+                    product = State.products.find(p =>
+                        (p.name || '').toLowerCase().includes(t)
+                    );
+                }
+
+                if (product) {
+                    e.target.value = '';
+                    $('#productDropdown')?.classList.remove('show');
+                    openUnitModal(product.id);
+                } else {
+                    showToast('لم يتم العثور على المنتج', 'warning');
+                }
+            }
+        });
+
+        // Focus - reopen dropdown if there's a value
+        input.addEventListener('focus', (e) => {
+            if (e.target.value.trim()) {
+                renderProductDropdown(e.target.value.trim());
+            }
+        });
+
+        // Clear button
+        clearBtn?.addEventListener('click', clearProductSearch);
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.product-input-wrap') && !e.target.closest('.product-dropdown')) {
+                $('#productDropdown')?.classList.remove('show');
+            }
+        });
     }
 
     /* ============================================
@@ -252,7 +346,7 @@
 
         updateUnitFields();
 
-        // إغلاق لوحة المنتجات على الجوال
+        // Close product panel on mobile
         if (window.innerWidth <= 900) $('#productsArea')?.classList.remove('show');
 
         openModal('unitModal');
@@ -334,7 +428,7 @@
         const unit = product.units[unitIndex];
         if (!unit) return;
 
-        // ✅ التحقق من النطاق السعري
+        // التحقق من النطاق السعري
         const validation = validatePrice(price, unit);
         if (!validation.valid) {
             showToast(validation.message, 'error');
@@ -416,7 +510,6 @@
         container.querySelectorAll('.cart-item').forEach(itemEl => {
             const idx = +itemEl.dataset.idx;
 
-            // Click actions
             itemEl.addEventListener('click', (e) => {
                 const action = e.target.closest('[data-action]')?.dataset.action;
                 if (!action || action === 'qty' || action === 'price') return;
@@ -436,7 +529,6 @@
                 saveCart();
             });
 
-            // Qty change
             itemEl.querySelector('[data-action="qty"]')?.addEventListener('change', (e) => {
                 const v = +e.target.value;
                 if (!isNaN(v) && v > 0) {
@@ -446,7 +538,7 @@
                 }
             });
 
-            // ✅ Price change (with validation)
+            // ✅ Price change with validation
             itemEl.querySelector('[data-action="price"]')?.addEventListener('change', (e) => {
                 const input = e.target;
                 const v = +input.value || 0;
@@ -454,7 +546,6 @@
 
                 if (!item) return;
 
-                // التحقق من النطاق
                 const validation = validatePrice(v, {
                     minPrice: item.minPrice || 0,
                     maxPrice: item.maxPrice || 0
@@ -463,7 +554,6 @@
                 if (!validation.valid) {
                     input.classList.add('invalid');
                     showToast(validation.message, 'error');
-                    // إعادة القيمة الأصلية بعد تأخير بسيط
                     setTimeout(() => {
                         input.value = item.price;
                         input.classList.remove('invalid');
@@ -516,7 +606,7 @@
     }
 
     /* ============================================
-       Customer
+       Customer Search
        ============================================ */
     function renderCustomerDropdown(term = '') {
         const dd = $('#customerDropdown');
@@ -871,26 +961,15 @@
             <html dir="rtl"><head><meta charset="UTF-8">
             <title>طباعة الإيصال</title>
             <style>
-                body {
-                    font-family: 'Cairo', Arial, sans-serif;
-                    padding: 10px;
-                    font-size: 13px;
-                    max-width: 80mm;
-                    margin: 0 auto;
-                }
+                body { font-family: 'Cairo', Arial, sans-serif; padding: 10px; font-size: 13px; max-width: 80mm; margin: 0 auto; }
                 hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
                 .receipt-row { display: flex; justify-content: space-between; margin: 3px 0; }
                 .receipt-center { text-align: center; font-weight: 700; }
                 .receipt-table { width: 100%; border-collapse: collapse; }
-                .receipt-table th,
-                .receipt-table td {
-                    padding: 4px 2px;
-                    border-bottom: 1px dashed #ddd;
-                    font-size: 12px;
-                    text-align: right;
+                .receipt-table th, .receipt-table td {
+                    padding: 4px 2px; border-bottom: 1px dashed #ddd; font-size: 12px; text-align: right;
                 }
-                .receipt-table th:last-child,
-                .receipt-table td:last-child { text-align: left; }
+                .receipt-table th:last-child, .receipt-table td:last-child { text-align: left; }
                 @media print { body { padding: 0; } }
             </style>
             </head><body>${content}</body></html>
@@ -1160,7 +1239,7 @@
             await Auth.logout();
         });
 
-        // Desktop product search
+        // Desktop product search (in products area)
         $('#productSearch')?.addEventListener('input', U.debounce((e) => {
             State.searchTerm = e.target.value.trim();
             renderProductGrid();
@@ -1182,8 +1261,8 @@
             }
         });
 
-        // ✅ Quick search button (بدون مودال)
-        $('#openProductSearchBtn')?.addEventListener('click', openProductSearch);
+        // ✅ Direct product search (cart area)
+        bindProductSearch();
 
         // Mobile close products panel
         $('#closeProductsBtn')?.addEventListener('click', () => {
@@ -1231,7 +1310,7 @@
             updateUnitFields();
         });
 
-        // ✅ Live price validation in unit modal
+        // Live price validation
         $('#unitPrice')?.addEventListener('input', () => {
             const price = +$('#unitPrice')?.value || 0;
             const u = State.selectedUnit;
@@ -1257,7 +1336,6 @@
                 return;
             }
 
-            // ✅ تحقق من السعر
             const validation = validatePrice(price, State.selectedUnit);
             if (!validation.valid) {
                 const errorEl = $('#priceLimitError');
@@ -1312,7 +1390,7 @@
             }
             if (e.key === 'F1') { e.preventDefault(); $('#customerSearch')?.focus(); }
             if (e.key === 'F2') { e.preventDefault(); $('#productSearch')?.focus(); }
-            if (e.key === 'F3') { e.preventDefault(); openProductSearch(); }
+            if (e.key === 'F3') { e.preventDefault(); $('#productSearchInput')?.focus(); }
             if (e.key === 'F4') { e.preventDefault(); if (State.cart.length) openPayment(); }
             if (e.key === 'F5') { e.preventDefault(); holdCurrentSale(); }
             if (e.key === 'Escape') {
