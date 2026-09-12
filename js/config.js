@@ -10,7 +10,7 @@ window.APP_CONFIG = {
     DEFAULT_LANG: 'ar',
     DEFAULT_THEME: 'light',
     DB_NAME: 'hesaby_pos_v3',
-    DB_VERSION: 1,
+    DB_VERSION: 2,
     TAX_RATE: 0,
     RECEIPT_WIDTH: 80,
     AUTO_SYNC: true,
