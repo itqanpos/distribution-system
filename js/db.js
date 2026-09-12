@@ -1,12 +1,15 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
+   Version: 3.1.0 - مع التحصيل والسداد
    ============================================= */
 (function() {
     'use strict';
     
     const CFG = window.APP_CONFIG;
     
-    /* ============ IndexedDB ============ */
+    /* ============================================
+       IndexedDB Layer
+       ============================================ */
     class LocalDB {
         constructor() {
             this.db = null;
@@ -21,21 +24,51 @@
                     resolve(this);
                     return;
                 }
+                
                 const req = indexedDB.open(CFG.DB_NAME, CFG.DB_VERSION);
+                
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    ['products', 'parties', 'invoices', 'settings'].forEach(name => {
+                    const stores = ['products', 'parties', 'invoices', 'settings', 'transactions'];
+                    
+                    stores.forEach(name => {
                         if (!db.objectStoreNames.contains(name)) {
-                            db.createObjectStore(name, { keyPath: 'id' });
+                            const store = db.createObjectStore(name, { keyPath: 'id' });
+                            
+                            if (name === 'invoices') {
+                                store.createIndex('date', 'date', { unique: false });
+                                store.createIndex('type', 'type', { unique: false });
+                                store.createIndex('status', 'status', { unique: false });
+                                store.createIndex('customer_id', 'customer_id', { unique: false });
+                                store.createIndex('supplier_id', 'supplier_id', { unique: false });
+                            }
+                            
+                            if (name === 'products') {
+                                store.createIndex('barcode', 'barcode', { unique: false });
+                                store.createIndex('category', 'category', { unique: false });
+                            }
+                            
+                            if (name === 'parties') {
+                                store.createIndex('type', 'type', { unique: false });
+                                store.createIndex('phone', 'phone', { unique: false });
+                            }
+                            
+                            if (name === 'transactions') {
+                                store.createIndex('party_id', 'party_id', { unique: false });
+                                store.createIndex('date', 'date', { unique: false });
+                                store.createIndex('type', 'type', { unique: false });
+                            }
                         }
                     });
                 };
+                
                 req.onsuccess = (e) => {
                     this.db = e.target.result;
                     this.ready = true;
                     console.log('✅ IndexedDB ready');
                     resolve(this);
                 };
+                
                 req.onerror = () => {
                     console.warn('⚠️ IndexedDB failed');
                     resolve(this);
@@ -102,9 +135,22 @@
                 tx.onerror = () => resolve();
             });
         }
+        
+        async clear(store) {
+            await this._ready();
+            if (!this.db) return;
+            return new Promise((resolve) => {
+                const tx = this.db.transaction(store, 'readwrite');
+                tx.objectStore(store).clear();
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve();
+            });
+        }
     }
     
-    /* ============ Supabase ============ */
+    /* ============================================
+       Supabase Client
+       ============================================ */
     let supabaseClient = null;
     
     function initSupabase() {
@@ -129,11 +175,14 @@
         }
     }
     
-    /* ============ Memory Cache ============ */
+    /* ============================================
+       Memory Cache
+       ============================================ */
     const MemCache = {
         products: [],
         parties: [],
         invoices: [],
+        transactions: [],
         _time: {},
         set(key, data) {
             this[key] = data;
@@ -152,12 +201,15 @@
                 this.products = [];
                 this.parties = [];
                 this.invoices = [];
+                this.transactions = [];
                 this._time = {};
             }
         }
     };
     
-    /* ============ DB API ============ */
+    /* ============================================
+       DB API
+       ============================================ */
     window.DB = {
         local: null,
         client: null,
@@ -169,7 +221,9 @@
             console.log('✅ DB initialized');
         },
         
-        // ===== PRODUCTS =====
+        /* ============================================
+           PRODUCTS
+           ============================================ */
         async getProducts(force = false) {
             if (!force) {
                 const cached = MemCache.get('products');
@@ -219,6 +273,7 @@
         async saveProduct(product) {
             const id = product.id || U.uuid();
             const now = new Date().toISOString();
+            
             const payload = {
                 id,
                 tenant_id: window.Auth?.user?.tenant_id || null,
@@ -231,12 +286,18 @@
                 updated_at: now
             };
             
+            // Save locally
             await this.local.put('products', { ...payload, units: product.units || [] });
             
+            // Sync to cloud
             if (navigator.onLine && this.client) {
-                const { error } = await this.client.from('products').upsert(payload, { onConflict: 'id' });
+                const { error } = await this.client
+                    .from('products')
+                    .upsert(payload, { onConflict: 'id' });
+                
                 if (error) throw error;
                 
+                // Save units
                 if (product.units?.length) {
                     const unitsPayload = product.units.map(u => ({
                         id: u.id || U.uuid(),
@@ -251,7 +312,12 @@
                         max_price: u.maxPrice || 0,
                         is_base: u.isBase || false
                     }));
-                    await this.client.from('product_units').upsert(unitsPayload, { onConflict: 'id' });
+                    
+                    const { error: uErr } = await this.client
+                        .from('product_units')
+                        .upsert(unitsPayload, { onConflict: 'id' });
+                    
+                    if (uErr) console.warn('Units save warning', uErr);
                 }
             }
             
@@ -262,13 +328,17 @@
         async deleteProduct(id) {
             await this.local.delete('products', id);
             if (navigator.onLine && this.client) {
-                await this.client.from('products').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+                await this.client.from('products')
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq('id', id);
             }
             MemCache.clear('products');
             return { success: true };
         },
         
-        // ===== PARTIES =====
+        /* ============================================
+           PARTIES (Customers + Suppliers)
+           ============================================ */
         async getParties(type = null, force = false) {
             if (!force) {
                 const cached = MemCache.get('parties');
@@ -285,7 +355,12 @@
             }
             
             try {
-                let query = this.client.from('parties').select('*').is('deleted_at', null).order('name');
+                let query = this.client
+                    .from('parties')
+                    .select('*')
+                    .is('deleted_at', null)
+                    .order('name');
+                
                 if (type) query = query.or(`type.eq.${type},type.eq.both`);
                 
                 const { data, error } = await query;
@@ -303,6 +378,8 @@
         
         async saveParty(party) {
             const id = party.id || U.uuid();
+            const now = new Date().toISOString();
+            
             const payload = {
                 id,
                 tenant_id: party.tenant_id || window.Auth?.user?.tenant_id || null,
@@ -315,13 +392,15 @@
                 credit_limit: party.credit_limit || 0,
                 notes: party.notes || null,
                 is_active: true,
-                updated_at: new Date().toISOString()
+                updated_at: now
             };
             
             await this.local.put('parties', payload);
             
             if (navigator.onLine && this.client) {
-                const { error } = await this.client.from('parties').upsert(payload, { onConflict: 'id' });
+                const { error } = await this.client
+                    .from('parties')
+                    .upsert(payload, { onConflict: 'id' });
                 if (error) throw error;
             }
             
@@ -332,7 +411,9 @@
         async deleteParty(id) {
             await this.local.delete('parties', id);
             if (navigator.onLine && this.client) {
-                await this.client.from('parties').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+                await this.client.from('parties')
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq('id', id);
             }
             MemCache.clear('parties');
             return { success: true };
@@ -342,17 +423,112 @@
             const party = await this.local.get('parties', partyId);
             if (party) {
                 party.balance = newBalance;
+                party.updated_at = new Date().toISOString();
                 await this.local.put('parties', party);
             }
             
             if (navigator.onLine && this.client) {
-                await this.client.from('parties').update({ balance: newBalance }).eq('id', partyId);
+                await this.client.from('parties')
+                    .update({ balance: newBalance })
+                    .eq('id', partyId);
             }
             
             MemCache.clear('parties');
         },
         
-        // ===== INVOICES =====
+        /* ============================================
+           PAYMENTS / COLLECTIONS (تحصيل وسداد)
+           ============================================ */
+        async addPayment(payment) {
+            const client = getClient();
+            const id = U.uuid();
+            const now = new Date().toISOString();
+
+            const payload = {
+                id,
+                tenant_id: window.Auth?.user?.tenant_id || null,
+                type: payment.type, // 'payment_in' (تحصيل من عميل) أو 'payment_out' (سداد لمورد)
+                amount: Math.abs(Number(payment.amount) || 0),
+                party_id: payment.party_id,
+                payment_method: payment.payment_method || 'cash',
+                reference: payment.reference || null,
+                notes: payment.notes || null,
+                date: payment.date || U.today(),
+                created_by: window.Auth?.user?.id || null,
+                created_at: now
+            };
+
+            // حفظ محلي
+            await this.local.put('transactions', payload);
+
+            // حفظ في السحابة
+            if (navigator.onLine && client) {
+                const { error } = await client.from('transactions').insert(payload);
+                if (error) {
+                    console.warn('Cloud payment save failed:', error);
+                    throw error;
+                }
+            }
+
+            // تحديث رصيد الطرف
+            const party = await this.local.get('parties', payment.party_id);
+            if (party) {
+                const currentBalance = Number(party.balance) || 0;
+                // payment_in: العميل يدفع لنا → رصيده يزيد (يقل دينه)
+                // payment_out: نحن ندفع للمورد → رصيده يقل (يقل دينه علينا)
+                const newBalance = currentBalance + (payment.type === 'payment_in' ? payload.amount : -payload.amount);
+                
+                party.balance = U.round(newBalance);
+                party.updated_at = now;
+                
+                await this.local.put('parties', party);
+
+                if (navigator.onLine && client) {
+                    await client.from('parties').update({ balance: party.balance }).eq('id', party.id);
+                }
+            }
+
+            // إبطال الكاش
+            MemCache.clear('parties');
+            MemCache.clear('transactions');
+            
+            if (window.SessionStore) {
+                window.SessionStore.invalidate('offline_parties');
+                window.SessionStore.invalidate('offline_transactions');
+            }
+
+            return { success: true, id };
+        },
+        
+        async getPayments(partyId = null) {
+            if (!navigator.onLine || !this.client) {
+                const local = await this.local.getAll('transactions');
+                return partyId ? local.filter(t => t.party_id === partyId) : local;
+            }
+            
+            try {
+                let query = this.client
+                    .from('transactions')
+                    .select('*')
+                    .order('date', { ascending: false });
+                
+                if (partyId) query = query.eq('party_id', partyId);
+                
+                const { data, error } = await query;
+                if (error) throw error;
+                
+                await this.local.putMany('transactions', data || []);
+                return data || [];
+            } catch (e) {
+                console.warn('Cloud payments fetch failed', e);
+                const local = await this.local.getAll('transactions');
+                return partyId ? local.filter(t => t.party_id === partyId) : local;
+            }
+        },
+        
+        /* ============================================
+           INVOICES
+           ============================================ */
         async getInvoices(force = false) {
             if (!force) {
                 const cached = MemCache.get('invoices', 30000);
@@ -386,7 +562,11 @@
         async getInvoiceById(id) {
             if (navigator.onLine && this.client) {
                 try {
-                    const { data, error } = await this.client.from('invoices').select('*').eq('id', id).maybeSingle();
+                    const { data, error } = await this.client
+                        .from('invoices')
+                        .select('*')
+                        .eq('id', id)
+                        .maybeSingle();
                     if (!error && data) return data;
                 } catch {}
             }
@@ -394,17 +574,25 @@
         },
         
         async createInvoice(invoice) {
+            // Validation
             if (!invoice.items?.length) {
                 throw new Error('لا توجد أصناف في الفاتورة');
             }
             
-            // تحقق من العميل
+            // التحقق من العميل
             if (invoice.customer_id && navigator.onLine && this.client) {
-                const { data: exists } = await this.client.from('parties').select('id').eq('id', invoice.customer_id).maybeSingle();
+                const { data: exists } = await this.client
+                    .from('parties')
+                    .select('id')
+                    .eq('id', invoice.customer_id)
+                    .maybeSingle();
+                
                 if (!exists) {
                     const localCustomer = await this.local.get('parties', invoice.customer_id);
                     if (localCustomer) {
-                        const { error: syncErr } = await this.client.from('parties').upsert(localCustomer, { onConflict: 'id' });
+                        const { error: syncErr } = await this.client
+                            .from('parties')
+                            .upsert(localCustomer, { onConflict: 'id' });
                         if (syncErr) {
                             invoice.customer_id = null;
                             invoice.customer_name = 'نقدي';
@@ -418,6 +606,7 @@
             
             const id = invoice.id || U.uuid();
             const now = new Date().toISOString();
+            
             const payload = {
                 id,
                 tenant_id: window.Auth?.user?.tenant_id || null,
@@ -447,13 +636,22 @@
                 updated_at: now
             };
             
+            // Save locally first
             await this.local.put('invoices', payload);
             
+            // Sync to cloud
             if (navigator.onLine && this.client) {
-                const { error } = await this.client.from('invoices').insert(payload);
-                if (error) throw error;
+                const { error } = await this.client
+                    .from('invoices')
+                    .insert(payload);
+                
+                if (error) {
+                    console.error('Cloud save failed', error);
+                    throw error;
+                }
             }
             
+            // Update customer balance
             if (payload.customer_id && payload.remaining > 0) {
                 const localCust = await this.local.get('parties', payload.customer_id);
                 if (localCust) {
@@ -466,7 +664,9 @@
             return { success: true, id, invoice_number: payload.invoice_number };
         },
         
-        // ===== SETTINGS =====
+        /* ============================================
+           SETTINGS
+           ============================================ */
         async getSettings() {
             const local = await this.local.get('settings', 'app_settings');
             if (local) return local.data || {};
@@ -474,34 +674,50 @@
             if (navigator.onLine && this.client) {
                 const tenantId = window.Auth?.user?.tenant_id;
                 if (!tenantId) return {};
+                
                 try {
-                    const { data, error } = await this.client.from('settings').select('data').eq('tenant_id', tenantId).maybeSingle();
+                    const { data, error } = await this.client
+                        .from('settings')
+                        .select('data')
+                        .eq('tenant_id', tenantId)
+                        .maybeSingle();
+                    
                     if (!error && data) {
                         await this.local.put('settings', { id: 'app_settings', data: data.data });
                         return data.data;
                     }
                 } catch {}
             }
+            
             return {};
         },
         
         async saveSettings(data) {
             const tenantId = window.Auth?.user?.tenant_id;
             if (!tenantId) throw new Error('No tenant');
+            
             await this.local.put('settings', { id: 'app_settings', data });
+            
             if (navigator.onLine && this.client) {
-                const { error } = await this.client.from('settings').upsert({ tenant_id: tenantId, data }, { onConflict: 'tenant_id' });
+                const { error } = await this.client
+                    .from('settings')
+                    .upsert({ tenant_id: tenantId, data }, { onConflict: 'tenant_id' });
                 if (error) throw error;
             }
+            
             return data;
         },
         
-        // ===== INVOICE NUMBER =====
+        /* ============================================
+           INVOICE NUMBER
+           ============================================ */
         async generateInvoiceNumber() {
             if (navigator.onLine && this.client) {
                 try {
                     const year = new Date().getFullYear().toString().slice(-2);
-                    const { data, error } = await this.client.rpc('next_sequence', { p_name: 'inv_' + year });
+                    const { data, error } = await this.client.rpc('next_sequence', {
+                        p_name: 'inv_' + year
+                    });
                     if (error) throw error;
                     return data;
                 } catch (e) {
@@ -509,6 +725,7 @@
                 }
             }
             
+            // Local fallback
             const year = new Date().getFullYear().toString().slice(-2);
             const key = 'hesaby_counter_' + year;
             const current = parseInt(localStorage.getItem(key) || '0', 10);
@@ -517,11 +734,20 @@
             return year + '-' + String(next).padStart(4, '0');
         },
         
+        /* ============================================
+           MISC
+           ============================================ */
         clearCache() {
             MemCache.clear();
         }
     };
     
+    // Helper
+    function getClient() {
+        return window.DB?.client || supabaseClient;
+    }
+    
+    // Auto-init on load
     window.addEventListener('load', () => {
         window.DB.init().catch(e => console.error('DB init error', e));
     });
