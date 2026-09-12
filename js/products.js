@@ -1,5 +1,6 @@
 /* =============================================
    products.js - Products Page Logic
+   v2.0 - With Min/Max Price Support
    ============================================= */
 (function() {
     'use strict';
@@ -88,14 +89,12 @@
         });
         State.categories = [...cats].sort();
 
-        // Update category filter
         const filter = $('#categoryFilter');
         if (filter) {
             filter.innerHTML = '<option value="">كل التصنيفات</option>' +
                 State.categories.map(c => `<option value="${U.escape(c)}">${U.escape(c)}</option>`).join('');
         }
 
-        // Update datalist
         const datalist = $('#categoryList');
         if (datalist) {
             datalist.innerHTML = State.categories.map(c => `<option value="${U.escape(c)}">`).join('');
@@ -108,7 +107,6 @@
     function applyFilters() {
         let list = [...State.products];
 
-        // Search
         if (State.filters.search) {
             const term = State.filters.search.toLowerCase();
             list = list.filter(p =>
@@ -118,12 +116,10 @@
             );
         }
 
-        // Category
         if (State.filters.category) {
             list = list.filter(p => p.category === State.filters.category);
         }
 
-        // Stock
         if (State.filters.stock) {
             list = list.filter(p => {
                 const stock = p.units?.[0]?.stock || 0;
@@ -134,7 +130,6 @@
             });
         }
 
-        // Sort
         const sort = State.filters.sort;
         list.sort((a, b) => {
             if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'ar');
@@ -179,20 +174,14 @@
 
         showEmpty(false);
 
-        // Grid (desktop)
         if (gridView) {
             gridView.innerHTML = State.filtered.map(p => renderProductCard(p)).join('');
-            gridView.querySelectorAll('.product-item').forEach(el => {
-                bindProductCardActions(el);
-            });
+            gridView.querySelectorAll('.product-item').forEach(el => bindProductCardActions(el));
         }
 
-        // List (mobile)
         if (listView) {
             listView.innerHTML = State.filtered.map(p => renderProductListItem(p)).join('');
-            listView.querySelectorAll('.product-list-item').forEach(el => {
-                bindProductCardActions(el);
-            });
+            listView.querySelectorAll('.product-list-item').forEach(el => bindProductCardActions(el));
         }
     }
 
@@ -309,19 +298,28 @@
             $('#productCategory').value = product.category || '';
             $('#productDescription').value = product.description || '';
 
-            // Render units
             (product.units || []).forEach(u => addUnitToForm(u));
         } else {
             $('#productId').value = '';
-            // Add first (base) unit
-            addUnitToForm({ name: 'قطعة', price: 0, cost: 0, stock: 0, factor: 1, isBase: true });
+            addUnitToForm({ 
+                name: 'قطعة', 
+                price: 0, 
+                cost: 0, 
+                stock: 0, 
+                factor: 1, 
+                minPrice: 0, 
+                maxPrice: 0,
+                isBase: true 
+            });
         }
 
         openModal('productModal');
-
         setTimeout(() => $('#productName')?.focus(), 200);
     }
 
+    /* ============================================
+       Add Unit to Form (with min/max price)
+       ============================================ */
     function addUnitToForm(unit = {}) {
         const container = $('#unitsContainer');
         if (!container) return;
@@ -332,6 +330,7 @@
         const div = document.createElement('div');
         div.className = 'unit-card';
         div.dataset.index = index;
+        if (unit.id) div.dataset.unitId = unit.id;
 
         div.innerHTML = `
             <div class="unit-card__header">
@@ -370,11 +369,22 @@
                         <label>الباركود</label>
                         <input type="text" class="unit-barcode" value="${U.escape(unit.barcode || '')}" placeholder="اختياري">
                     </div>
-                    <div class="form-group">
-                        <label>الحد الأدنى للسعر</label>
-                        <input type="number" class="unit-min-price" value="${unit.minPrice || 0}" min="0" step="0.01" inputmode="decimal">
-                    </div>
                 ` : ''}
+                <!-- ✅ حقول السعر الأدنى والأقصى -->
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-arrow-down price-range-icon"></i>
+                        السعر الأدنى
+                    </label>
+                    <input type="number" class="unit-min-price" value="${unit.minPrice || 0}" min="0" step="0.01" inputmode="decimal" placeholder="0 = بدون حد">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-arrow-up price-range-icon"></i>
+                        السعر الأقصى
+                    </label>
+                    <input type="number" class="unit-max-price" value="${unit.maxPrice || 0}" min="0" step="0.01" inputmode="decimal" placeholder="0 = بدون حد">
+                </div>
             </div>
         `;
 
@@ -388,6 +398,42 @@
                 openModal('confirmUnitDeleteModal');
             });
         }
+
+        // Bind price changes to update hint
+        const priceInput = div.querySelector('.unit-price');
+        const minInput = div.querySelector('.unit-min-price');
+        const maxInput = div.querySelector('.unit-max-price');
+
+        const updateHint = () => {
+            let hint = div.querySelector('.unit-price-range-hint');
+            
+            const price = +priceInput?.value || 0;
+            const min = +minInput?.value || 0;
+            const max = +maxInput?.value || 0;
+            
+            const hasLimits = min > 0 || max > 0;
+            
+            if (hasLimits) {
+                if (!hint) {
+                    hint = document.createElement('div');
+                    hint.className = 'unit-price-range-hint';
+                    div.querySelector('.unit-card__grid').appendChild(hint);
+                }
+                hint.innerHTML = `
+                    <i class="fas fa-info-circle"></i>
+                    نطاق السعر المسموح: ${min > 0 ? min : 0} - ${max > 0 ? max : '∞'} ج.م
+                `;
+            } else if (hint) {
+                hint.remove();
+            }
+        };
+
+        priceInput?.addEventListener('input', updateHint);
+        minInput?.addEventListener('input', updateHint);
+        maxInput?.addEventListener('input', updateHint);
+
+        // Initial hint
+        updateHint();
     }
 
     function removeUnitFromForm(index) {
@@ -457,7 +503,6 @@
             return;
         }
 
-        // Collect units
         const unitCards = $$('#unitsContainer .unit-card');
         if (!unitCards.length) {
             showToast('يجب إضافة وحدة واحدة على الأقل', 'warning');
@@ -476,14 +521,37 @@
             const unitFactor = +card.querySelector('.unit-factor')?.value || 1;
             const unitBarcode = card.querySelector('.unit-barcode')?.value.trim() || '';
             const unitMinPrice = +card.querySelector('.unit-min-price')?.value || 0;
+            const unitMaxPrice = +card.querySelector('.unit-max-price')?.value || 0;
 
+            // التحقق من اسم الوحدة
             if (!unitName) {
                 showToast(`اسم الوحدة ${i + 1} مطلوب`, 'warning');
                 valid = false;
                 break;
             }
+
+            // التحقق من السعر
             if (unitPrice < 0) {
                 showToast(`سعر الوحدة ${i + 1} غير صالح`, 'warning');
+                valid = false;
+                break;
+            }
+
+            // ✅ التحقق من النطاق السعري
+            if (unitMaxPrice > 0 && unitMinPrice > 0 && unitMinPrice > unitMaxPrice) {
+                showToast(`في الوحدة ${i + 1}: السعر الأدنى أكبر من الأقصى`, 'warning');
+                valid = false;
+                break;
+            }
+
+            if (unitPrice < unitMinPrice && unitMinPrice > 0) {
+                showToast(`في الوحدة ${i + 1}: سعر البيع أقل من الحد الأدنى`, 'warning');
+                valid = false;
+                break;
+            }
+
+            if (unitMaxPrice > 0 && unitPrice > unitMaxPrice) {
+                showToast(`في الوحدة ${i + 1}: سعر البيع أعلى من الحد الأقصى`, 'warning');
                 valid = false;
                 break;
             }
@@ -493,11 +561,11 @@
                 name: unitName,
                 price: unitPrice,
                 cost: unitCost,
-                stock: i === 0 ? unitStock : unitStock, // المخزون فقط للوحدة الأساسية
+                stock: unitStock,
                 factor: unitFactor,
                 barcode: unitBarcode,
                 minPrice: unitMinPrice,
-                maxPrice: 0,
+                maxPrice: unitMaxPrice,
                 isBase: i === 0
             });
         }
@@ -525,7 +593,6 @@
             showToast(State.editingId ? 'تم تحديث المنتج' : 'تم إضافة المنتج', 'success');
             closeModal('productModal');
 
-            // Reload
             await loadProducts();
 
         } catch (e) {
@@ -589,24 +656,34 @@
 
             <div class="view-product__units-title">الوحدات والأسعار</div>
             <div class="view-product__units">
-                ${units.map(u => `
-                    <div class="view-product__unit">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span class="view-product__unit-name">${U.escape(u.name)}</span>
-                            ${u.isBase || u === units[0] ? '<span class="view-product__unit-badge">أساسية</span>' : ''}
+                ${units.map(u => {
+                    const hasPriceLimits = (u.minPrice > 0) || (u.maxPrice > 0);
+                    const priceRange = hasPriceLimits
+                        ? `${u.minPrice || 0} - ${u.maxPrice > 0 ? u.maxPrice : '∞'}`
+                        : '';
+                    
+                    return `
+                        <div class="view-product__unit">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <span class="view-product__unit-name">${U.escape(u.name)}</span>
+                                ${u.isBase || u === units[0] ? '<span class="view-product__unit-badge">أساسية</span>' : ''}
+                            </div>
+                            <span class="view-product__unit-price">${U.moneyRaw(u.price)} ج.م</span>
+                            <span class="view-product__unit-stock">تكلفة: ${U.moneyRaw(u.cost || 0)}</span>
+                            ${hasPriceLimits ? `
+                                <span class="view-product__unit-stock" style="color:var(--primary);font-weight:800;">
+                                    <i class="fas fa-tags" style="font-size:10px;"></i> ${priceRange} ج.م
+                                </span>
+                            ` : ''}
+                            <span class="view-product__unit-stock">معامل: ${u.factor || 1}</span>
                         </div>
-                        <span class="view-product__unit-price">${U.moneyRaw(u.price)} ج.م</span>
-                        <span class="view-product__unit-stock">تكلفة: ${U.moneyRaw(u.cost || 0)}</span>
-                        <span class="view-product__unit-stock">معامل: ${u.factor || 1}</span>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
 
-        // Bind edit button
         const editBtn = $('#editFromViewBtn');
         if (editBtn) {
-            // Remove old listeners
             const newBtn = editBtn.cloneNode(true);
             editBtn.parentNode.replaceChild(newBtn, editBtn);
 
@@ -671,7 +748,7 @@
         }
 
         const rows = [
-            ['الاسم', 'الكود', 'الباركود', 'التصنيف', 'سعر البيع', 'التكلفة', 'المخزون', 'الوحدة']
+            ['الاسم', 'الكود', 'الباركود', 'التصنيف', 'سعر البيع', 'التكلفة', 'المخزون', 'الوحدة', 'السعر الأدنى', 'السعر الأقصى']
         ];
 
         State.products.forEach(p => {
@@ -684,7 +761,9 @@
                 base.price || 0,
                 base.cost || 0,
                 base.stock || 0,
-                base.name || ''
+                base.name || '',
+                base.minPrice || 0,
+                base.maxPrice || 0
             ]);
         });
 
@@ -790,11 +869,6 @@
         if (listView) listView.style.display = '';
     }
 
-    function showLoading() {
-        const bar = $('#loading-bar');
-        if (bar) bar.style.width = '70%';
-    }
-
     function hideLoadingBar() {
         const bar = $('#loading-bar');
         if (bar) {
@@ -841,7 +915,6 @@
             align-items: center;
             gap: 10px;
             pointer-events: auto;
-            animation: slideUp 0.3s;
         `;
         toast.innerHTML = `<i class="fas fa-${icons[type]}"></i> <span>${U.escape(msg)}</span>`;
         stack.appendChild(toast);
@@ -939,7 +1012,7 @@
 
         // Add unit
         $('#addUnitBtn')?.addEventListener('click', () => {
-            addUnitToForm({ name: '', price: 0, cost: 0, stock: 0, factor: 1 });
+            addUnitToForm({ name: '', price: 0, cost: 0, stock: 0, factor: 1, minPrice: 0, maxPrice: 0 });
         });
 
         // Confirm delete
