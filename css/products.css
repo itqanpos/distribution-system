@@ -111,18 +111,13 @@
 }
 
 /* ============ Products Container ============ */
-.products-container {
-    position: relative;
-}
+.products-container { position: relative; }
 
-/* Grid View (Desktop) */
 .products-grid-view {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 14px;
 }
-
-/* List View (Mobile) */
 .products-list-view {
     display: none;
     flex-direction: column;
@@ -275,9 +270,7 @@
     place-items: center;
     font-size: 18px;
 }
-.product-list-item__info {
-    min-width: 0;
-}
+.product-list-item__info { min-width: 0; }
 .product-list-item__name {
     font-weight: 800;
     font-size: 14px;
@@ -487,6 +480,51 @@
     font-weight: 800;
 }
 
+/* ✅ NEW: Price Range Fields */
+.unit-card__grid .unit-min-price,
+.unit-card__grid .unit-max-price {
+    background: rgba(37, 99, 235, 0.03);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+.unit-card__grid .unit-min-price:focus,
+.unit-card__grid .unit-max-price:focus {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+.unit-card__grid .unit-min-price::placeholder,
+.unit-card__grid .unit-max-price::placeholder {
+    color: var(--text-faint);
+    font-size: 11px;
+}
+
+/* Price Range Hint */
+.unit-price-range-hint {
+    grid-column: 1 / -1;
+    padding: 8px 12px;
+    background: rgba(37, 99, 235, 0.08);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--primary);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.unit-price-range-hint i {
+    font-size: 12px;
+}
+
+/* Price Range Label with Icon */
+.form-group label .price-range-icon {
+    font-size: 10px;
+    color: var(--primary);
+    margin-right: 4px;
+}
+
 /* ============ Confirm Delete ============ */
 .confirm-delete {
     text-align: center;
@@ -666,7 +704,6 @@
     }
     .filter-select { width: 100%; min-width: auto; }
 
-    /* تحويل الشبكة إلى قائمة */
     .products-grid-view { display: none; }
     .products-list-view { display: flex; }
 
@@ -676,7 +713,6 @@
 
     .fab-add { display: flex; }
 
-    /* إخفاء زر الإضافة العلوي على الجوال (يوجد FAB) */
     .page-head .btn--primary { display: none; }
 }
 
