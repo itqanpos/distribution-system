@@ -1,238 +1,617 @@
 /* =============================================
-   inventory.js - حركات المخزون (إصدار مُحسَّن)
+   inventory.js - Inventory Page Logic
    ============================================= */
+(function() {
+    'use strict';
 
-'use strict';
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => [...document.querySelectorAll(s)];
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => {
-            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency;
-        },
-        formatDate: (dateStr) => {
-            if (!dateStr) return '';
-            try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-            catch (e) { return dateStr; }
-        },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
+    const State = {
+        products: [],
+        filtered: [],
+        currentUser: null,
+        selectedProduct: null,
+        selectedUnit: null,
+        filters: { search: '', stock: '', sort: 'name' }
     };
-}
 
-const Inventory = {
-    movements: [],
-    products: [],
-    editingId: null,
+    async function init() {
+        console.log('🚀 Inventory init...');
 
-    init() {
-        this.cacheElements();
-        this.bindEvents();
-        if (window.App) {
-            if (!App.requireAuth()) return;
-            App.initUserInterface();
+        let attempts = 0;
+        while (!window.DB?.client && attempts < 50) {
+            await new Promise(r => setTimeout(r, 100));
+            attempts++;
         }
-        this.loadData();
-    },
+        if (!window.DB?.client) return;
+        await new Promise(r => setTimeout(r, 300));
 
-    cacheElements() {
-        this.el = {
-            menuToggle: document.getElementById('menuToggle'),
-            sidebar: document.getElementById('sidebar'),
-            sidebarOverlay: document.getElementById('sidebarOverlay'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            userProfileBtn: document.getElementById('userProfileBtn'),
-            userDropdown: document.getElementById('userDropdown'),
-            searchInput: document.getElementById('searchInput'),
-            typeFilter: document.getElementById('typeFilter'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            movementsBody: document.getElementById('movementsBody'),
-            newMovementBtn: document.getElementById('newMovementBtn'),
-            movementModal: document.getElementById('movementModal'),
-            modalTitle: document.getElementById('modalTitle'),
-            closeModalBtn: document.getElementById('closeModalBtn'),
-            cancelModalBtn: document.getElementById('cancelModalBtn'),
-            movementForm: document.getElementById('movementForm'),
-            movementId: document.getElementById('movementId'),
-            movementType: document.getElementById('movementType'),
-            movementDate: document.getElementById('movementDate'),
-            movementProduct: document.getElementById('movementProduct'),
-            movementQuantity: document.getElementById('movementQuantity'),
-            movementReason: document.getElementById('movementReason'),
-            productList: document.getElementById('productList'),
-            statsGrid: document.getElementById('statsGrid'),
-            toast: document.getElementById('toast')
-        };
-    },
-
-    bindEvents() {
-        this.el.userProfileBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.userDropdown.classList.toggle('show'); });
-        document.addEventListener('click', () => this.el.userDropdown?.classList.remove('show'));
-
-        this.el.menuToggle?.addEventListener('click', () => {
-            this.el.sidebar.classList.toggle('open');
-            this.el.sidebarOverlay?.classList.toggle('show');
-        });
-        this.el.sidebarOverlay?.addEventListener('click', () => {
-            this.el.sidebar.classList.remove('open');
-            this.el.sidebarOverlay.classList.remove('show');
-        });
-        document.querySelectorAll('.menu-item').forEach(link => {
-            link.addEventListener('click', () => {
-                this.el.sidebar.classList.remove('open');
-                this.el.sidebarOverlay?.classList.remove('show');
-            });
-        });
-
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
-
-        this.el.searchInput?.addEventListener('input', () => this.renderTable());
-        this.el.typeFilter?.addEventListener('change', () => this.renderTable());
-        this.el.refreshBtn?.addEventListener('click', () => this.loadData());
-
-        this.el.newMovementBtn?.addEventListener('click', () => this.openModal());
-        this.el.closeModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.cancelModalBtn?.addEventListener('click', () => this.closeModal());
-        this.el.movementForm?.addEventListener('submit', (e) => { e.preventDefault(); this.saveMovement(); });
-    },
-
-    async loadData() {
         try {
-            if (Utils.isDBReady()) {
-                this.movements = await DB.getInventoryMovements?.() || [];
-                this.products = await DB.getProducts() || [];
-            } else if (Utils.hasLocalDB()) {
-                this.movements = await localDB.getAll('inventory_movements') || [];
-                this.products = await localDB.getAll('products') || [];
-            } else {
-                this.movements = [];
-                this.products = [];
-            }
-            this.populateProductList();
-            this.updateStats();
-            this.renderTable();
-        } catch (err) {
-            console.error('فشل تحميل حركات المخزون:', err);
+            State.currentUser = await Auth.requireAuth();
+            if (!State.currentUser) return;
+        } catch (e) { return; }
+
+        updateUserUI();
+        updateConnStatus();
+        initTheme();
+        bindEvents();
+
+        await loadProducts();
+        hideLoadingBar();
+    }
+
+    async function loadProducts() {
+        showSkeleton();
+        try {
+            State.products = await DB.getProducts(true) || [];
+            renderSummary();
+            applyFilters();
+        } catch (e) {
+            showToast('تعذر تحميل البيانات', 'error');
+        } finally {
+            hideSkeleton();
         }
-    },
+    }
 
-    populateProductList() {
-        if (!this.el.productList) return;
-        this.el.productList.innerHTML = this.products.map(p =>
-            `<option value="${p.name}">${p.name}</option>`
-        ).join('');
-    },
+    function renderSummary() {
+        const container = $('#summaryCards');
+        if (!container) return;
 
-    updateStats() {
-        const inMovements = this.movements.filter(m => m.type === 'in');
-        const outMovements = this.movements.filter(m => m.type === 'out');
-        const totalIn = inMovements.reduce((s, m) => s + (m.quantity || 0), 0);
-        const totalOut = outMovements.reduce((s, m) => s + (m.quantity || 0), 0);
+        const totalProducts = State.products.length;
+        const outOfStock = State.products.filter(p => (p.units?.[0]?.stock || 0) <= 0).length;
+        const lowStock = State.products.filter(p => {
+            const s = p.units?.[0]?.stock || 0;
+            return s > 0 && s <= 5;
+        }).length;
 
-        if (this.el.statsGrid) {
-            this.el.statsGrid.innerHTML = `
-                <div class="stat-card"><div class="stat-icon" style="color:#16a34a;"><i class="fas fa-arrow-down"></i></div><div class="stat-content"><div class="stat-title">إجمالي الوارد</div><div class="stat-value">${totalIn}</div></div></div>
-                <div class="stat-card"><div class="stat-icon" style="color:#ef4444;"><i class="fas fa-arrow-up"></i></div><div class="stat-content"><div class="stat-title">إجمالي الصادر</div><div class="stat-value">${totalOut}</div></div></div>
-                <div class="stat-card"><div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-boxes"></i></div><div class="stat-content"><div class="stat-title">عدد المنتجات</div><div class="stat-value">${this.products.length}</div></div></div>
-                <div class="stat-card"><div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-exchange-alt"></i></div><div class="stat-content"><div class="stat-title">عدد الحركات</div><div class="stat-value">${this.movements.length}</div></div></div>
-            `;
-        }
-    },
-
-    renderTable() {
-        const term = this.el.searchInput?.value.trim().toLowerCase() || '';
-        const type = this.el.typeFilter?.value || 'all';
-
-        let filtered = this.movements.filter(m => {
-            const matchSearch = !term || (m.product_name || '').includes(term);
-            const matchType = type === 'all' || m.type === type;
-            return matchSearch && matchType;
+        let totalValue = 0;
+        State.products.forEach(p => {
+            const base = p.units?.[0] || {};
+            totalValue += (base.stock || 0) * (base.cost || 0);
         });
 
-        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        container.innerHTML = `
+            <div class="summary-card">
+                <div class="summary-card__icon blue"><i class="fas fa-boxes"></i></div>
+                <div class="summary-card__info">
+                    <label>إجمالي المنتجات</label>
+                    <span>${totalProducts}</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-card__icon green"><i class="fas fa-coins"></i></div>
+                <div class="summary-card__info">
+                    <label>قيمة المخزون</label>
+                    <span>${U.money(totalValue)}</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-card__icon orange"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="summary-card__info">
+                    <label>منخفض (≤5)</label>
+                    <span>${lowStock}</span>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-card__icon red"><i class="fas fa-times-circle"></i></div>
+                <div class="summary-card__info">
+                    <label>نفذ</label>
+                    <span>${outOfStock}</span>
+                </div>
+            </div>
+        `;
+    }
 
-        if (!filtered.length) {
-            this.el.movementsBody.innerHTML = '<tr><td colspan="5" class="empty-message">لا توجد حركات</td></tr>';
+    function applyFilters() {
+        let list = [...State.products];
+
+        if (State.filters.search) {
+            const term = State.filters.search.toLowerCase();
+            list = list.filter(p =>
+                (p.name || '').toLowerCase().includes(term) ||
+                (p.barcode || '').includes(term) ||
+                (p.code || '').includes(term)
+            );
+        }
+
+        if (State.filters.stock) {
+            list = list.filter(p => {
+                const stock = p.units?.[0]?.stock || 0;
+                if (State.filters.stock === 'out') return stock <= 0;
+                if (State.filters.stock === 'low') return stock > 0 && stock <= 5;
+                if (State.filters.stock === 'in') return stock > 5;
+                return true;
+            });
+        }
+
+        const sort = State.filters.sort;
+        list.sort((a, b) => {
+            const stockA = a.units?.[0]?.stock || 0;
+            const stockB = b.units?.[0]?.stock || 0;
+            const valueA = stockA * (a.units?.[0]?.cost || 0);
+            const valueB = stockB * (b.units?.[0]?.cost || 0);
+
+            if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'ar');
+            if (sort === 'stock') return stockA - stockB;
+            if (sort === 'stock-desc') return stockB - stockA;
+            if (sort === 'value') return valueA - valueB;
+            if (sort === 'value-desc') return valueB - valueA;
+            return 0;
+        });
+
+        State.filtered = list;
+        render();
+        updateCount();
+    }
+
+    function updateCount() {
+        const el = $('#inventoryCount');
+        if (el) el.textContent = State.filtered.length === 1 ? '1 منتج' : `${State.filtered.length} منتج`;
+    }
+
+    function render() {
+        const gridView = $('#inventoryGridView');
+        const listView = $('#inventoryListView');
+
+        if (!State.filtered.length) {
+            if (gridView) gridView.innerHTML = '';
+            if (listView) listView.innerHTML = '';
+            $('#emptyState').style.display = 'block';
             return;
         }
 
-        const typeLabel = (type) => {
-            const map = { in: 'وارد', out: 'صادر', transfer: 'تحويل', adjustment: 'جرد' };
-            return map[type] || type;
-        };
+        $('#emptyState').style.display = 'none';
 
-        this.el.movementsBody.innerHTML = filtered.map(m => `
-            <tr>
-                <td>${Utils.formatDate(m.date)}</td>
-                <td>${m.product_name || '-'}</td>
-                <td>${typeLabel(m.type)}</td>
-                <td>${m.quantity || 0}</td>
-                <td>${m.reason || '-'}</td>
-            </tr>
-        `).join('');
-    },
-
-    openModal(movement = null) {
-        this.editingId = movement?.id || null;
-        this.el.modalTitle.textContent = movement ? 'تعديل حركة' : 'حركة جديدة';
-        this.el.movementId.value = movement?.id || '';
-        this.el.movementType.value = movement?.type || 'in';
-        this.el.movementDate.value = movement?.date || Utils.getToday();
-        this.el.movementProduct.value = movement?.product_name || '';
-        this.el.movementQuantity.value = movement?.quantity || '';
-        this.el.movementReason.value = movement?.reason || '';
-        this.el.movementModal.classList.add('open');
-    },
-
-    closeModal() {
-        this.el.movementModal.classList.remove('open');
-    },
-
-    showToast(msg) {
-        const t = this.el.toast;
-        if (!t) return;
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-    },
-
-    async saveMovement() {
-        const productName = this.el.movementProduct?.value.trim();
-        const quantity = parseFloat(this.el.movementQuantity?.value) || 0;
-        if (!productName || quantity <= 0) { alert('المنتج والكمية مطلوبان'); return; }
-
-        const movement = {
-            id: this.editingId || (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now()),
-            date: this.el.movementDate?.value || Utils.getToday(),
-            type: this.el.movementType?.value || 'in',
-            product_name: productName,
-            quantity,
-            reason: this.el.movementReason?.value.trim()
-        };
-
-        try {
-            if (Utils.isDBReady()) await DB.saveInventoryMovement?.(movement);
-            else if (Utils.hasLocalDB()) await localDB.put('inventory_movements', movement);
-
-            // تحديث المخزون
-            const product = this.products.find(p => p.name === productName);
-            if (product && product.units?.length) {
-                if (movement.type === 'in') product.units[0].stock += quantity;
-                else if (movement.type === 'out') product.units[0].stock -= quantity;
-                if (Utils.isDBReady()) await DB.saveProduct(product);
-                else if (Utils.hasLocalDB()) await localDB.put('products', product);
-            }
-
-            this.closeModal();
-            await this.loadData();
-            this.showToast('تم حفظ الحركة بنجاح');
-        } catch (err) {
-            console.error(err);
-            alert('فشل حفظ الحركة');
+        if (gridView) {
+            gridView.innerHTML = State.filtered.map(p => renderCard(p)).join('');
+            gridView.querySelectorAll('.inv-item').forEach(el => {
+                el.addEventListener('click', () => openAdjustModal(el.dataset.id));
+            });
+        }
+        if (listView) {
+            listView.innerHTML = State.filtered.map(p => renderListItem(p)).join('');
+            listView.querySelectorAll('.inv-list-item').forEach(el => {
+                el.addEventListener('click', () => openAdjustModal(el.dataset.id));
+            });
         }
     }
-};
 
-window.Inventory = Inventory;
-document.addEventListener('DOMContentLoaded', () => Inventory.init());
+    function getStockInfo(stock) {
+        if (stock <= 0) return { class: 'out', label: 'نفذ' };
+        if (stock <= 5) return { class: 'low', label: 'منخفض' };
+        return { class: 'in', label: 'جيد' };
+    }
+
+    function renderCard(p) {
+        const base = p.units?.[0] || { stock: 0, cost: 0, price: 0, name: 'وحدة' };
+        const stock = base.stock || 0;
+        const info = getStockInfo(stock);
+        const value = stock * (base.cost || 0);
+
+        return `
+            <div class="inv-item" data-id="${p.id}">
+                <div class="inv-item__head">
+                    <div class="inv-item__icon"><i class="fas fa-cube"></i></div>
+                    <div class="inv-item__title">
+                        <div class="inv-item__name">${U.escape(p.name)}</div>
+                        <div class="inv-item__category">${U.escape(p.category || 'بدون تصنيف')}</div>
+                    </div>
+                </div>
+                <div class="inv-item__stock-row">
+                    <div class="inv-item__stock">
+                        <div class="inv-item__stock-value">${stock}</div>
+                        <div class="inv-item__stock-label">${U.escape(base.name || 'وحدة')}</div>
+                    </div>
+                    <div class="inv-item__badge ${info.class}">${info.label}</div>
+                </div>
+                <div class="inv-item__value">
+                    <label>القيمة الإجمالية</label>
+                    <strong>${U.money(value)}</strong>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderListItem(p) {
+        const base = p.units?.[0] || { stock: 0, name: 'وحدة' };
+        const stock = base.stock || 0;
+        const info = getStockInfo(stock);
+
+        return `
+            <div class="inv-list-item" data-id="${p.id}">
+                <div class="inv-list-item__icon"><i class="fas fa-cube"></i></div>
+                <div class="inv-list-item__info">
+                    <div class="inv-list-item__name">${U.escape(p.name)}</div>
+                    <div class="inv-list-item__meta">${U.escape(base.name || 'وحدة')}</div>
+                </div>
+                <div class="inv-list-item__right">
+                    <div class="inv-list-item__stock">${stock}</div>
+                    <div class="inv-list-item__badge ${info.class}">${info.label}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    /* ============================================
+       Adjust Modal
+       ============================================ */
+    function openAdjustModal(productId = null) {
+        State.selectedProduct = null;
+        State.selectedUnit = null;
+
+        $('#adjustProductId').value = '';
+        $('#adjustProductSearch').value = '';
+        $('#selectedAdjustProduct').style.display = 'none';
+        $('#adjustUnitGroup').style.display = 'none';
+        $('#adjustFields').style.display = 'none';
+        $('#adjustReasonGroup').style.display = 'none';
+        $('#adjustNotesGroup').style.display = 'none';
+        $('#confirmAdjustBtn').disabled = true;
+
+        if (productId) {
+            const p = State.products.find(x => x.id === productId);
+            if (p) selectAdjustProduct(p);
+        }
+
+        openModal('adjustModal');
+        if (!productId) setTimeout(() => $('#adjustProductSearch')?.focus(), 200);
+    }
+
+    function filterAdjustProducts(term) {
+        const dd = $('#adjustProductDropdown');
+        if (!dd) return;
+
+        if (!term) { dd.classList.remove('show'); return; }
+
+        const t = term.toLowerCase();
+        const list = State.products.filter(p =>
+            (p.name || '').toLowerCase().includes(t) ||
+            (p.barcode || '').includes(term) ||
+            (p.code || '').includes(term)
+        ).slice(0, 15);
+
+        if (!list.length) {
+            dd.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">لا توجد نتائج</div>`;
+        } else {
+            dd.innerHTML = list.map(p => {
+                const base = p.units?.[0] || { stock: 0 };
+                return `
+                    <div class="product-option" data-id="${p.id}">
+                        <div class="product-option__name">${U.escape(p.name)}</div>
+                        <div class="product-option__meta">المخزون: ${base.stock || 0} ${base.name || ''}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        dd.classList.add('show');
+        dd.querySelectorAll('.product-option').forEach(el => {
+            el.addEventListener('click', () => {
+                const p = State.products.find(x => x.id === el.dataset.id);
+                if (p) {
+                    selectAdjustProduct(p);
+                    dd.classList.remove('show');
+                }
+            });
+        });
+    }
+
+    function selectAdjustProduct(product) {
+        State.selectedProduct = product;
+        State.selectedUnit = product.units?.[0] || null;
+
+        $('#adjustProductSearch').value = product.name;
+
+        // Show selected info
+        const info = $('#selectedAdjustProduct');
+        info.innerHTML = `
+            <strong>${U.escape(product.name)}</strong>
+            <button type="button" id="clearAdjustProduct"><i class="fas fa-times"></i></button>
+        `;
+        info.style.display = 'flex';
+
+        $('#clearAdjustProduct')?.addEventListener('click', () => {
+            State.selectedProduct = null;
+            State.selectedUnit = null;
+            $('#adjustProductSearch').value = '';
+            info.style.display = 'none';
+            $('#adjustUnitGroup').style.display = 'none';
+            $('#adjustFields').style.display = 'none';
+            $('#adjustReasonGroup').style.display = 'none';
+            $('#adjustNotesGroup').style.display = 'none';
+            $('#confirmAdjustBtn').disabled = true;
+        });
+
+        // Render unit chips
+        const units = product.units || [];
+        $('#adjustUnitChips').innerHTML = units.map((u, i) =>
+            `<button type="button" class="unit-chip ${i === 0 ? 'active' : ''}" data-index="${i}">${U.escape(u.name)}</button>`
+        ).join('');
+        $('#adjustUnitChips').querySelectorAll('.unit-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = +btn.dataset.index;
+                State.selectedUnit = units[idx];
+                $('#adjustUnitChips').querySelectorAll('.unit-chip').forEach((b, i) => b.classList.toggle('active', i === idx));
+                updateAdjustFields();
+            });
+        });
+
+        $('#adjustUnitGroup').style.display = 'block';
+        $('#adjustFields').style.display = 'grid';
+        $('#adjustReasonGroup').style.display = 'block';
+        $('#adjustNotesGroup').style.display = 'block';
+        $('#confirmAdjustBtn').disabled = false;
+
+        updateAdjustFields();
+    }
+
+    function updateAdjustFields() {
+        const u = State.selectedUnit;
+        if (!u) return;
+        const stock = u.stock || 0;
+        $('#currentStock').value = `${stock} ${u.name}`;
+        $('#newStock').value = stock;
+        setTimeout(() => $('#newStock')?.select(), 100);
+    }
+
+    async function confirmAdjust() {
+        const product = State.selectedProduct;
+        const unit = State.selectedUnit;
+        if (!product || !unit) return;
+
+        const newStock = +$('#newStock').value || 0;
+        const oldStock = unit.stock || 0;
+        const reason = $('#adjustReason').value;
+        const notes = $('#adjustNotes').value.trim();
+
+        if (newStock === oldStock) {
+            showToast('لا يوجد تغيير', 'info');
+            return;
+        }
+
+        const btn = $('#confirmAdjustBtn');
+        if (btn) btn.disabled = true;
+
+        try {
+            // Update stock
+            const productIndex = State.products.findIndex(p => p.id === product.id);
+            if (productIndex !== -1) {
+                const baseUnit = State.products[productIndex].units[0];
+                // ✅ إذا الوحدة المختارة هي الأساسية → عدل مباشرة
+                // إذا كانت ثانوية → احسب معامل التحويل
+                if (unit === baseUnit) {
+                    baseUnit.stock = newStock;
+                } else {
+                    // تحويل من الوحدة الثانوية إلى الأساسية
+                    const factor = unit.factor || 1;
+                    // لكن إذا كان هذا هو المخزون الثانوي المطلوب، فلا معنى
+                    // عملياً: نسجل الرصيد كـ "كمية الوحدة الأساسية" = newStock * factor
+                    baseUnit.stock = newStock * factor;
+                }
+                // في كلا الحالتين، نسجل الرصيد الجديد على الوحدة المختارة أيضاً
+                unit.stock = newStock;
+            }
+
+            const updatedProduct = State.products[productIndex];
+            await DB.saveProduct(updatedProduct);
+
+            showToast(`تم تحديث المخزون من ${oldStock} إلى ${newStock}`, 'success');
+            closeModal('adjustModal');
+
+            // Reload
+            await loadProducts();
+
+        } catch (e) {
+            console.error('Adjust error:', e);
+            showToast(e.message || 'فشل حفظ التسوية', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    /* ============================================
+       Helpers
+       ============================================ */
+    function updateUserUI() {
+        if (State.currentUser) {
+            const avatar = $('#userAvatar');
+            const name = $('#sidebarUserName');
+            if (avatar) avatar.textContent = (State.currentUser.fullName || 'U')[0].toUpperCase();
+            if (name) name.textContent = State.currentUser.fullName || 'مدير';
+        }
+    }
+
+    function updateConnStatus() {
+        const online = navigator.onLine;
+        document.body.classList.toggle('is-offline', !online);
+        const status = $('#connStatus');
+        if (status) {
+            status.textContent = online ? 'متصل' : 'غير متصل';
+            status.style.color = online ? 'var(--success)' : 'var(--danger)';
+        }
+    }
+
+    function updateThemeIcon() {
+        const btn = $('#themeBtn');
+        if (!btn) return;
+        const isDark = document.documentElement.dataset.theme === 'dark';
+        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    function initTheme() {
+        const theme = U.ls.get('theme', 'light');
+        document.documentElement.dataset.theme = theme;
+        updateThemeIcon();
+    }
+
+    function openModal(id) { document.getElementById(id)?.classList.add('open'); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+    function showSkeleton() {
+        const skeleton = $('#skeletonGrid');
+        const gridView = $('#inventoryGridView');
+        const listView = $('#inventoryListView');
+
+        if (skeleton) {
+            skeleton.innerHTML = Array(6).fill(`
+                <div class="skeleton-card">
+                    <div style="display:flex;gap:12px;margin-bottom:16px;">
+                        <div style="width:48px;height:48px;background:var(--bg-sunken);border-radius:12px;"></div>
+                        <div style="flex:1;">
+                            <div style="height:16px;background:var(--bg-sunken);border-radius:6px;margin-bottom:8px;"></div>
+                            <div style="height:12px;background:var(--bg-sunken);border-radius:6px;width:50%;"></div>
+                        </div>
+                    </div>
+                    <div style="height:60px;background:var(--bg-sunken);border-radius:10px;"></div>
+                </div>
+            `).join('');
+            skeleton.style.display = 'grid';
+        }
+        if (gridView) gridView.style.display = 'none';
+        if (listView) listView.style.display = 'none';
+    }
+
+    function hideSkeleton() {
+        const skeleton = $('#skeletonGrid');
+        const gridView = $('#inventoryGridView');
+        const listView = $('#inventoryListView');
+        if (skeleton) skeleton.style.display = 'none';
+        if (gridView) gridView.style.display = '';
+        if (listView) listView.style.display = '';
+    }
+
+    function hideLoadingBar() {
+        const bar = $('#loading-bar');
+        if (bar) {
+            bar.style.width = '100%';
+            setTimeout(() => { bar.style.width = '0%'; }, 300);
+        }
+    }
+
+    function showToast(msg, type = 'info') {
+        let stack = $('#toastStack');
+        if (!stack) {
+            stack = document.createElement('div');
+            stack.id = 'toastStack';
+            stack.className = 'toast-stack';
+            document.body.appendChild(stack);
+        }
+        const icons = { success: 'check-circle', error: 'times-circle', warning: 'exclamation-triangle', info: 'info-circle' };
+        const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            padding: 12px 22px; background: ${colors[type] || colors.info}; color: #fff;
+            border-radius: 999px; font-weight: 700; font-size: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px;
+            pointer-events: auto;
+        `;
+        toast.innerHTML = `<i class="fas fa-${icons[type]}"></i> <span>${U.escape(msg)}</span>`;
+        stack.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+            toast.style.transition = 'all 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    }
+
+    function bindEvents() {
+        $('#menuBtn')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.add('open');
+            $('#sidebarOverlay')?.classList.add('show');
+        });
+        $('#sidebarOverlay')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.remove('open');
+            $('#sidebarOverlay')?.classList.remove('show');
+        });
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                $('#sidebar')?.classList.remove('open');
+                $('#sidebarOverlay')?.classList.remove('show');
+            });
+        });
+
+        $('#themeBtn')?.addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            U.ls.set('theme', next);
+            updateThemeIcon();
+        });
+
+        $('#logoutBtn')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('تسجيل الخروج؟')) return;
+            await Auth.logout();
+        });
+
+        $('#refreshBtn')?.addEventListener('click', async () => {
+            showToast('جاري التحديث...', 'info');
+            DB.clearCache();
+            await loadProducts();
+            showToast('تم التحديث', 'success');
+        });
+
+        $('#adjustBtn')?.addEventListener('click', () => openAdjustModal());
+        $('#adjustMainBtn')?.addEventListener('click', () => openAdjustModal());
+
+        $('#searchInput')?.addEventListener('input', U.debounce((e) => {
+            State.filters.search = e.target.value.trim();
+            const clearBtn = $('#clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = e.target.value ? 'grid' : 'none';
+            applyFilters();
+        }, 200));
+
+        $('#clearSearchBtn')?.addEventListener('click', () => {
+            $('#searchInput').value = '';
+            State.filters.search = '';
+            $('#clearSearchBtn').style.display = 'none';
+            applyFilters();
+        });
+
+        $('#stockFilter')?.addEventListener('change', (e) => {
+            State.filters.stock = e.target.value;
+            applyFilters();
+        });
+        $('#sortFilter')?.addEventListener('change', (e) => {
+            State.filters.sort = e.target.value;
+            applyFilters();
+        });
+
+        $('#adjustProductSearch')?.addEventListener('input', U.debounce((e) => {
+            filterAdjustProducts(e.target.value.trim());
+        }, 150));
+
+        $('#confirmAdjustBtn')?.addEventListener('click', confirmAdjust);
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#adjustProductSearch') && !e.target.closest('#adjustProductDropdown')) {
+                $('#adjustProductDropdown')?.classList.remove('show');
+            }
+        });
+
+        document.querySelectorAll('[data-close]').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.dataset.close));
+        });
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+            }
+        });
+
+        window.addEventListener('online', () => { updateConnStatus(); showToast('عاد الاتصال', 'success'); });
+        window.addEventListener('offline', () => { updateConnStatus(); showToast('انقطع الاتصال', 'warning'); });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
