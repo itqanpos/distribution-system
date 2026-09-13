@@ -7,54 +7,6 @@
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => [...document.querySelectorAll(s)];
 
-    /* ============ Permissions Map ============ */
-    const ROLE_PERMISSIONS = {
-        admin: {
-            label: 'مدير',
-            description: 'كل الصلاحيات',
-            permissions: [
-                { key: 'pos', label: 'نقطة البيع', allowed: true },
-                { key: 'products', label: 'المنتجات', allowed: true },
-                { key: 'customers', label: 'العملاء', allowed: true },
-                { key: 'suppliers', label: 'الموردين', allowed: true },
-                { key: 'invoices', label: 'الفواتير', allowed: true },
-                { key: 'purchases', label: 'المشتريات', allowed: true },
-                { key: 'returns', label: 'المرتجعات', allowed: true },
-                { key: 'reports', label: 'التقارير', allowed: true },
-                { key: 'cashbox', label: 'الصندوق', allowed: true },
-                { key: 'accounting', label: 'المحاسبة', allowed: true },
-                { key: 'users', label: 'المستخدمين', allowed: true },
-                { key: 'settings', label: 'الإعدادات', allowed: true },
-                { key: 'price_edit', label: 'تعديل الأسعار', allowed: true },
-                { key: 'discount', label: 'منح خصم', allowed: true },
-                { key: 'delete_invoice', label: 'حذف فاتورة', allowed: true },
-                { key: 'view_profit', label: 'رؤية الأرباح', allowed: true }
-            ]
-        },
-        rep: {
-            label: 'مندوب',
-            description: 'نقطة البيع فقط',
-            permissions: [
-                { key: 'pos', label: 'نقطة البيع', allowed: true },
-                { key: 'products', label: 'المنتجات', allowed: false },
-                { key: 'customers', label: 'العملاء', allowed: false },
-                { key: 'suppliers', label: 'الموردين', allowed: false },
-                { key: 'invoices', label: 'الفواتير', allowed: false },
-                { key: 'purchases', label: 'المشتريات', allowed: false },
-                { key: 'returns', label: 'المرتجعات', allowed: false },
-                { key: 'reports', label: 'التقارير', allowed: false },
-                { key: 'cashbox', label: 'الصندوق', allowed: false },
-                { key: 'accounting', label: 'المحاسبة', allowed: false },
-                { key: 'users', label: 'المستخدمين', allowed: false },
-                { key: 'settings', label: 'الإعدادات', allowed: false },
-                { key: 'price_edit', label: 'تعديل الأسعار', allowed: false },
-                { key: 'discount', label: 'منح خصم', allowed: true },
-                { key: 'delete_invoice', label: 'حذف فاتورة', allowed: false },
-                { key: 'view_profit', label: 'رؤية الأرباح', allowed: false }
-            ]
-        }
-    };
-
     /* ============ State ============ */
     const State = {
         users: [],
@@ -63,10 +15,12 @@
         editingId: null,
         deletingId: null,
         viewingId: null,
+        resettingId: null,
         filters: {
             search: '',
             role: '',
-            status: ''
+            status: '',
+            sort: 'name'
         }
     };
 
@@ -94,13 +48,10 @@
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
 
-            // ✅ التحقق من الصلاحية: فقط المدير يمكنه إدارة المستخدمين
-            const role = (State.currentUser.role || '').toLowerCase();
-            if (role !== 'admin' && role !== 'super_admin') {
+            // التحقق من الصلاحيات - فقط admin يستطيع إدارة المستخدمين
+            if (State.currentUser.role !== 'admin' && State.currentUser.role !== 'super_admin') {
                 showToast('غير مصرح لك بالوصول لهذه الصفحة', 'error');
-                setTimeout(() => {
-                    window.location.href = './pos.html';
-                }, 1500);
+                setTimeout(() => location.href = './dashboard.html', 1500);
                 return;
             }
         } catch (e) {
@@ -124,36 +75,36 @@
     async function loadUsers() {
         showSkeleton();
         try {
-            // Fetch users from Supabase profiles table
-            const client = window.DB?.client;
-            if (!client) throw new Error('Supabase not available');
+            const client = window.DB.client;
+            if (!client) throw new Error('Supabase client غير متوفر');
 
-            const tenantId = State.currentUser?.tenant_id;
-
-            let query = client
+            // جلب جميع المستخدمين من جدول profiles
+            const { data, error } = await client
                 .from('profiles')
                 .select('*')
                 .is('deleted_at', null)
-                .order('created_at', { ascending: false });
-
-            // فلترة حسب المستأجر (ما عدا super_admin)
-            if (tenantId && State.currentUser.role !== 'super_admin') {
-                query = query.eq('tenant_id', tenantId);
-            }
-
-            const { data, error } = await query;
+                .order('full_name');
 
             if (error) throw error;
 
-            State.users = data || [];
+            State.users = (data || []).map(u => ({
+                id: u.id,
+                fullName: u.full_name || u.email || 'بدون اسم',
+                email: u.email || '',
+                phone: u.phone || '',
+                role: u.role || 'rep',
+                tenant_id: u.tenant_id,
+                isActive: u.is_active !== false, // default true
+                createdAt: u.created_at || new Date().toISOString()
+            }));
 
             console.log('👥 Users:', State.users.length);
 
             renderSummary();
             applyFilters();
         } catch (e) {
-            console.error('Load users error:', e);
-            showToast('تعذر تحميل المستخدمين', 'error');
+            console.error('Load error:', e);
+            showToast('تعذر تحميل المستخدمين: ' + e.message, 'error');
             showEmpty(true);
         } finally {
             hideSkeleton();
@@ -168,9 +119,10 @@
         if (!container) return;
 
         const total = State.users.length;
-        const admins = State.users.filter(u => u.role === 'admin').length;
+        const admins = State.users.filter(u => u.role === 'admin' || u.role === 'super_admin').length;
         const reps = State.users.filter(u => u.role === 'rep').length;
-        const activeCount = State.users.filter(u => u.is_active !== false).length;
+        const active = State.users.filter(u => u.isActive).length;
+        const inactive = total - active;
 
         container.innerHTML = `
             <div class="summary-card">
@@ -183,30 +135,30 @@
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-card__icon blue">
-                    <i class="fas fa-user-tie"></i>
+                <div class="summary-card__icon purple">
+                    <i class="fas fa-user-shield"></i>
                 </div>
                 <div class="summary-card__info">
-                    <label>المدراء</label>
+                    <label>المديرون</label>
                     <span>${admins}</span>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="summary-card__icon green">
-                    <i class="fas fa-user"></i>
+                    <i class="fas fa-user-check"></i>
                 </div>
                 <div class="summary-card__info">
-                    <label>المندوبون</label>
-                    <span>${reps}</span>
+                    <label>نشط</label>
+                    <span>${active}</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-card__icon orange">
-                    <i class="fas fa-check-circle"></i>
+                <div class="summary-card__icon red">
+                    <i class="fas fa-user-slash"></i>
                 </div>
                 <div class="summary-card__info">
-                    <label>حسابات نشطة</label>
-                    <span>${activeCount}</span>
+                    <label>معطل</label>
+                    <span>${inactive}</span>
                 </div>
             </div>
         `;
@@ -218,25 +170,43 @@
     function applyFilters() {
         let list = [...State.users];
 
+        // Search
         if (State.filters.search) {
             const term = State.filters.search.toLowerCase();
             list = list.filter(u =>
-                (u.full_name || '').toLowerCase().includes(term) ||
+                (u.fullName || '').toLowerCase().includes(term) ||
                 (u.email || '').toLowerCase().includes(term) ||
                 (u.phone || '').includes(term)
             );
         }
 
+        // Role
         if (State.filters.role) {
-            list = list.filter(u => u.role === State.filters.role);
+            if (State.filters.role === 'admin') {
+                list = list.filter(u => u.role === 'admin' || u.role === 'super_admin');
+            } else {
+                list = list.filter(u => u.role === State.filters.role);
+            }
         }
 
+        // Status
         if (State.filters.status) {
-            list = list.filter(u => {
-                const isActive = u.is_active !== false;
-                return State.filters.status === 'active' ? isActive : !isActive;
-            });
+            if (State.filters.status === 'active') {
+                list = list.filter(u => u.isActive);
+            } else if (State.filters.status === 'inactive') {
+                list = list.filter(u => !u.isActive);
+            }
         }
+
+        // Sort
+        const sort = State.filters.sort;
+        list.sort((a, b) => {
+            if (sort === 'name') return (a.fullName || '').localeCompare(b.fullName || '', 'ar');
+            if (sort === 'name-desc') return (b.fullName || '').localeCompare(a.fullName || '', 'ar');
+            if (sort === 'recent') return new Date(b.createdAt) - new Date(a.createdAt);
+            if (sort === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+            return 0;
+        });
 
         State.filtered = list;
         renderUsers();
@@ -246,8 +216,7 @@
     function updateCount() {
         const el = $('#usersCount');
         if (el) {
-            const total = State.filtered.length;
-            el.textContent = total === 1 ? '1 مستخدم' : `${total} مستخدم`;
+            el.textContent = State.filtered.length === 1 ? '1 مستخدم' : `${State.filtered.length} مستخدم`;
         }
     }
 
@@ -269,58 +238,61 @@
 
         if (gridView) {
             gridView.innerHTML = State.filtered.map(u => renderUserCard(u)).join('');
-            gridView.querySelectorAll('.user-item').forEach(el => {
-                bindUserActions(el);
-            });
+            gridView.querySelectorAll('.user-item').forEach(el => bindUserActions(el));
         }
 
         if (listView) {
             listView.innerHTML = State.filtered.map(u => renderUserListItem(u)).join('');
-            listView.querySelectorAll('.user-list-item').forEach(el => {
-                bindUserActions(el);
-            });
+            listView.querySelectorAll('.user-list-item').forEach(el => bindUserActions(el));
         }
     }
 
     function renderUserCard(user) {
-        const role = (user.role || 'rep').toLowerCase();
-        const roleInfo = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.rep;
-        const isActive = user.is_active !== false;
-        const initials = (user.full_name || user.email || '?').trim()[0].toUpperCase();
+        const initials = getInitials(user.fullName);
+        const roleClass = user.role === 'admin' || user.role === 'super_admin' ? 'admin' : (user.role === 'super_admin' ? 'super_admin' : 'rep');
+        const roleLabel = getRoleLabel(user.role);
         const isMe = user.id === State.currentUser.id;
+        const avatarClass = user.role === 'rep' ? 'rep' : '';
 
         return `
-            <div class="user-item ${!isActive ? 'inactive' : ''}" data-id="${user.id}">
+            <div class="user-item ${!user.isActive ? 'inactive' : ''}" data-id="${user.id}">
                 <div class="user-item__actions">
-                    <button class="icon-action" data-action="edit" title="تعديل">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    ${!isMe ? `
+                    ${isMe ? '' : `
+                        <button class="icon-action" data-action="edit" title="تعديل">
+                            <i class="fas fa-edit"></i>
+                        </button>
                         <button class="icon-action danger" data-action="delete" title="حذف">
                             <i class="fas fa-trash"></i>
                         </button>
-                    ` : ''}
+                    `}
                 </div>
                 <div class="user-item__head">
-                    <div class="user-item__avatar ${role === 'rep' ? 'rep' : ''}">
+                    <div class="user-item__avatar ${avatarClass}">
                         ${U.escape(initials)}
+                        <span class="user-item__status-dot ${user.isActive ? 'active' : 'inactive'}"></span>
                     </div>
-                    <div class="user-item__info">
-                        <div class="user-item__name">${U.escape(user.full_name || 'بدون اسم')}</div>
-                        <div class="user-item__email">${U.escape(user.email || '')}</div>
+                    <div class="user-item__title">
+                        <div class="user-item__name">
+                            ${U.escape(user.fullName)}
+                            ${isMe ? '<span style="color:var(--primary);font-size:11px;">(أنت)</span>' : ''}
+                        </div>
+                        <div class="user-item__email">${U.escape(user.email)}</div>
                     </div>
                 </div>
                 <div class="user-item__body">
                     <div class="user-item__field">
                         <label>الدور</label>
-                        <span class="user-item__role ${role}">
-                            <i class="fas fa-${role === 'admin' ? 'user-tie' : 'user'}"></i>
-                            ${roleInfo.label}
+                        <span class="user-item__role ${roleClass}">${roleLabel}</span>
+                    </div>
+                    <div class="user-item__field">
+                        <label>الحالة</label>
+                        <span style="color:${user.isActive ? 'var(--success)' : 'var(--text-muted)'};">
+                            ${user.isActive ? 'نشط' : 'معطل'}
                         </span>
                     </div>
                     <div class="user-item__field">
                         <label>الهاتف</label>
-                        <span>${U.escape(user.phone || '—')}</span>
+                        <span>${U.escape(user.phone || '-')}</span>
                     </div>
                 </div>
             </div>
@@ -328,25 +300,40 @@
     }
 
     function renderUserListItem(user) {
-        const role = (user.role || 'rep').toLowerCase();
-        const roleInfo = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.rep;
-        const isActive = user.is_active !== false;
-        const initials = (user.full_name || user.email || '?').trim()[0].toUpperCase();
+        const initials = getInitials(user.fullName);
+        const avatarClass = user.role === 'rep' ? 'rep' : '';
 
         return `
-            <div class="user-list-item ${!isActive ? 'inactive' : ''}" data-id="${user.id}">
-                <div class="user-list-item__avatar ${role === 'rep' ? 'rep' : ''}">
+            <div class="user-list-item ${!user.isActive ? 'inactive' : ''}" data-id="${user.id}">
+                <div class="user-list-item__avatar ${avatarClass}">
                     ${U.escape(initials)}
                 </div>
                 <div class="user-list-item__info">
-                    <div class="user-list-item__name">${U.escape(user.full_name || 'بدون اسم')}</div>
-                    <div class="user-list-item__email">${U.escape(user.email || '')}</div>
+                    <div class="user-list-item__name">${U.escape(user.fullName)}</div>
+                    <div class="user-list-item__email">${U.escape(user.email)}</div>
                 </div>
-                <div class="user-list-item__role ${role}">
-                    ${roleInfo.label}
-                </div>
+                <span class="user-item__role ${user.role === 'rep' ? 'rep' : 'admin'}">
+                    ${getRoleLabel(user.role)}
+                </span>
             </div>
         `;
+    }
+
+    function getInitials(name) {
+        if (!name) return 'U';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name[0].toUpperCase();
+    }
+
+    function getRoleLabel(role) {
+        return {
+            'admin': 'مدير',
+            'rep': 'مندوب',
+            'super_admin': 'مدير عام'
+        }[role] || 'مستخدم';
     }
 
     function bindUserActions(el) {
@@ -373,7 +360,7 @@
     }
 
     /* ============================================
-       Add / Edit User
+       Add/Edit User
        ============================================ */
     function openUserModal(id = null) {
         State.editingId = id;
@@ -388,85 +375,103 @@
 
             if (title) title.textContent = 'تعديل بيانات المستخدم';
             $('#userId').value = id;
-            $('#userFullName').value = user.full_name || '';
+            $('#userName').value = user.fullName || '';
             $('#userEmail').value = user.email || '';
             $('#userPhone').value = user.phone || '';
-            $('#userIsActive').checked = user.is_active !== false;
-            setRole(user.role || 'rep');
+            $('#userRole').value = user.role || 'rep';
+            $('#userStatus').value = user.isActive ? 'active' : 'inactive';
 
-            // إخفاء حقول كلمة المرور عند التعديل
-            const passFields = $('#passwordFields');
-            if (passFields) passFields.style.display = 'none';
-            const emailInput = $('#userEmail');
-            if (emailInput) emailInput.disabled = true;
+            setRoleUI(user.role || 'rep');
+            setStatusUI(user.isActive ? 'active' : 'inactive');
+
+            // إخفاء حقل كلمة المرور عند التعديل
+            $('#passwordGroup').style.display = 'none';
+            $('#userEmail').setAttribute('disabled', 'disabled');
+            $('#emailHint').innerHTML = `
+                <i class="fas fa-lock"></i>
+                <span>لا يمكن تغيير البريد الإلكتروني</span>
+            `;
+
+            // عرض حقل الحالة
+            $('#statusGroup').style.display = 'block';
+
+            // منع تعديل حسابك الخاص (الدور)
+            if (id === State.currentUser.id) {
+                $$('.role-btn').forEach(btn => {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                });
+                $('#statusGroup').style.display = 'none';
+            }
         } else {
             if (title) title.textContent = 'إضافة مستخدم جديد';
             $('#userId').value = '';
-            $('#userIsActive').checked = true;
-            setRole('admin');
+            $('#userRole').value = 'admin';
+            $('#userStatus').value = 'active';
+            setRoleUI('admin');
+            setStatusUI('active');
 
-            // إظهار حقول كلمة المرور عند الإضافة
-            const passFields = $('#passwordFields');
-            if (passFields) passFields.style.display = 'block';
-            const emailInput = $('#userEmail');
-            if (emailInput) emailInput.disabled = false;
+            // إظهار حقل كلمة المرور
+            $('#passwordGroup').style.display = 'block';
+            $('#userEmail').removeAttribute('disabled');
+            $('#emailHint').innerHTML = `
+                <i class="fas fa-info-circle"></i>
+                <span>يُستخدم لتسجيل الدخول</span>
+            `;
+            $('#statusGroup').style.display = 'none';
+
+            // تفعيل كل الأزرار
+            $$('.role-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            });
         }
 
         openModal('userModal');
-        setTimeout(() => $('#userFullName')?.focus(), 200);
+        setTimeout(() => $('#userName')?.focus(), 200);
     }
 
-    function setRole(role) {
-        const r = (role || 'admin').toLowerCase();
-        $('#userRole').value = r;
-
-        // تحديث الأزرار
-        $$('.role-option').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.role === r);
+    function setRoleUI(role) {
+        $('#userRole').value = role;
+        $$('.role-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.role === role);
         });
-
-        // تحديث عرض الصلاحيات
-        renderPermissionsPreview(r);
     }
 
-    function renderPermissionsPreview(role) {
-        const container = $('#permissionsPreview');
-        if (!container) return;
-
-        const roleInfo = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.rep;
-
-        container.innerHTML = `
-            <div class="permissions-preview__title">
-                <i class="fas fa-shield-alt"></i>
-                صلاحيات ${roleInfo.label}:
-            </div>
-            <div class="permissions-list">
-                ${roleInfo.permissions.map(p => `
-                    <div class="permission-item ${p.allowed ? 'allowed' : 'denied'}">
-                        <i class="fas fa-${p.allowed ? 'check-circle' : 'times-circle'}"></i>
-                        <span>${p.label}</span>
-                    </div>
-                `).join('')}
-            </div>
-        `;
+    function setStatusUI(status) {
+        $('#userStatus').value = status;
+        $$('.status-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.status === status);
+        });
     }
 
     /* ============================================
        Save User
        ============================================ */
     async function saveUser() {
-        const fullName = $('#userFullName')?.value.trim();
-        const email = $('#userEmail')?.value.trim();
-        const phone = $('#userPhone')?.value.trim() || '';
-        const role = $('#userRole')?.value || 'admin';
-        const isActive = $('#userIsActive')?.checked !== false;
+        const id = $('#userId').value;
+        const isEdit = !!id;
 
+        const fullName = $('#userName').value.trim();
+        const email = $('#userEmail').value.trim();
+        const phone = $('#userPhone').value.trim();
+        const password = $('#userPassword').value;
+        const role = $('#userRole').value;
+        const status = $('#userStatus').value;
+
+        // Validation
         if (!fullName) {
             showToast('الاسم الكامل مطلوب', 'warning');
             return;
         }
         if (!email || !email.includes('@')) {
-            showToast('صيغة البريد الإلكتروني غير صحيحة', 'warning');
+            showToast('البريد الإلكتروني غير صحيح', 'warning');
+            return;
+        }
+        if (!isEdit && (!password || password.length < 6)) {
+            showToast('كلمة المرور 6 أحرف على الأقل', 'warning');
             return;
         }
 
@@ -474,75 +479,60 @@
         if (btn) btn.disabled = true;
 
         try {
-            const client = window.DB?.client;
-            if (!client) throw new Error('Supabase not available');
+            const client = window.DB.client;
 
-            if (State.editingId) {
-                // تحديث مستخدم موجود
+            if (isEdit) {
+                // ============ التعديل ============
                 const updates = {
                     full_name: fullName,
-                    phone: phone,
+                    phone: phone || null,
                     role: role,
-                    is_active: isActive,
-                    updated_at: new Date().toISOString()
+                    is_active: status === 'active'
                 };
 
                 const { error } = await client
                     .from('profiles')
                     .update(updates)
-                    .eq('id', State.editingId);
+                    .eq('id', id);
 
                 if (error) throw error;
-                showToast('تم تحديث المستخدم بنجاح', 'success');
 
+                showToast('تم تحديث بيانات المستخدم', 'success');
             } else {
-                // إنشاء مستخدم جديد
-                const password = $('#userPassword')?.value;
-                const passwordConfirm = $('#userPasswordConfirm')?.value;
-
-                if (!password || password.length < 6) {
-                    showToast('كلمة المرور 6 أحرف على الأقل', 'warning');
-                    btn.disabled = false;
-                    return;
-                }
-                if (password !== passwordConfirm) {
-                    showToast('كلمتا المرور غير متطابقتين', 'warning');
-                    btn.disabled = false;
-                    return;
-                }
-
-                // ✅ استخدام signUp مع بيانات إضافية
-                const { data: authData, error: signUpError } = await client.auth.signUp({
-                    email: email,
-                    password: password,
+                // ============ الإضافة ============
+                // 1. إنشاء مستخدم Auth
+                const { data: signUpData, error: signUpError } = await client.auth.signUp({
+                    email,
+                    password,
                     options: {
                         data: {
                             full_name: fullName,
-                            phone: phone,
-                            role: role
+                            phone: phone
                         }
                     }
                 });
 
                 if (signUpError) throw signUpError;
-                if (!authData.user) throw new Error('فشل إنشاء المستخدم');
+                if (!signUpData.user) throw new Error('فشل إنشاء الحساب');
 
-                // إنشاء profile
-                const profile = {
-                    id: authData.user.id,
-                    tenant_id: State.currentUser.tenant_id,
-                    full_name: fullName,
-                    email: email,
-                    phone: phone,
-                    role: role,
-                    is_active: isActive
-                };
-
+                // 2. إنشاء profile
                 const { error: profileError } = await client
                     .from('profiles')
-                    .upsert(profile, { onConflict: 'id' });
+                    .upsert({
+                        id: signUpData.user.id,
+                        full_name: fullName,
+                        email: email,
+                        phone: phone || null,
+                        role: role,
+                        tenant_id: State.currentUser.tenant_id,
+                        is_active: true
+                    }, { onConflict: 'id' });
 
-                if (profileError) console.warn('Profile warning:', profileError);
+                if (profileError) {
+                    console.error('Profile error:', profileError);
+                    // محاولة حذف المستخدم من Auth إذا فشل إنشاء البروفايل
+                    throw new Error('فشل إنشاء الملف الشخصي');
+                }
 
                 showToast('تم إضافة المستخدم بنجاح', 'success');
             }
@@ -551,8 +541,19 @@
             await loadUsers();
 
         } catch (e) {
-            console.error('Save user error:', e);
-            showToast(e.message || 'فشل حفظ المستخدم', 'error');
+            console.error('Save error:', e);
+            let errorMsg = e.message || 'فشل حفظ البيانات';
+
+            // ترجمة رسائل الخطأ الشائعة
+            if (errorMsg.includes('already registered') || errorMsg.includes('already been registered')) {
+                errorMsg = 'البريد الإلكتروني مسجل مسبقاً';
+            } else if (errorMsg.includes('Invalid email')) {
+                errorMsg = 'البريد الإلكتروني غير صحيح';
+            } else if (errorMsg.includes('Password should be at least')) {
+                errorMsg = 'كلمة المرور قصيرة جداً';
+            }
+
+            showToast(errorMsg, 'error');
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -570,78 +571,78 @@
         const body = $('#viewUserBody');
         if (!body) return;
 
-        const role = (user.role || 'rep').toLowerCase();
-        const roleInfo = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.rep;
-        const isActive = user.is_active !== false;
-        const initials = (user.full_name || user.email || '?').trim()[0].toUpperCase();
+        const initials = getInitials(user.fullName);
+        const avatarClass = user.role === 'rep' ? 'rep' : '';
+        const roleLabel = getRoleLabel(user.role);
+        const isMe = user.id === State.currentUser.id;
 
         body.innerHTML = `
             <div class="view-user__header">
-                <div class="view-user__avatar ${role === 'rep' ? 'rep' : ''}">
+                <div class="view-user__avatar ${avatarClass}">
                     ${U.escape(initials)}
+                    <span class="view-user__status-dot ${user.isActive ? 'active' : 'inactive'}"></span>
                 </div>
                 <div class="view-user__title">
-                    <h3>${U.escape(user.full_name || 'بدون اسم')}</h3>
-                    <p>${U.escape(user.email || '')}</p>
+                    <h3>
+                        ${U.escape(user.fullName)}
+                        ${isMe ? '<span style="color:var(--primary);font-size:13px;">(أنت)</span>' : ''}
+                    </h3>
+                    <p>${U.escape(user.email)}</p>
+                    <span class="user-item__role ${user.role === 'rep' ? 'rep' : (user.role === 'super_admin' ? 'super_admin' : 'admin')}">
+                        ${roleLabel}
+                    </span>
                 </div>
-            </div>
-
-            <div class="view-user__status ${isActive ? 'active' : 'inactive'}">
-                <i class="fas fa-circle"></i>
-                ${isActive ? 'حساب نشط' : 'حساب موقوف'}
             </div>
 
             <div class="view-user__grid">
                 <div class="view-user__item">
-                    <label>الدور</label>
-                    <span>${roleInfo.label}</span>
+                    <label>رقم الهاتف</label>
+                    <span>${U.escape(user.phone || 'غير محدد')}</span>
                 </div>
                 <div class="view-user__item">
-                    <label>الهاتف</label>
-                    <span>${U.escape(user.phone || '—')}</span>
+                    <label>الحالة</label>
+                    <span style="color:${user.isActive ? 'var(--success)' : 'var(--danger)'};">
+                        ${user.isActive ? 'نشط' : 'معطل'}
+                    </span>
                 </div>
                 <div class="view-user__item">
-                    <label>تاريخ الإنشاء</label>
-                    <span>${U.date(user.created_at || new Date())}</span>
+                    <label>تاريخ الإضافة</label>
+                    <span>${U.date(user.createdAt)}</span>
                 </div>
                 <div class="view-user__item">
-                    <label>آخر تحديث</label>
-                    <span>${U.date(user.updated_at || new Date())}</span>
-                </div>
-            </div>
-
-            <div class="permissions-preview">
-                <div class="permissions-preview__title">
-                    <i class="fas fa-shield-alt"></i>
-                    الصلاحيات:
-                </div>
-                <div class="permissions-list">
-                    ${roleInfo.permissions.map(p => `
-                        <div class="permission-item ${p.allowed ? 'allowed' : 'denied'}">
-                            <i class="fas fa-${p.allowed ? 'check-circle' : 'times-circle'}"></i>
-                            <span>${p.label}</span>
-                        </div>
-                    `).join('')}
+                    <label>معرف المستخدم</label>
+                    <span style="font-size:11px;">${U.escape(user.id.substring(0, 8))}...</span>
                 </div>
             </div>
         `;
 
-        // Bind buttons
-        const editBtn = $('#viewEditBtn');
-        if (editBtn) {
-            const newBtn = editBtn.cloneNode(true);
-            editBtn.parentNode.replaceChild(newBtn, editBtn);
-            newBtn.addEventListener('click', () => {
-                closeModal('viewUserModal');
-                setTimeout(() => openUserModal(id), 200);
-            });
-        }
+        // Update buttons
+        const editBtn = $('#editUserBtn');
+        const resetBtn = $('#resetPasswordBtn');
 
-        const closeBtn = $('#closeViewBtn');
-        if (closeBtn) {
-            const newBtn = closeBtn.cloneNode(true);
-            closeBtn.parentNode.replaceChild(newBtn, closeBtn);
-            newBtn.addEventListener('click', () => closeModal('viewUserModal'));
+        if (isMe) {
+            if (editBtn) editBtn.style.display = 'none';
+            if (resetBtn) resetBtn.style.display = 'none';
+        } else {
+            if (editBtn) {
+                editBtn.style.display = 'inline-flex';
+                const newEditBtn = editBtn.cloneNode(true);
+                editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+                newEditBtn.addEventListener('click', () => {
+                    closeModal('viewUserModal');
+                    setTimeout(() => openUserModal(id), 200);
+                });
+            }
+
+            if (resetBtn) {
+                resetBtn.style.display = 'inline-flex';
+                const newResetBtn = resetBtn.cloneNode(true);
+                resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
+                newResetBtn.addEventListener('click', () => {
+                    closeModal('viewUserModal');
+                    setTimeout(() => openResetPasswordModal(id), 200);
+                });
+            }
         }
 
         openModal('viewUserModal');
@@ -654,7 +655,6 @@
         const user = State.users.find(u => u.id === id);
         if (!user) return;
 
-        // منع حذف النفس
         if (id === State.currentUser.id) {
             showToast('لا يمكنك حذف حسابك الخاص', 'warning');
             return;
@@ -662,7 +662,7 @@
 
         State.deletingId = id;
         const nameEl = $('#deleteUserName');
-        if (nameEl) nameEl.textContent = user.full_name || user.email || '';
+        if (nameEl) nameEl.textContent = user.fullName;
 
         openModal('confirmDeleteModal');
     }
@@ -670,17 +670,22 @@
     async function confirmDelete() {
         if (!State.deletingId) return;
 
+        if (State.deletingId === State.currentUser.id) {
+            showToast('لا يمكنك حذف حسابك الخاص', 'warning');
+            closeModal('confirmDeleteModal');
+            return;
+        }
+
         const btn = $('#confirmDeleteBtn');
         if (btn) btn.disabled = true;
 
         try {
-            const client = window.DB?.client;
-            if (!client) throw new Error('Supabase not available');
+            const client = window.DB.client;
 
-            // حذف ناعم من profiles
+            // Soft delete: تحديث deleted_at في profiles
             const { error } = await client
                 .from('profiles')
-                .update({ 
+                .update({
                     deleted_at: new Date().toISOString(),
                     is_active: false
                 })
@@ -688,18 +693,157 @@
 
             if (error) throw error;
 
-            showToast('تم حذف المستخدم بنجاح', 'success');
+            // محاولة حذف المستخدم من Auth (اختياري - قد يفشل بسبب الصلاحيات)
+            try {
+                // هذا يتطلب service_role key، لذا قد لا يعمل
+                // سنتخطاه ونعتمد على Soft delete
+            } catch (e) {
+                console.warn('Auth deletion not allowed');
+            }
+
+            showToast('تم حذف المستخدم', 'success');
             closeModal('confirmDeleteModal');
             State.deletingId = null;
-
             await loadUsers();
 
         } catch (e) {
-            console.error('Delete user error:', e);
-            showToast('فشل حذف المستخدم', 'error');
+            console.error('Delete error:', e);
+            showToast('فشل حذف المستخدم: ' + e.message, 'error');
         } finally {
             if (btn) btn.disabled = false;
         }
+    }
+
+    /* ============================================
+       Reset Password
+       ============================================ */
+    function openResetPasswordModal(id) {
+        const user = State.users.find(u => u.id === id);
+        if (!user) return;
+
+        State.resettingId = id;
+
+        $('#resetUserId').value = id;
+        $('#resetInfo').innerHTML = `
+            <i class="fas fa-key"></i>
+            <div>
+                <strong>${U.escape(user.fullName)}</strong>
+                <small>${U.escape(user.email)}</small>
+            </div>
+        `;
+
+        $('#newPassword').value = '';
+        $('#confirmNewPassword').value = '';
+        $('#passwordStrength').style.display = 'none';
+
+        openModal('resetPasswordModal');
+        setTimeout(() => $('#newPassword')?.focus(), 200);
+    }
+
+    async function confirmResetPassword() {
+        const id = $('#resetUserId').value;
+        const newPassword = $('#newPassword').value;
+        const confirmPassword = $('#confirmNewPassword').value;
+
+        if (!id) {
+            showToast('المستخدم غير محدد', 'warning');
+            return;
+        }
+
+        if (!newPassword || newPassword.length < 6) {
+            showToast('كلمة المرور 6 أحرف على الأقل', 'warning');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            showToast('كلمتا المرور غير متطابقتين', 'warning');
+            return;
+        }
+
+        const btn = $('#confirmResetBtn');
+        if (btn) btn.disabled = true;
+
+        try {
+            const client = window.DB.client;
+
+            // إرسال رابط إعادة تعيين كلمة المرور عبر البريد
+            const user = State.users.find(u => u.id === id);
+            if (!user) throw new Error('المستخدم غير موجود');
+
+            // Supabase يرسل رابط إعادة تعيين عبر البريد
+            const { error } = await client.auth.resetPasswordForEmail(user.email, {
+                redirectTo: window.location.origin + '/reset-password.html'
+            });
+
+            if (error) throw error;
+
+            showToast(`تم إرسال رابط إعادة التعيين إلى ${user.email}`, 'success');
+            closeModal('resetPasswordModal');
+
+        } catch (e) {
+            console.error('Reset error:', e);
+            showToast('فشل إعادة تعيين كلمة المرور: ' + e.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    /* ============================================
+       Password Strength
+       ============================================ */
+    function checkPasswordStrength(password) {
+        if (!password) return { level: '', label: '' };
+
+        let score = 0;
+        if (password.length >= 6) score++;
+        if (password.length >= 10) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[a-z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+
+        if (score <= 2) return { level: 'weak', label: 'ضعيفة' };
+        if (score <= 4) return { level: 'medium', label: 'متوسطة' };
+        return { level: 'strong', label: 'قوية' };
+    }
+
+    /* ============================================
+       Export
+       ============================================ */
+    function exportUsers() {
+        if (!State.filtered.length) {
+            showToast('لا يوجد مستخدمين للتصدير', 'info');
+            return;
+        }
+
+        const rows = [['الاسم', 'البريد الإلكتروني', 'الهاتف', 'الدور', 'الحالة', 'تاريخ الإضافة']];
+        State.filtered.forEach(u => {
+            rows.push([
+                u.fullName || '',
+                u.email || '',
+                u.phone || '',
+                getRoleLabel(u.role),
+                u.isActive ? 'نشط' : 'معطل',
+                U.date(u.createdAt)
+            ]);
+        });
+
+        const csv = rows.map(row =>
+            row.map(cell => {
+                const s = String(cell ?? '');
+                return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }).join(',')
+        ).join('\n');
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users-${U.today()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('تم التصدير', 'success');
     }
 
     /* ============================================
@@ -747,11 +891,11 @@
         if (skeleton) {
             skeleton.innerHTML = Array(6).fill(`
                 <div class="skeleton-card">
-                    <div style="display:flex;gap:14px;margin-bottom:16px;">
-                        <div style="width:56px;height:56px;background:var(--bg-sunken);border-radius:50%;"></div>
+                    <div style="display:flex;gap:12px;margin-bottom:16px;">
+                        <div style="width:52px;height:52px;background:var(--bg-sunken);border-radius:50%;"></div>
                         <div style="flex:1;">
                             <div style="height:16px;background:var(--bg-sunken);border-radius:6px;margin-bottom:8px;"></div>
-                            <div style="height:12px;background:var(--bg-sunken);border-radius:6px;width:70%;"></div>
+                            <div style="height:12px;background:var(--bg-sunken);border-radius:6px;width:60%;"></div>
                         </div>
                     </div>
                     <div style="height:40px;background:var(--bg-sunken);border-radius:10px;"></div>
@@ -815,3 +959,206 @@
             font-weight: 700;
             font-size: 14px;
             box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
+            animation: slideUp 0.3s;
+        `;
+        toast.innerHTML = `<i class="fas fa-${icons[type]}"></i> <span>${U.escape(msg)}</span>`;
+        stack.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+            toast.style.transition = 'all 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 2800);
+    }
+
+    /* ============================================
+       Events
+       ============================================ */
+    function bindEvents() {
+        // Sidebar
+        $('#menuBtn')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.add('open');
+            $('#sidebarOverlay')?.classList.add('show');
+        });
+        $('#sidebarOverlay')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.remove('open');
+            $('#sidebarOverlay')?.classList.remove('show');
+        });
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                $('#sidebar')?.classList.remove('open');
+                $('#sidebarOverlay')?.classList.remove('show');
+            });
+        });
+
+        // Theme
+        $('#themeBtn')?.addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            U.ls.set('theme', next);
+            updateThemeIcon();
+        });
+
+        // Logout
+        $('#logoutBtn')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('تسجيل الخروج؟')) return;
+            await Auth.logout();
+        });
+
+        // Refresh
+        $('#refreshBtn')?.addEventListener('click', async () => {
+            showToast('جاري التحديث...', 'info');
+            await loadUsers();
+            showToast('تم التحديث', 'success');
+        });
+
+        // Export
+        $('#exportBtn')?.addEventListener('click', exportUsers);
+
+        // Add user
+        $('#addUserBtn')?.addEventListener('click', () => openUserModal());
+        $('#fabAddBtn')?.addEventListener('click', () => openUserModal());
+
+        // Search
+        $('#searchInput')?.addEventListener('input', U.debounce((e) => {
+            State.filters.search = e.target.value.trim();
+            const clearBtn = $('#clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = e.target.value ? 'grid' : 'none';
+            applyFilters();
+        }, 200));
+
+        $('#clearSearchBtn')?.addEventListener('click', () => {
+            const input = $('#searchInput');
+            if (input) input.value = '';
+            State.filters.search = '';
+            $('#clearSearchBtn').style.display = 'none';
+            applyFilters();
+        });
+
+        // Filters
+        $('#roleFilter')?.addEventListener('change', (e) => {
+            State.filters.role = e.target.value;
+            applyFilters();
+        });
+        $('#statusFilter')?.addEventListener('change', (e) => {
+            State.filters.status = e.target.value;
+            applyFilters();
+        });
+        $('#sortFilter')?.addEventListener('change', (e) => {
+            State.filters.sort = e.target.value;
+            applyFilters();
+        });
+
+        // Role selector
+        $$('.role-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                setRoleUI(btn.dataset.role);
+            });
+        });
+
+        // Status selector
+        $$('.status-btn').forEach(btn => {
+            btn.addEventListener('click', () => setStatusUI(btn.dataset.status));
+        });
+
+        // Toggle password visibility
+        $('#togglePass')?.addEventListener('click', () => {
+            const input = $('#userPassword');
+            if (!input) return;
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            const icon = $('#togglePass').querySelector('i');
+            icon.className = isPass ? 'fas fa-eye-slash' : 'fas fa-eye';
+        });
+
+        $('#toggleNewPass')?.addEventListener('click', () => {
+            const input = $('#newPassword');
+            if (!input) return;
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            const icon = $('#toggleNewPass').querySelector('i');
+            icon.className = isPass ? 'fas fa-eye-slash' : 'fas fa-eye';
+        });
+
+        $('#toggleConfirmPass')?.addEventListener('click', () => {
+            const input = $('#confirmNewPassword');
+            if (!input) return;
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            const icon = $('#toggleConfirmPass').querySelector('i');
+            icon.className = isPass ? 'fas fa-eye-slash' : 'fas fa-eye';
+        });
+
+        // Password strength
+        $('#newPassword')?.addEventListener('input', (e) => {
+            const val = e.target.value;
+            const strength = checkPasswordStrength(val);
+            const strengthEl = $('#passwordStrength');
+            const fill = $('#strengthFill');
+            const label = $('#strengthLabel');
+
+            if (!val) {
+                strengthEl.style.display = 'none';
+                return;
+            }
+
+            strengthEl.style.display = 'block';
+            fill.className = `password-strength__fill ${strength.level}`;
+            label.className = strength.level;
+            label.textContent = `قوة كلمة المرور: ${strength.label}`;
+        });
+
+        // Save user
+        $('#saveUserBtn')?.addEventListener('click', saveUser);
+
+        // Confirm delete
+        $('#confirmDeleteBtn')?.addEventListener('click', confirmDelete);
+
+        // Confirm reset password
+        $('#confirmResetBtn')?.addEventListener('click', confirmResetPassword);
+
+        // Close modals
+        document.querySelectorAll('[data-close]').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.dataset.close));
+        });
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('open');
+            });
+        });
+
+        // ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+            }
+        });
+
+        // Connection
+        window.addEventListener('online', () => {
+            updateConnStatus();
+            showToast('عاد الاتصال', 'success');
+        });
+        window.addEventListener('offline', () => {
+            updateConnStatus();
+            showToast('انقطع الاتصال', 'warning');
+        });
+    }
+
+    /* ============================================
+       Start
+       ============================================ */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+})();
