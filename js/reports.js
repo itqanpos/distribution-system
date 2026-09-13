@@ -1,237 +1,1392 @@
 /* =============================================
-   reports.js - التقارير (Premium Edition)
+   reports.js - Reports Page Logic
    ============================================= */
-'use strict';
+(function() {
+    'use strict';
 
-if (!window.Utils) {
-    window.Utils = {
-        formatMoney: (amount, currency = 'ج.م') => Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currency,
-        formatDate: (dateStr) => { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return dateStr; } },
-        getToday: () => new Date().toISOString().split('T')[0],
-        isDBReady: () => !!(window.DB && window.supabase),
-        hasLocalDB: () => !!(window.localDB && typeof localDB.getAll === 'function')
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => [...document.querySelectorAll(s)];
+
+    /* ============ State ============ */
+    const State = {
+        currentUser: null,
+        invoices: [],
+        parties: [],
+        products: [],
+        transactions: [],
+        period: 'today',
+        customFrom: null,
+        customTo: null,
+        activeReport: 'overview'
     };
-}
 
-const Reports = {
-    invoices: [], purchases: [], customers: [], products: [], transactions: [], settings: {},
-    currentTab: 'sales',
-    chartInstances: {},
-    dateFrom: '', dateTo: '',
+    /* ============================================
+       Init
+       ============================================ */
+    async function init() {
+        console.log('🚀 Reports init...');
 
-    init() {
-        this.cacheElements();
-        this.bindEvents();
-        if (window.App) { if (!App.requireAuth()) return; App.initUserInterface(); }
-        this.initSidebarUser();
-        this.setDate();
-        this.loadAllData();
-    },
-
-    cacheElements() {
-        this.el = {
-            menuToggle: document.getElementById('menuToggle'), sidebar: document.getElementById('sidebar'), sidebarOverlay: document.getElementById('sidebarOverlay'),
-            moreMenuBtn: document.getElementById('moreMenuBtn'), moreDropdown: document.getElementById('moreDropdown'), refreshDataBtn: document.getElementById('refreshDataBtn'), logoutBtn: document.getElementById('logoutBtn'), printCurrentReportBtn: document.getElementById('printCurrentReportBtn'),
-            tabBtns: document.querySelectorAll('.tab-btn'), reportContent: document.getElementById('reportContent'),
-            sidebarAvatar: document.getElementById('sidebarAvatar'), sidebarUserName: document.getElementById('sidebarUserName'),
-            currentDate: document.getElementById('currentDate'), toast: document.getElementById('toast')
-        };
-    },
-
-    bindEvents() {
-        this.el.menuToggle?.addEventListener('click', () => { this.el.sidebar.classList.toggle('open'); this.el.sidebarOverlay?.classList.toggle('show'); });
-        this.el.sidebarOverlay?.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay.classList.remove('show'); });
-        document.querySelectorAll('.menu-item').forEach(link => { link.addEventListener('click', () => { this.el.sidebar.classList.remove('open'); this.el.sidebarOverlay?.classList.remove('show'); }); });
-
-        this.el.moreMenuBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.el.moreDropdown?.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.nav-actions')) this.el.moreDropdown?.classList.remove('show'); });
-
-        this.el.refreshDataBtn?.addEventListener('click', (e) => { e.preventDefault(); this.loadAllData(); this.toast('تم تحديث البيانات'); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.printCurrentReportBtn?.addEventListener('click', (e) => { e.preventDefault(); this.printCurrentReport(); this.el.moreDropdown?.classList.remove('show'); });
-        this.el.logoutBtn?.addEventListener('click', (e) => { e.preventDefault(); if (window.App) App.logout(); else window.location.href = './index.html'; });
-
-        this.el.tabBtns.forEach(btn => { btn.addEventListener('click', () => { this.el.tabBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); this.currentTab = btn.dataset.tab; this.renderReport(); }); });
-    },
-
-    initSidebarUser() {
-        const user = window.App?.getCurrentUser?.();
-        if (user) { if (this.el.sidebarAvatar) this.el.sidebarAvatar.textContent = user.avatar || 'U'; if (this.el.sidebarUserName) this.el.sidebarUserName.textContent = user.fullName || user.email || 'مدير النظام'; }
-    },
-
-    setDate() {
-        if (this.el.currentDate) { this.el.currentDate.textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
-    },
-
-    async loadAllData() {
-        try {
-            if (Utils.isDBReady()) { this.invoices = (await DB.getInvoices()) || []; this.purchases = (await DB.getPurchases()) || []; this.customers = (await DB.getParties('customer')) || []; this.products = (await DB.getProducts()) || []; this.transactions = (await DB.getTransactions()) || []; this.settings = (await DB.getSettings().catch(() => ({}))) || {}; }
-            else if (Utils.hasLocalDB()) { this.invoices = (await localDB.getAll('invoices')) || []; this.purchases = (await localDB.getAll('purchases')) || []; const allParties = (await localDB.getAll('parties')) || []; this.customers = allParties.filter(p => p.type === 'customer'); this.products = (await localDB.getAll('products')) || []; this.transactions = (await localDB.getAll('transactions')) || []; const s = await localDB.getById('settings', 'main').catch(() => null); this.settings = s?.data || {}; }
-            else { this.invoices = []; this.purchases = []; this.customers = []; this.products = []; this.transactions = []; this.settings = {}; }
-
-            const range = this.getDefaultDateRange();
-            this.dateFrom = range.from; this.dateTo = range.to;
-            this.renderReport();
-        } catch (err) { console.error(err); this.el.reportContent.innerHTML = '<div class="empty-message">فشل تحميل البيانات</div>'; }
-    },
-
-    getDefaultDateRange() {
-        const today = new Date(); const from = new Date(today); from.setDate(today.getDate() - 30);
-        return { from: from.toISOString().split('T')[0], to: Utils.getToday() };
-    },
-
-    renderReport() {
-        if (!this.el.reportContent) return;
-        switch (this.currentTab) {
-            case 'sales': this.renderSalesReport(); break;
-            case 'purchases': this.renderPurchasesReport(); break;
-            case 'inventory': this.renderInventoryReport(); break;
-            case 'customers': this.renderCustomersReport(); break;
-            case 'profits': this.renderProfitsReport(); break;
-            case 'cashflow': this.renderCashflowReport(); break;
+        let attempts = 0;
+        while (!window.DB?.client && attempts < 50) {
+            await new Promise(r => setTimeout(r, 100));
+            attempts++;
         }
-    },
 
-    // ======================= تقرير المبيعات =======================
-    renderSalesReport() {
-        const filteredInvoices = this.invoices.filter(inv => inv.date >= this.dateFrom && inv.date <= this.dateTo && inv.type === 'sale');
-        const totalSales = filteredInvoices.reduce((s, i) => s + i.total, 0);
-        const invoiceCount = filteredInvoices.length;
-        const average = invoiceCount ? totalSales / invoiceCount : 0;
-        const totalPaid = filteredInvoices.reduce((s, i) => s + i.paid, 0);
-        const totalRemaining = totalSales - totalPaid;
+        if (!window.DB?.client) {
+            console.error('❌ Supabase غير محمّل');
+            showToast('تعذر الاتصال بالخادم', 'error');
+            return;
+        }
 
-        const dailySales = {};
-        filteredInvoices.forEach(inv => { dailySales[inv.date] = (dailySales[inv.date] || 0) + inv.total; });
+        await new Promise(r => setTimeout(r, 300));
 
-        let html = `
-            <div class="report-stats">
-                <div class="stat-card"><div class="icon" style="color:#16a34a;"><i class="fas fa-money-bill-wave"></i></div><div><div class="value">${Utils.formatMoney(totalSales)}</div><div class="label">إجمالي المبيعات</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div><div><div class="value">${invoiceCount}</div><div class="label">عدد الفواتير</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#8b5cf6;"><i class="fas fa-calculator"></i></div><div><div class="value">${Utils.formatMoney(average)}</div><div class="label">متوسط الفاتورة</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#f59e0b;"><i class="fas fa-clock"></i></div><div><div class="value">${Utils.formatMoney(totalRemaining)}</div><div class="label">المتبقي غير المحصل</div></div></div>
+        try {
+            State.currentUser = await Auth.requireAuth();
+            if (!State.currentUser) return;
+        } catch (e) {
+            console.error('Auth failed:', e);
+            return;
+        }
+
+        updateUserUI();
+        updateConnStatus();
+        initTheme();
+        bindEvents();
+
+        await loadData();
+        hideLoadingBar();
+        console.log('✅ Reports ready');
+    }
+
+    /* ============================================
+       Load Data
+       ============================================ */
+    async function loadData() {
+        showLoading();
+        try {
+            const [invoices, parties, products, transactions] = await Promise.all([
+                DB.getInvoices(true).catch(() => []),
+                DB.getParties(null, true).catch(() => []),
+                DB.getProducts(true).catch(() => []),
+                DB.getPayments().catch(() => [])
+            ]);
+
+            State.invoices = invoices || [];
+            State.parties = parties || [];
+            State.products = products || [];
+            State.transactions = transactions || [];
+
+            console.log('📊 Data loaded:', {
+                invoices: State.invoices.length,
+                parties: State.parties.length,
+                products: State.products.length,
+                transactions: State.transactions.length
+            });
+
+            renderAll();
+        } catch (e) {
+            console.error('Load error:', e);
+            showToast('تعذر تحميل البيانات', 'error');
+        } finally {
+            hideLoadingBar();
+        }
+    }
+
+    /* ============================================
+       Period Handling
+       ============================================ */
+    function getDateRange() {
+        const today = new Date();
+        const todayStr = U.today();
+        let from, to;
+
+        switch (State.period) {
+            case 'today':
+                from = todayStr;
+                to = todayStr;
+                break;
+            case 'yesterday':
+                const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                from = yesterday.toISOString().split('T')[0];
+                to = from;
+                break;
+            case 'week':
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                from = weekAgo.toISOString().split('T')[0];
+                to = todayStr;
+                break;
+            case 'month':
+                const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                from = monthAgo.toISOString().split('T')[0];
+                to = todayStr;
+                break;
+            case 'year':
+                const yearAgo = new Date(today.getFullYear(), 0, 1);
+                from = yearAgo.toISOString().split('T')[0];
+                to = todayStr;
+                break;
+            case 'custom':
+                from = State.customFrom || todayStr;
+                to = State.customTo || todayStr;
+                break;
+            default:
+                from = todayStr;
+                to = todayStr;
+        }
+
+        return { from, to };
+    }
+
+    function filterByPeriod(items, dateField = 'date') {
+        const { from, to } = getDateRange();
+        return items.filter(item => {
+            const d = item[dateField] || (item.created_at || '').slice(0, 10);
+            return d >= from && d <= to;
+        });
+    }
+
+    function updatePeriodLabel() {
+        const { from, to } = getDateRange();
+        const el = $('#reportPeriod');
+        if (!el) return;
+
+        if (from === to) {
+            el.textContent = `التقرير بتاريخ: ${U.date(from)}`;
+        } else {
+            el.textContent = `من ${U.date(from)} إلى ${U.date(to)}`;
+        }
+    }
+
+    /* ============================================
+       Render All Reports
+       ============================================ */
+    function renderAll() {
+        updatePeriodLabel();
+        renderOverview();
+        renderSales();
+        renderPurchases();
+        renderProducts();
+        renderCustomers();
+        renderPayments();
+    }
+
+    /* ============================================
+       Overview Report
+       ============================================ */
+    function renderOverview() {
+        const periodInvoices = filterByPeriod(State.invoices);
+        const sales = periodInvoices.filter(i => i.type === 'sale');
+        const purchases = periodInvoices.filter(i => i.type === 'purchase');
+
+        const totalSales = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        const totalPurchases = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
+
+        // حساب الربح
+        let totalProfit = 0;
+        sales.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const cost = Number(item.cost) || 0;
+                const price = Number(item.price) || 0;
+                const qty = Number(item.quantity) || 0;
+                totalProfit += (price - cost) * qty;
+            });
+        });
+
+        const netProfit = totalProfit - (Number(discounts) || 0);
+        const discounts = sales.reduce((s, i) => s + (Number(i.discount) || 0), 0);
+
+        // عدد الفواتير
+        const invoiceCount = sales.length;
+        const avgInvoice = invoiceCount > 0 ? totalSales / invoiceCount : 0;
+
+        // KPI
+        const kpiGrid = $('#overviewKPI');
+        if (kpiGrid) {
+            kpiGrid.innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-card__icon green"><i class="fas fa-chart-line"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي المبيعات</span>
+                        <span class="kpi-card__value">${U.money(totalSales)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon blue"><i class="fas fa-file-invoice"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">عدد فواتير البيع</span>
+                        <span class="kpi-card__value">${invoiceCount}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon orange"><i class="fas fa-truck"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي المشتريات</span>
+                        <span class="kpi-card__value">${U.money(totalPurchases)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon purple"><i class="fas fa-coins"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">صافي الربح</span>
+                        <span class="kpi-card__value">${U.money(netProfit)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon teal"><i class="fas fa-calculator"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">متوسط الفاتورة</span>
+                        <span class="kpi-card__value">${U.money(avgInvoice)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon red"><i class="fas fa-percentage"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي الخصومات</span>
+                        <span class="kpi-card__value">${U.money(discounts)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Chart - daily sales
+        renderOverviewChart(sales);
+
+        // Payment breakdown
+        renderPaymentBreakdown(sales);
+
+        // Top products
+        renderTopProductsOverview(sales);
+
+        // Top customers
+        renderTopCustomersOverview(sales);
+    }
+
+    function renderOverviewChart(sales) {
+        const container = $('#overviewChart');
+        if (!container) return;
+
+        const days = [];
+        const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+        // Last 7 days
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+            const dateStr = date.toISOString().split('T')[0];
+            const daySales = sales
+                .filter(inv => (inv.date || (inv.created_at || '').slice(0, 10)) === dateStr)
+                .reduce((s, i) => s + (Number(i.total) || 0), 0);
+
+            days.push({
+                name: dayNames[date.getDay()],
+                date: dateStr,
+                shortDate: `${date.getDate()}/${date.getMonth() + 1}`,
+                sales: daySales
+            });
+        }
+
+        const maxSales = Math.max(...days.map(d => d.sales), 1);
+        const allZero = days.every(d => d.sales === 0);
+
+        if (allZero) {
+            container.innerHTML = `
+                <div class="chart-empty">
+                    <i class="fas fa-chart-area"></i>
+                    <p>لا توجد مبيعات في آخر 7 أيام</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = days.map(d => {
+            const percent = (d.sales / maxSales) * 100;
+            return `
+                <div class="chart-bar-wrapper">
+                    <div class="chart-bar" style="height: ${Math.max(percent, 4)}%;">
+                        <span class="chart-bar__value">${U.moneyRaw(d.sales)}</span>
+                    </div>
+                    <span class="chart-bar__label">${d.name}</span>
+                    <span class="chart-bar__date">${d.shortDate}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderPaymentBreakdown(sales) {
+        const container = $('#paymentBreakdown');
+        if (!container) return;
+
+        const methods = {
+            cash: { label: 'نقدي', icon: 'fa-money-bill-wave', class: 'cash', total: 0, count: 0 },
+            card: { label: 'بطاقة', icon: 'fa-credit-card', class: 'card', total: 0, count: 0 },
+            transfer: { label: 'تحويل', icon: 'fa-exchange-alt', class: 'transfer', total: 0, count: 0 },
+            credit: { label: 'آجل', icon: 'fa-hand-holding-usd', class: 'credit', total: 0, count: 0 },
+            mixed: { label: 'مختلط', icon: 'fa-layer-group', class: 'mixed', total: 0, count: 0 }
+        };
+
+        sales.forEach(inv => {
+            const m = inv.payment_method || 'cash';
+            if (methods[m]) {
+                methods[m].total += Number(inv.total) || 0;
+                methods[m].count += 1;
+            }
+        });
+
+        const total = Object.values(methods).reduce((s, m) => s + m.total, 0);
+        const active = Object.entries(methods).filter(([_, m]) => m.count > 0);
+
+        if (!active.length) {
+            container.innerHTML = `
+                <div class="chart-empty" style="height:180px;">
+                    <i class="fas fa-inbox"></i>
+                    <p>لا توجد بيانات</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = active.map(([key, m]) => {
+            const percent = total > 0 ? (m.total / total) * 100 : 0;
+            return `
+                <div class="payment-item">
+                    <div class="payment-item__label">
+                        <i class="fas ${m.icon} ${m.class}"></i>
+                        <span>${m.label}</span>
+                    </div>
+                    <div class="payment-item__value">
+                        ${U.money(m.total)}
+                        <small>${m.count} فاتورة · ${percent.toFixed(1)}%</small>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderTopProductsOverview(sales) {
+        const container = $('#topProductsOverview');
+        if (!container) return;
+
+        const productSales = new Map();
+
+        sales.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const key = item.productId || item.productName;
+                const current = productSales.get(key) || {
+                    name: item.productName || 'منتج',
+                    qty: 0,
+                    amount: 0
+                };
+                current.qty += Number(item.quantity) || 0;
+                current.amount += (Number(item.price) || 0) * (Number(item.quantity) || 0);
+                productSales.set(key, current);
+            });
+        });
+
+        const sorted = [...productSales.values()]
+            .sort((a, b) => b.qty - a.qty)
+            .slice(0, 5);
+
+        if (!sorted.length) {
+            container.innerHTML = `
+                <div class="chart-empty" style="height:180px;">
+                    <i class="fas fa-star"></i>
+                    <p>لا توجد مبيعات</p>
+                </div>
+            `;
+            return;
+        }
+
+        const rankClasses = ['gold', 'silver', 'bronze', '', ''];
+
+        container.innerHTML = sorted.map((p, i) => `
+            <div class="top-list-item">
+                <div class="top-list-item__rank ${rankClasses[i] || ''}">${i + 1}</div>
+                <div class="top-list-item__info">
+                    <div class="top-list-item__name">${U.escape(p.name)}</div>
+                    <div class="top-list-item__meta">${p.qty} وحدة</div>
+                </div>
+                <div class="top-list-item__amount">${U.money(p.amount)}</div>
             </div>
-            <div class="chart-box"><div class="chart-header"><h3>المبيعات اليومية</h3></div><div class="chart-wrapper"><canvas id="salesChart"></canvas></div></div>
-            <div class="report-table-container"><h3>أعلى 10 عملاء من حيث المبيعات</h3><table class="report-table"><thead><tr><th>العميل</th><th>عدد الفواتير</th><th>إجمالي المبيعات</th></tr></thead><tbody>${this.getTopCustomers().map(c => `<tr><td>${c.name}</td><td>${c.count}</td><td>${Utils.formatMoney(c.total)}</td></tr>`).join('') || '<tr><td colspan="3" class="empty-message">لا توجد بيانات</td></tr>'}</tbody></table></div>
-        `;
-        this.el.reportContent.innerHTML = html;
-        this.renderSalesChart(Object.keys(dailySales).sort(), Object.values(dailySales));
-    },
+        `).join('');
+    }
 
-    getTopCustomers() { const map = {}; this.invoices.forEach(inv => { const name = inv.customer_name || this.customers.find(c => c.id === inv.customer_id)?.name || 'نقدي'; if (!map[name]) map[name] = { name, count: 0, total: 0 }; map[name].count++; map[name].total += inv.total; }); return Object.values(map).sort((a, b) => b.total - a.total).slice(0, 10); },
+    function renderTopCustomersOverview(sales) {
+        const container = $('#topCustomersOverview');
+        if (!container) return;
 
-    renderSalesChart(labels, data) { this.destroyChart('salesChart'); setTimeout(() => { const ctx = document.getElementById('salesChart')?.getContext('2d'); if (!ctx) return; this.chartInstances.salesChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'المبيعات (ج.م)', data, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } }); }, 100); },
+        const customerSales = new Map();
 
-    // ======================= تقرير المشتريات =======================
-    renderPurchasesReport() {
-        const filtered = this.purchases.filter(p => p.date >= this.dateFrom && p.date <= this.dateTo);
-        const total = filtered.reduce((s, p) => s + p.total, 0);
-        const count = filtered.length;
-        const average = count ? total / count : 0;
-        const bySupplier = {}; filtered.forEach(p => { const name = p.supplier_name || 'غير معروف'; if (!bySupplier[name]) bySupplier[name] = { name, count: 0, total: 0 }; bySupplier[name].count++; bySupplier[name].total += p.total; });
+        sales.forEach(inv => {
+            if (!inv.customer_id) return;
+            const current = customerSales.get(inv.customer_id) || {
+                name: inv.customer_name || 'عميل',
+                total: 0,
+                count: 0
+            };
+            current.total += Number(inv.total) || 0;
+            current.count += 1;
+            customerSales.set(inv.customer_id, current);
+        });
 
-        this.el.reportContent.innerHTML = `
-            <div class="report-stats">
-                <div class="stat-card"><div class="icon" style="color:#dc2626;"><i class="fas fa-shopping-cart"></i></div><div><div class="value">${Utils.formatMoney(total)}</div><div class="label">إجمالي المشتريات</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#3b82f6;"><i class="fas fa-receipt"></i></div><div><div class="value">${count}</div><div class="label">عدد فواتير الشراء</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#8b5cf6;"><i class="fas fa-calculator"></i></div><div><div class="value">${Utils.formatMoney(average)}</div><div class="label">متوسط الفاتورة</div></div></div>
+        const sorted = [...customerSales.values()]
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5);
+
+        if (!sorted.length) {
+            container.innerHTML = `
+                <div class="chart-empty" style="height:180px;">
+                    <i class="fas fa-users"></i>
+                    <p>لا توجد بيانات</p>
+                </div>
+            `;
+            return;
+        }
+
+        const rankClasses = ['gold', 'silver', 'bronze', '', ''];
+
+        container.innerHTML = sorted.map((c, i) => `
+            <div class="top-list-item">
+                <div class="top-list-item__rank ${rankClasses[i] || ''}">${i + 1}</div>
+                <div class="top-list-item__info">
+                    <div class="top-list-item__name">${U.escape(c.name)}</div>
+                    <div class="top-list-item__meta">${c.count} فاتورة</div>
+                </div>
+                <div class="top-list-item__amount">${U.money(c.total)}</div>
             </div>
-            <div class="report-table-container"><h3>المشتريات حسب المورد</h3><table class="report-table"><thead><tr><th>المورد</th><th>عدد الفواتير</th><th>إجمالي المشتريات</th></tr></thead><tbody>${Object.values(bySupplier).sort((a,b)=>b.total-a.total).map(s => `<tr><td>${s.name}</td><td>${s.count}</td><td>${Utils.formatMoney(s.total)}</td></tr>`).join('') || '<tr><td colspan="3" class="empty-message">لا توجد بيانات</td></tr>'}</tbody></table></div>
-        `;
-    },
+        `).join('');
+    }
 
-    // ======================= تقرير المخزون =======================
-    renderInventoryReport() {
-        const lowStock = this.products.filter(p => (p.units?.[0]?.stock || 0) <= (p.min_stock || 5));
-        const totalStockValue = this.products.reduce((sum, p) => sum + ((p.units?.[0]?.stock || 0) * (p.units?.[0]?.cost || 0)), 0);
+    /* ============================================
+       Sales Report
+       ============================================ */
+    function renderSales() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
 
-        this.el.reportContent.innerHTML = `
-            <div class="report-stats">
-                <div class="stat-card"><div class="icon" style="color:#3b82f6;"><i class="fas fa-boxes"></i></div><div><div class="value">${this.products.length}</div><div class="label">إجمالي المنتجات</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#ef4444;"><i class="fas fa-exclamation-triangle"></i></div><div><div class="value">${lowStock.length}</div><div class="label">منتجات منخفضة المخزون</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#f59e0b;"><i class="fas fa-coins"></i></div><div><div class="value">${Utils.formatMoney(totalStockValue)}</div><div class="label">قيمة المخزون الحالي</div></div></div>
+        const total = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        const paid = sales.reduce((s, i) => s + (Number(i.paid) || 0), 0);
+        const remaining = sales.reduce((s, i) => s + (Number(i.remaining) || 0), 0);
+        const discount = sales.reduce((s, i) => s + (Number(i.discount) || 0), 0);
+
+        const kpi = $('#salesKPI');
+        if (kpi) {
+            kpi.innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-card__icon green"><i class="fas fa-money-bill"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي المبيعات</span>
+                        <span class="kpi-card__value">${U.money(total)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon blue"><i class="fas fa-check-circle"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">المدفوع</span>
+                        <span class="kpi-card__value">${U.money(paid)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon red"><i class="fas fa-clock"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">المتبقي</span>
+                        <span class="kpi-card__value">${U.money(remaining)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon orange"><i class="fas fa-percentage"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">الخصومات</span>
+                        <span class="kpi-card__value">${U.money(discount)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const tbody = $('#salesTableBody');
+        if (!tbody) return;
+
+        if (!sales.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="8">
+                    <div class="table-empty">
+                        <i class="fas fa-inbox"></i>
+                        <p>لا توجد فواتير في هذه الفترة</p>
+                    </div>
+                </td></tr>
+            `;
+            return;
+        }
+
+        const sorted = sales.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+
+        tbody.innerHTML = sorted.map((inv, i) => {
+            const status = inv.status || 'paid';
+            const statusLabel = {
+                paid: 'مدفوعة',
+                partial: 'جزئية',
+                credit: 'آجلة',
+                held: 'معلقة'
+            }[status] || 'مدفوعة';
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td class="text-primary">${U.escape(inv.invoice_number || '---')}</td>
+                    <td>${U.date(inv.date || inv.created_at)}</td>
+                    <td>${U.escape(inv.customer_name || 'نقدي')}</td>
+                    <td>${U.money(Number(inv.total) || 0)}</td>
+                    <td class="text-success">${U.money(Number(inv.paid) || 0)}</td>
+                    <td class="text-danger">${U.money(Number(inv.remaining) || 0)}</td>
+                    <td><span class="status-badge ${status}">${statusLabel}</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /* ============================================
+       Purchases Report
+       ============================================ */
+    function renderPurchases() {
+        const purchases = filterByPeriod(State.invoices).filter(i => i.type === 'purchase');
+
+        const total = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        const paid = purchases.reduce((s, i) => s + (Number(i.paid) || 0), 0);
+        const remaining = purchases.reduce((s, i) => s + (Number(i.remaining) || 0), 0);
+
+        const kpi = $('#purchasesKPI');
+        if (kpi) {
+            kpi.innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-card__icon orange"><i class="fas fa-shopping-cart"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي المشتريات</span>
+                        <span class="kpi-card__value">${U.money(total)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon blue"><i class="fas fa-check-circle"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">المدفوع</span>
+                        <span class="kpi-card__value">${U.money(paid)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon red"><i class="fas fa-clock"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">المتبقي للموردين</span>
+                        <span class="kpi-card__value">${U.money(remaining)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon purple"><i class="fas fa-list"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">عدد الفواتير</span>
+                        <span class="kpi-card__value">${purchases.length}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const tbody = $('#purchasesTableBody');
+        if (!tbody) return;
+
+        if (!purchases.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="8">
+                    <div class="table-empty">
+                        <i class="fas fa-inbox"></i>
+                        <p>لا توجد فواتير في هذه الفترة</p>
+                    </div>
+                </td></tr>
+            `;
+            return;
+        }
+
+        const sorted = purchases.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+
+        tbody.innerHTML = sorted.map((inv, i) => {
+            const status = inv.status || 'paid';
+            const statusLabel = {
+                paid: 'مدفوعة',
+                partial: 'جزئية',
+                credit: 'آجلة'
+            }[status] || 'مدفوعة';
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td class="text-primary">${U.escape(inv.invoice_number || '---')}</td>
+                    <td>${U.date(inv.date || inv.created_at)}</td>
+                    <td>${U.escape(inv.supplier_name || '---')}</td>
+                    <td>${U.money(Number(inv.total) || 0)}</td>
+                    <td class="text-success">${U.money(Number(inv.paid) || 0)}</td>
+                    <td class="text-danger">${U.money(Number(inv.remaining) || 0)}</td>
+                    <td><span class="status-badge ${status}">${statusLabel}</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /* ============================================
+       Products Report
+       ============================================ */
+    function renderProducts() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+
+        const productStats = new Map();
+
+        sales.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const key = item.productId || item.productName;
+                const current = productStats.get(key) || {
+                    name: item.productName || 'منتج',
+                    qty: 0,
+                    revenue: 0,
+                    cost: 0
+                };
+                const q = Number(item.quantity) || 0;
+                const price = Number(item.price) || 0;
+                const unitCost = Number(item.cost) || 0;
+
+                current.qty += q;
+                current.revenue += price * q;
+                current.cost += unitCost * q;
+                productStats.set(key, current);
+            });
+        });
+
+        const list = [...productStats.values()];
+        const totalRevenue = list.reduce((s, p) => s + p.revenue, 0);
+        const totalCost = list.reduce((s, p) => s + p.cost, 0);
+        const totalProfit = totalRevenue - totalCost;
+        const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+        const kpi = $('#productsKPI');
+        if (kpi) {
+            kpi.innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-card__icon blue"><i class="fas fa-boxes"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">عدد المنتجات المباعة</span>
+                        <span class="kpi-card__value">${list.length}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon green"><i class="fas fa-money-bill"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي الإيرادات</span>
+                        <span class="kpi-card__value">${U.money(totalRevenue)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon purple"><i class="fas fa-coins"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي الأرباح</span>
+                        <span class="kpi-card__value">${U.money(totalProfit)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon teal"><i class="fas fa-percentage"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">متوسط هامش الربح</span>
+                        <span class="kpi-card__value">${avgMargin.toFixed(1)}%</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const tbody = $('#productsTableBody');
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="7">
+                    <div class="table-empty">
+                        <i class="fas fa-box-open"></i>
+                        <p>لا توجد مبيعات في هذه الفترة</p>
+                    </div>
+                </td></tr>
+            `;
+            return;
+        }
+
+        const sorted = list.sort((a, b) => b.qty - a.qty);
+
+        tbody.innerHTML = sorted.map((p, i) => {
+            const profit = p.revenue - p.cost;
+            const margin = p.revenue > 0 ? (profit / p.revenue) * 100 : 0;
+            const marginClass = margin >= 0 ? 'text-success' : 'text-danger';
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${U.escape(p.name)}</strong></td>
+                    <td>${U.round(p.qty, 3)}</td>
+                    <td>${U.money(p.revenue)}</td>
+                    <td>${U.money(p.cost)}</td>
+                    <td class="${marginClass}">${U.money(profit)}</td>
+                    <td class="${marginClass}">${margin.toFixed(1)}%</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /* ============================================
+       Customers Report
+       ============================================ */
+    function renderCustomers() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+
+        const customerStats = new Map();
+
+        sales.forEach(inv => {
+            if (!inv.customer_id) return;
+            const current = customerStats.get(inv.customer_id) || {
+                id: inv.customer_id,
+                name: inv.customer_name || 'عميل',
+                phone: '',
+                count: 0,
+                total: 0,
+                paid: 0
+            };
+            current.count += 1;
+            current.total += Number(inv.total) || 0;
+            current.paid += Number(inv.paid) || 0;
+            customerStats.set(inv.customer_id, current);
+        });
+
+        // إضافة أرقام الهواتف والأرصدة
+        customerStats.forEach((c, id) => {
+            const party = State.parties.find(p => p.id === id);
+            if (party) {
+                c.phone = party.phone || '';
+                c.balance = Number(party.balance) || 0;
+            }
+        });
+
+        const list = [...customerStats.values()];
+        const totalSales = list.reduce((s, c) => s + c.total, 0);
+        const totalPaid = list.reduce((s, c) => s + c.paid, 0);
+        const totalBalance = list.reduce((s, c) => s + (c.balance || 0), 0);
+
+        const kpi = $('#customersKPI');
+        if (kpi) {
+            kpi.innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-card__icon blue"><i class="fas fa-users"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">عدد العملاء المشترين</span>
+                        <span class="kpi-card__value">${list.length}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon green"><i class="fas fa-money-bill"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي المبيعات</span>
+                        <span class="kpi-card__value">${U.money(totalSales)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon teal"><i class="fas fa-check-circle"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي المدفوع</span>
+                        <span class="kpi-card__value">${U.money(totalPaid)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon red"><i class="fas fa-exclamation-circle"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">إجمالي الديون</span>
+                        <span class="kpi-card__value">${U.money(Math.abs(totalBalance))}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const tbody = $('#customersTableBody');
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="7">
+                    <div class="table-empty">
+                        <i class="fas fa-users"></i>
+                        <p>لا توجد مبيعات في هذه الفترة</p>
+                    </div>
+                </td></tr>
+            `;
+            return;
+        }
+
+        const sorted = list.sort((a, b) => b.total - a.total);
+
+        tbody.innerHTML = sorted.map((c, i) => {
+            const balance = c.balance || 0;
+            const balanceClass = balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : '';
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${U.escape(c.name)}</strong></td>
+                    <td class="text-muted">${U.escape(c.phone || '---')}</td>
+                    <td>${c.count}</td>
+                    <td>${U.money(c.total)}</td>
+                    <td class="text-success">${U.money(c.paid)}</td>
+                    <td class="${balanceClass}">${U.money(balance)}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /* ============================================
+       Payments Report
+       ============================================ */
+    function renderPayments() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+
+        const totalCash = sales.reduce((s, i) => s + (Number(i.cash_paid) || 0), 0);
+        const totalCard = sales.reduce((s, i) => s + (Number(i.card_paid) || 0), 0);
+        const totalTransfer = sales.reduce((s, i) => s + (Number(i.transfer_paid) || 0), 0);
+        const totalCredit = sales.filter(i => i.status === 'credit' || i.status === 'partial')
+            .reduce((s, i) => s + (Number(i.remaining) || 0), 0);
+        const totalUsedBalance = sales.reduce((s, i) => s + (Number(i.used_balance) || 0), 0);
+
+        const totalCollected = totalCash + totalCard + totalTransfer;
+
+        const kpi = $('#paymentsKPI');
+        if (kpi) {
+            kpi.innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-card__icon green"><i class="fas fa-money-bill-wave"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">نقدي</span>
+                        <span class="kpi-card__value">${U.money(totalCash)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon blue"><i class="fas fa-credit-card"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">بطاقة</span>
+                        <span class="kpi-card__value">${U.money(totalCard)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon orange"><i class="fas fa-exchange-alt"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">تحويل</span>
+                        <span class="kpi-card__value">${U.money(totalTransfer)}</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-card__icon red"><i class="fas fa-hand-holding-usd"></i></div>
+                    <div class="kpi-card__info">
+                        <span class="kpi-card__label">آجل</span>
+                        <span class="kpi-card__value">${U.money(totalCredit)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Payment methods chart
+        const chartContainer = $('#paymentMethodsChart');
+        if (chartContainer) {
+            const data = [
+                { label: 'نقدي', value: totalCash, color: '#10b981' },
+                { label: 'بطاقة', value: totalCard, color: '#2563eb' },
+                { label: 'تحويل', value: totalTransfer, color: '#f59e0b' },
+                { label: 'آجل', value: totalCredit, color: '#ef4444' }
+            ].filter(d => d.value > 0);
+
+            if (!data.length) {
+                chartContainer.innerHTML = `
+                    <div class="chart-empty" style="height:180px;">
+                        <i class="fas fa-chart-pie"></i>
+                        <p>لا توجد بيانات</p>
+                    </div>
+                `;
+            } else {
+                const total = data.reduce((s, d) => s + d.value, 0);
+                chartContainer.innerHTML = data.map(d => {
+                    const percent = (d.value / total) * 100;
+                    return `
+                        <div class="payment-item">
+                            <div class="payment-item__label">
+                                <i class="fas fa-circle" style="color: ${d.color}; font-size: 12px;"></i>
+                                <span>${d.label}</span>
+                            </div>
+                            <div class="payment-item__value" style="flex:1;">
+                                ${U.money(d.value)}
+                                <div class="progress-bar">
+                                    <div class="progress-bar__fill" style="width: ${percent}%; background: ${d.color};"></div>
+                                </div>
+                                <small>${percent.toFixed(1)}%</small>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Summary
+        const summaryContainer = $('#paymentSummary');
+        if (summaryContainer) {
+            summaryContainer.innerHTML = `
+                <div class="summary-box">
+                    <div class="summary-box__row">
+                        <span>إجمالي التحصيل</span>
+                        <strong class="text-success">${U.money(totalCollected)}</strong>
+                    </div>
+                    <div class="summary-box__row">
+                        <span>استُخدم من رصيد العملاء</span>
+                        <strong>${U.money(totalUsedBalance)}</strong>
+                    </div>
+                    <div class="summary-box__row">
+                        <span>مبالغ آجلة</span>
+                        <strong class="text-danger">${U.money(totalCredit)}</strong>
+                    </div>
+                    <div class="summary-box__row highlight">
+                        <span>إجمالي المبيعات</span>
+                        <strong>${U.money(totalCollected + totalCredit + totalUsedBalance)}</strong>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    /* ============================================
+       Export Functions
+       ============================================ */
+    function exportToCSV(filename, headers, rows) {
+        const csv = [
+            headers,
+            ...rows
+        ].map(row =>
+            row.map(cell => {
+                const s = String(cell ?? '');
+                return (s.includes(',') || s.includes('"') || s.includes('\n'))
+                    ? '"' + s.replace(/"/g, '""') + '"'
+                    : s;
+            }).join(',')
+        ).join('\n');
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('تم التصدير', 'success');
+    }
+
+    function exportSales() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+        if (!sales.length) { showToast('لا توجد بيانات', 'info'); return; }
+
+        const headers = ['رقم الفاتورة', 'التاريخ', 'العميل', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة'];
+        const rows = sales.map(inv => [
+            inv.invoice_number || '',
+            inv.date || '',
+            inv.customer_name || 'نقدي',
+            Number(inv.total) || 0,
+            Number(inv.paid) || 0,
+            Number(inv.remaining) || 0,
+            inv.status || 'paid'
+        ]);
+
+        const { from, to } = getDateRange();
+        exportToCSV(`sales-${from}_${to}.csv`, headers, rows);
+    }
+
+    function exportPurchases() {
+        const purchases = filterByPeriod(State.invoices).filter(i => i.type === 'purchase');
+        if (!purchases.length) { showToast('لا توجد بيانات', 'info'); return; }
+
+        const headers = ['رقم الفاتورة', 'التاريخ', 'المورد', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة'];
+        const rows = purchases.map(inv => [
+            inv.invoice_number || '',
+            inv.date || '',
+            inv.supplier_name || '',
+            Number(inv.total) || 0,
+            Number(inv.paid) || 0,
+            Number(inv.remaining) || 0,
+            inv.status || 'paid'
+        ]);
+
+        const { from, to } = getDateRange();
+        exportToCSV(`purchases-${from}_${to}.csv`, headers, rows);
+    }
+
+    function exportProducts() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+        const productStats = new Map();
+
+        sales.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const key = item.productId || item.productName;
+                const current = productStats.get(key) || {
+                    name: item.productName || 'منتج',
+                    qty: 0, revenue: 0, cost: 0
+                };
+                current.qty += Number(item.quantity) || 0;
+                current.revenue += (Number(item.price) || 0) * (Number(item.quantity) || 0);
+                current.cost += (Number(item.cost) || 0) * (Number(item.quantity) || 0);
+                productStats.set(key, current);
+            });
+        });
+
+        const list = [...productStats.values()].sort((a, b) => b.qty - a.qty);
+        if (!list.length) { showToast('لا توجد بيانات', 'info'); return; }
+
+        const headers = ['المنتج', 'الكمية المباعة', 'الإيرادات', 'التكلفة', 'الربح', 'هامش %'];
+        const rows = list.map(p => {
+            const profit = p.revenue - p.cost;
+            const margin = p.revenue > 0 ? (profit / p.revenue) * 100 : 0;
+            return [p.name, p.qty, p.revenue, p.cost, profit, margin.toFixed(1)];
+        });
+
+        const { from, to } = getDateRange();
+        exportToCSV(`products-${from}_${to}.csv`, headers, rows);
+    }
+
+    function exportCustomers() {
+        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+        const customerStats = new Map();
+
+        sales.forEach(inv => {
+            if (!inv.customer_id) return;
+            const current = customerStats.get(inv.customer_id) || {
+                name: inv.customer_name || 'عميل',
+                phone: '',
+                count: 0,
+                total: 0,
+                paid: 0,
+                balance: 0
+            };
+            current.count += 1;
+            current.total += Number(inv.total) || 0;
+            current.paid += Number(inv.paid) || 0;
+            customerStats.set(inv.customer_id, current);
+        });
+
+        customerStats.forEach((c, id) => {
+            const party = State.parties.find(p => p.id === id);
+            if (party) {
+                c.phone = party.phone || '';
+                c.balance = Number(party.balance) || 0;
+            }
+        });
+
+        const list = [...customerStats.values()].sort((a, b) => b.total - a.total);
+        if (!list.length) { showToast('لا توجد بيانات', 'info'); return; }
+
+        const headers = ['العميل', 'الهاتف', 'عدد الفواتير', 'إجمالي المشتريات', 'المدفوع', 'الرصيد'];
+        const rows = list.map(c => [c.name, c.phone, c.count, c.total, c.paid, c.balance]);
+
+        const { from, to } = getDateRange();
+        exportToCSV(`customers-${from}_${to}.csv`, headers, rows);
+    }
+
+    /* ============================================
+       Print
+       ============================================ */
+    function printReport() {
+        const { from, to } = getDateRange();
+        const type = State.activeReport;
+
+        let content = '';
+
+        // Build print content based on active report
+        const titles = {
+            overview: 'نظرة عامة',
+            sales: 'تقرير المبيعات',
+            purchases: 'تقرير المشتريات',
+            products: 'تقرير المنتجات',
+            customers: 'تقرير العملاء',
+            payments: 'تقرير المدفوعات'
+        };
+
+        const settings = U.ls.get('settings', {}) || {};
+        const shopName = settings.shopName || 'حسابي';
+        const shopPhone = settings.phone || '';
+
+        content += `
+            <div style="text-align:center;margin-bottom:20px;">
+                <h1 style="font-size:22px;margin-bottom:4px;">${U.escape(shopName)}</h1>
+                ${shopPhone ? `<p style="font-size:12px;color:#666;">هاتف: ${U.escape(shopPhone)}</p>` : ''}
+                <h2 style="font-size:18px;margin-top:12px;">${titles[type] || 'تقرير'}</h2>
+                <p style="font-size:12px;color:#666;">الفترة: ${U.date(from)} - ${U.date(to)}</p>
+                <p style="font-size:11px;color:#999;">تاريخ الطباعة: ${U.dateTime(new Date())}</p>
             </div>
-            <div class="report-table-container"><h3>المنتجات منخفضة المخزون</h3><table class="report-table"><thead><tr><th>المنتج</th><th>التصنيف</th><th>المخزون الحالي</th><th>الحد الأدنى</th></tr></thead><tbody>${lowStock.length ? lowStock.map(p => { const stock = p.units?.[0]?.stock || 0; const unitName = p.units?.[0]?.name || ''; return `<tr><td>${p.name}</td><td>${p.category || '-'}</td><td>${stock} ${unitName}</td><td>${p.min_stock || 5}</td></tr>`; }).join('') : '<tr><td colspan="4" class="empty-message">لا توجد منتجات منخفضة المخزون</td></tr>'}</tbody></table></div>
         `;
-    },
 
-    // ======================= تقرير العملاء =======================
-    renderCustomersReport() {
-        const totalBal = this.customers.reduce((s, c) => s + c.balance, 0);
-        this.el.reportContent.innerHTML = `
-            <div class="report-stats">
-                <div class="stat-card"><div class="icon" style="color:#3b82f6;"><i class="fas fa-users"></i></div><div><div class="value">${this.customers.length}</div><div class="label">عدد العملاء</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#8b5cf6;"><i class="fas fa-wallet"></i></div><div><div class="value">${Utils.formatMoney(totalBal)}</div><div class="label">إجمالي الأرصدة</div></div></div>
-            </div>
-            <div class="report-table-container"><h3>العملاء حسب أعلى رصيد</h3><table class="report-table"><thead><tr><th>العميل</th><th>الهاتف</th><th>الرصيد</th></tr></thead><tbody>${this.customers.length ? [...this.customers].sort((a,b)=>b.balance-a.balance).map(c => `<tr><td>${c.name}</td><td>${c.phone||'-'}</td><td>${Utils.formatMoney(c.balance)}</td></tr>`).join('') : '<tr><td colspan="3" class="empty-message">لا توجد بيانات</td></tr>'}</tbody></table></div>
+        // Content based on active tab
+        if (type === 'overview') {
+            const kpiGrid = $('#overviewKPI')?.innerHTML || '';
+            content += `<div>${kpiGrid}</div>`;
+        } else if (type === 'sales') {
+            const table = $('#salesTable')?.outerHTML || '';
+            content += table;
+        } else if (type === 'purchases') {
+            const table = $('#purchasesTable')?.outerHTML || '';
+            content += table;
+        } else if (type === 'products') {
+            const table = $('#productsTable')?.outerHTML || '';
+            content += table;
+        } else if (type === 'customers') {
+            const table = $('#customersTable')?.outerHTML || '';
+            content += table;
+        }
+
+        const win = window.open('', '_blank', 'width=900,height=700');
+        win.document.write(`
+            <!DOCTYPE html>
+            <html dir="rtl"><head><meta charset="UTF-8">
+            <title>طباعة التقرير</title>
+            <style>
+                body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; font-size: 12px; direction: rtl; }
+                .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+                .kpi-card { padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+                .kpi-card__label { font-size: 10px; color: #666; }
+                .kpi-card__value { font-size: 14px; font-weight: bold; margin-top: 4px; }
+                .report-table { width: 100%; border-collapse: collapse; }
+                .report-table th, .report-table td { padding: 6px; border-bottom: 1px solid #ddd; font-size: 11px; text-align: right; }
+                .report-table th { background: #f5f5f5; font-weight: bold; }
+                .text-success { color: #10b981; }
+                .text-danger { color: #ef4444; }
+                .text-primary { color: #4f46e5; }
+                .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 9px; }
+                @media print { body { padding: 0; } }
+            </style>
+            </head><body>${content}</body></html>
+        `);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 300);
+    }
+
+    /* ============================================
+       UI Helpers
+       ============================================ */
+    function updateUserUI() {
+        const avatar = $('#userAvatar');
+        const name = $('#sidebarUserName');
+        if (avatar) avatar.textContent = (State.currentUser.fullName || 'U')[0].toUpperCase();
+        if (name) name.textContent = State.currentUser.fullName || 'مدير';
+    }
+
+    function updateConnStatus() {
+        const online = navigator.onLine;
+        document.body.classList.toggle('is-offline', !online);
+        const status = $('#connStatus');
+        if (status) {
+            status.textContent = online ? 'متصل' : 'غير متصل';
+            status.style.color = online ? 'var(--success)' : 'var(--danger)';
+        }
+    }
+
+    function updateThemeIcon() {
+        const btn = $('#themeBtn');
+        if (!btn) return;
+        const isDark = document.documentElement.dataset.theme === 'dark';
+        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    function initTheme() {
+        const theme = U.ls.get('theme', 'light');
+        document.documentElement.dataset.theme = theme;
+        updateThemeIcon();
+    }
+
+    function showLoading() {
+        const bar = $('#loading-bar');
+        if (bar) bar.style.width = '70%';
+    }
+
+    function hideLoadingBar() {
+        const bar = $('#loading-bar');
+        if (bar) {
+            bar.style.width = '100%';
+            setTimeout(() => { bar.style.width = '0%'; }, 300);
+        }
+    }
+
+    /* ============================================
+       Toast
+       ============================================ */
+    function showToast(msg, type = 'info') {
+        let stack = $('#toastStack');
+        if (!stack) {
+            stack = document.createElement('div');
+            stack.id = 'toastStack';
+            stack.className = 'toast-stack';
+            document.body.appendChild(stack);
+        }
+
+        const icons = {
+            success: 'check-circle',
+            error: 'times-circle',
+            warning: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            padding: 12px 22px;
+            background: ${colors[type] || colors.info};
+            color: #fff;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
         `;
-    },
+        toast.innerHTML = `<i class="fas fa-${icons[type]}"></i> <span>${U.escape(msg)}</span>`;
+        stack.appendChild(toast);
 
-    // ======================= تقرير الأرباح =======================
-    renderProfitsReport() {
-        const filteredInvoices = this.invoices.filter(inv => inv.date >= this.dateFrom && inv.date <= this.dateTo && inv.type === 'sale');
-        const totalSales = filteredInvoices.reduce((s, i) => s + i.total, 0);
-        let totalCostOfSales = 0;
-        filteredInvoices.forEach(inv => { (inv.items || []).forEach(item => { const prod = this.products.find(p => p.name === item.productName); if (prod) { const unit = prod.units.find(u => u.name === item.unitName); if (unit) totalCostOfSales += (unit.cost || 0) * item.quantity; } }); });
-        const grossProfit = totalSales - totalCostOfSales;
-        const profitMargin = totalSales ? (grossProfit / totalSales) * 100 : 0;
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+            toast.style.transition = 'all 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    }
 
-        this.el.reportContent.innerHTML = `
-            <div class="report-stats">
-                <div class="stat-card"><div class="icon" style="color:#16a34a;"><i class="fas fa-chart-line"></i></div><div><div class="value">${Utils.formatMoney(totalSales)}</div><div class="label">إجمالي المبيعات</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#dc2626;"><i class="fas fa-money-bill-wave"></i></div><div><div class="value">${Utils.formatMoney(totalCostOfSales)}</div><div class="label">تكلفة المبيعات</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#8b5cf6;"><i class="fas fa-coins"></i></div><div><div class="value">${Utils.formatMoney(grossProfit)}</div><div class="label">إجمالي الربح</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#f59e0b;"><i class="fas fa-percent"></i></div><div><div class="value">${profitMargin.toFixed(1)}%</div><div class="label">هامش الربح</div></div></div>
-            </div>
-        `;
-    },
+    /* ============================================
+       Events
+       ============================================ */
+    function bindEvents() {
+        // Sidebar
+        $('#menuBtn')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.add('open');
+            $('#sidebarOverlay')?.classList.add('show');
+        });
+        $('#sidebarOverlay')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.remove('open');
+            $('#sidebarOverlay')?.classList.remove('show');
+        });
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                $('#sidebar')?.classList.remove('open');
+                $('#sidebarOverlay')?.classList.remove('show');
+            });
+        });
 
-    // ======================= تقرير التدفق النقدي =======================
-    renderCashflowReport() {
-        const filteredTransactions = this.transactions.filter(tr => tr.date >= this.dateFrom && tr.date <= this.dateTo);
-        const totalIncome = filteredTransactions.filter(tr => tr.type === 'income').reduce((s, tr) => s + tr.amount, 0);
-        const totalExpense = filteredTransactions.filter(tr => tr.type === 'expense').reduce((s, tr) => s + tr.amount, 0);
-        const netCashflow = totalIncome - totalExpense;
-        const opening = this.settings?.financial?.opening_cash_balance || 0;
-        const closing = opening + netCashflow;
+        // Theme
+        $('#themeBtn')?.addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            U.ls.set('theme', next);
+            updateThemeIcon();
+        });
 
-        const dailyFlow = {};
-        filteredTransactions.forEach(tr => { if (!dailyFlow[tr.date]) dailyFlow[tr.date] = 0; dailyFlow[tr.date] += tr.type === 'income' ? tr.amount : -tr.amount; });
+        // Logout
+        $('#logoutBtn')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('تسجيل الخروج؟')) return;
+            await Auth.logout();
+        });
 
-        let html = `
-            <div class="report-stats">
-                <div class="stat-card"><div class="icon" style="color:#16a34a;"><i class="fas fa-arrow-down"></i></div><div><div class="value">${Utils.formatMoney(totalIncome)}</div><div class="label">إجمالي الوارد</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#dc2626;"><i class="fas fa-arrow-up"></i></div><div><div class="value">${Utils.formatMoney(totalExpense)}</div><div class="label">إجمالي الصادر</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#3b82f6;"><i class="fas fa-balance-scale"></i></div><div><div class="value">${Utils.formatMoney(netCashflow)}</div><div class="label">صافي التدفق</div></div></div>
-                <div class="stat-card"><div class="icon" style="color:#8b5cf6;"><i class="fas fa-wallet"></i></div><div><div class="value">${Utils.formatMoney(closing)}</div><div class="label">الرصيد النهائي</div></div></div>
-            </div>
-            <div class="chart-box"><div class="chart-header"><h3>التدفق النقدي اليومي</h3></div><div class="chart-wrapper"><canvas id="cashflowChart"></canvas></div></div>
-        `;
-        this.el.reportContent.innerHTML = html;
-        const dates = Object.keys(dailyFlow).sort();
-        this.renderCashflowChart(dates, dates.map(d => dailyFlow[d]));
-    },
+        // Refresh
+        $('#refreshBtn')?.addEventListener('click', async () => {
+            showToast('جاري التحديث...', 'info');
+            DB.clearCache();
+            await loadData();
+            showToast('تم التحديث', 'success');
+        });
 
-    renderCashflowChart(labels, data) {
-        this.destroyChart('cashflowChart');
-        setTimeout(() => { const ctx = document.getElementById('cashflowChart')?.getContext('2d'); if (!ctx) return; this.chartInstances.cashflowChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'التدفق (ج.م)', data, backgroundColor: data.map(v => v >= 0 ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)') }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } }); }, 100);
-    },
+        // Print & Export
+        $('#printReportBtn')?.addEventListener('click', printReport);
+        $('#exportReportBtn')?.addEventListener('click', () => {
+            // Export based on active report
+            const type = State.activeReport;
+            if (type === 'sales') exportSales();
+            else if (type === 'purchases') exportPurchases();
+            else if (type === 'products') exportProducts();
+            else if (type === 'customers') exportCustomers();
+            else exportSales(); // default
+        });
 
-    destroyChart(key) { if (this.chartInstances[key]) { this.chartInstances[key].destroy(); this.chartInstances[key] = null; } },
+        // Period tabs
+        $$('.period-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('.period-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
 
-    // ======================= طباعة التقرير الحالي =======================
-    printCurrentReport() {
-        const content = this.el.reportContent.innerHTML;
-        if (!content || content.includes('اختر تقريراً من الأعلى')) { alert('الرجاء اختيار تقرير أولاً'); return; }
-        const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-        const companyName = settings?.company?.name || 'حسابي';
-        const pw = window.open('', '_blank', 'width=900,height=700');
-        if (!pw) { alert('الرجاء السماح بالنوافذ المنبثقة'); return; }
-        pw.document.write(`<html><head><meta charset="UTF-8"><title>تقرير ${this.currentTab}</title><style>body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;padding:20px;color:#000;}h1{text-align:center;}.stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}.stat-card{background:#f9fafb;border-radius:16px;padding:16px;flex:1;min-width:160px;}table{width:100%;border-collapse:collapse;margin-top:16px;}th,td{padding:10px;border:1px solid #ddd;}th{background:#f5f5f5;}</style></head><body><h1>${Utils.escapeHTML(companyName)} - ${this.currentTab === 'sales' ? 'تقرير المبيعات' : this.currentTab === 'purchases' ? 'تقرير المشتريات' : ''}</h1><div id="printArea">${content.replace(/<canvas[^>]*><\/canvas>/g, '').replace(/<div class="chart-wrapper">.*?<\/div>/g, '')}</div></body></html>`);
-        pw.document.close(); pw.focus(); setTimeout(() => { pw.print(); pw.close(); }, 600);
-    },
+                State.period = btn.dataset.period;
 
-    showToast(msg) { const t = this.el.toast; if (!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(this._t); this._t = setTimeout(() => t.classList.remove('show'), 3000); }
-};
+                if (State.period === 'custom') {
+                    $('#customPeriod').style.display = 'grid';
+                } else {
+                    $('#customPeriod').style.display = 'none';
+                    renderAll();
+                }
+            });
+        });
 
-window.Reports = Reports;
-document.addEventListener('DOMContentLoaded', () => Reports.init());
+        // Custom period apply
+        $('#applyCustomPeriod')?.addEventListener('click', () => {
+            const from = $('#fromDate').value;
+            const to = $('#toDate').value;
+
+            if (!from || !to) {
+                showToast('يرجى إدخال التاريخين', 'warning');
+                return;
+            }
+            if (from > to) {
+                showToast('تاريخ البداية يجب أن يكون قبل النهاية', 'warning');
+                return;
+            }
+
+            State.customFrom = from;
+            State.customTo = to;
+            renderAll();
+        });
+
+        // Report tabs
+        $$('.report-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('.report-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                State.activeReport = btn.dataset.report;
+
+                $$('.report-content').forEach(c => c.classList.remove('active'));
+                $(`[data-report-content="${State.activeReport}"]`)?.classList.add('active');
+            });
+        });
+
+        // Export buttons
+        $('#exportSalesBtn')?.addEventListener('click', exportSales);
+        $('#exportPurchasesBtn')?.addEventListener('click', exportPurchases);
+        $('#exportProductsBtn')?.addEventListener('click', exportProducts);
+        $('#exportCustomersBtn')?.addEventListener('click', exportCustomers);
+
+        // Connection
+        window.addEventListener('online', () => {
+            updateConnStatus();
+            showToast('عاد الاتصال', 'success');
+        });
+        window.addEventListener('offline', () => {
+            updateConnStatus();
+            showToast('انقطع الاتصال', 'warning');
+        });
+    }
+
+    /* ============================================
+       Start
+       ============================================ */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+})();
