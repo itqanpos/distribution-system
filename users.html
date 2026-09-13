@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-    <title>المستخدمون · نظام POS</title>
+    <title>المستخدمين · نظام POS</title>
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
@@ -29,13 +29,14 @@
                     <i class="fas fa-user-shield" style="display:none;"></i>
                 </div>
                 <div class="brand__text">
-                    <span class="brand__name">المستخدمون</span>
+                    <span class="brand__name">المستخدمين</span>
                     <span class="brand__status" id="connStatus">متصل</span>
                 </div>
             </div>
         </div>
         <div class="topbar__right">
             <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="exportBtn" title="تصدير"><i class="fas fa-download"></i></button>
             <button class="icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
             <div class="user-chip">
                 <div class="user-chip__avatar" id="userAvatar">U</div>
@@ -92,7 +93,7 @@
         <div class="filters-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="ابحث بالاسم أو البريد..." autocomplete="off">
+                <input type="text" id="searchInput" placeholder="ابحث بالاسم أو البريد الإلكتروني..." autocomplete="off">
                 <button class="search-clear" id="clearSearchBtn" style="display:none;">
                     <i class="fas fa-times"></i>
                 </button>
@@ -105,7 +106,13 @@
             <select id="statusFilter" class="filter-select">
                 <option value="">كل الحالات</option>
                 <option value="active">نشط</option>
-                <option value="inactive">موقوف</option>
+                <option value="inactive">معطل</option>
+            </select>
+            <select id="sortFilter" class="filter-select">
+                <option value="name">الاسم (أ-ي)</option>
+                <option value="name-desc">الاسم (ي-أ)</option>
+                <option value="recent">الأحدث</option>
+                <option value="oldest">الأقدم</option>
             </select>
         </div>
 
@@ -115,122 +122,105 @@
             <div class="users-list-view" id="usersListView"></div>
 
             <div class="empty-state" id="emptyState" style="display:none;">
-                <i class="fas fa-user-slash"></i>
-                <h3>لا يوجد مستخدمون</h3>
+                <i class="fas fa-user-shield"></i>
+                <h3>لا يوجد مستخدمين</h3>
                 <p>ابدأ بإضافة مستخدم جديد</p>
                 <button class="btn btn--primary" onclick="document.getElementById('addUserBtn').click()">
-                    <i class="fas fa-plus"></i> إضافة مستخدم
+                    <i class="fas fa-user-plus"></i> إضافة مستخدم
                 </button>
             </div>
 
             <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
         </div>
 
+        <!-- زر عائم -->
         <button class="fab-add" id="fabAddBtn" aria-label="إضافة مستخدم">
             <i class="fas fa-user-plus"></i>
         </button>
     </main>
 
-    <!-- ============ مودال: إضافة / تعديل مستخدم ============ -->
+    <!-- ============ مودال: إضافة/تعديل مستخدم ============ -->
     <div class="modal" id="userModal">
-        <div class="modal__content modal__content--lg">
+        <div class="modal__content">
             <div class="modal__header">
                 <h2 id="userModalTitle">إضافة مستخدم جديد</h2>
                 <button class="icon-btn" data-close="userModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <form id="userForm" onsubmit="return false;">
+                <form id="userForm">
                     <input type="hidden" id="userId">
 
-                    <!-- المعلومات الأساسية -->
-                    <div class="form-section">
-                        <div class="form-section__title">
-                            <i class="fas fa-user"></i>
-                            البيانات الأساسية
-                        </div>
-
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>الاسم الكامل <span class="required">*</span></label>
-                                <input type="text" id="userFullName" required placeholder="مثال: أحمد محمد">
-                            </div>
-                            <div class="form-group">
-                                <label>رقم الهاتف</label>
-                                <input type="tel" id="userPhone" placeholder="01xxxxxxxxx" inputmode="tel">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>البريد الإلكتروني <span class="required">*</span></label>
-                            <input type="email" id="userEmail" required placeholder="user@example.com" autocomplete="off" inputmode="email">
-                        </div>
-
-                        <div id="passwordFields">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label>كلمة المرور <span class="required">*</span></label>
-                                    <input type="password" id="userPassword" placeholder="6 أحرف على الأقل" autocomplete="new-password">
-                                </div>
-                                <div class="form-group">
-                                    <label>تأكيد كلمة المرور <span class="required">*</span></label>
-                                    <input type="password" id="userPasswordConfirm" placeholder="أعد الإدخال" autocomplete="new-password">
-                                </div>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>الاسم الكامل <span class="required">*</span></label>
+                        <input type="text" id="userName" required placeholder="مثال: محمد أحمد">
                     </div>
 
-                    <!-- الدور والصلاحيات -->
-                    <div class="form-section">
-                        <div class="form-section__title">
-                            <i class="fas fa-user-shield"></i>
-                            الدور والصلاحيات
-                        </div>
+                    <div class="form-group">
+                        <label>البريد الإلكتروني <span class="required">*</span></label>
+                        <input type="email" id="userEmail" required placeholder="user@example.com" autocomplete="off">
+                        <small class="form-hint" id="emailHint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>يُستخدم لتسجيل الدخول</span>
+                        </small>
+                    </div>
 
-                        <div class="role-selector" id="roleSelector">
-                            <button type="button" class="role-option active" data-role="admin">
-                                <div class="role-option__icon blue">
+                    <div class="form-group">
+                        <label>رقم الهاتف</label>
+                        <input type="tel" id="userPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                    </div>
+
+                    <div class="form-group" id="passwordGroup">
+                        <label>كلمة المرور <span class="required" id="pwdRequired">*</span></label>
+                        <div class="password-input">
+                            <input type="password" id="userPassword" placeholder="6 أحرف على الأقل" minlength="6" autocomplete="new-password">
+                            <button type="button" class="toggle-pass" id="togglePass">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-hint">
+                            <i class="fas fa-shield-alt"></i>
+                            <span id="pwdHint">كلمة مرور قوية 6 أحرف على الأقل</span>
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>الدور <span class="required">*</span></label>
+                        <div class="role-selector">
+                            <button type="button" class="role-btn" data-role="rep">
+                                <div class="role-btn__icon">
                                     <i class="fas fa-user-tie"></i>
                                 </div>
-                                <div class="role-option__info">
-                                    <strong>مدير</strong>
-                                    <small>كل الصلاحيات</small>
+                                <div class="role-btn__info">
+                                    <strong>مندوب مبيعات</strong>
+                                    <small>نقطة البيع والفواتير</small>
                                 </div>
                             </button>
-                            <button type="button" class="role-option" data-role="rep">
-                                <div class="role-option__icon green">
-                                    <i class="fas fa-user"></i>
+                            <button type="button" class="role-btn active" data-role="admin">
+                                <div class="role-btn__icon">
+                                    <i class="fas fa-user-shield"></i>
                                 </div>
-                                <div class="role-option__info">
-                                    <strong>مندوب</strong>
-                                    <small>نقطة البيع فقط</small>
+                                <div class="role-btn__info">
+                                    <strong>مدير</strong>
+                                    <small>كامل الصلاحيات</small>
                                 </div>
                             </button>
                         </div>
                         <input type="hidden" id="userRole" value="admin">
-
-                        <!-- عرض صلاحيات الدور -->
-                        <div class="permissions-preview" id="permissionsPreview">
-                            <!-- يُملأ ديناميكياً -->
-                        </div>
                     </div>
 
-                    <!-- حالة المستخدم -->
-                    <div class="form-section">
-                        <div class="form-section__title">
-                            <i class="fas fa-toggle-on"></i>
-                            حالة الحساب
+                    <div class="form-group" id="statusGroup" style="display:none;">
+                        <label>حالة الحساب</label>
+                        <div class="status-selector">
+                            <button type="button" class="status-btn active" data-status="active">
+                                <i class="fas fa-check-circle"></i>
+                                <span>نشط</span>
+                            </button>
+                            <button type="button" class="status-btn" data-status="inactive">
+                                <i class="fas fa-ban"></i>
+                                <span>معطل</span>
+                            </button>
                         </div>
-
-                        <div class="settings-toggle">
-                            <div class="settings-toggle__info">
-                                <strong>حساب نشط</strong>
-                                <p>إذا كان موقوفاً، لن يتمكن من تسجيل الدخول</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="userIsActive" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
+                        <input type="hidden" id="userStatus" value="active">
                     </div>
                 </form>
             </div>
@@ -251,12 +241,12 @@
                 <button class="icon-btn" data-close="viewUserModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body" id="viewUserBody"></div>
-            <div class="modal__footer">
-                <button class="btn btn--ghost" id="viewEditBtn">
-                    <i class="fas fa-edit"></i> تعديل
+            <div class="modal__footer" style="flex-wrap:wrap;">
+                <button class="btn btn--ghost" id="resetPasswordBtn" style="flex:1;min-width:120px;">
+                    <i class="fas fa-key"></i> إعادة تعيين كلمة المرور
                 </button>
-                <button class="btn btn--primary" id="closeViewBtn">
-                    <i class="fas fa-check"></i> إغلاق
+                <button class="btn btn--primary" id="editUserBtn" style="flex:1;min-width:100px;">
+                    <i class="fas fa-edit"></i> تعديل
                 </button>
             </div>
         </div>
@@ -276,7 +266,7 @@
                     </div>
                     <p>هل أنت متأكد من حذف هذا المستخدم؟</p>
                     <p class="confirm-delete__name" id="deleteUserName"></p>
-                    <small>سيتم إلغاء صلاحيات الوصول فوراً</small>
+                    <small>لا يمكن التراجع عن هذا الإجراء</small>
                 </div>
             </div>
             <div class="modal__footer">
@@ -288,32 +278,51 @@
         </div>
     </div>
 
-    <!-- ============ مودال: تغيير كلمة المرور ============ -->
-    <div class="modal" id="changePasswordModal">
+    <!-- ============ مودال: إعادة تعيين كلمة المرور ============ -->
+    <div class="modal" id="resetPasswordModal">
         <div class="modal__content modal__content--sm">
             <div class="modal__header">
-                <h2>تغيير كلمة المرور</h2>
-                <button class="icon-btn" data-close="changePasswordModal"><i class="fas fa-times"></i></button>
+                <h2>إعادة تعيين كلمة المرور</h2>
+                <button class="icon-btn" data-close="resetPasswordModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <input type="hidden" id="changePassUserId">
+                <input type="hidden" id="resetUserId">
+
+                <div class="reset-info" id="resetInfo">
+                    <!-- يُملأ ديناميكياً -->
+                </div>
+
                 <div class="form-group">
                     <label>كلمة المرور الجديدة <span class="required">*</span></label>
-                    <input type="password" id="newPassword" placeholder="6 أحرف على الأقل" autocomplete="new-password">
+                    <div class="password-input">
+                        <input type="password" id="newPassword" placeholder="6 أحرف على الأقل" minlength="6" autocomplete="new-password">
+                        <button type="button" class="toggle-pass" id="toggleNewPass">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
+
                 <div class="form-group">
                     <label>تأكيد كلمة المرور <span class="required">*</span></label>
-                    <input type="password" id="newPasswordConfirm" placeholder="أعد الإدخال" autocomplete="new-password">
+                    <div class="password-input">
+                        <input type="password" id="confirmNewPassword" placeholder="أعد إدخال كلمة المرور">
+                        <button type="button" class="toggle-pass" id="toggleConfirmPass">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="form-hint" style="padding:12px;background:var(--warning-light);border-radius:10px;color:var(--warning);margin-top:12px;">
-                    <i class="fas fa-info-circle"></i>
-                    <span>سيتم إرسال رابط إعادة تعيين كلمة المرور للبريد الإلكتروني</span>
+
+                <div class="password-strength" id="passwordStrength" style="display:none;">
+                    <div class="password-strength__bar">
+                        <div class="password-strength__fill" id="strengthFill"></div>
+                    </div>
+                    <small id="strengthLabel"></small>
                 </div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="changePasswordModal">إلغاء</button>
-                <button class="btn btn--primary" id="confirmChangePasswordBtn">
-                    <i class="fas fa-key"></i> تغيير
+                <button class="btn btn--ghost" data-close="resetPasswordModal">إلغاء</button>
+                <button class="btn btn--primary" id="confirmResetBtn">
+                    <i class="fas fa-key"></i> إعادة التعيين
                 </button>
             </div>
         </div>
