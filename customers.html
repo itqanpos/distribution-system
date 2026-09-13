@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-    <title>العملاء والموردين · نظام POS</title>
+    <title>العملاء · نظام POS</title>
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
@@ -29,7 +29,7 @@
                     <i class="fas fa-users" style="display:none;"></i>
                 </div>
                 <div class="brand__text">
-                    <span class="brand__name">العملاء والموردين</span>
+                    <span class="brand__name">العملاء</span>
                     <span class="brand__status" id="connStatus">متصل</span>
                 </div>
             </div>
@@ -77,30 +77,19 @@
 
         <div class="page-head">
             <div class="page-head__info">
-                <h1>العملاء والموردين</h1>
-                <p id="partiesCount">0 جهة</p>
+                <h1>العملاء</h1>
+                <p id="customersCount">0 عميل</p>
             </div>
-            <button class="btn btn--primary" id="addPartyBtn">
-                <i class="fas fa-plus"></i>
-                <span>إضافة جديد</span>
+            <button class="btn btn--primary" id="addCustomerBtn">
+                <i class="fas fa-user-plus"></i>
+                <span>عميل جديد</span>
             </button>
         </div>
 
-        <div class="tabs-bar">
-            <button class="tab-btn active" data-type="customer">
-                <i class="fas fa-users"></i>
-                <span>العملاء</span>
-                <span class="tab-count" id="customersTabCount">0</span>
-            </button>
-            <button class="tab-btn" data-type="supplier">
-                <i class="fas fa-truck"></i>
-                <span>الموردين</span>
-                <span class="tab-count" id="suppliersTabCount">0</span>
-            </button>
-        </div>
-
+        <!-- ملخص سريع -->
         <div class="summary-cards" id="summaryCards"></div>
 
+        <!-- شريط البحث والفلاتر -->
         <div class="filters-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
@@ -111,8 +100,8 @@
             </div>
             <select id="balanceFilter" class="filter-select">
                 <option value="">كل الأرصدة</option>
-                <option value="debit">عليه دين (مدين)</option>
-                <option value="credit">له رصيد (دائن)</option>
+                <option value="debit">مدينون (عليهم دين)</option>
+                <option value="credit">دائنون (لهم رصيد)</option>
                 <option value="zero">لا رصيد</option>
             </select>
             <select id="sortFilter" class="filter-select">
@@ -124,114 +113,99 @@
             </select>
         </div>
 
-        <div class="parties-container">
-            <div class="parties-grid-view" id="partiesGridView"></div>
-            <div class="parties-list-view" id="partiesListView"></div>
+        <!-- قائمة العملاء -->
+        <div class="customers-container">
+            <div class="customers-grid-view" id="customersGridView"></div>
+            <div class="customers-list-view" id="customersListView"></div>
+
             <div class="empty-state" id="emptyState" style="display:none;">
                 <i class="fas fa-user-plus"></i>
-                <h3>لا توجد جهات</h3>
-                <p id="emptyStateText">ابدأ بإضافة عميل جديد</p>
-                <button class="btn btn--primary" onclick="document.getElementById('addPartyBtn').click()">
-                    <i class="fas fa-plus"></i> إضافة
+                <h3>لا يوجد عملاء</h3>
+                <p>ابدأ بإضافة عميل جديد</p>
+                <button class="btn btn--primary" onclick="document.getElementById('addCustomerBtn').click()">
+                    <i class="fas fa-plus"></i> إضافة عميل
                 </button>
             </div>
+
             <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
         </div>
 
-        <button class="fab-add" id="fabAddBtn" aria-label="إضافة جهة">
-            <i class="fas fa-plus"></i>
+        <!-- زر عائم -->
+        <button class="fab-add" id="fabAddBtn" aria-label="إضافة عميل">
+            <i class="fas fa-user-plus"></i>
         </button>
     </main>
 
-    <!-- ============ مودال إضافة/تعديل جهة ============ -->
-    <div class="modal" id="partyModal">
+    <!-- ============ مودال إضافة/تعديل عميل ============ -->
+    <div class="modal" id="customerModal">
         <div class="modal__content">
             <div class="modal__header">
-                <h2 id="partyModalTitle">إضافة عميل جديد</h2>
-                <button class="icon-btn" data-close="partyModal"><i class="fas fa-times"></i></button>
+                <h2 id="customerModalTitle">إضافة عميل جديد</h2>
+                <button class="icon-btn" data-close="customerModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <form id="partyForm">
-                    <input type="hidden" id="partyId">
+                <form id="customerForm">
+                    <input type="hidden" id="customerId">
 
                     <div class="form-group">
-                        <label for="partyName">الاسم <span class="required">*</span></label>
-                        <input type="text" id="partyName" required placeholder="مثال: أحمد محمد">
-                    </div>
-
-                    <div class="form-group">
-                        <label>النوع <span class="required">*</span></label>
-                        <div class="type-selector">
-                            <button type="button" class="type-btn active" data-type="customer">
-                                <i class="fas fa-user"></i>
-                                <span>عميل</span>
-                            </button>
-                            <button type="button" class="type-btn" data-type="supplier">
-                                <i class="fas fa-truck"></i>
-                                <span>مورد</span>
-                            </button>
-                            <button type="button" class="type-btn" data-type="both">
-                                <i class="fas fa-user-tie"></i>
-                                <span>كلاهما</span>
-                            </button>
-                        </div>
-                        <input type="hidden" id="partyType" value="customer">
+                        <label for="customerName">الاسم <span class="required">*</span></label>
+                        <input type="text" id="customerName" required placeholder="مثال: أحمد محمد">
                     </div>
 
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="partyPhone">رقم الهاتف</label>
-                            <input type="tel" id="partyPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                            <label for="customerPhone">رقم الهاتف</label>
+                            <input type="tel" id="customerPhone" placeholder="01xxxxxxxxx" inputmode="tel">
                         </div>
                         <div class="form-group">
-                            <label for="partyEmail">البريد الإلكتروني</label>
-                            <input type="email" id="partyEmail" placeholder="اختياري">
+                            <label for="customerEmail">البريد الإلكتروني</label>
+                            <input type="email" id="customerEmail" placeholder="اختياري">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="partyAddress">العنوان</label>
-                        <input type="text" id="partyAddress" placeholder="اختياري">
+                        <label for="customerAddress">العنوان</label>
+                        <input type="text" id="customerAddress" placeholder="اختياري">
                     </div>
 
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="partyBalance">الرصيد الافتتاحي</label>
-                            <input type="number" id="partyBalance" value="0" step="0.01" inputmode="decimal">
+                            <label for="customerBalance">الرصيد الافتتاحي</label>
+                            <input type="number" id="customerBalance" value="0" step="0.01" inputmode="decimal">
                             <small class="form-hint">
                                 <i class="fas fa-info-circle"></i>
                                 <span>موجب = له رصيد، سالب = عليه دين</span>
                             </small>
                         </div>
                         <div class="form-group">
-                            <label for="partyCreditLimit">حد الدين</label>
-                            <input type="number" id="partyCreditLimit" value="0" min="0" step="0.01" inputmode="decimal">
+                            <label for="customerCreditLimit">حد الدين</label>
+                            <input type="number" id="customerCreditLimit" value="0" min="0" step="0.01" inputmode="decimal">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="partyNotes">ملاحظات</label>
-                        <textarea id="partyNotes" rows="2" placeholder="ملاحظات اختيارية..."></textarea>
+                        <label for="customerNotes">ملاحظات</label>
+                        <textarea id="customerNotes" rows="2" placeholder="ملاحظات اختيارية..."></textarea>
                     </div>
                 </form>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="partyModal">إلغاء</button>
-                <button class="btn btn--primary" id="savePartyBtn">
+                <button class="btn btn--ghost" data-close="customerModal">إلغاء</button>
+                <button class="btn btn--primary" id="saveCustomerBtn">
                     <i class="fas fa-save"></i> حفظ
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ============ مودال تفاصيل جهة ============ -->
-    <div class="modal" id="viewPartyModal">
+    <!-- ============ مودال تفاصيل العميل ============ -->
+    <div class="modal" id="viewCustomerModal">
         <div class="modal__content">
             <div class="modal__header">
-                <h2>تفاصيل الحساب</h2>
-                <button class="icon-btn" data-close="viewPartyModal"><i class="fas fa-times"></i></button>
+                <h2>تفاصيل العميل</h2>
+                <button class="icon-btn" data-close="viewCustomerModal"><i class="fas fa-times"></i></button>
             </div>
-            <div class="modal__body" id="viewPartyBody"></div>
+            <div class="modal__body" id="viewCustomerBody"></div>
             <div class="modal__footer" style="flex-wrap:wrap;">
                 <button class="btn btn--ghost" id="viewInvoicesBtn" style="flex:1;min-width:100px;">
                     <i class="fas fa-file-invoice"></i> الفواتير
@@ -239,36 +213,35 @@
                 <button class="btn btn--ghost" id="viewEditBtn" style="flex:1;min-width:100px;">
                     <i class="fas fa-edit"></i> تعديل
                 </button>
-                <button class="btn btn--success" id="viewPaymentBtn" style="flex:1.2;min-width:120px;">
-                    <i class="fas fa-hand-holding-usd"></i> <span id="viewPaymentBtnText">تحصيل</span>
+                <button class="btn btn--success" id="viewCollectBtn" style="flex:1.2;min-width:120px;">
+                    <i class="fas fa-hand-holding-usd"></i> تحصيل
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ============ مودال التحصيل / السداد ============ -->
-    <div class="modal" id="paymentModal">
+    <!-- ============ مودال التحصيل ============ -->
+    <div class="modal" id="collectModal">
         <div class="modal__content modal__content--sm">
             <div class="modal__header">
-                <h2 id="paymentModalTitle">تحصيل من عميل</h2>
-                <button class="icon-btn" data-close="paymentModal"><i class="fas fa-times"></i></button>
+                <h2>تحصيل من عميل</h2>
+                <button class="icon-btn" data-close="collectModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <input type="hidden" id="paymentPartyId">
-                <input type="hidden" id="paymentType">
+                <input type="hidden" id="collectCustomerId">
 
-                <div class="payment-target">
-                    <div class="payment-target__avatar" id="paymentAvatar">A</div>
-                    <div class="payment-target__info">
-                        <strong id="paymentPartyName">-</strong>
-                        <small id="paymentCurrentBalance">-</small>
+                <div class="collect-target">
+                    <div class="collect-target__avatar" id="collectAvatar">A</div>
+                    <div class="collect-target__info">
+                        <strong id="collectCustomerName">-</strong>
+                        <small id="collectCurrentBalance">-</small>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="paymentAmount">المبلغ <span class="required">*</span></label>
-                    <input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal">
-                    <div class="quick-amounts" id="quickAmounts"></div>
+                    <label for="collectAmount">المبلغ <span class="required">*</span></label>
+                    <input type="number" id="collectAmount" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal">
+                    <div class="quick-amounts" id="collectQuickAmounts"></div>
                 </div>
 
                 <div class="form-group">
@@ -287,52 +260,52 @@
                             <span>بطاقة</span>
                         </button>
                     </div>
-                    <input type="hidden" id="paymentMethod" value="cash">
+                    <input type="hidden" id="collectMethod" value="cash">
                 </div>
 
                 <div class="form-group">
-                    <label for="paymentReference">رقم المرجع / الشيك</label>
-                    <input type="text" id="paymentReference" placeholder="اختياري">
+                    <label for="collectReference">رقم المرجع / الشيك</label>
+                    <input type="text" id="collectReference" placeholder="اختياري">
                 </div>
 
                 <div class="form-group">
-                    <label for="paymentNotesInput">ملاحظات</label>
-                    <input type="text" id="paymentNotesInput" placeholder="اختياري">
+                    <label for="collectNotes">ملاحظات</label>
+                    <input type="text" id="collectNotes" placeholder="اختياري">
                 </div>
 
-                <div class="balance-preview" id="balancePreview">
-                    <span>الرصيد بعد العملية</span>
-                    <strong id="newBalanceDisplay">0.00 ج.م</strong>
+                <div class="balance-preview" id="collectPreview">
+                    <span>الرصيد بعد التحصيل</span>
+                    <strong id="collectNewBalance">0.00 ج.م</strong>
                 </div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="paymentModal">إلغاء</button>
-                <button class="btn btn--success" id="confirmPaymentBtn">
-                    <i class="fas fa-check"></i> تأكيد
+                <button class="btn btn--ghost" data-close="collectModal">إلغاء</button>
+                <button class="btn btn--success" id="confirmCollectBtn">
+                    <i class="fas fa-check"></i> تأكيد التحصيل
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ============ مودال فواتير الطرف ============ -->
-    <div class="modal" id="partyInvoicesModal">
+    <!-- ============ مودال فواتير العميل ============ -->
+    <div class="modal" id="customerInvoicesModal">
         <div class="modal__content modal__content--lg">
             <div class="modal__header">
-                <h2 id="partyInvoicesTitle">فواتير الحساب</h2>
-                <button class="icon-btn" data-close="partyInvoicesModal"><i class="fas fa-times"></i></button>
+                <h2 id="customerInvoicesTitle">فواتير العميل</h2>
+                <button class="icon-btn" data-close="customerInvoicesModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <div class="party-invoices-filters">
+                <div class="invoices-filters">
                     <button class="filter-pill active" data-filter="all">الكل</button>
-                    <button class="filter-pill" data-filter="sale">مبيعات</button>
-                    <button class="filter-pill" data-filter="purchase">مشتريات</button>
+                    <button class="filter-pill" data-filter="paid">مدفوعة</button>
+                    <button class="filter-pill" data-filter="partial">جزئية</button>
                     <button class="filter-pill" data-filter="credit">آجلة</button>
                 </div>
-                <div id="partyInvoicesList"></div>
+                <div id="customerInvoicesList"></div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="partyInvoicesModal">إغلاق</button>
-                <button class="btn btn--primary" id="gotoInvoicesBtn">
+                <button class="btn btn--ghost" data-close="customerInvoicesModal">إغلاق</button>
+                <button class="btn btn--primary" id="gotoAllInvoicesBtn">
                     <i class="fas fa-external-link-alt"></i> عرض في الفواتير
                 </button>
             </div>
@@ -351,8 +324,8 @@
                     <div class="confirm-delete__icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <p>هل أنت متأكد من حذف هذه الجهة؟</p>
-                    <p class="confirm-delete__name" id="deletePartyName"></p>
+                    <p>هل أنت متأكد من حذف هذا العميل؟</p>
+                    <p class="confirm-delete__name" id="deleteCustomerName"></p>
                     <small>لا يمكن التراجع عن هذا الإجراء</small>
                 </div>
             </div>
