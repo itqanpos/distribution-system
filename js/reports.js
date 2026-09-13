@@ -1,5 +1,6 @@
 /* =============================================
    reports.js - Reports Page Logic
+   Version: 2.0.0 - Fixes: TDZ, local dates, CSV safety, unified payments
    ============================================= */
 (function() {
     'use strict';
@@ -21,15 +22,37 @@
     };
 
     /* ============================================
+       Date Helpers — توقيت محلي (لا UTC)
+       ============================================ */
+    function localDateStr(d = new Date()) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function addDays(date, days) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        return d;
+    }
+
+    /* ============================================
        Init
        ============================================ */
     async function init() {
         console.log('🚀 Reports init...');
 
-        let attempts = 0;
-        while (!window.DB?.client && attempts < 50) {
-            await new Promise(r => setTimeout(r, 100));
-            attempts++;
+        // ✅ انتظار promise موحّد بدل polling
+        try {
+            await Promise.race([
+                window.DB?.ready || window.DB?.init?.(),
+                new Promise((_, r) => setTimeout(() => r(new Error('DB timeout')), 15000))
+            ]);
+        } catch (e) {
+            console.error('❌ DB not ready', e);
+            showToast('تعذر الاتصال بالخادم', 'error');
+            return;
         }
 
         if (!window.DB?.client) {
@@ -37,8 +60,6 @@
             showToast('تعذر الاتصال بالخادم', 'error');
             return;
         }
-
-        await new Promise(r => setTimeout(r, 300));
 
         try {
             State.currentUser = await Auth.requireAuth();
@@ -65,10 +86,23 @@
         showLoading();
         try {
             const [invoices, parties, products, transactions] = await Promise.all([
-                DB.getInvoices(true).catch(() => []),
-                DB.getParties(null, true).catch(() => []),
-                DB.getProducts(true).catch(() => []),
-                DB.getPayments().catch(() => [])
+                DB.getInvoices(true).catch(e => {
+                    console.error('getInvoices failed', e);
+                    showToast('فشل تحميل الفواتير', 'error');
+                    return [];
+                }),
+                DB.getParties(null, true).catch(e => {
+                    console.error('getParties failed', e);
+                    return [];
+                }),
+                DB.getProducts(true).catch(e => {
+                    console.error('getProducts failed', e);
+                    return [];
+                }),
+                DB.getPayments().catch(e => {
+                    console.error('getPayments failed', e);
+                    return [];
+                })
             ]);
 
             State.invoices = invoices || [];
@@ -97,32 +131,26 @@
        ============================================ */
     function getDateRange() {
         const today = new Date();
-        const todayStr = U.today();
+        const todayStr = localDateStr(today);
         let from, to;
 
         switch (State.period) {
             case 'today':
-                from = todayStr;
-                to = todayStr;
+                from = to = todayStr;
                 break;
             case 'yesterday':
-                const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-                from = yesterday.toISOString().split('T')[0];
-                to = from;
+                from = to = localDateStr(addDays(today, -1));
                 break;
             case 'week':
-                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                from = weekAgo.toISOString().split('T')[0];
+                from = localDateStr(addDays(today, -7));
                 to = todayStr;
                 break;
             case 'month':
-                const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-                from = monthAgo.toISOString().split('T')[0];
+                from = localDateStr(addDays(today, -30));
                 to = todayStr;
                 break;
             case 'year':
-                const yearAgo = new Date(today.getFullYear(), 0, 1);
-                from = yearAgo.toISOString().split('T')[0];
+                from = localDateStr(new Date(today.getFullYear(), 0, 1));
                 to = todayStr;
                 break;
             case 'custom':
@@ -130,8 +158,7 @@
                 to = State.customTo || todayStr;
                 break;
             default:
-                from = todayStr;
-                to = todayStr;
+                from = to = todayStr;
         }
 
         return { from, to };
@@ -158,107 +185,234 @@
     }
 
     /* ============================================
-       Render All Reports
+       Computed Stats — يُحسب مرة واحدة
+       ============================================ */
+    function computeStats() {
+        const { from, to } = getDateRange();
+        const inRange = State.invoices.filter(i => {
+            const d = i.date || (i.created_at || '').slice(0, 10);
+            return d >= from && d <= to;
+        });
+
+        const sales = inRange.filter(i => i.type === 'sale');
+        const purchases = inRange.filter(i => i.type === 'purchase');
+
+        return {
+            from, to,
+            sales, purchases,
+            overview: computeOverview(sales, purchases),
+            productStats: computeProductStats(sales),
+            customerStats: computeCustomerStats(sales),
+            paymentSplit: computePaymentSplit(sales)
+        };
+    }
+
+    function computeOverview(sales, purchases) {
+        const totalSales = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        const totalPurchases = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        const discounts = sales.reduce((s, i) => s + (Number(i.discount) || 0), 0);
+
+        // ✅ حساب الربح — مع تكلفة احتياطية من كتالوج المنتجات
+        let totalProfit = 0;
+        let missingCostCount = 0;
+
+        sales.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const price = Number(item.price) || 0;
+                const qty = Number(item.quantity) || 0;
+                let cost = Number(item.cost) || 0;
+
+                if (!cost || cost <= 0) {
+                    const prod = State.products.find(p =>
+                        p.id === (item.productId || item.product_id));
+                    if (prod?.units?.length) {
+                        const baseUnit = prod.units.find(u => u.isBase) || prod.units[0];
+                        cost = Number(baseUnit.cost) || 0;
+                    }
+                }
+                if (!cost || cost <= 0) missingCostCount++;
+
+                totalProfit += (price - cost) * qty;
+            });
+        });
+
+        // ملاحظة: price في invoice_items يفترض أنه قبل الخصم
+        const netProfit = totalProfit - discounts;
+        const invoiceCount = sales.length;
+        const avgInvoice = invoiceCount > 0 ? totalSales / invoiceCount : 0;
+
+        return {
+            totalSales, totalPurchases, discounts,
+            totalProfit, netProfit, invoiceCount,
+            avgInvoice, missingCostCount
+        };
+    }
+
+    function computeProductStats(sales) {
+        const map = new Map();
+        sales.forEach(inv => {
+            (inv.items || []).forEach(item => {
+                const key = item.productId || item.product_id || item.productName;
+                const cur = map.get(key) || {
+                    name: item.productName || item.product_name || 'منتج',
+                    qty: 0, revenue: 0, cost: 0
+                };
+                const q = Number(item.quantity) || 0;
+                const price = Number(item.price) || 0;
+                let unitCost = Number(item.cost) || 0;
+                if (!unitCost || unitCost <= 0) {
+                    const prod = State.products.find(p => p.id === key);
+                    if (prod?.units?.length) {
+                        const baseUnit = prod.units.find(u => u.isBase) || prod.units[0];
+                        unitCost = Number(baseUnit.cost) || 0;
+                    }
+                }
+                cur.qty += q;
+                cur.revenue += price * q;
+                cur.cost += unitCost * q;
+                map.set(key, cur);
+            });
+        });
+        return [...map.values()].sort((a, b) => b.qty - a.qty);
+    }
+
+    function computeCustomerStats(sales) {
+        const map = new Map();
+        sales.forEach(inv => {
+            if (!inv.customer_id) return;
+            const cur = map.get(inv.customer_id) || {
+                id: inv.customer_id,
+                name: inv.customer_name || 'عميل',
+                phone: '', balance: 0,
+                count: 0, total: 0, paid: 0
+            };
+            cur.count += 1;
+            cur.total += Number(inv.total) || 0;
+            cur.paid += Number(inv.paid) || 0;
+            map.set(inv.customer_id, cur);
+        });
+        map.forEach((c, id) => {
+            const party = State.parties.find(p => p.id === id);
+            if (party) {
+                c.phone = party.phone || '';
+                c.balance = Number(party.balance) || 0;
+            }
+        });
+        return [...map.values()].sort((a, b) => b.total - a.total);
+    }
+
+    // ✅ مصدر موحّد لتفاصيل الدفع
+    function computePaymentSplit(sales) {
+        const r = {
+            cash: 0, card: 0, transfer: 0,
+            credit: 0, usedBalance: 0,
+            methods: { cash: 0, card: 0, transfer: 0, credit: 0, mixed: 0 }
+        };
+
+        sales.forEach(inv => {
+            const cash = Number(inv.cash_paid) || 0;
+            const card = Number(inv.card_paid) || 0;
+            const transfer = Number(inv.transfer_paid) || 0;
+            const remaining = Number(inv.remaining) || 0;
+            const usedBal = Number(inv.used_balance) || 0;
+            const method = inv.payment_method || 'cash';
+
+            r.cash += cash;
+            r.card += card;
+            r.transfer += transfer;
+            r.credit += remaining;
+            r.usedBalance += usedBal;
+
+            if (r.methods[method] !== undefined) r.methods[method] += 1;
+            else r.methods.mixed += 1;
+        });
+
+        return r;
+    }
+
+    /* ============================================
+       Render All — يحسب مرة واحدة
        ============================================ */
     function renderAll() {
+        const stats = computeStats();
         updatePeriodLabel();
-        renderOverview();
-        renderSales();
-        renderPurchases();
-        renderProducts();
-        renderCustomers();
-        renderPayments();
+        renderOverview(stats);
+        renderSales(stats);
+        renderPurchases(stats);
+        renderProducts(stats);
+        renderCustomers(stats);
+        renderPayments(stats);
     }
 
     /* ============================================
        Overview Report
        ============================================ */
-    function renderOverview() {
-        const periodInvoices = filterByPeriod(State.invoices);
-        const sales = periodInvoices.filter(i => i.type === 'sale');
-        const purchases = periodInvoices.filter(i => i.type === 'purchase');
+    function renderOverview(stats) {
+        const o = stats.overview;
 
-        const totalSales = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const totalPurchases = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
-
-        // حساب الربح
-        let totalProfit = 0;
-        sales.forEach(inv => {
-            (inv.items || []).forEach(item => {
-                const cost = Number(item.cost) || 0;
-                const price = Number(item.price) || 0;
-                const qty = Number(item.quantity) || 0;
-                totalProfit += (price - cost) * qty;
-            });
-        });
-
-        const netProfit = totalProfit - (Number(discounts) || 0);
-        const discounts = sales.reduce((s, i) => s + (Number(i.discount) || 0), 0);
-
-        // عدد الفواتير
-        const invoiceCount = sales.length;
-        const avgInvoice = invoiceCount > 0 ? totalSales / invoiceCount : 0;
-
-        // KPI
         const kpiGrid = $('#overviewKPI');
         if (kpiGrid) {
+            const missingWarning = o.missingCostCount > 0
+                ? `<div class="kpi-card" style="grid-column: 1/-1; background: #fef3c7; border-right: 3px solid #f59e0b;">
+                       <div class="kpi-card__info">
+                           <span class="kpi-card__label">⚠️ تنبيه</span>
+                           <span class="kpi-card__value" style="font-size: 13px;">
+                               ${o.missingCostCount} صنف بدون تكلفة مسجّلة — الأرباح تقديرية
+                           </span>
+                       </div>
+                   </div>` : '';
+
             kpiGrid.innerHTML = `
                 <div class="kpi-card">
                     <div class="kpi-card__icon green"><i class="fas fa-chart-line"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">إجمالي المبيعات</span>
-                        <span class="kpi-card__value">${U.money(totalSales)}</span>
+                        <span class="kpi-card__value">${U.money(o.totalSales)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon blue"><i class="fas fa-file-invoice"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">عدد فواتير البيع</span>
-                        <span class="kpi-card__value">${invoiceCount}</span>
+                        <span class="kpi-card__value">${o.invoiceCount}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon orange"><i class="fas fa-truck"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">إجمالي المشتريات</span>
-                        <span class="kpi-card__value">${U.money(totalPurchases)}</span>
+                        <span class="kpi-card__value">${U.money(o.totalPurchases)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon purple"><i class="fas fa-coins"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">صافي الربح</span>
-                        <span class="kpi-card__value">${U.money(netProfit)}</span>
+                        <span class="kpi-card__value">${U.money(o.netProfit)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon teal"><i class="fas fa-calculator"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">متوسط الفاتورة</span>
-                        <span class="kpi-card__value">${U.money(avgInvoice)}</span>
+                        <span class="kpi-card__value">${U.money(o.avgInvoice)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon red"><i class="fas fa-percentage"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">إجمالي الخصومات</span>
-                        <span class="kpi-card__value">${U.money(discounts)}</span>
+                        <span class="kpi-card__value">${U.money(o.discounts)}</span>
                     </div>
                 </div>
+                ${missingWarning}
             `;
         }
 
-        // Chart - daily sales
-        renderOverviewChart(sales);
-
-        // Payment breakdown
-        renderPaymentBreakdown(sales);
-
-        // Top products
-        renderTopProductsOverview(sales);
-
-        // Top customers
-        renderTopCustomersOverview(sales);
+        renderOverviewChart(stats.sales);
+        renderPaymentBreakdown(stats);
+        renderTopProductsOverview(stats.productStats);
+        renderTopCustomersOverview(stats.customerStats);
     }
 
     function renderOverviewChart(sales) {
@@ -267,19 +421,20 @@
 
         const days = [];
         const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        const today = new Date();
 
-        // Last 7 days
+        // ✅ آخر 7 أيام بالتوقيت المحلي
         for (let i = 6; i >= 0; i--) {
-            const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-            const dateStr = date.toISOString().split('T')[0];
+            const d = addDays(today, -i);
+            const dateStr = localDateStr(d);
             const daySales = sales
                 .filter(inv => (inv.date || (inv.created_at || '').slice(0, 10)) === dateStr)
-                .reduce((s, i) => s + (Number(i.total) || 0), 0);
+                .reduce((s, inv) => s + (Number(inv.total) || 0), 0);
 
             days.push({
-                name: dayNames[date.getDay()],
+                name: dayNames[d.getDay()],
                 date: dateStr,
-                shortDate: `${date.getDate()}/${date.getMonth() + 1}`,
+                shortDate: `${d.getDate()}/${d.getMonth() + 1}`,
                 sales: daySales
             });
         }
@@ -311,28 +466,21 @@
         }).join('');
     }
 
-    function renderPaymentBreakdown(sales) {
+    function renderPaymentBreakdown(stats) {
         const container = $('#paymentBreakdown');
         if (!container) return;
 
-        const methods = {
-            cash: { label: 'نقدي', icon: 'fa-money-bill-wave', class: 'cash', total: 0, count: 0 },
-            card: { label: 'بطاقة', icon: 'fa-credit-card', class: 'card', total: 0, count: 0 },
-            transfer: { label: 'تحويل', icon: 'fa-exchange-alt', class: 'transfer', total: 0, count: 0 },
-            credit: { label: 'آجل', icon: 'fa-hand-holding-usd', class: 'credit', total: 0, count: 0 },
-            mixed: { label: 'مختلط', icon: 'fa-layer-group', class: 'mixed', total: 0, count: 0 }
-        };
+        const p = stats.paymentSplit;
+        const methods = [
+            { key: 'cash',     label: 'نقدي',   icon: 'fa-money-bill-wave', cls: 'cash',     total: p.cash,     count: p.methods.cash },
+            { key: 'card',     label: 'بطاقة',  icon: 'fa-credit-card',     cls: 'card',     total: p.card,     count: p.methods.card },
+            { key: 'transfer', label: 'تحويل',  icon: 'fa-exchange-alt',    cls: 'transfer', total: p.transfer, count: p.methods.transfer },
+            { key: 'credit',   label: 'آجل',    icon: 'fa-hand-holding-usd',cls: 'credit',   total: p.credit,   count: p.methods.credit },
+            { key: 'mixed',    label: 'مختلط',  icon: 'fa-layer-group',     cls: 'mixed',    total: 0,          count: p.methods.mixed }
+        ];
 
-        sales.forEach(inv => {
-            const m = inv.payment_method || 'cash';
-            if (methods[m]) {
-                methods[m].total += Number(inv.total) || 0;
-                methods[m].count += 1;
-            }
-        });
-
-        const total = Object.values(methods).reduce((s, m) => s + m.total, 0);
-        const active = Object.entries(methods).filter(([_, m]) => m.count > 0);
+        const active = methods.filter(m => m.count > 0 || m.total > 0);
+        const total = active.reduce((s, m) => s + m.total, 0);
 
         if (!active.length) {
             container.innerHTML = `
@@ -344,12 +492,12 @@
             return;
         }
 
-        container.innerHTML = active.map(([key, m]) => {
+        container.innerHTML = active.map(m => {
             const percent = total > 0 ? (m.total / total) * 100 : 0;
             return `
                 <div class="payment-item">
                     <div class="payment-item__label">
-                        <i class="fas ${m.icon} ${m.class}"></i>
+                        <i class="fas ${m.icon} ${m.cls}"></i>
                         <span>${m.label}</span>
                     </div>
                     <div class="payment-item__value">
@@ -361,29 +509,11 @@
         }).join('');
     }
 
-    function renderTopProductsOverview(sales) {
+    function renderTopProductsOverview(productStats) {
         const container = $('#topProductsOverview');
         if (!container) return;
 
-        const productSales = new Map();
-
-        sales.forEach(inv => {
-            (inv.items || []).forEach(item => {
-                const key = item.productId || item.productName;
-                const current = productSales.get(key) || {
-                    name: item.productName || 'منتج',
-                    qty: 0,
-                    amount: 0
-                };
-                current.qty += Number(item.quantity) || 0;
-                current.amount += (Number(item.price) || 0) * (Number(item.quantity) || 0);
-                productSales.set(key, current);
-            });
-        });
-
-        const sorted = [...productSales.values()]
-            .sort((a, b) => b.qty - a.qty)
-            .slice(0, 5);
+        const sorted = productStats.slice(0, 5);
 
         if (!sorted.length) {
             container.innerHTML = `
@@ -404,32 +534,16 @@
                     <div class="top-list-item__name">${U.escape(p.name)}</div>
                     <div class="top-list-item__meta">${p.qty} وحدة</div>
                 </div>
-                <div class="top-list-item__amount">${U.money(p.amount)}</div>
+                <div class="top-list-item__amount">${U.money(p.revenue)}</div>
             </div>
         `).join('');
     }
 
-    function renderTopCustomersOverview(sales) {
+    function renderTopCustomersOverview(customerStats) {
         const container = $('#topCustomersOverview');
         if (!container) return;
 
-        const customerSales = new Map();
-
-        sales.forEach(inv => {
-            if (!inv.customer_id) return;
-            const current = customerSales.get(inv.customer_id) || {
-                name: inv.customer_name || 'عميل',
-                total: 0,
-                count: 0
-            };
-            current.total += Number(inv.total) || 0;
-            current.count += 1;
-            customerSales.set(inv.customer_id, current);
-        });
-
-        const sorted = [...customerSales.values()]
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 5);
+        const sorted = customerStats.slice(0, 5);
 
         if (!sorted.length) {
             container.innerHTML = `
@@ -458,9 +572,8 @@
     /* ============================================
        Sales Report
        ============================================ */
-    function renderSales() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
-
+    function renderSales(stats) {
+        const sales = stats.sales;
         const total = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
         const paid = sales.reduce((s, i) => s + (Number(i.paid) || 0), 0);
         const remaining = sales.reduce((s, i) => s + (Number(i.remaining) || 0), 0);
@@ -515,15 +628,15 @@
             return;
         }
 
-        const sorted = sales.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+        // ✅ نسخة جديدة قبل الترتيب (لا نعدّل المصدر)
+        const sorted = [...sales].sort((a, b) =>
+            new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
 
         tbody.innerHTML = sorted.map((inv, i) => {
             const status = inv.status || 'paid';
             const statusLabel = {
-                paid: 'مدفوعة',
-                partial: 'جزئية',
-                credit: 'آجلة',
-                held: 'معلقة'
+                paid: 'مدفوعة', partial: 'جزئية',
+                credit: 'آجلة', held: 'معلقة'
             }[status] || 'مدفوعة';
 
             return `
@@ -544,9 +657,8 @@
     /* ============================================
        Purchases Report
        ============================================ */
-    function renderPurchases() {
-        const purchases = filterByPeriod(State.invoices).filter(i => i.type === 'purchase');
-
+    function renderPurchases(stats) {
+        const purchases = stats.purchases;
         const total = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
         const paid = purchases.reduce((s, i) => s + (Number(i.paid) || 0), 0);
         const remaining = purchases.reduce((s, i) => s + (Number(i.remaining) || 0), 0);
@@ -600,14 +712,13 @@
             return;
         }
 
-        const sorted = purchases.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+        const sorted = [...purchases].sort((a, b) =>
+            new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
 
         tbody.innerHTML = sorted.map((inv, i) => {
             const status = inv.status || 'paid';
             const statusLabel = {
-                paid: 'مدفوعة',
-                partial: 'جزئية',
-                credit: 'آجلة'
+                paid: 'مدفوعة', partial: 'جزئية', credit: 'آجلة'
             }[status] || 'مدفوعة';
 
             return `
@@ -628,32 +739,8 @@
     /* ============================================
        Products Report
        ============================================ */
-    function renderProducts() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
-
-        const productStats = new Map();
-
-        sales.forEach(inv => {
-            (inv.items || []).forEach(item => {
-                const key = item.productId || item.productName;
-                const current = productStats.get(key) || {
-                    name: item.productName || 'منتج',
-                    qty: 0,
-                    revenue: 0,
-                    cost: 0
-                };
-                const q = Number(item.quantity) || 0;
-                const price = Number(item.price) || 0;
-                const unitCost = Number(item.cost) || 0;
-
-                current.qty += q;
-                current.revenue += price * q;
-                current.cost += unitCost * q;
-                productStats.set(key, current);
-            });
-        });
-
-        const list = [...productStats.values()];
+    function renderProducts(stats) {
+        const list = stats.productStats;
         const totalRevenue = list.reduce((s, p) => s + p.revenue, 0);
         const totalCost = list.reduce((s, p) => s + p.cost, 0);
         const totalProfit = totalRevenue - totalCost;
@@ -708,9 +795,7 @@
             return;
         }
 
-        const sorted = list.sort((a, b) => b.qty - a.qty);
-
-        tbody.innerHTML = sorted.map((p, i) => {
+        tbody.innerHTML = list.map((p, i) => {
             const profit = p.revenue - p.cost;
             const margin = p.revenue > 0 ? (profit / p.revenue) * 100 : 0;
             const marginClass = margin >= 0 ? 'text-success' : 'text-danger';
@@ -732,40 +817,18 @@
     /* ============================================
        Customers Report
        ============================================ */
-    function renderCustomers() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
-
-        const customerStats = new Map();
-
-        sales.forEach(inv => {
-            if (!inv.customer_id) return;
-            const current = customerStats.get(inv.customer_id) || {
-                id: inv.customer_id,
-                name: inv.customer_name || 'عميل',
-                phone: '',
-                count: 0,
-                total: 0,
-                paid: 0
-            };
-            current.count += 1;
-            current.total += Number(inv.total) || 0;
-            current.paid += Number(inv.paid) || 0;
-            customerStats.set(inv.customer_id, current);
-        });
-
-        // إضافة أرقام الهواتف والأرصدة
-        customerStats.forEach((c, id) => {
-            const party = State.parties.find(p => p.id === id);
-            if (party) {
-                c.phone = party.phone || '';
-                c.balance = Number(party.balance) || 0;
-            }
-        });
-
-        const list = [...customerStats.values()];
+    function renderCustomers(stats) {
+        const list = stats.customerStats;
         const totalSales = list.reduce((s, c) => s + c.total, 0);
         const totalPaid = list.reduce((s, c) => s + c.paid, 0);
-        const totalBalance = list.reduce((s, c) => s + (c.balance || 0), 0);
+
+        // ✅ فصل المدين عن الدائن
+        const totalDebit = list
+            .filter(c => (c.balance || 0) > 0)
+            .reduce((s, c) => s + c.balance, 0);
+        const totalCredit = list
+            .filter(c => (c.balance || 0) < 0)
+            .reduce((s, c) => s + Math.abs(c.balance), 0);
 
         const kpi = $('#customersKPI');
         if (kpi) {
@@ -794,8 +857,8 @@
                 <div class="kpi-card">
                     <div class="kpi-card__icon red"><i class="fas fa-exclamation-circle"></i></div>
                     <div class="kpi-card__info">
-                        <span class="kpi-card__label">إجمالي الديون</span>
-                        <span class="kpi-card__value">${U.money(Math.abs(totalBalance))}</span>
+                        <span class="kpi-card__label">الديون المستحقة</span>
+                        <span class="kpi-card__value">${U.money(totalCredit)}</span>
                     </div>
                 </div>
             `;
@@ -816,11 +879,10 @@
             return;
         }
 
-        const sorted = list.sort((a, b) => b.total - a.total);
-
-        tbody.innerHTML = sorted.map((c, i) => {
+        tbody.innerHTML = list.map((c, i) => {
             const balance = c.balance || 0;
-            const balanceClass = balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : '';
+            const balanceClass = balance > 0 ? 'text-success'
+                               : balance < 0 ? 'text-danger' : '';
 
             return `
                 <tr>
@@ -839,17 +901,10 @@
     /* ============================================
        Payments Report
        ============================================ */
-    function renderPayments() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
-
-        const totalCash = sales.reduce((s, i) => s + (Number(i.cash_paid) || 0), 0);
-        const totalCard = sales.reduce((s, i) => s + (Number(i.card_paid) || 0), 0);
-        const totalTransfer = sales.reduce((s, i) => s + (Number(i.transfer_paid) || 0), 0);
-        const totalCredit = sales.filter(i => i.status === 'credit' || i.status === 'partial')
-            .reduce((s, i) => s + (Number(i.remaining) || 0), 0);
-        const totalUsedBalance = sales.reduce((s, i) => s + (Number(i.used_balance) || 0), 0);
-
-        const totalCollected = totalCash + totalCard + totalTransfer;
+    function renderPayments(stats) {
+        const p = stats.paymentSplit;
+        const totalCollected = p.cash + p.card + p.transfer;
+        const totalSalesSum = totalCollected + p.credit + p.usedBalance;
 
         const kpi = $('#paymentsKPI');
         if (kpi) {
@@ -858,41 +913,40 @@
                     <div class="kpi-card__icon green"><i class="fas fa-money-bill-wave"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">نقدي</span>
-                        <span class="kpi-card__value">${U.money(totalCash)}</span>
+                        <span class="kpi-card__value">${U.money(p.cash)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon blue"><i class="fas fa-credit-card"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">بطاقة</span>
-                        <span class="kpi-card__value">${U.money(totalCard)}</span>
+                        <span class="kpi-card__value">${U.money(p.card)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon orange"><i class="fas fa-exchange-alt"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">تحويل</span>
-                        <span class="kpi-card__value">${U.money(totalTransfer)}</span>
+                        <span class="kpi-card__value">${U.money(p.transfer)}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-card__icon red"><i class="fas fa-hand-holding-usd"></i></div>
                     <div class="kpi-card__info">
                         <span class="kpi-card__label">آجل</span>
-                        <span class="kpi-card__value">${U.money(totalCredit)}</span>
+                        <span class="kpi-card__value">${U.money(p.credit)}</span>
                     </div>
                 </div>
             `;
         }
 
-        // Payment methods chart
         const chartContainer = $('#paymentMethodsChart');
         if (chartContainer) {
             const data = [
-                { label: 'نقدي', value: totalCash, color: '#10b981' },
-                { label: 'بطاقة', value: totalCard, color: '#2563eb' },
-                { label: 'تحويل', value: totalTransfer, color: '#f59e0b' },
-                { label: 'آجل', value: totalCredit, color: '#ef4444' }
+                { label: 'نقدي', value: p.cash, color: '#10b981' },
+                { label: 'بطاقة', value: p.card, color: '#2563eb' },
+                { label: 'تحويل', value: p.transfer, color: '#f59e0b' },
+                { label: 'آجل', value: p.credit, color: '#ef4444' }
             ].filter(d => d.value > 0);
 
             if (!data.length) {
@@ -925,7 +979,6 @@
             }
         }
 
-        // Summary
         const summaryContainer = $('#paymentSummary');
         if (summaryContainer) {
             summaryContainer.innerHTML = `
@@ -936,15 +989,15 @@
                     </div>
                     <div class="summary-box__row">
                         <span>استُخدم من رصيد العملاء</span>
-                        <strong>${U.money(totalUsedBalance)}</strong>
+                        <strong>${U.money(p.usedBalance)}</strong>
                     </div>
                     <div class="summary-box__row">
                         <span>مبالغ آجلة</span>
-                        <strong class="text-danger">${U.money(totalCredit)}</strong>
+                        <strong class="text-danger">${U.money(p.credit)}</strong>
                     </div>
                     <div class="summary-box__row highlight">
                         <span>إجمالي المبيعات</span>
-                        <strong>${U.money(totalCollected + totalCredit + totalUsedBalance)}</strong>
+                        <strong>${U.money(totalSalesSum)}</strong>
                     </div>
                 </div>
             `;
@@ -954,31 +1007,40 @@
     /* ============================================
        Export Functions
        ============================================ */
+    function escapeCSVCell(cell) {
+        let s = String(cell ?? '');
+        // ✅ حماية Formula Injection — فقط للحقول النصية
+        const isNumeric = /^-?\d+(\.\d+)?$/.test(s);
+        if (!isNumeric && /^[=+\-@\t\r]/.test(s)) {
+            s = "'" + s;
+        }
+        if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+            s = '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    }
+
     function exportToCSV(filename, headers, rows) {
-        const csv = [
-            headers,
-            ...rows
-        ].map(row =>
-            row.map(cell => {
-                const s = String(cell ?? '');
-                return (s.includes(',') || s.includes('"') || s.includes('\n'))
-                    ? '"' + s.replace(/"/g, '""') + '"'
-                    : s;
-            }).join(',')
-        ).join('\n');
+        const csv = [headers, ...rows]
+            .map(row => row.map(escapeCSVCell).join(','))
+            .join('\n');
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+            a.remove();
+        }, 200);
         showToast('تم التصدير', 'success');
     }
 
-    function exportSales() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
+    function exportSales(stats) {
+        const sales = stats?.sales || filterByPeriod(State.invoices).filter(i => i.type === 'sale');
         if (!sales.length) { showToast('لا توجد بيانات', 'info'); return; }
 
         const headers = ['رقم الفاتورة', 'التاريخ', 'العميل', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة'];
@@ -996,8 +1058,8 @@
         exportToCSV(`sales-${from}_${to}.csv`, headers, rows);
     }
 
-    function exportPurchases() {
-        const purchases = filterByPeriod(State.invoices).filter(i => i.type === 'purchase');
+    function exportPurchases(stats) {
+        const purchases = stats?.purchases || filterByPeriod(State.invoices).filter(i => i.type === 'purchase');
         if (!purchases.length) { showToast('لا توجد بيانات', 'info'); return; }
 
         const headers = ['رقم الفاتورة', 'التاريخ', 'المورد', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة'];
@@ -1015,25 +1077,9 @@
         exportToCSV(`purchases-${from}_${to}.csv`, headers, rows);
     }
 
-    function exportProducts() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
-        const productStats = new Map();
-
-        sales.forEach(inv => {
-            (inv.items || []).forEach(item => {
-                const key = item.productId || item.productName;
-                const current = productStats.get(key) || {
-                    name: item.productName || 'منتج',
-                    qty: 0, revenue: 0, cost: 0
-                };
-                current.qty += Number(item.quantity) || 0;
-                current.revenue += (Number(item.price) || 0) * (Number(item.quantity) || 0);
-                current.cost += (Number(item.cost) || 0) * (Number(item.quantity) || 0);
-                productStats.set(key, current);
-            });
-        });
-
-        const list = [...productStats.values()].sort((a, b) => b.qty - a.qty);
+    function exportProducts(stats) {
+        const list = stats?.productStats || computeProductStats(
+            filterByPeriod(State.invoices).filter(i => i.type === 'sale'));
         if (!list.length) { showToast('لا توجد بيانات', 'info'); return; }
 
         const headers = ['المنتج', 'الكمية المباعة', 'الإيرادات', 'التكلفة', 'الربح', 'هامش %'];
@@ -1047,35 +1093,9 @@
         exportToCSV(`products-${from}_${to}.csv`, headers, rows);
     }
 
-    function exportCustomers() {
-        const sales = filterByPeriod(State.invoices).filter(i => i.type === 'sale');
-        const customerStats = new Map();
-
-        sales.forEach(inv => {
-            if (!inv.customer_id) return;
-            const current = customerStats.get(inv.customer_id) || {
-                name: inv.customer_name || 'عميل',
-                phone: '',
-                count: 0,
-                total: 0,
-                paid: 0,
-                balance: 0
-            };
-            current.count += 1;
-            current.total += Number(inv.total) || 0;
-            current.paid += Number(inv.paid) || 0;
-            customerStats.set(inv.customer_id, current);
-        });
-
-        customerStats.forEach((c, id) => {
-            const party = State.parties.find(p => p.id === id);
-            if (party) {
-                c.phone = party.phone || '';
-                c.balance = Number(party.balance) || 0;
-            }
-        });
-
-        const list = [...customerStats.values()].sort((a, b) => b.total - a.total);
+    function exportCustomers(stats) {
+        const list = stats?.customerStats || computeCustomerStats(
+            filterByPeriod(State.invoices).filter(i => i.type === 'sale'));
         if (!list.length) { showToast('لا توجد بيانات', 'info'); return; }
 
         const headers = ['العميل', 'الهاتف', 'عدد الفواتير', 'إجمالي المشتريات', 'المدفوع', 'الرصيد'];
@@ -1085,16 +1105,31 @@
         exportToCSV(`customers-${from}_${to}.csv`, headers, rows);
     }
 
+    function exportPayments(stats) {
+        const p = stats?.paymentSplit || computePaymentSplit(
+            filterByPeriod(State.invoices).filter(i => i.type === 'sale'));
+        const { from, to } = getDateRange();
+
+        const headers = ['طريقة الدفع', 'المبلغ'];
+        const rows = [
+            ['نقدي', p.cash],
+            ['بطاقة', p.card],
+            ['تحويل', p.transfer],
+            ['آجل', p.credit],
+            ['رصيد مستخدم', p.usedBalance]
+        ];
+
+        exportToCSV(`payments-${from}_${to}.csv`, headers, rows);
+    }
+
     /* ============================================
-       Print
+       Print — iframe بدل window.open
        ============================================ */
     function printReport() {
-        const { from, to } = getDateRange();
+        const stats = computeStats();
         const type = State.activeReport;
+        const { from, to } = stats;
 
-        let content = '';
-
-        // Build print content based on active report
         const titles = {
             overview: 'نظرة عامة',
             sales: 'تقرير المبيعات',
@@ -1108,7 +1143,7 @@
         const shopName = settings.shopName || 'حسابي';
         const shopPhone = settings.phone || '';
 
-        content += `
+        let content = `
             <div style="text-align:center;margin-bottom:20px;">
                 <h1 style="font-size:22px;margin-bottom:4px;">${U.escape(shopName)}</h1>
                 ${shopPhone ? `<p style="font-size:12px;color:#666;">هاتف: ${U.escape(shopPhone)}</p>` : ''}
@@ -1118,26 +1153,19 @@
             </div>
         `;
 
-        // Content based on active tab
         if (type === 'overview') {
-            const kpiGrid = $('#overviewKPI')?.innerHTML || '';
-            content += `<div>${kpiGrid}</div>`;
+            content += $('#overviewKPI')?.innerHTML || '';
         } else if (type === 'sales') {
-            const table = $('#salesTable')?.outerHTML || '';
-            content += table;
+            content += $('#salesTable')?.outerHTML || buildPrintTable(stats.sales, 'sales');
         } else if (type === 'purchases') {
-            const table = $('#purchasesTable')?.outerHTML || '';
-            content += table;
+            content += $('#purchasesTable')?.outerHTML || buildPrintTable(stats.purchases, 'purchases');
         } else if (type === 'products') {
-            const table = $('#productsTable')?.outerHTML || '';
-            content += table;
+            content += $('#productsTable')?.outerHTML || '';
         } else if (type === 'customers') {
-            const table = $('#customersTable')?.outerHTML || '';
-            content += table;
+            content += $('#customersTable')?.outerHTML || '';
         }
 
-        const win = window.open('', '_blank', 'width=900,height=700');
-        win.document.write(`
+        const html = `
             <!DOCTYPE html>
             <html dir="rtl"><head><meta charset="UTF-8">
             <title>طباعة التقرير</title>
@@ -1157,10 +1185,30 @@
                 @media print { body { padding: 0; } }
             </style>
             </head><body>${content}</body></html>
-        `);
-        win.document.close();
-        win.focus();
-        setTimeout(() => win.print(), 300);
+        `;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        iframe.onload = () => {
+            setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(() => iframe.remove(), 1000);
+            }, 200);
+        };
+    }
+
+    function buildPrintTable(list, kind) {
+        if (!list?.length) return '<p>لا توجد بيانات</p>';
+        // يمكن إضافة تفاصيل إضافية لاحقًا
+        return '';
     }
 
     /* ============================================
@@ -1181,13 +1229,24 @@
             status.textContent = online ? 'متصل' : 'غير متصل';
             status.style.color = online ? 'var(--success)' : 'var(--danger)';
         }
+
+        // ✅ مؤشر العمليات المعلقة
+        if (window.DB?.getPendingSyncCount) {
+            window.DB.getPendingSyncCount().then(n => {
+                if (n > 0 && status) {
+                    status.textContent = `${n} عملية معلقة`;
+                    status.style.color = 'var(--warning, #f59e0b)';
+                }
+            }).catch(() => {});
+        }
     }
 
     function updateThemeIcon() {
         const btn = $('#themeBtn');
         if (!btn) return;
         const isDark = document.documentElement.dataset.theme === 'dark';
-        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
 
     function initTheme() {
@@ -1263,7 +1322,6 @@
        Events
        ============================================ */
     function bindEvents() {
-        // Sidebar
         $('#menuBtn')?.addEventListener('click', () => {
             $('#sidebar')?.classList.add('open');
             $('#sidebarOverlay')?.classList.add('show');
@@ -1279,7 +1337,6 @@
             });
         });
 
-        // Theme
         $('#themeBtn')?.addEventListener('click', () => {
             const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
             document.documentElement.dataset.theme = next;
@@ -1287,51 +1344,52 @@
             updateThemeIcon();
         });
 
-        // Logout
         $('#logoutBtn')?.addEventListener('click', async (e) => {
             e.preventDefault();
             if (!confirm('تسجيل الخروج؟')) return;
             await Auth.logout();
         });
 
-        // Refresh
         $('#refreshBtn')?.addEventListener('click', async () => {
             showToast('جاري التحديث...', 'info');
             DB.clearCache();
             await loadData();
+            await DB.flushSyncQueue().catch(() => {});
             showToast('تم التحديث', 'success');
         });
 
-        // Print & Export
         $('#printReportBtn')?.addEventListener('click', printReport);
         $('#exportReportBtn')?.addEventListener('click', () => {
-            // Export based on active report
+            const stats = computeStats();
             const type = State.activeReport;
-            if (type === 'sales') exportSales();
-            else if (type === 'purchases') exportPurchases();
-            else if (type === 'products') exportProducts();
-            else if (type === 'customers') exportCustomers();
-            else exportSales(); // default
+            switch (type) {
+                case 'sales':     exportSales(stats); break;
+                case 'purchases': exportPurchases(stats); break;
+                case 'products':  exportProducts(stats); break;
+                case 'customers': exportCustomers(stats); break;
+                case 'payments':  exportPayments(stats); break;
+                case 'overview':
+                default:
+                    showToast('يرجى اختيار تقرير محدد للتصدير', 'info');
+            }
         });
 
-        // Period tabs
         $$('.period-tab').forEach(btn => {
             btn.addEventListener('click', () => {
                 $$('.period-tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-
                 State.period = btn.dataset.period;
 
+                const cp = $('#customPeriod');
                 if (State.period === 'custom') {
-                    $('#customPeriod').style.display = 'grid';
+                    if (cp) cp.style.display = 'grid';
                 } else {
-                    $('#customPeriod').style.display = 'none';
+                    if (cp) cp.style.display = 'none';
                     renderAll();
                 }
             });
         });
 
-        // Custom period apply
         $('#applyCustomPeriod')?.addEventListener('click', () => {
             const from = $('#fromDate').value;
             const to = $('#toDate').value;
@@ -1350,12 +1408,10 @@
             renderAll();
         });
 
-        // Report tabs
         $$('.report-tab').forEach(btn => {
             btn.addEventListener('click', () => {
                 $$('.report-tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-
                 State.activeReport = btn.dataset.report;
 
                 $$('.report-content').forEach(c => c.classList.remove('active'));
@@ -1363,16 +1419,15 @@
             });
         });
 
-        // Export buttons
-        $('#exportSalesBtn')?.addEventListener('click', exportSales);
-        $('#exportPurchasesBtn')?.addEventListener('click', exportPurchases);
-        $('#exportProductsBtn')?.addEventListener('click', exportProducts);
-        $('#exportCustomersBtn')?.addEventListener('click', exportCustomers);
+        $('#exportSalesBtn')?.addEventListener('click', () => exportSales(computeStats()));
+        $('#exportPurchasesBtn')?.addEventListener('click', () => exportPurchases(computeStats()));
+        $('#exportProductsBtn')?.addEventListener('click', () => exportProducts(computeStats()));
+        $('#exportCustomersBtn')?.addEventListener('click', () => exportCustomers(computeStats()));
 
-        // Connection
         window.addEventListener('online', () => {
             updateConnStatus();
             showToast('عاد الاتصال', 'success');
+            DB.flushSyncQueue().catch(() => {});
         });
         window.addEventListener('offline', () => {
             updateConnStatus();
