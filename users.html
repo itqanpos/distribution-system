@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+    <title>المستخدمين · نظام POS</title>
+    <meta name="theme-color" content="#8b5cf6">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./css/pos.css">
+    <link rel="stylesheet" href="./css/users.css">
+</head>
+<body>
+    <div id="loading-bar"></div>
+    <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <header class="topbar">
+        <div class="topbar__left">
+            <button class="icon-btn" id="menuBtn"><i class="fas fa-bars"></i></button>
+            <div class="brand">
+                <div class="brand__logo">
+                    <img src="./icons/icon-192x192.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <i class="fas fa-user-shield" style="display:none;"></i>
+                </div>
+                <div class="brand__text">
+                    <span class="brand__name">المستخدمين</span>
+                    <span class="brand__status" id="connStatus">متصل</span>
+                </div>
+            </div>
+        </div>
+        <div class="topbar__right">
+            <button class="icon-btn" id="themeBtn"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+            <div class="user-chip"><div class="user-chip__avatar" id="userAvatar">U</div></div>
+        </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar__header">
+            <div class="brand__logo">
+                <img src="./icons/icon-192x192.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                <i class="fas fa-cash-register" style="display:none;"></i>
+            </div>
+            <h3 id="sidebarUserName">مدير</h3>
+        </div>
+        <nav class="sidebar__nav">
+            <a href="./dashboard.html" class="nav-item"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a>
+            <a href="./pos.html" class="nav-item"><i class="fas fa-cash-register"></i> نقطة البيع</a>
+            <a href="./invoices.html" class="nav-item"><i class="fas fa-file-invoice"></i> الفواتير</a>
+            <a href="./purchases.html" class="nav-item"><i class="fas fa-shopping-cart"></i> المشتريات</a>
+            <a href="./returns.html" class="nav-item"><i class="fas fa-undo-alt"></i> المرتجعات</a>
+            <a href="./cashbox.html" class="nav-item"><i class="fas fa-money-bill-wave"></i> الصندوق</a>
+            <a href="./accounting.html" class="nav-item"><i class="fas fa-calculator"></i> المحاسبة</a>
+            <a href="./reports.html" class="nav-item"><i class="fas fa-chart-bar"></i> التقارير</a>
+            <a href="./customers.html" class="nav-item"><i class="fas fa-users"></i> العملاء</a>
+            <a href="./suppliers.html" class="nav-item"><i class="fas fa-truck"></i> الموردين</a>
+            <a href="./products.html" class="nav-item"><i class="fas fa-boxes"></i> المنتجات</a>
+            <a href="./inventory.html" class="nav-item"><i class="fas fa-warehouse"></i> المخزون</a>
+            <a href="./users.html" class="nav-item active"><i class="fas fa-user-shield"></i> المستخدمين</a>
+            <a href="./settings.html" class="nav-item"><i class="fas fa-cog"></i> الإعدادات</a>
+            <a href="#" class="nav-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+        </nav>
+    </aside>
+
+    <main class="main-container">
+        <div class="page-head">
+            <div class="page-head__info">
+                <h1>إدارة المستخدمين</h1>
+                <p id="usersCount">0 مستخدم</p>
+            </div>
+            <button class="btn btn--primary" id="addUserBtn">
+                <i class="fas fa-user-plus"></i>
+                <span>مستخدم جديد</span>
+            </button>
+        </div>
+
+        <!-- تنبيه -->
+        <div class="info-banner" id="infoBanner">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>ملاحظة هامة</strong>
+                <p>إضافة المستخدمين تتم عن طريق دعوتهم. سيقوم النظام بإنشاء حساب Auth تلقائياً.</p>
+            </div>
+        </div>
+
+        <div class="summary-cards" id="summaryCards"></div>
+
+        <div class="filters-bar">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="ابحث بالاسم أو البريد..." autocomplete="off">
+                <button class="search-clear" id="clearSearchBtn" style="display:none;"><i class="fas fa-times"></i></button>
+            </div>
+            <select id="roleFilter" class="filter-select">
+                <option value="">كل الأدوار</option>
+                <option value="admin">مدير</option>
+                <option value="rep">مندوب</option>
+            </select>
+        </div>
+
+        <div class="users-container">
+            <div class="users-grid-view" id="usersGridView"></div>
+            <div class="users-list-view" id="usersListView"></div>
+
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <i class="fas fa-user-shield"></i>
+                <h3>لا يوجد مستخدمين</h3>
+                <p>ابدأ بإضافة مستخدم جديد</p>
+            </div>
+            <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
+        </div>
+    </main>
+
+    <!-- مودال إضافة/تعديل مستخدم -->
+    <div class="modal" id="userModal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 id="userModalTitle">إضافة مستخدم</h2>
+                <button class="icon-btn" data-close="userModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+
+                    <div class="form-group">
+                        <label for="userFullName">الاسم الكامل <span class="required">*</span></label>
+                        <input type="text" id="userFullName" required placeholder="مثال: محمد أحمد">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userEmail">البريد الإلكتروني <span class="required">*</span></label>
+                        <input type="email" id="userEmail" required placeholder="user@example.com" inputmode="email">
+                    </div>
+
+                    <div class="form-group" id="passwordGroup">
+                        <label for="userPassword">كلمة المرور <span class="required">*</span></label>
+                        <input type="password" id="userPassword" minlength="6" placeholder="6 أحرف على الأقل">
+                        <small class="form-hint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>ستُرسل للمستخدم للدخول لأول مرة</span>
+                        </small>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="userPhone">رقم الهاتف</label>
+                            <input type="tel" id="userPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                        </div>
+                        <div class="form-group">
+                            <label for="userRole">الدور <span class="required">*</span></label>
+                            <select id="userRole" required>
+                                <option value="rep">مندوب مبيعات</option>
+                                <option value="admin">مدير</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-toggle">
+                        <div class="settings-toggle__info">
+                            <strong>حساب نشط</strong>
+                            <p>يمكن للمستخدم تسجيل الدخول</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="userActive" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="userModal">إلغاء</button>
+                <button class="btn btn--primary" id="saveUserBtn"><i class="fas fa-save"></i> حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تأكيد الحذف -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal__content modal__content--sm">
+            <div class="modal__header">
+                <h2>تأكيد الحذف</h2>
+                <button class="icon-btn" data-close="confirmDeleteModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body">
+                <div class="confirm-delete">
+                    <div class="confirm-delete__icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <p>هل أنت متأكد من حذف هذا المستخدم؟</p>
+                    <p class="confirm-delete__name" id="deleteUserName"></p>
+                    <small>لا يمكن التراجع عن هذا الإجراء</small>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="confirmDeleteModal">إلغاء</button>
+                <button class="btn btn--danger" id="confirmDeleteBtn"><i class="fas fa-trash"></i> حذف</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastStack" class="toast-stack"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/config.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/db.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/users.js"></script>
+</body>
+</html>
