@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-    <title>المستخدمين · نظام POS</title>
-    <meta name="theme-color" content="#8b5cf6">
+    <title>المستخدمون · نظام POS</title>
+    <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,31 +19,35 @@
     <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- ============ الشريط العلوي ============ -->
     <header class="topbar">
         <div class="topbar__left">
-            <button class="icon-btn" id="menuBtn"><i class="fas fa-bars"></i></button>
+            <button class="icon-btn" id="menuBtn" aria-label="القائمة"><i class="fas fa-bars"></i></button>
             <div class="brand">
                 <div class="brand__logo">
-                    <img src="./icons/icon-192x192.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
                     <i class="fas fa-user-shield" style="display:none;"></i>
                 </div>
                 <div class="brand__text">
-                    <span class="brand__name">المستخدمين</span>
+                    <span class="brand__name">المستخدمون</span>
                     <span class="brand__status" id="connStatus">متصل</span>
                 </div>
             </div>
         </div>
         <div class="topbar__right">
-            <button class="icon-btn" id="themeBtn"><i class="fas fa-moon"></i></button>
-            <button class="icon-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
-            <div class="user-chip"><div class="user-chip__avatar" id="userAvatar">U</div></div>
+            <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
+            <div class="user-chip">
+                <div class="user-chip__avatar" id="userAvatar">U</div>
+            </div>
         </div>
     </header>
 
+    <!-- ============ القائمة الجانبية ============ -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
             <div class="brand__logo">
-                <img src="./icons/icon-192x192.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
                 <i class="fas fa-cash-register" style="display:none;"></i>
             </div>
             <h3 id="sidebarUserName">مدير</h3>
@@ -67,7 +71,9 @@
         </nav>
     </aside>
 
+    <!-- ============ المحتوى الرئيسي ============ -->
     <main class="main-container">
+
         <div class="page-head">
             <div class="page-head__info">
                 <h1>إدارة المستخدمين</h1>
@@ -79,107 +85,184 @@
             </button>
         </div>
 
-        <!-- تنبيه -->
-        <div class="info-banner" id="infoBanner">
-            <i class="fas fa-info-circle"></i>
-            <div>
-                <strong>ملاحظة هامة</strong>
-                <p>إضافة المستخدمين تتم عن طريق دعوتهم. سيقوم النظام بإنشاء حساب Auth تلقائياً.</p>
-            </div>
-        </div>
-
+        <!-- ملخص سريع -->
         <div class="summary-cards" id="summaryCards"></div>
 
+        <!-- شريط البحث والفلاتر -->
         <div class="filters-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="ابحث بالاسم أو البريد..." autocomplete="off">
-                <button class="search-clear" id="clearSearchBtn" style="display:none;"><i class="fas fa-times"></i></button>
+                <button class="search-clear" id="clearSearchBtn" style="display:none;">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <select id="roleFilter" class="filter-select">
                 <option value="">كل الأدوار</option>
                 <option value="admin">مدير</option>
                 <option value="rep">مندوب</option>
             </select>
+            <select id="statusFilter" class="filter-select">
+                <option value="">كل الحالات</option>
+                <option value="active">نشط</option>
+                <option value="inactive">موقوف</option>
+            </select>
         </div>
 
+        <!-- قائمة المستخدمين -->
         <div class="users-container">
             <div class="users-grid-view" id="usersGridView"></div>
             <div class="users-list-view" id="usersListView"></div>
 
             <div class="empty-state" id="emptyState" style="display:none;">
-                <i class="fas fa-user-shield"></i>
-                <h3>لا يوجد مستخدمين</h3>
+                <i class="fas fa-user-slash"></i>
+                <h3>لا يوجد مستخدمون</h3>
                 <p>ابدأ بإضافة مستخدم جديد</p>
+                <button class="btn btn--primary" onclick="document.getElementById('addUserBtn').click()">
+                    <i class="fas fa-plus"></i> إضافة مستخدم
+                </button>
             </div>
+
             <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
         </div>
+
+        <button class="fab-add" id="fabAddBtn" aria-label="إضافة مستخدم">
+            <i class="fas fa-user-plus"></i>
+        </button>
     </main>
 
-    <!-- مودال إضافة/تعديل مستخدم -->
+    <!-- ============ مودال: إضافة / تعديل مستخدم ============ -->
     <div class="modal" id="userModal">
-        <div class="modal__content">
+        <div class="modal__content modal__content--lg">
             <div class="modal__header">
-                <h2 id="userModalTitle">إضافة مستخدم</h2>
+                <h2 id="userModalTitle">إضافة مستخدم جديد</h2>
                 <button class="icon-btn" data-close="userModal"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <form id="userForm">
+                <form id="userForm" onsubmit="return false;">
                     <input type="hidden" id="userId">
 
-                    <div class="form-group">
-                        <label for="userFullName">الاسم الكامل <span class="required">*</span></label>
-                        <input type="text" id="userFullName" required placeholder="مثال: محمد أحمد">
-                    </div>
+                    <!-- المعلومات الأساسية -->
+                    <div class="form-section">
+                        <div class="form-section__title">
+                            <i class="fas fa-user"></i>
+                            البيانات الأساسية
+                        </div>
 
-                    <div class="form-group">
-                        <label for="userEmail">البريد الإلكتروني <span class="required">*</span></label>
-                        <input type="email" id="userEmail" required placeholder="user@example.com" inputmode="email">
-                    </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>الاسم الكامل <span class="required">*</span></label>
+                                <input type="text" id="userFullName" required placeholder="مثال: أحمد محمد">
+                            </div>
+                            <div class="form-group">
+                                <label>رقم الهاتف</label>
+                                <input type="tel" id="userPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                            </div>
+                        </div>
 
-                    <div class="form-group" id="passwordGroup">
-                        <label for="userPassword">كلمة المرور <span class="required">*</span></label>
-                        <input type="password" id="userPassword" minlength="6" placeholder="6 أحرف على الأقل">
-                        <small class="form-hint">
-                            <i class="fas fa-info-circle"></i>
-                            <span>ستُرسل للمستخدم للدخول لأول مرة</span>
-                        </small>
-                    </div>
-
-                    <div class="form-grid">
                         <div class="form-group">
-                            <label for="userPhone">رقم الهاتف</label>
-                            <input type="tel" id="userPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                            <label>البريد الإلكتروني <span class="required">*</span></label>
+                            <input type="email" id="userEmail" required placeholder="user@example.com" autocomplete="off" inputmode="email">
                         </div>
-                        <div class="form-group">
-                            <label for="userRole">الدور <span class="required">*</span></label>
-                            <select id="userRole" required>
-                                <option value="rep">مندوب مبيعات</option>
-                                <option value="admin">مدير</option>
-                            </select>
+
+                        <div id="passwordFields">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>كلمة المرور <span class="required">*</span></label>
+                                    <input type="password" id="userPassword" placeholder="6 أحرف على الأقل" autocomplete="new-password">
+                                </div>
+                                <div class="form-group">
+                                    <label>تأكيد كلمة المرور <span class="required">*</span></label>
+                                    <input type="password" id="userPasswordConfirm" placeholder="أعد الإدخال" autocomplete="new-password">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="settings-toggle">
-                        <div class="settings-toggle__info">
-                            <strong>حساب نشط</strong>
-                            <p>يمكن للمستخدم تسجيل الدخول</p>
+                    <!-- الدور والصلاحيات -->
+                    <div class="form-section">
+                        <div class="form-section__title">
+                            <i class="fas fa-user-shield"></i>
+                            الدور والصلاحيات
                         </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="userActive" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
+
+                        <div class="role-selector" id="roleSelector">
+                            <button type="button" class="role-option active" data-role="admin">
+                                <div class="role-option__icon blue">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="role-option__info">
+                                    <strong>مدير</strong>
+                                    <small>كل الصلاحيات</small>
+                                </div>
+                            </button>
+                            <button type="button" class="role-option" data-role="rep">
+                                <div class="role-option__icon green">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="role-option__info">
+                                    <strong>مندوب</strong>
+                                    <small>نقطة البيع فقط</small>
+                                </div>
+                            </button>
+                        </div>
+                        <input type="hidden" id="userRole" value="admin">
+
+                        <!-- عرض صلاحيات الدور -->
+                        <div class="permissions-preview" id="permissionsPreview">
+                            <!-- يُملأ ديناميكياً -->
+                        </div>
+                    </div>
+
+                    <!-- حالة المستخدم -->
+                    <div class="form-section">
+                        <div class="form-section__title">
+                            <i class="fas fa-toggle-on"></i>
+                            حالة الحساب
+                        </div>
+
+                        <div class="settings-toggle">
+                            <div class="settings-toggle__info">
+                                <strong>حساب نشط</strong>
+                                <p>إذا كان موقوفاً، لن يتمكن من تسجيل الدخول</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="userIsActive" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal__footer">
                 <button class="btn btn--ghost" data-close="userModal">إلغاء</button>
-                <button class="btn btn--primary" id="saveUserBtn"><i class="fas fa-save"></i> حفظ</button>
+                <button class="btn btn--primary" id="saveUserBtn">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- مودال تأكيد الحذف -->
+    <!-- ============ مودال: تفاصيل مستخدم ============ -->
+    <div class="modal" id="viewUserModal">
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2>تفاصيل المستخدم</h2>
+                <button class="icon-btn" data-close="viewUserModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body" id="viewUserBody"></div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" id="viewEditBtn">
+                    <i class="fas fa-edit"></i> تعديل
+                </button>
+                <button class="btn btn--primary" id="closeViewBtn">
+                    <i class="fas fa-check"></i> إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ مودال: تأكيد الحذف ============ -->
     <div class="modal" id="confirmDeleteModal">
         <div class="modal__content modal__content--sm">
             <div class="modal__header">
@@ -188,21 +271,57 @@
             </div>
             <div class="modal__body">
                 <div class="confirm-delete">
-                    <div class="confirm-delete__icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="confirm-delete__icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
                     <p>هل أنت متأكد من حذف هذا المستخدم؟</p>
                     <p class="confirm-delete__name" id="deleteUserName"></p>
-                    <small>لا يمكن التراجع عن هذا الإجراء</small>
+                    <small>سيتم إلغاء صلاحيات الوصول فوراً</small>
                 </div>
             </div>
             <div class="modal__footer">
                 <button class="btn btn--ghost" data-close="confirmDeleteModal">إلغاء</button>
-                <button class="btn btn--danger" id="confirmDeleteBtn"><i class="fas fa-trash"></i> حذف</button>
+                <button class="btn btn--danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> حذف نهائياً
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ مودال: تغيير كلمة المرور ============ -->
+    <div class="modal" id="changePasswordModal">
+        <div class="modal__content modal__content--sm">
+            <div class="modal__header">
+                <h2>تغيير كلمة المرور</h2>
+                <button class="icon-btn" data-close="changePasswordModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal__body">
+                <input type="hidden" id="changePassUserId">
+                <div class="form-group">
+                    <label>كلمة المرور الجديدة <span class="required">*</span></label>
+                    <input type="password" id="newPassword" placeholder="6 أحرف على الأقل" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>تأكيد كلمة المرور <span class="required">*</span></label>
+                    <input type="password" id="newPasswordConfirm" placeholder="أعد الإدخال" autocomplete="new-password">
+                </div>
+                <div class="form-hint" style="padding:12px;background:var(--warning-light);border-radius:10px;color:var(--warning);margin-top:12px;">
+                    <i class="fas fa-info-circle"></i>
+                    <span>سيتم إرسال رابط إعادة تعيين كلمة المرور للبريد الإلكتروني</span>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button class="btn btn--ghost" data-close="changePasswordModal">إلغاء</button>
+                <button class="btn btn--primary" id="confirmChangePasswordBtn">
+                    <i class="fas fa-key"></i> تغيير
+                </button>
             </div>
         </div>
     </div>
 
     <div id="toastStack" class="toast-stack"></div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/config.js"></script>
     <script src="./js/utils.js"></script>
