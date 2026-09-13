@@ -2,638 +2,489 @@
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>الإعدادات · حسابي</title>
-
-    <!-- PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="حسابي">
-    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+    <title>الإعدادات · نظام POS</title>
+    <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-
-    <!-- الخطوط والأيقونات -->
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-light: #eff6ff;
-            --primary-dark: #1d4ed8;
-            --success: #10b981;
-            --success-light: #dcfce7;
-            --danger: #ef4444;
-            --danger-light: #fee2e2;
-            --warning: #f59e0b;
-            --warning-light: #fef3c7;
-            --bg-body: #f8fafc;
-            --bg-surface: #ffffff;
-            --bg-card: #ffffff;
-            --bg-input: #f8fafc;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-            --border-light: #e2e8f0;
-            --border-medium: #cbd5e1;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --transition: 0.2s ease;
-            --safe-top: env(safe-area-inset-top, 0px);
-            --safe-bottom: env(safe-area-inset-bottom, 0px);
-        }
-
-        [data-theme="dark"] {
-            --primary: #6366f1;
-            --primary-light: rgba(99,102,241,0.2);
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --success-light: rgba(16,185,129,0.2);
-            --danger: #ef4444;
-            --danger-light: rgba(239,68,68,0.2);
-            --warning: #f59e0b;
-            --warning-light: rgba(245,158,11,0.2);
-            --bg-body: #0f172a;
-            --bg-surface: #1e293b;
-            --bg-card: #1e293b;
-            --bg-input: #334155;
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --border-light: #334155;
-            --border-medium: #475569;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Cairo', sans-serif;
-            background: var(--bg-body);
-            color: var(--text-primary);
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #loading-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 9999; transition: width 0.3s ease; }
-
-        #offline-banner {
-            position: fixed; top: 0; left: 0; right: 0;
-            background: var(--danger); color: white;
-            text-align: center; padding: 6px;
-            font-size: 0.8rem; font-weight: 600;
-            z-index: 9998; transform: translateY(-100%);
-            transition: transform 0.3s ease;
-        }
-        body.offline #offline-banner { transform: translateY(0); }
-
-        .navbar {
-            display: flex; justify-content: space-between; align-items: center;
-            background: var(--bg-surface); backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-light);
-            padding: 0 16px;
-            height: calc(56px + var(--safe-top));
-            padding-top: var(--safe-top);
-            position: sticky; top: 0; z-index: 110;
-            flex-shrink: 0;
-        }
-        .navbar-left, .navbar-right { display: flex; align-items: center; gap: 10px; }
-        .menu-toggle { background: none; border: none; color: var(--text-primary); font-size: 1.4rem; cursor: pointer; }
-        .logo { display: flex; align-items: center; gap: 8px; }
-        .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-        .nav-actions { position: relative; }
-        .navbar-icon-btn {
-            width: 40px; height: 40px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            background: none; border: none; color: var(--text-secondary);
-            cursor: pointer; font-size: 1.2rem; transition: all var(--transition);
-        }
-        .navbar-icon-btn:hover { background: var(--bg-input); color: var(--primary); }
-
-        .more-dropdown {
-            position: absolute; top: 48px; left: 0;
-            background: var(--bg-surface); border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg); min-width: 200px;
-            z-index: 200; display: none; flex-direction: column;
-            overflow: hidden; border: 1px solid var(--border-light);
-        }
-        .more-dropdown.show { display: flex; }
-        .more-dropdown a {
-            padding: 12px 18px; color: var(--text-primary);
-            text-decoration: none; display: flex; align-items: center;
-            gap: 10px; font-weight: 500; font-size: 0.85rem; transition: background var(--transition);
-        }
-        .more-dropdown a:hover { background: var(--bg-input); color: var(--primary); }
-        .dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
-
-        .sidebar-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.35); z-index: 149;
-            opacity: 0; visibility: hidden; transition: 0.3s;
-        }
-        .sidebar-overlay.show { opacity: 1; visibility: visible; }
-        .sidebar {
-            position: fixed; top: 0; right: -320px; width: 280px; max-width: 85vw;
-            height: 100%; background: var(--bg-surface); border-left: 1px solid var(--border-light);
-            padding: calc(20px + var(--safe-top)) 12px 20px 12px;
-            z-index: 150;
-            transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
-            overflow-y: auto; box-shadow: var(--shadow-lg);
-        }
-        .sidebar.open { right: 0; }
-        .sidebar-user { text-align: center; margin-bottom: 20px; }
-        .sidebar-avatar { width: 64px; height: 64px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: 700; font-size: 1.5rem; }
-        .sidebar-user h4 { color: var(--text-primary); }
-        .menu { list-style: none; }
-        .menu-section { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 12px 8px; }
-        .menu-item { display: flex; align-items: center; padding: 12px 14px; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); font-size: 0.85rem; transition: all var(--transition); }
-        .menu-item i { width: 22px; margin-left: 10px; }
-        .menu-item:hover { background: var(--bg-input); color: var(--text-primary); }
-        .menu-item.active { background: var(--primary-light); color: var(--primary); }
-
-        /* محتوى الصفحة */
-        .page-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            padding-bottom: calc(20px + var(--safe-bottom));
-            max-width: 800px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        .page-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .page-header h1 { font-size: 1.5rem; font-weight: 800; }
-
-        .settings-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-sm);
-        }
-        .settings-section h2 {
-            font-size: 1.1rem;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--primary);
-        }
-        .form-group { margin-bottom: 14px; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
-        .form-group input, .form-group textarea, .form-group select {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border-medium);
-            border-radius: var(--radius-sm);
-            font-family: 'Cairo', sans-serif;
-            font-size: 14px;
-            background: var(--bg-input);
-            color: var(--text-primary);
-            outline: none;
-        }
-        .form-group textarea { resize: vertical; min-height: 80px; }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--primary); }
-
-        .btn-row { display: flex; gap: 10px; }
-        .btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-weight: 700;
-            font-size: 0.95rem;
-            cursor: pointer;
-            font-family: 'Cairo', sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all var(--transition);
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn-success { background: var(--success); color: white; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
-
-        .toggle-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--border-light);
-        }
-        .toggle-row:last-child { border-bottom: none; }
-        .toggle-row span { font-size: 0.9rem; }
-        .toggle-switch {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            background: var(--border-medium);
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .toggle-switch.active { background: var(--primary); }
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            transition: right 0.2s;
-        }
-        .toggle-switch.active::after { right: 22px; }
-
-        @media (max-width: 768px) {
-            .page-content { padding: 16px; }
-            .page-header h1 { font-size: 1.2rem; }
-        }
-    </style>
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./css/pos.css">
+    <link rel="stylesheet" href="./css/settings.css">
 </head>
 <body>
-    <div id="offline-banner">أنت غير متصل بالإنترنت</div>
     <div id="loading-bar"></div>
+    <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <nav class="navbar" id="mainNavbar">
-        <div class="navbar-left">
-            <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-            <div class="logo">
-                <div class="logo-icon">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" style="width:38px;height:38px;object-fit:contain;border-radius:10px;"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                    <i class="fas fa-store" style="display:none;font-size:20px;color:white;"></i>
+    <!-- ============ الشريط العلوي ============ -->
+    <header class="topbar">
+        <div class="topbar__left">
+            <button class="icon-btn" id="menuBtn" aria-label="القائمة"><i class="fas fa-bars"></i></button>
+            <div class="brand">
+                <div class="brand__logo">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <i class="fas fa-cog" style="display:none;"></i>
                 </div>
-                <div class="logo-text"><h2>حسابي</h2></div>
-            </div>
-        </div>
-        <div class="navbar-right">
-            <div class="nav-actions">
-                <button class="navbar-icon-btn" id="moreMenuBtn" title="المزيد"><i class="fas fa-ellipsis-v"></i></button>
-                <div class="more-dropdown" id="moreDropdown">
-                    <a href="./settings.html"><i class="fas fa-cog"></i> الإعدادات</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                <div class="brand__text">
+                    <span class="brand__name">الإعدادات</span>
+                    <span class="brand__status" id="connStatus">متصل</span>
                 </div>
             </div>
         </div>
-    </nav>
+        <div class="topbar__right">
+            <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="saveAllBtn" title="حفظ الكل"><i class="fas fa-save"></i></button>
+            <div class="user-chip">
+                <div class="user-chip__avatar" id="userAvatar">U</div>
+            </div>
+        </div>
+    </header>
 
+    <!-- ============ القائمة الجانبية ============ -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-user">
-            <div class="sidebar-avatar" id="sidebarAvatar">U</div>
-            <h4 id="sidebarUserName">مدير النظام</h4>
+        <div class="sidebar__header">
+            <div class="brand__logo">
+                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                <i class="fas fa-cash-register" style="display:none;"></i>
+            </div>
+            <h3 id="sidebarUserName">مدير</h3>
         </div>
-        <ul class="menu">
-            <div class="menu-section">الرئيسية</div>
-            <li><a class="menu-item" href="./dashboard.html"><i class="fas fa-tachometer-alt"></i><span>لوحة التحكم</span></a></li>
-            <li><a class="menu-item" href="./pos.html"><i class="fas fa-cash-register"></i><span>نقطة البيع</span></a></li>
-            <li><a class="menu-item" href="./invoices.html"><i class="fas fa-file-invoice"></i><span>الفواتير</span></a></li>
-            <li><a class="menu-item" href="./purchases.html"><i class="fas fa-shopping-cart"></i><span>المشتريات</span></a></li>
-            <li><a class="menu-item" href="./cashbox.html"><i class="fas fa-money-bill-wave"></i><span>الصندوق</span></a></li>
-            <li><a class="menu-item" href="./accounting.html"><i class="fas fa-calculator"></i><span>المحاسبة</span></a></li>
-            <li><a class="menu-item" href="./reports.html"><i class="fas fa-chart-bar"></i><span>التقارير</span></a></li>
-            <li><a class="menu-item" href="./customers.html"><i class="fas fa-user-tie"></i><span>العملاء والموردين</span></a></li>
-            <li><a class="menu-item" href="./products.html"><i class="fas fa-boxes"></i><span>المنتجات</span></a></li>
-            <li><a class="menu-item active" href="./settings.html"><i class="fas fa-cog"></i><span>الإعدادات</span></a></li>
-        </ul>
+        <nav class="sidebar__nav">
+            <a href="./dashboard.html" class="nav-item"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a>
+            <a href="./pos.html" class="nav-item"><i class="fas fa-cash-register"></i> نقطة البيع</a>
+            <a href="./invoices.html" class="nav-item"><i class="fas fa-file-invoice"></i> الفواتير</a>
+            <a href="./purchases.html" class="nav-item"><i class="fas fa-shopping-cart"></i> المشتريات</a>
+            <a href="./returns.html" class="nav-item"><i class="fas fa-undo-alt"></i> المرتجعات</a>
+            <a href="./cashbox.html" class="nav-item"><i class="fas fa-money-bill-wave"></i> الصندوق</a>
+            <a href="./accounting.html" class="nav-item"><i class="fas fa-calculator"></i> المحاسبة</a>
+            <a href="./reports.html" class="nav-item"><i class="fas fa-chart-bar"></i> التقارير</a>
+            <a href="./customers.html" class="nav-item"><i class="fas fa-users"></i> العملاء</a>
+            <a href="./suppliers.html" class="nav-item"><i class="fas fa-truck"></i> الموردين</a>
+            <a href="./products.html" class="nav-item"><i class="fas fa-boxes"></i> المنتجات</a>
+            <a href="./inventory.html" class="nav-item"><i class="fas fa-warehouse"></i> المخزون</a>
+            <a href="./users.html" class="nav-item"><i class="fas fa-user-shield"></i> المستخدمين</a>
+            <a href="./settings.html" class="nav-item active"><i class="fas fa-cog"></i> الإعدادات</a>
+            <a href="#" class="nav-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+        </nav>
     </aside>
 
-    <main class="page-content">
-        <div class="page-header">
-            <h1>الإعدادات</h1>
+    <!-- ============ المحتوى الرئيسي ============ -->
+    <main class="main-container">
+
+        <div class="page-head">
+            <div class="page-head__info">
+                <h1>الإعدادات</h1>
+                <p>تخصيص النظام وتكوين بيانات المتجر</p>
+            </div>
+            <button class="btn btn--primary" id="saveAllTopBtn">
+                <i class="fas fa-save"></i>
+                <span>حفظ التغييرات</span>
+            </button>
         </div>
 
-        <!-- إعدادات الشركة -->
-        <div class="settings-section">
-            <h2><i class="fas fa-building"></i> بيانات المنشأة</h2>
-            <div class="form-group">
-                <label>اسم المنشأة</label>
-                <input type="text" id="companyName" placeholder="اسم النشاط التجاري">
+        <!-- التنقل بين التبويبات -->
+        <div class="settings-nav">
+            <button class="settings-nav__btn active" data-tab="general">
+                <i class="fas fa-store"></i>
+                <span>عام</span>
+            </button>
+            <button class="settings-nav__btn" data-tab="print">
+                <i class="fas fa-print"></i>
+                <span>الطباعة</span>
+            </button>
+            <button class="settings-nav__btn" data-tab="tax">
+                <i class="fas fa-percentage"></i>
+                <span>الضرائب</span>
+            </button>
+            <button class="settings-nav__btn" data-tab="appearance">
+                <i class="fas fa-palette"></i>
+                <span>المظهر</span>
+            </button>
+            <button class="settings-nav__btn" data-tab="backup">
+                <i class="fas fa-database"></i>
+                <span>النسخ الاحتياطي</span>
+            </button>
+            <button class="settings-nav__btn" data-tab="about">
+                <i class="fas fa-info-circle"></i>
+                <span>حول</span>
+            </button>
+        </div>
+
+        <!-- ============ Tab: General ============ -->
+        <div class="settings-tab active" data-tab-content="general">
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon blue">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <div>
+                        <h3>بيانات المتجر</h3>
+                        <p>المعلومات التي ستظهر في الفواتير والتقارير</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>اسم المتجر <span class="required">*</span></label>
+                            <input type="text" id="shopName" placeholder="مثال: ماركت النور">
+                        </div>
+                        <div class="form-group">
+                            <label>رقم الهاتف</label>
+                            <input type="tel" id="shopPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>البريد الإلكتروني</label>
+                            <input type="email" id="shopEmail" placeholder="info@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>الرقم الضريبي</label>
+                            <input type="text" id="taxNumber" placeholder="اختياري">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>العنوان</label>
+                        <input type="text" id="shopAddress" placeholder="العنوان الكامل">
+                    </div>
+                    <div class="form-group">
+                        <label>شعار المتجر</label>
+                        <div class="logo-upload">
+                            <div class="logo-preview" id="logoPreview">
+                                <img src="./icons/icon-192x192.png" alt="">
+                            </div>
+                            <div class="logo-upload__info">
+                                <input type="file" id="logoInput" accept="image/*" hidden>
+                                <button class="btn btn--ghost" id="uploadLogoBtn">
+                                    <i class="fas fa-upload"></i> رفع شعار
+                                </button>
+                                <button class="btn btn--ghost" id="removeLogoBtn" style="display:none;">
+                                    <i class="fas fa-trash"></i> إزالة
+                                </button>
+                                <p>يفضل صورة مربعة بحجم 512×512 بكسل</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label>رقم الهاتف</label>
-                <input type="text" id="companyPhone" placeholder="رقم الهاتف">
-            </div>
-            <div class="form-group">
-                <label>العنوان</label>
-                <input type="text" id="companyAddress" placeholder="العنوان">
-            </div>
-            <div class="form-group">
-                <label>السجل التجاري</label>
-                <input type="text" id="companyTaxNumber" placeholder="رقم السجل التجاري / الضريبي">
+
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon green">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div>
+                        <h3>إعدادات العملة</h3>
+                        <p>تخصيص العملة الافتراضية للنظام</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>رمز العملة</label>
+                            <input type="text" id="currencySymbol" placeholder="ج.م" maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>عدد الخانات العشرية</label>
+                            <select id="decimalPlaces">
+                                <option value="0">بدون (0)</option>
+                                <option value="1">خانة واحدة (0.0)</option>
+                                <option value="2" selected>خانتان (0.00)</option>
+                                <option value="3">3 خانات (0.000)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- إعدادات الفواتير -->
-        <div class="settings-section">
-            <h2><i class="fas fa-file-invoice"></i> إعدادات الفواتير</h2>
-            <div class="form-group">
-                <label>بادئة رقم الفاتورة</label>
-                <input type="text" id="invoicePrefix" placeholder="INV">
-            </div>
-            <div class="form-group">
-                <label>رسالة أسفل الإيصال</label>
-                <textarea id="footerMessage" placeholder="شكراً لتعاملكم معنا"></textarea>
-            </div>
-            <div class="toggle-row">
-                <span>إظهار الضريبة</span>
-                <div class="toggle-switch" id="showTaxToggle"></div>
-            </div>
-            <div class="toggle-row">
-                <span>إظهار الباركود في الإيصال</span>
-                <div class="toggle-switch" id="showBarcodeToggle"></div>
-            </div>
-        </div>
-
-        <!-- إعدادات نقطة البيع -->
-        <div class="settings-section">
-            <h2><i class="fas fa-cash-register"></i> إعدادات نقطة البيع</h2>
-            <div class="toggle-row">
-                <span>البيع السريع (إضافة مباشرة عند مسح الباركود)</span>
-                <div class="toggle-switch" id="quickSaleToggle"></div>
-            </div>
-            <div class="toggle-row">
-                <span>عرض صور المنتجات</span>
-                <div class="toggle-switch" id="showImagesToggle"></div>
-            </div>
-            <div class="toggle-row">
-                <span>عرض المخزون</span>
-                <div class="toggle-switch" id="showStockToggle"></div>
-            </div>
-        </div>
-
-        <!-- إعدادات المظهر -->
-        <div class="settings-section">
-            <h2><i class="fas fa-palette"></i> المظهر</h2>
-            <div class="form-group">
-                <label>الوضع</label>
-                <select id="themeSelect">
-                    <option value="light">فاتح</option>
-                    <option value="dark">داكن</option>
-                    <option value="auto">تلقائي (حسب الجهاز)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>حجم الخط</label>
-                <select id="fontSizeSelect">
-                    <option value="12">صغير</option>
-                    <option value="14">متوسط</option>
-                    <option value="16">كبير</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- النسخ الاحتياطي -->
-        <div class="settings-section">
-            <h2><i class="fas fa-database"></i> النسخ الاحتياطي</h2>
-            <div class="btn-row">
-                <button class="btn btn-primary" id="exportDataBtn"><i class="fas fa-download"></i> تصدير البيانات</button>
-                <button class="btn btn-danger" id="clearDataBtn"><i class="fas fa-trash"></i> مسح البيانات المحلية</button>
+        <!-- ============ Tab: Print ============ -->
+        <div class="settings-tab" data-tab-content="print">
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon purple">
+                        <i class="fas fa-print"></i>
+                    </div>
+                    <div>
+                        <h3>إعدادات الطباعة</h3>
+                        <p>تخصيص شكل الفواتير والإيصالات</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="form-group">
+                        <label>حجم الورق</label>
+                        <select id="paperSize">
+                            <option value="80mm" selected>80mm (قياسي)</option>
+                            <option value="58mm">58mm (صغير)</option>
+                            <option value="A4">A4 (كبير)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>رسالة التذييل في الفاتورة</label>
+                        <textarea id="footerMessage" rows="2" placeholder="شكراً لتعاملكم معنا"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>عدد النسخ المطبوعة</label>
+                        <input type="number" id="printCopies" value="1" min="1" max="5">
+                    </div>
+                    <div class="settings-toggle">
+                        <div class="settings-toggle__info">
+                            <strong>طباعة الشعار</strong>
+                            <p>طباعة شعار المتجر على الفواتير</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="printLogo" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-toggle">
+                        <div class="settings-toggle__info">
+                            <strong>طباعة الرقم الضريبي</strong>
+                            <p>إظهار الرقم الضريبي في الفاتورة</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="printTaxNumber">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-toggle">
+                        <div class="settings-toggle__info">
+                            <strong>طباعة تفاصيل المنتجات</strong>
+                            <p>إظهار الأصناف بالتفصيل في الإيصال</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="printItemDetails" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- حفظ -->
-        <div class="btn-row" style="margin-bottom:20px;">
-            <button class="btn btn-success" id="saveAllSettingsBtn"><i class="fas fa-save"></i> حفظ جميع الإعدادات</button>
+        <!-- ============ Tab: Tax ============ -->
+        <div class="settings-tab" data-tab-content="tax">
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon orange">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div>
+                        <h3>إعدادات الضرائب</h3>
+                        <p>تكوين ضريبة القيمة المضافة</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="settings-toggle">
+                        <div class="settings-toggle__info">
+                            <strong>تفعيل الضريبة</strong>
+                            <p>تطبيق ضريبة القيمة المضافة على المبيعات</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableTax">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="taxFields" style="display:none;">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>نسبة الضريبة (%)</label>
+                                <input type="number" id="taxRate" value="14" min="0" max="100" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>نوع الضريبة</label>
+                                <select id="taxType">
+                                    <option value="exclusive">غير مشمولة (تُضاف)</option>
+                                    <option value="inclusive">مشمولة في السعر</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>اسم الضريبة</label>
+                            <input type="text" id="taxName" value="ضريبة القيمة المضافة" placeholder="ضريبة القيمة المضافة">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- ============ Tab: Appearance ============ -->
+        <div class="settings-tab" data-tab-content="appearance">
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon teal">
+                        <i class="fas fa-palette"></i>
+                    </div>
+                    <div>
+                        <h3>المظهر</h3>
+                        <p>تخصيص مظهر النظام</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="form-group">
+                        <label>الوضع الافتراضي</label>
+                        <div class="theme-selector">
+                            <button class="theme-option active" data-theme="light">
+                                <div class="theme-option__preview" style="background: #ffffff; border: 1px solid #e2e8f0;">
+                                    <div style="width: 100%; height: 6px; background: #f1f5f9; border-radius: 3px; margin-bottom: 3px;"></div>
+                                    <div style="width: 70%; height: 6px; background: #e2e8f0; border-radius: 3px;"></div>
+                                </div>
+                                <span><i class="fas fa-sun"></i> فاتح</span>
+                            </button>
+                            <button class="theme-option" data-theme="dark">
+                                <div class="theme-option__preview" style="background: #1e293b; border: 1px solid #334155;">
+                                    <div style="width: 100%; height: 6px; background: #334155; border-radius: 3px; margin-bottom: 3px;"></div>
+                                    <div style="width: 70%; height: 6px; background: #475569; border-radius: 3px;"></div>
+                                </div>
+                                <span><i class="fas fa-moon"></i> داكن</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>اللون الرئيسي</label>
+                        <div class="color-selector">
+                            <button class="color-option active" data-color="#4f46e5" style="background: #4f46e5;"></button>
+                            <button class="color-option" data-color="#2563eb" style="background: #2563eb;"></button>
+                            <button class="color-option" data-color="#10b981" style="background: #10b981;"></button>
+                            <button class="color-option" data-color="#f59e0b" style="background: #f59e0b;"></button>
+                            <button class="color-option" data-color="#ef4444" style="background: #ef4444;"></button>
+                            <button class="color-option" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
+                            <button class="color-option" data-color="#06b6d4" style="background: #06b6d4;"></button>
+                            <button class="color-option" data-color="#ec4899" style="background: #ec4899;"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ Tab: Backup ============ -->
+        <div class="settings-tab" data-tab-content="backup">
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon red">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div>
+                        <h3>النسخ الاحتياطي والاستعادة</h3>
+                        <p>حماية بياناتك من الفقدان</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="backup-actions">
+                        <button class="backup-action" id="exportBackupBtn">
+                            <div class="backup-action__icon">
+                                <i class="fas fa-download"></i>
+                            </div>
+                            <div class="backup-action__info">
+                                <strong>تصدير البيانات</strong>
+                                <p>حفظ نسخة من جميع البيانات</p>
+                            </div>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="backup-action" id="importBackupBtn">
+                            <div class="backup-action__icon orange">
+                                <i class="fas fa-upload"></i>
+                            </div>
+                            <div class="backup-action__info">
+                                <strong>استيراد البيانات</strong>
+                                <p>استعادة نسخة سابقة</p>
+                            </div>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <input type="file" id="importFileInput" accept=".json" hidden>
+                    </div>
+
+                    <div class="danger-zone">
+                        <div class="danger-zone__header">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h4>منطقة الخطر</h4>
+                        </div>
+                        <p>هذه الإجراءات لا يمكن التراجع عنها</p>
+                        <button class="btn btn--danger" id="clearLocalDataBtn">
+                            <i class="fas fa-trash"></i> حذف البيانات المحلية
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ Tab: About ============ -->
+        <div class="settings-tab" data-tab-content="about">
+            <div class="settings-card">
+                <div class="settings-card__header">
+                    <div class="settings-card__icon blue">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div>
+                        <h3>حول النظام</h3>
+                        <p>معلومات الإصدار</p>
+                    </div>
+                </div>
+                <div class="settings-card__body">
+                    <div class="about-info">
+                        <div class="about-row">
+                            <span>اسم النظام</span>
+                            <strong>نظام POS - حسابي</strong>
+                        </div>
+                        <div class="about-row">
+                            <span>الإصدار</span>
+                            <strong id="appVersion">3.0.0</strong>
+                        </div>
+                        <div class="about-row">
+                            <span>المطور</span>
+                            <strong>Hesaby Team</strong>
+                        </div>
+                        <div class="about-row">
+                            <span>المستخدم الحالي</span>
+                            <strong id="currentUserName">-</strong>
+                        </div>
+                        <div class="about-row">
+                            <span>المستأجر</span>
+                            <strong id="currentTenant">-</strong>
+                        </div>
+                        <div class="about-row">
+                            <span>حالة الاتصال</span>
+                            <strong id="connectionStatus">متصل</strong>
+                        </div>
+                    </div>
+
+                    <div class="help-links">
+                        <h4>روابط سريعة</h4>
+                        <div class="help-links__grid">
+                            <a href="#" class="help-link">
+                                <i class="fas fa-question-circle"></i>
+                                <span>المساعدة</span>
+                            </a>
+                            <a href="#" class="help-link">
+                                <i class="fas fa-bug"></i>
+                                <span>الإبلاغ عن مشكلة</span>
+                            </a>
+                            <a href="#" class="help-link">
+                                <i class="fas fa-book"></i>
+                                <span>دليل الاستخدام</span>
+                            </a>
+                            <a href="#" class="help-link">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>سياسة الخصوصية</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <div class="toast" id="toastContainer"></div>
+    <div id="toastStack" class="toast-stack"></div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-core.js"></script>
-    <script src="./js/supabase-auth.js"></script>
-    <script src="./js/db-local.js"></script>
-    <script src="./js/supabase-offline.js"></script>
-    <script src="./js/supabase-db.js"></script>
-    <script src="./js/toast.js"></script>
-
-    <script>
-        (() => {
-            const loadingBar = document.getElementById('loading-bar');
-            const companyName = document.getElementById('companyName');
-            const companyPhone = document.getElementById('companyPhone');
-            const companyAddress = document.getElementById('companyAddress');
-            const companyTaxNumber = document.getElementById('companyTaxNumber');
-            const invoicePrefix = document.getElementById('invoicePrefix');
-            const footerMessage = document.getElementById('footerMessage');
-            const showTaxToggle = document.getElementById('showTaxToggle');
-            const showBarcodeToggle = document.getElementById('showBarcodeToggle');
-            const quickSaleToggle = document.getElementById('quickSaleToggle');
-            const showImagesToggle = document.getElementById('showImagesToggle');
-            const showStockToggle = document.getElementById('showStockToggle');
-            const themeSelect = document.getElementById('themeSelect');
-            const fontSizeSelect = document.getElementById('fontSizeSelect');
-            const saveAllSettingsBtn = document.getElementById('saveAllSettingsBtn');
-            const exportDataBtn = document.getElementById('exportDataBtn');
-            const clearDataBtn = document.getElementById('clearDataBtn');
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const moreMenuBtn = document.getElementById('moreMenuBtn');
-            const moreDropdown = document.getElementById('moreDropdown');
-            const logoutBtn = document.getElementById('logoutBtn');
-
-            let settings = {};
-            const toggles = {};
-
-            function waitForCore(timeoutMs = 8000) {
-                return new Promise((resolve, reject) => {
-                    const start = Date.now();
-                    const check = () => {
-                        if (window.App && window.DB) resolve();
-                        else if (Date.now() - start > timeoutMs) reject(new Error('Core not loaded'));
-                        else setTimeout(check, 200);
-                    };
-                    check();
-                });
-            }
-
-            // إعداد مفاتيح التبديل
-            function setupToggle(element, key, defaultVal = false) {
-                toggles[key] = defaultVal;
-                element.addEventListener('click', () => {
-                    toggles[key] = !toggles[key];
-                    element.classList.toggle('active', toggles[key]);
-                });
-            }
-
-            async function loadSettings() {
-                try {
-                    settings = await DB.getSettings() || {};
-                    // تعبئة الحقول
-                    companyName.value = settings.company?.name || '';
-                    companyPhone.value = settings.company?.phone || '';
-                    companyAddress.value = settings.company?.address || '';
-                    companyTaxNumber.value = settings.company?.taxNumber || '';
-                    invoicePrefix.value = settings.invoice?.prefix || '';
-                    footerMessage.value = settings.print?.footer_message || '';
-                    
-                    // المفاتيح
-                    toggles.showTax = settings.invoice?.show_tax ?? false;
-                    toggles.showBarcode = settings.print?.show_barcode ?? false;
-                    toggles.quickSale = settings.pos?.quick_sale ?? false;
-                    toggles.showImages = settings.pos?.show_images ?? true;
-                    toggles.showStock = settings.pos?.show_stock ?? true;
-                    themeSelect.value = settings.theme || 'light';
-                    fontSizeSelect.value = settings.fontSize || '14';
-                    applyToggleUI();
-                } catch (e) {
-                    console.error('Failed to load settings:', e);
-                }
-            }
-
-            function applyToggleUI() {
-                showTaxToggle.classList.toggle('active', toggles.showTax);
-                showBarcodeToggle.classList.toggle('active', toggles.showBarcode);
-                quickSaleToggle.classList.toggle('active', toggles.quickSale);
-                showImagesToggle.classList.toggle('active', toggles.showImages);
-                showStockToggle.classList.toggle('active', toggles.showStock);
-            }
-
-            async function saveSettings() {
-                const data = {
-                    company: {
-                        name: companyName.value.trim(),
-                        phone: companyPhone.value.trim(),
-                        address: companyAddress.value.trim(),
-                        taxNumber: companyTaxNumber.value.trim()
-                    },
-                    invoice: {
-                        prefix: invoicePrefix.value.trim(),
-                        show_tax: toggles.showTax
-                    },
-                    print: {
-                        footer_message: footerMessage.value.trim(),
-                        show_barcode: toggles.showBarcode
-                    },
-                    pos: {
-                        quick_sale: toggles.quickSale,
-                        show_images: toggles.showImages,
-                        show_stock: toggles.showStock
-                    },
-                    theme: themeSelect.value,
-                    fontSize: parseInt(fontSizeSelect.value)
-                };
-                try {
-                    await DB.saveSettings(data);
-                    // تطبيق الوضع
-                    const theme = data.theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : data.theme;
-                    document.documentElement.setAttribute('data-theme', theme);
-                    document.documentElement.style.fontSize = data.fontSize + 'px';
-                    window.Toast.success('تم حفظ الإعدادات');
-                } catch (e) {
-                    console.error('Save settings failed:', e);
-                    window.Toast.error('فشل حفظ الإعدادات');
-                }
-            }
-
-            // تصدير البيانات
-            exportDataBtn.addEventListener('click', () => {
-                const exportObj = {
-                    settings: settings,
-                    exportedAt: new Date().toISOString()
-                };
-                const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `hesaby-settings-${new Date().toISOString().split('T')[0]}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-                window.Toast.success('تم تصدير الإعدادات');
-            });
-
-            // مسح البيانات المحلية
-            clearDataBtn.addEventListener('click', async () => {
-                if (!confirm('سيتم مسح جميع البيانات المحلية. هل أنت متأكد؟')) return;
-                try {
-                    if (window.localDB) {
-                        await window.localDB.clearAll?.();
-                    }
-                    localStorage.clear();
-                    window.Toast.success('تم مسح البيانات المحلية');
-                    setTimeout(() => location.reload(), 1000);
-                } catch (e) {
-                    console.error(e);
-                    window.Toast.error('فشل المسح');
-                }
-            });
-
-            saveAllSettingsBtn.addEventListener('click', saveSettings);
-
-            // ربط القائمة والشريط العلوي
-            menuToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-                sidebarOverlay.classList.toggle('show');
-            });
-            sidebarOverlay.addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                sidebarOverlay.classList.remove('show');
-            });
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    sidebar.classList.remove('open');
-                    sidebarOverlay.classList.remove('show');
-                });
-            });
-            moreMenuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                moreDropdown.classList.toggle('show');
-            });
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.nav-actions')) moreDropdown.classList.remove('show');
-            });
-            logoutBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (confirm('هل أنت متأكد من تسجيل الخروج؟')) await App.logout();
-            });
-
-            async function initSettings() {
-                loadingBar.style.width = '80%';
-                try {
-                    await waitForCore();
-                    await App.requireAuth();
-                    App.initUserInterface();
-                    
-                    // إعداد مفاتيح التبديل
-                    setupToggle(showTaxToggle, 'showTax');
-                    setupToggle(showBarcodeToggle, 'showBarcode');
-                    setupToggle(quickSaleToggle, 'quickSale');
-                    setupToggle(showImagesToggle, 'showImages', true);
-                    setupToggle(showStockToggle, 'showStock', true);
-                    
-                    await loadSettings();
-                    loadingBar.style.width = '100%';
-                } catch (e) {
-                    console.error('Settings init failed:', e);
-                    loadingBar.style.background = 'var(--danger)';
-                } finally {
-                    setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
-                }
-            }
-
-            initSettings();
-        })();
-    </script>
+    <script src="./js/config.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/db.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/settings.js"></script>
 </body>
 </html>
