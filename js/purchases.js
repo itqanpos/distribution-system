@@ -1,5 +1,9 @@
 /* =============================================
    purchases.js - Purchases Page Logic
+   v2.0 - Reviewed & Fixed
+   ✅ إضافة المخزون بعد الشراء
+   ✅ تحديث سعر التكلفة وسعر البيع
+   ✅ معالجة صحيحة لرصيد المورد
    ============================================= */
 (function() {
     'use strict';
@@ -13,10 +17,10 @@
         filtered: [],
         suppliers: [],
         products: [],
+        invoices: [],
         currentUser: null,
         viewingId: null,
         editingId: null,
-        // Draft purchase (while creating)
         draft: {
             supplierId: null,
             items: [],
@@ -24,7 +28,6 @@
             discountType: 'amount',
             notes: ''
         },
-        // Add item modal state
         selectedProduct: null,
         selectedUnit: null,
         filters: {
@@ -41,6 +44,7 @@
     async function init() {
         console.log('🚀 Purchases init...');
 
+        // انتظار Supabase
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
@@ -55,6 +59,7 @@
 
         await new Promise(r => setTimeout(r, 300));
 
+        // المصادقة
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -79,7 +84,7 @@
     async function loadAllData() {
         showSkeleton();
         try {
-            const [suppliers, products, invoices] = await Promise.all([
+            const [suppliers, products, allInvoices] = await Promise.all([
                 DB.getParties('supplier', true).catch(() => []),
                 DB.getProducts(true).catch(() => []),
                 DB.getInvoices(true).catch(() => [])
@@ -87,9 +92,10 @@
 
             State.suppliers = suppliers || [];
             State.products = products || [];
+            State.invoices = allInvoices || [];
 
-            // Filter purchases from all invoices
-            State.purchases = (invoices || []).filter(inv => inv.type === 'purchase');
+            // Filter purchases only
+            State.purchases = State.invoices.filter(inv => inv.type === 'purchase');
 
             console.log('🚚 Suppliers:', State.suppliers.length);
             console.log('📦 Products:', State.products.length);
@@ -98,7 +104,6 @@
             renderSummary();
             applyFilters();
 
-            // Handle URL params
             handleUrlParams();
         } catch (e) {
             console.error('Load error:', e);
@@ -144,36 +149,28 @@
 
         container.innerHTML = `
             <div class="summary-card">
-                <div class="summary-card__icon blue">
-                    <i class="fas fa-shopping-cart"></i>
-                </div>
+                <div class="summary-card__icon blue"><i class="fas fa-shopping-cart"></i></div>
                 <div class="summary-card__info">
                     <label>إجمالي المشتريات</label>
                     <span>${U.money(totalPurchases)}</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-card__icon orange">
-                    <i class="fas fa-calendar-day"></i>
-                </div>
+                <div class="summary-card__icon orange"><i class="fas fa-calendar-day"></i></div>
                 <div class="summary-card__info">
                     <label>مشتريات اليوم</label>
                     <span>${U.money(todayPurchases)}</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-card__icon green">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
+                <div class="summary-card__icon green"><i class="fas fa-calendar-alt"></i></div>
                 <div class="summary-card__info">
                     <label>مشتريات الشهر</label>
                     <span>${U.money(monthPurchases)}</span>
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-card__icon red">
-                    <i class="fas fa-exclamation-circle"></i>
-                </div>
+                <div class="summary-card__icon red"><i class="fas fa-exclamation-circle"></i></div>
                 <div class="summary-card__info">
                     <label>مستحق للموردين</label>
                     <span>${U.money(creditTotal)}</span>
@@ -243,7 +240,7 @@
     }
 
     /* ============================================
-       Render Purchases
+       Render Purchases List
        ============================================ */
     function renderPurchases() {
         const gridView = $('#purchasesGridView');
@@ -348,7 +345,7 @@
     }
 
     /* ============================================
-       Purchase Details
+       Open Purchase Details
        ============================================ */
     async function openPurchaseDetails(id) {
         State.viewingId = id;
@@ -416,7 +413,7 @@
             ${inv.notes ? `<hr><div style="font-size:12px;"><strong>ملاحظات:</strong> ${U.escape(inv.notes)}</div>` : ''}
         `;
 
-        // Update pay button visibility
+        // Show/hide pay button based on remaining
         const payBtn = $('#payPurchaseBtn');
         if (payBtn) {
             payBtn.style.display = remaining > 0 ? 'flex' : 'none';
@@ -426,7 +423,7 @@
     }
 
     /* ============================================
-       Print
+       Print Purchase
        ============================================ */
     function printPurchase() {
         const content = $('#purchaseDetailsContent')?.innerHTML;
@@ -436,7 +433,7 @@
         win.document.write(`
             <!DOCTYPE html>
             <html dir="rtl"><head><meta charset="UTF-8">
-            <title>طباعة</title>
+            <title>طباعة فاتورة المشتريات</title>
             <style>
                 body { font-family: 'Cairo', Arial, sans-serif; padding: 10px; font-size: 13px; max-width: 80mm; margin: 0 auto; }
                 hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
@@ -457,7 +454,7 @@
     }
 
     /* ============================================
-       New Purchase Modal
+       Open New Purchase Modal
        ============================================ */
     function openPurchaseModal(id = null) {
         State.editingId = id;
@@ -482,8 +479,8 @@
         $('#purchaseDiscountType').value = 'amount';
         $('#purchaseNotes').value = '';
 
+        // If editing, load invoice
         if (id) {
-            // Load existing purchase
             const inv = State.purchases.find(p => p.id === id);
             if (inv) {
                 State.draft.supplierId = inv.supplier_id;
@@ -492,7 +489,6 @@
                 State.draft.discountType = 'amount';
                 State.draft.notes = inv.notes || '';
 
-                // Set supplier
                 if (inv.supplier_id) {
                     const s = State.suppliers.find(x => x.id === inv.supplier_id);
                     if (s) setSupplier(s);
@@ -624,12 +620,12 @@
             dd.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">لا توجد نتائج</div>`;
         } else {
             dd.innerHTML = list.map(p => {
-                const base = p.units?.[0] || { price: 0, cost: 0 };
+                const base = p.units?.[0] || { price: 0, cost: 0, stock: 0 };
                 return `
                     <div class="product-option" data-id="${p.id}">
                         <div class="product-option__info">
                             <h4>${U.escape(p.name)}</h4>
-                            ${p.barcode ? `<small>${U.escape(p.barcode)}</small>` : ''}
+                            ${p.barcode ? `<small>${U.escape(p.barcode)} · مخزون: ${base.stock || 0}</small>` : `<small>مخزون: ${base.stock || 0}</small>`}
                         </div>
                         <div class="product-option__price">تكلفة: ${U.moneyRaw(base.cost || 0)}</div>
                     </div>
@@ -652,7 +648,6 @@
         State.selectedProduct = product;
         State.selectedUnit = product.units?.[0] || null;
 
-        // Show selected product
         const el = $('#selectedProduct');
         if (el) {
             el.innerHTML = `
@@ -743,8 +738,8 @@
                 productName: product.name,
                 unitName: unit.name,
                 quantity: qty,
-                price: cost,        // سعر الشراء
-                sellPrice: price,    // سعر البيع (للتحديث)
+                price: cost,        // سعر الشراء (يُخزّن في حقل price للفاتورة)
+                sellPrice: price,    // سعر البيع الجديد (لتحديث المنتج)
                 factor: unit.factor || 1
             });
         }
@@ -780,6 +775,7 @@
                         <div class="purchase-item-row__name">${U.escape(item.productName)}</div>
                         <div class="purchase-item-row__meta">
                             <span><i class="fas fa-cube"></i> ${U.escape(item.unitName)}</span>
+                            ${item.sellPrice > 0 ? `<span><i class="fas fa-tag"></i> بيع: ${U.moneyRaw(item.sellPrice)}</span>` : ''}
                         </div>
                     </div>
                     <div class="purchase-item-row__actions">
@@ -847,9 +843,10 @@
     }
 
     /* ============================================
-       Save Purchase
+       Save Purchase (مع تحديث المخزون والأسعار)
        ============================================ */
     async function savePurchase() {
+        // Validate
         if (!State.draft.supplierId) {
             showToast('يجب اختيار مورد', 'warning');
             return;
@@ -864,6 +861,7 @@
         if (saveBtn) saveBtn.disabled = true;
 
         try {
+            // Calculate totals
             const subtotal = State.draft.items.reduce((s, i) =>
                 s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0
             );
@@ -879,16 +877,16 @@
             const supplier = State.suppliers.find(s => s.id === State.draft.supplierId);
             const invoiceNumber = await DB.generateInvoiceNumber();
 
-            // Build invoice object
+            // Build invoice
             const invoice = {
                 id: State.editingId || U.uuid(),
                 invoice_number: invoiceNumber,
                 type: 'purchase',
                 date: U.today(),
                 supplier_id: State.draft.supplierId,
+                supplier_name: supplier?.name || 'مورد',
                 customer_id: null,
                 customer_name: null,
-                supplier_name: supplier?.name || 'مورد',
                 items: State.draft.items.map(i => ({
                     productId: i.productId,
                     productName: i.productName,
@@ -896,7 +894,8 @@
                     quantity: i.quantity,
                     price: i.price,
                     cost: i.price,
-                    factor: i.factor || 1
+                    factor: i.factor || 1,
+                    sellPrice: i.sellPrice || 0
                 })),
                 subtotal,
                 discount,
@@ -914,25 +913,25 @@
 
             console.log('💾 Saving purchase:', invoice);
 
-            // Create invoice
+            // 1. Create invoice
             const result = await DB.createInvoice(invoice);
             if (!result.success) throw new Error('فشل حفظ الفاتورة');
 
-            // ✅ Update product stocks and prices
-            await updateProductStocks(State.draft.items);
+            // 2. ✅ Add stock to products + update cost & price
+            await addStockAndUpdateProducts(State.draft.items);
 
-            // ✅ Update supplier balance (نستحق له أكثر)
+            // 3. ✅ Update supplier balance (we owe them more)
             if (supplier) {
                 const currentBal = Number(supplier.balance) || 0;
-                // When we purchase on credit, supplier's balance increases (we owe them)
                 const newBal = U.round(currentBal - net);
                 await DB.updatePartyBalance(supplier.id, newBal);
+                console.log('💰 Supplier balance updated:', currentBal, '→', newBal);
             }
 
             showToast(State.editingId ? 'تم تحديث الفاتورة' : 'تم حفظ فاتورة الشراء', 'success');
             closeModal('purchaseModal');
 
-            // Reload
+            // 4. Reload all data
             await loadAllData();
 
         } catch (e) {
@@ -944,38 +943,43 @@
     }
 
     /* ============================================
-       Update Product Stocks
+       ✅ Add Stock + Update Product (Cost & Price)
        ============================================ */
-    async function updateProductStocks(items) {
+    async function addStockAndUpdateProducts(items) {
+        const products = await DB.getProducts(true) || [];
+
         for (const item of items) {
             try {
-                const product = State.products.find(p => p.id === item.productId);
-                if (!product) continue;
+                const product = products.find(p => p.id === item.productId);
+                if (!product?.units?.length) continue;
 
-                const baseUnit = product.units?.[0];
-                if (!baseUnit) continue;
-
+                const baseUnit = product.units[0];
                 const unit = product.units.find(u => u.name === item.unitName) || baseUnit;
                 const factor = unit.factor || 1;
-                const addQty = item.unitName === baseUnit.name 
-                    ? item.quantity 
+
+                // حساب الكمية بالوحدة الأساسية
+                const addQty = (item.unitName === baseUnit.name)
+                    ? item.quantity
                     : item.quantity * factor;
 
-                // Update stock
-                baseUnit.stock = (Number(baseUnit.stock) || 0) + addQty;
+                // ✅ إضافة المخزون
+                baseUnit.stock = U.round((Number(baseUnit.stock) || 0) + addQty, 3);
 
-                // Update cost
+                // ✅ تحديث سعر التكلفة (cost)
                 if (item.price > 0) {
                     unit.cost = item.price;
                 }
 
-                // Update sell price if provided
+                // ✅ تحديث سعر البيع (price) إذا تم إدخاله
                 if (item.sellPrice && item.sellPrice > 0) {
                     unit.price = item.sellPrice;
                 }
 
-                // Save
+                // حفظ المنتج (محلياً وسحابياً)
                 await DB.saveProduct(product);
+
+                console.log('✅ Product updated:', product.name, 'stock:', baseUnit.stock);
+
             } catch (e) {
                 console.warn('Failed to update product:', item.productName, e);
             }
@@ -986,6 +990,7 @@
        Pay Supplier Modal
        ============================================ */
     function openPaySupplierModal(supplierId = null) {
+        // If called from details modal, get the supplier from the invoice
         const inv = State.viewingId ? State.purchases.find(p => p.id === State.viewingId) : null;
         const sid = supplierId || inv?.supplier_id || State.draft.supplierId;
 
@@ -1000,7 +1005,10 @@
             return;
         }
 
-        State.paySupplierId = sid;
+        // Store current pay target
+        State._paySupplierId = sid;
+        State._payInvoiceId = inv?.id || null;
+        State._payInvoiceRemaining = Number(inv?.remaining) || 0;
 
         $('#paySupplierId').value = sid;
         $('#paySupplierAvatar').textContent = (supplier.name || 'S')[0].toUpperCase();
@@ -1010,18 +1018,22 @@
         const balLabel = bal > 0 ? `مستحق له: ${U.money(bal)}` : bal < 0 ? `مستحق عليه: ${U.money(-bal)}` : 'لا رصيد';
         $('#paySupplierBalance').textContent = balLabel;
 
-        $('#payAmount').value = inv?.remaining || '';
+        // Default amount = invoice remaining or full balance
+        const defaultAmount = State._payInvoiceRemaining > 0 
+            ? State._payInvoiceRemaining 
+            : Math.abs(bal);
+
+        $('#payAmount').value = defaultAmount > 0 ? defaultAmount : '';
         $('#payReference').value = '';
         $('#payNotes').value = '';
         setPayMethod('cash');
 
         // Quick amounts
         const quick = $('#payQuickAmounts');
-        const remaining = inv?.remaining || Math.abs(bal);
-        if (remaining > 0) {
+        if (defaultAmount > 0) {
             const opts = [
-                Math.round(remaining),
-                Math.round(remaining / 2),
+                Math.round(defaultAmount),
+                Math.round(defaultAmount / 2),
                 100,
                 500
             ];
@@ -1063,6 +1075,7 @@
         if (btn) btn.disabled = true;
 
         try {
+            // Add payment (this handles balance update)
             await DB.addPayment({
                 party_id: sid,
                 type: 'payment_out', // سداد لمورد
@@ -1072,10 +1085,45 @@
                 notes
             });
 
+            // If from a specific invoice, update its paid & remaining
+            if (State._payInvoiceId) {
+                const inv = await DB.getInvoiceById(State._payInvoiceId);
+                if (inv) {
+                    const newPaid = U.round((Number(inv.paid) || 0) + amount);
+                    const newRemaining = Math.max(0, (Number(inv.total) || 0) - newPaid);
+                    const newStatus = newRemaining <= 0 ? 'paid' : 'partial';
+
+                    // Update invoice
+                    if (navigator.onLine && window.DB?.client) {
+                        await window.DB.client
+                            .from('invoices')
+                            .update({
+                                paid: newPaid,
+                                remaining: newRemaining,
+                                status: newStatus,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', State._payInvoiceId);
+                    }
+
+                    // Update local
+                    if (window.localDB?.ready) {
+                        const localInv = await window.localDB.get('invoices', State._payInvoiceId);
+                        if (localInv) {
+                            localInv.paid = newPaid;
+                            localInv.remaining = newRemaining;
+                            localInv.status = newStatus;
+                            await window.localDB.put('invoices', localInv);
+                        }
+                    }
+                }
+            }
+
             showToast('تم السداد بنجاح', 'success');
             closeModal('paySupplierModal');
             closeModal('purchaseDetailsModal');
 
+            // Reload
             await loadAllData();
         } catch (e) {
             console.error('Payment error:', e);
@@ -1158,8 +1206,14 @@
         updateThemeIcon();
     }
 
-    function openModal(id) { document.getElementById(id)?.classList.add('open'); }
-    function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+    function openModal(id) {
+        const m = document.getElementById(id);
+        if (m) m.classList.add('open');
+    }
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        if (m) m.classList.remove('open');
+    }
 
     function showSkeleton() {
         const skeleton = $('#skeletonGrid');
@@ -1360,7 +1414,7 @@
             filterSuppliers(e.target.value.trim());
         }, 200));
 
-        // Close dropdowns
+        // Close dropdowns on outside click
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#supplierSearchInput') && !e.target.closest('#supplierDropdown')) {
                 $('#supplierDropdown')?.classList.remove('show');
