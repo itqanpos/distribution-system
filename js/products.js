@@ -1,6 +1,6 @@
 /* =============================================
    products.js - Products Page Logic
-   v2.0 - With Min/Max Price Support
+   v2.1 - Reviewed & Fixed
    ============================================= */
 (function() {
     'use strict';
@@ -8,7 +8,9 @@
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => [...document.querySelectorAll(s)];
 
-    /* ============ State ============ */
+    /* ============================================
+       State
+       ============================================ */
     const State = {
         products: [],
         filtered: [],
@@ -31,6 +33,7 @@
     async function init() {
         console.log('🚀 Products init...');
 
+        // 1. انتظار Supabase
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
@@ -45,6 +48,7 @@
 
         await new Promise(r => setTimeout(r, 300));
 
+        // 2. المصادقة
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -53,12 +57,17 @@
             return;
         }
 
+        // 3. تحديث الواجهة
         updateUserUI();
         updateConnStatus();
         initTheme();
+
+        // 4. ربط الأحداث
         bindEvents();
 
+        // 5. تحميل البيانات
         await loadProducts();
+
         hideLoadingBar();
         console.log('✅ Products ready');
     }
@@ -73,6 +82,7 @@
             extractCategories();
             applyFilters();
             updateCount();
+            console.log(`📦 Loaded ${State.products.length} products`);
         } catch (e) {
             console.error('Load error:', e);
             showToast('تعذر تحميل المنتجات', 'error');
@@ -89,12 +99,16 @@
         });
         State.categories = [...cats].sort();
 
+        // Update category filter dropdown
         const filter = $('#categoryFilter');
         if (filter) {
+            const currentValue = filter.value;
             filter.innerHTML = '<option value="">كل التصنيفات</option>' +
                 State.categories.map(c => `<option value="${U.escape(c)}">${U.escape(c)}</option>`).join('');
+            if (currentValue) filter.value = currentValue;
         }
 
+        // Update datalist for form
         const datalist = $('#categoryList');
         if (datalist) {
             datalist.innerHTML = State.categories.map(c => `<option value="${U.escape(c)}">`).join('');
@@ -107,19 +121,22 @@
     function applyFilters() {
         let list = [...State.products];
 
+        // Search
         if (State.filters.search) {
             const term = State.filters.search.toLowerCase();
             list = list.filter(p =>
                 (p.name || '').toLowerCase().includes(term) ||
                 (p.code || '').toLowerCase().includes(term) ||
-                (p.barcode || '').includes(term)
+                (p.barcode || '').includes(State.filters.search)
             );
         }
 
+        // Category
         if (State.filters.category) {
             list = list.filter(p => p.category === State.filters.category);
         }
 
+        // Stock
         if (State.filters.stock) {
             list = list.filter(p => {
                 const stock = p.units?.[0]?.stock || 0;
@@ -130,6 +147,7 @@
             });
         }
 
+        // Sort
         const sort = State.filters.sort;
         list.sort((a, b) => {
             if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'ar');
@@ -163,7 +181,6 @@
     function renderProducts() {
         const gridView = $('#productsGridView');
         const listView = $('#productsListView');
-        const empty = $('#emptyState');
 
         if (!State.filtered.length) {
             if (gridView) gridView.innerHTML = '';
@@ -174,11 +191,13 @@
 
         showEmpty(false);
 
+        // Grid (desktop)
         if (gridView) {
             gridView.innerHTML = State.filtered.map(p => renderProductCard(p)).join('');
             gridView.querySelectorAll('.product-item').forEach(el => bindProductCardActions(el));
         }
 
+        // List (mobile)
         if (listView) {
             listView.innerHTML = State.filtered.map(p => renderProductListItem(p)).join('');
             listView.querySelectorAll('.product-list-item').forEach(el => bindProductCardActions(el));
@@ -205,7 +224,7 @@
                         <i class="fas fa-cube"></i>
                     </div>
                     <div class="product-item__title">
-                        <div class="product-item__name">${U.escape(p.name)}</div>
+                        <div class="product-item__name">${U.escape(p.name || '')}</div>
                         <div class="product-item__category">${U.escape(p.category || 'بدون تصنيف')}</div>
                     </div>
                 </div>
@@ -232,7 +251,7 @@
                     <i class="fas fa-cube"></i>
                 </div>
                 <div class="product-list-item__info">
-                    <div class="product-list-item__name">${U.escape(p.name)}</div>
+                    <div class="product-list-item__name">${U.escape(p.name || '')}</div>
                     <div class="product-list-item__meta">
                         <span>${U.escape(p.category || 'بدون تصنيف')}</span>
                         ${p.barcode ? `<span>· ${U.escape(p.barcode)}</span>` : ''}
@@ -249,7 +268,7 @@
     }
 
     function getStockInfo(stock) {
-        if (stock <= 0) return { class: 'out', label: 'نفذ' };
+        if (stock <= 0) return { class: 'out', label: 'نفد' };
         if (stock <= 5) return { class: 'low', label: `منخفض: ${stock}` };
         return { class: 'in', label: `متوفر: ${stock}` };
     }
@@ -273,6 +292,14 @@
     }
 
     /* ============================================
+       Show/Hide Empty State
+       ============================================ */
+    function showEmpty(show) {
+        const el = $('#emptyState');
+        if (el) el.style.display = show ? 'block' : 'none';
+    }
+
+    /* ============================================
        Product Modal (Add/Edit)
        ============================================ */
     function openProductModal(id = null) {
@@ -288,8 +315,12 @@
         if (unitsContainer) unitsContainer.innerHTML = '';
 
         if (id) {
+            // Edit mode
             const product = State.products.find(p => p.id === id);
-            if (!product) return;
+            if (!product) {
+                showToast('المنتج غير موجود', 'error');
+                return;
+            }
 
             $('#productId').value = id;
             $('#productName').value = product.name || '';
@@ -300,6 +331,7 @@
 
             (product.units || []).forEach(u => addUnitToForm(u));
         } else {
+            // Add mode
             $('#productId').value = '';
             addUnitToForm({ 
                 name: 'قطعة', 
@@ -318,7 +350,7 @@
     }
 
     /* ============================================
-       Add Unit to Form (with min/max price)
+       Add Unit to Form
        ============================================ */
     function addUnitToForm(unit = {}) {
         const container = $('#unitsContainer');
@@ -358,7 +390,7 @@
                 </div>
                 <div class="form-group">
                     <label>الرصيد (المخزون)</label>
-                    <input type="number" class="unit-stock" value="${unit.stock || 0}" step="0.01" inputmode="decimal">
+                    <input type="number" class="unit-stock" value="${unit.stock || 0}" step="0.01" inputmode="decimal" ${!isBase ? 'readonly' : ''}>
                 </div>
                 <div class="form-group">
                     <label>معامل التحويل ${!isBase ? '*' : ''}</label>
@@ -370,7 +402,6 @@
                         <input type="text" class="unit-barcode" value="${U.escape(unit.barcode || '')}" placeholder="اختياري">
                     </div>
                 ` : ''}
-                <!-- ✅ حقول السعر الأدنى والأقصى -->
                 <div class="form-group">
                     <label>
                         <i class="fas fa-arrow-down price-range-icon"></i>
@@ -390,7 +421,7 @@
 
         container.appendChild(div);
 
-        // Bind remove
+        // Bind remove button
         const removeBtn = div.querySelector('[data-remove]');
         if (removeBtn) {
             removeBtn.addEventListener('click', () => {
@@ -399,20 +430,17 @@
             });
         }
 
-        // Bind price changes to update hint
+        // Bind live price range hint
         const priceInput = div.querySelector('.unit-price');
         const minInput = div.querySelector('.unit-min-price');
         const maxInput = div.querySelector('.unit-max-price');
 
         const updateHint = () => {
             let hint = div.querySelector('.unit-price-range-hint');
-            
-            const price = +priceInput?.value || 0;
             const min = +minInput?.value || 0;
             const max = +maxInput?.value || 0;
-            
             const hasLimits = min > 0 || max > 0;
-            
+
             if (hasLimits) {
                 if (!hint) {
                     hint = document.createElement('div');
@@ -421,7 +449,7 @@
                 }
                 hint.innerHTML = `
                     <i class="fas fa-info-circle"></i>
-                    نطاق السعر المسموح: ${min > 0 ? min : 0} - ${max > 0 ? max : '∞'} ج.م
+                    نطاق السعر: ${min > 0 ? min : 0} - ${max > 0 ? max : '∞'} ج.م
                 `;
             } else if (hint) {
                 hint.remove();
@@ -432,7 +460,6 @@
         minInput?.addEventListener('input', updateHint);
         maxInput?.addEventListener('input', updateHint);
 
-        // Initial hint
         updateHint();
     }
 
@@ -459,8 +486,9 @@
             card.dataset.index = i;
             const badge = card.querySelector('.unit-card__badge');
             const headerSpan = card.querySelector('.unit-card__header > span:not(.unit-card__badge)');
-            
+
             if (i === 0) {
+                // Base unit
                 if (!badge) {
                     const badgeEl = document.createElement('span');
                     badgeEl.className = 'unit-card__badge';
@@ -468,15 +496,20 @@
                     card.querySelector('.unit-card__header').prepend(badgeEl);
                 }
                 if (headerSpan) headerSpan.remove();
+
                 const removeBtn = card.querySelector('.unit-card__remove');
                 if (removeBtn) removeBtn.remove();
-                
+
                 const factorInput = card.querySelector('.unit-factor');
                 if (factorInput) {
                     factorInput.value = 1;
                     factorInput.readOnly = true;
                 }
+
+                const stockInput = card.querySelector('.unit-stock');
+                if (stockInput) stockInput.readOnly = false;
             } else {
+                // Secondary unit
                 if (badge) badge.remove();
                 if (!headerSpan) {
                     const span = document.createElement('span');
@@ -486,9 +519,12 @@
                 } else {
                     headerSpan.textContent = `وحدة #${i + 1}`;
                 }
-                
+
                 const factorInput = card.querySelector('.unit-factor');
                 if (factorInput) factorInput.readOnly = false;
+
+                const stockInput = card.querySelector('.unit-stock');
+                if (stockInput) stockInput.readOnly = true;
             }
         });
     }
@@ -523,21 +559,25 @@
             const unitMinPrice = +card.querySelector('.unit-min-price')?.value || 0;
             const unitMaxPrice = +card.querySelector('.unit-max-price')?.value || 0;
 
-            // التحقق من اسم الوحدة
+            // Validation
             if (!unitName) {
                 showToast(`اسم الوحدة ${i + 1} مطلوب`, 'warning');
                 valid = false;
                 break;
             }
 
-            // التحقق من السعر
             if (unitPrice < 0) {
                 showToast(`سعر الوحدة ${i + 1} غير صالح`, 'warning');
                 valid = false;
                 break;
             }
 
-            // ✅ التحقق من النطاق السعري
+            if (i > 0 && unitFactor <= 0) {
+                showToast(`معامل التحويل للوحدة ${i + 1} يجب أن يكون أكبر من 0`, 'warning');
+                valid = false;
+                break;
+            }
+
             if (unitMaxPrice > 0 && unitMinPrice > 0 && unitMinPrice > unitMaxPrice) {
                 showToast(`في الوحدة ${i + 1}: السعر الأدنى أكبر من الأقصى`, 'warning');
                 valid = false;
@@ -608,7 +648,10 @@
        ============================================ */
     function openViewModal(id) {
         const product = State.products.find(p => p.id === id);
-        if (!product) return;
+        if (!product) {
+            showToast('المنتج غير موجود', 'error');
+            return;
+        }
 
         const body = $('#viewProductBody');
         if (!body) return;
@@ -619,7 +662,7 @@
             <div class="view-product__header">
                 <div class="view-product__icon"><i class="fas fa-cube"></i></div>
                 <div class="view-product__title">
-                    <h3>${U.escape(product.name)}</h3>
+                    <h3>${U.escape(product.name || '')}</h3>
                     <p>${U.escape(product.category || 'بدون تصنيف')}</p>
                 </div>
             </div>
@@ -642,7 +685,7 @@
                     <span>${units.length}</span>
                 </div>
                 <div class="view-product__item">
-                    <label>إجمالي المخزون</label>
+                    <label>المخزون الأساسي</label>
                     <span>${units[0]?.stock || 0} ${units[0]?.name || ''}</span>
                 </div>
             </div>
@@ -661,12 +704,12 @@
                     const priceRange = hasPriceLimits
                         ? `${u.minPrice || 0} - ${u.maxPrice > 0 ? u.maxPrice : '∞'}`
                         : '';
-                    
+
                     return `
                         <div class="view-product__unit">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                 <span class="view-product__unit-name">${U.escape(u.name)}</span>
-                                ${u.isBase || u === units[0] ? '<span class="view-product__unit-badge">أساسية</span>' : ''}
+                                ${u.isBase ? '<span class="view-product__unit-badge">أساسية</span>' : ''}
                             </div>
                             <span class="view-product__unit-price">${U.moneyRaw(u.price)} ج.م</span>
                             <span class="view-product__unit-stock">تكلفة: ${U.moneyRaw(u.cost || 0)}</span>
@@ -675,19 +718,19 @@
                                     <i class="fas fa-tags" style="font-size:10px;"></i> ${priceRange} ج.م
                                 </span>
                             ` : ''}
-                            <span class="view-product__unit-stock">معامل: ${u.factor || 1}</span>
+                            ${!u.isBase ? `<span class="view-product__unit-stock">معامل: ${u.factor || 1}</span>` : ''}
                         </div>
                     `;
                 }).join('')}
             </div>
         `;
 
+        // Rebind footer buttons (to remove old listeners)
         const editBtn = $('#editFromViewBtn');
         if (editBtn) {
-            const newBtn = editBtn.cloneNode(true);
-            editBtn.parentNode.replaceChild(newBtn, editBtn);
-
-            newBtn.addEventListener('click', () => {
+            const newEditBtn = editBtn.cloneNode(true);
+            editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+            newEditBtn.addEventListener('click', () => {
                 closeModal('viewProductModal');
                 setTimeout(() => openProductModal(id), 200);
             });
@@ -695,9 +738,9 @@
 
         const closeBtn = $('#closeViewBtn');
         if (closeBtn) {
-            const newBtn = closeBtn.cloneNode(true);
-            closeBtn.parentNode.replaceChild(newBtn, closeBtn);
-            newBtn.addEventListener('click', () => closeModal('viewProductModal'));
+            const newCloseBtn = closeBtn.cloneNode(true);
+            closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+            newCloseBtn.addEventListener('click', () => closeModal('viewProductModal'));
         }
 
         openModal('viewProductModal');
@@ -822,17 +865,17 @@
     }
 
     function openModal(id) {
-        document.getElementById(id)?.classList.add('open');
+        const m = document.getElementById(id);
+        if (m) m.classList.add('open');
     }
     function closeModal(id) {
-        document.getElementById(id)?.classList.remove('open');
+        const m = document.getElementById(id);
+        if (m) m.classList.remove('open');
     }
 
-    function showEmpty(show) {
-        const el = $('#emptyState');
-        if (el) el.style.display = show ? 'block' : 'none';
-    }
-
+    /* ============================================
+       Skeleton
+       ============================================ */
     function showSkeleton() {
         const skeleton = $('#skeletonGrid');
         const gridView = $('#productsGridView');
@@ -915,6 +958,7 @@
             align-items: center;
             gap: 10px;
             pointer-events: auto;
+            animation: slideUp 0.3s;
         `;
         toast.innerHTML = `<i class="fas fa-${icons[type]}"></i> <span>${U.escape(msg)}</span>`;
         stack.appendChild(toast);
@@ -973,7 +1017,7 @@
         // Export
         $('#exportBtn')?.addEventListener('click', exportProducts);
 
-        // Add product
+        // Add Product
         $('#addProductBtn')?.addEventListener('click', () => openProductModal());
         $('#fabAddBtn')?.addEventListener('click', () => openProductModal());
 
@@ -989,7 +1033,8 @@
             const input = $('#searchInput');
             if (input) input.value = '';
             State.filters.search = '';
-            $('#clearSearchBtn').style.display = 'none';
+            const clearBtn = $('#clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = 'none';
             applyFilters();
         });
 
@@ -1007,18 +1052,26 @@
             applyFilters();
         });
 
-        // Save product
+        // Save Product
         $('#saveProductBtn')?.addEventListener('click', saveProduct);
 
-        // Add unit
+        // Add Unit
         $('#addUnitBtn')?.addEventListener('click', () => {
-            addUnitToForm({ name: '', price: 0, cost: 0, stock: 0, factor: 1, minPrice: 0, maxPrice: 0 });
+            addUnitToForm({ 
+                name: '', 
+                price: 0, 
+                cost: 0, 
+                stock: 0, 
+                factor: 1, 
+                minPrice: 0, 
+                maxPrice: 0 
+            });
         });
 
-        // Confirm delete
+        // Confirm Delete Product
         $('#confirmDeleteBtn')?.addEventListener('click', confirmDelete);
 
-        // Confirm unit delete
+        // Confirm Delete Unit
         $('#confirmUnitDeleteBtn')?.addEventListener('click', () => {
             if (State.unitDeleteIndex >= 0) {
                 removeUnitFromForm(State.unitDeleteIndex);
@@ -1037,6 +1090,13 @@
             });
         });
 
+        // ESC to close modals
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+            }
+        });
+
         // Connection
         window.addEventListener('online', () => {
             updateConnStatus();
@@ -1046,13 +1106,6 @@
         window.addEventListener('offline', () => {
             updateConnStatus();
             showToast('انقطع الاتصال', 'warning');
-        });
-
-        // ESC to close modals
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
-            }
         });
     }
 
