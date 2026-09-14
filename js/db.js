@@ -1,33 +1,51 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 4.1.0 (Fixed)
-   
-   Fixes:
-   - [1] إضافة idempotency_key للفواتير
-   - [2] Sync Queue لكل عمليات الكتابة (منتجات، عملاء، إعدادات)
+   Version: 5.0.0 (Production-ready)
+
+   Fixes (جديد في v5):
+   - [1] idempotency_key في كل الفواتير والدفعات
+   - [2] Sync Queue لكل عمليات الكتابة
    - [3] توحيد وحدة المخزون (base unit)
-   - [4] إزالة user_metadata.tenant_id المزوّر
+   - [4] getTenantId من profile فقط (لا user_metadata)
    - [5] addPayment عبر RPC ذرّي
-   - [6] إزالة party_balance من queue (كان يطمس التحديثات)
-   - [7] منع تصادم أرقام الفواتير
-   - [8] Soft delete محلي + مزامنة الحذف
-   - [9] backoff + تخزين العمليات الفاشلة
-   - [10] حل التعارض بـ updated_at عند pull من السحابة
+   - [6] إزالة party_balance من queue
+   - [7] أرقام الفواتير الأوفلاين تبدأ من 9000
+   - [8] soft delete محلي + مزامنة الحذف
+   - [9] تصنيف أخطاء الأعمال عن أخطاء الشبكة
+   - [10] failed_sync store للأخطاء الدائمة
+   - [11] merge ذكي: تعديلات محلية + مخزون الخادم
+   - [12] wipeLocalData عند logout
    ============================================= */
 (function() {
     'use strict';
 
-    const CFG = window.APP_CONFIG;
+    const CFG = window.APP_CONFIG || {};
     const DEVICE_KEY = 'hesaby_device_id';
-    const FAILED_KEY = 'hesaby_failed_sync';
 
+    /* ============================================
+       Helpers
+       ============================================ */
     function getDeviceId() {
         let id = localStorage.getItem(DEVICE_KEY);
         if (!id) {
-            id = (crypto.randomUUID?.() || U.uuid()).replace(/-/g, '').slice(0, 8);
+            id = (crypto.randomUUID?.() || fallbackUuid()).replace(/-/g, '').slice(0, 8);
             localStorage.setItem(DEVICE_KEY, id);
         }
         return id;
+    }
+
+    function fallbackUuid() {
+        if (crypto.getRandomValues) {
+            const b = crypto.getRandomValues(new Uint8Array(16));
+            b[6] = (b[6] & 0x0f) | 0x40;
+            b[8] = (b[8] & 0x3f) | 0x80;
+            const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+            return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
     }
 
     function localDateStr(d = new Date()) {
@@ -35,6 +53,24 @@
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
+    }
+
+    // ✅ [FIX #9] أخطاء الأعمال لا تُعاد إلى الطابور
+    const BUSINESS_ERROR_CODES = new Set([
+        'P0002', // insufficient stock
+        'P0003', // not admin
+        'P0004', // validation
+        'P0005', // bad item
+        'P0006', // financial mismatch
+        '42501', // RLS
+        '23505', // unique violation
+        '23514', // check violation
+        '23503'  // FK violation
+    ]);
+
+    function isBusinessError(err) {
+        const code = err?.code || '';
+        return BUSINESS_ERROR_CODES.has(code);
     }
 
     /* ============================================
@@ -46,21 +82,36 @@
         init() {
             return new Promise((resolve) => {
                 if (typeof indexedDB === 'undefined') { resolve(this); return; }
-                const req = indexedDB.open(CFG.DB_NAME, CFG.DB_VERSION);
+                const req = indexedDB.open(CFG.DB_NAME || 'hesaby_db', CFG.DB_VERSION || 4);
+
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    ['products','parties','invoices','settings','transactions','sync_queue','failed_sync']
-                    .forEach(name => {
-                        if (!db.objectStoreNames.contains(name)) {
-                            const keyPath = (name === 'sync_queue' || name === 'failed_sync') ? 'key' : 'id';
-                            const store = db.createObjectStore(name, { keyPath });
-                            if (name === 'invoices') {
-                                store.createIndex('date', 'date');
-                                store.createIndex('status', 'status');
-                            }
-                            if (name === 'products') store.createIndex('barcode', 'barcode');
-                            if (name === 'parties')  store.createIndex('type', 'type');
-                            if (name === 'sync_queue') store.createIndex('created_at', 'created_at');
+                    const stores = ['products','parties','invoices','settings',
+                                    'transactions','sync_queue','failed_sync'];
+                    stores.forEach(name => {
+                        if (db.objectStoreNames.contains(name)) return;
+                        const keyPath = (name === 'sync_queue' || name === 'failed_sync') ? 'key' : 'id';
+                        const store = db.createObjectStore(name, { keyPath });
+
+                        if (name === 'invoices') {
+                            store.createIndex('date', 'date');
+                            store.createIndex('status', 'status');
+                            store.createIndex('customer_id', 'customer_id');
+                        }
+                        if (name === 'products') {
+                            store.createIndex('barcode', 'barcode');
+                            store.createIndex('category', 'category');
+                        }
+                        if (name === 'parties') {
+                            store.createIndex('type', 'type');
+                            store.createIndex('phone', 'phone');
+                        }
+                        if (name === 'transactions') {
+                            store.createIndex('party_id', 'party_id');
+                            store.createIndex('date', 'date');
+                        }
+                        if (name === 'sync_queue') {
+                            store.createIndex('created_at', 'created_at');
                         }
                     });
                 };
@@ -73,16 +124,16 @@
 
         async get(store, id) {
             await this._ready(); if (!this.db) return null;
-            return new Promise((res) => {
-                const r = this.db.transaction(store,'readonly').objectStore(store).get(id);
+            return new Promise(res => {
+                const r = this.db.transaction(store, 'readonly').objectStore(store).get(id);
                 r.onsuccess = () => res(r.result); r.onerror = () => res(null);
             });
         }
 
         async getAll(store) {
             await this._ready(); if (!this.db) return [];
-            return new Promise((res) => {
-                const r = this.db.transaction(store,'readonly').objectStore(store).getAll();
+            return new Promise(res => {
+                const r = this.db.transaction(store, 'readonly').objectStore(store).getAll();
                 r.onsuccess = () => res(r.result || []); r.onerror = () => res([]);
             });
         }
@@ -90,7 +141,7 @@
         async put(store, data) {
             await this._ready(); if (!this.db) return data;
             return new Promise((res, rej) => {
-                const tx = this.db.transaction(store,'readwrite');
+                const tx = this.db.transaction(store, 'readwrite');
                 tx.objectStore(store).put(data);
                 tx.oncomplete = () => res(data);
                 tx.onerror = (e) => rej(e.target.error || new Error('IDB write failed'));
@@ -101,7 +152,7 @@
         async putMany(store, items) {
             await this._ready(); if (!this.db || !items?.length) return items || [];
             return new Promise((res, rej) => {
-                const tx = this.db.transaction(store,'readwrite');
+                const tx = this.db.transaction(store, 'readwrite');
                 const s = tx.objectStore(store);
                 items.forEach(i => s.put(i));
                 tx.oncomplete = () => res(items);
@@ -112,7 +163,7 @@
         async delete(store, id) {
             await this._ready(); if (!this.db) return;
             return new Promise((res, rej) => {
-                const tx = this.db.transaction(store,'readwrite');
+                const tx = this.db.transaction(store, 'readwrite');
                 tx.objectStore(store).delete(id);
                 tx.oncomplete = () => res();
                 tx.onerror = () => rej(new Error('IDB delete failed'));
@@ -122,7 +173,7 @@
         async clear(store) {
             await this._ready(); if (!this.db) return;
             return new Promise((res, rej) => {
-                const tx = this.db.transaction(store,'readwrite');
+                const tx = this.db.transaction(store, 'readwrite');
                 tx.objectStore(store).clear();
                 tx.oncomplete = () => res();
                 tx.onerror = () => rej(new Error('IDB clear failed'));
@@ -149,7 +200,7 @@
 
     function getClient() { return window.DB?.client || supabaseClient; }
 
-    // ✅ [FIX #4] اقرأ tenant_id من profile مباشرة (لا من user_metadata)
+    // ✅ [FIX #4] من profile فقط — لا user_metadata القابل للتزوير
     function getTenantId() {
         return window.Auth?.user?.tenant_id || null;
     }
@@ -188,7 +239,7 @@
                     key: this._key(op), ...op,
                     created_at: new Date().toISOString(),
                     retries: 0,
-                    next_retry_at: Date.now()
+                    next_retry_at: 0
                 });
             } catch (e) { console.warn('sync_queue enqueue failed', e); }
         },
@@ -206,10 +257,15 @@
                 await window.DB.local.put('failed_sync', {
                     key: this._key(op), ...op,
                     error: String(error?.message || error),
+                    error_code: error?.code || null,
                     failed_at: new Date().toISOString()
                 });
                 await this.dequeue(op);
             } catch (e) { console.warn('moveToFailed failed', e); }
+        },
+
+        async clearFailed() {
+            try { await window.DB.local.clear('failed_sync'); } catch {}
         }
     };
 
@@ -217,7 +273,9 @@
        DB API
        ============================================ */
     window.DB = {
-        local: null, client: null, ready: null,
+        local: null,
+        client: null,
+        ready: null,
 
         async init() {
             if (this.ready) return this.ready;
@@ -230,7 +288,7 @@
                     this.flushSyncQueue().catch(e => console.warn('flush error', e));
                 });
 
-                // محاولة flush كل 30 ثانية
+                // محاولة flush دورية
                 setInterval(() => {
                     if (navigator.onLine) this.flushSyncQueue().catch(() => {});
                 }, 30000);
@@ -241,7 +299,7 @@
         },
 
         /* ============================================
-           flushSyncQueue — بإعادة محاولة + backoff
+           flushSyncQueue — backoff + تصنيف أخطاء
            ============================================ */
         async flushSyncQueue() {
             if (!navigator.onLine || !this.client) return;
@@ -258,12 +316,18 @@
                     if (result?.error) throw result.error;
                     await SyncQueue.dequeue(op);
                 } catch (e) {
+                    // ✅ [FIX #9] أخطاء الأعمال → فشل نهائي فورًا
+                    if (isBusinessError(e)) {
+                        console.error('Business error in sync op', op, e);
+                        await SyncQueue.moveToFailed(op, e);
+                        continue;
+                    }
                     op.retries = (op.retries || 0) + 1;
                     if (op.retries >= 8) {
                         console.error('Sync op failed permanently', op, e);
                         await SyncQueue.moveToFailed(op, e);
                     } else {
-                        op.next_retry_at = Date.now() + Math.min(60000, 1000 * 2**op.retries);
+                        op.next_retry_at = Date.now() + Math.min(60000, 1000 * 2 ** op.retries);
                         await this.local.put('sync_queue', op);
                     }
                 }
@@ -277,25 +341,22 @@
                 case 'add_payment':
                     return await this.client.rpc('add_payment_atomic', { p_payment: op.payload });
                 case 'save_product':
-                    return await this.client.from('products').upsert(op.payload.product, { onConflict: 'id' });
+                    return await this.client.from('products').upsert(op.payload, { onConflict: 'id' });
                 case 'save_units':
-                    return await this.client.from('product_units').upsert(op.payload.units, { onConflict: 'id' });
+                    return await this.client.from('product_units').upsert(op.payload, { onConflict: 'id' });
                 case 'delete_product':
                     return await this.client.from('products')
-                        .update({ deleted_at: new Date().toISOString() })
-                        .eq('id', op.payload.id);
+                        .update({ deleted_at: new Date().toISOString() }).eq('id', op.payload.id);
                 case 'save_party':
                     return await this.client.from('parties').upsert(op.payload, { onConflict: 'id' });
                 case 'delete_party':
                     return await this.client.from('parties')
-                        .update({ deleted_at: new Date().toISOString() })
-                        .eq('id', op.payload.id);
+                        .update({ deleted_at: new Date().toISOString() }).eq('id', op.payload.id);
                 case 'save_settings':
                     return await this.client.from('settings')
                         .upsert({ tenant_id: op.payload.tenant_id, data: op.payload.data },
                                 { onConflict: 'tenant_id' });
                 default:
-                    console.warn('Unknown sync type', op.type);
                     return { error: new Error('Unknown sync type: ' + op.type) };
             }
         },
@@ -310,8 +371,7 @@
             }
 
             if (!navigator.onLine || !this.client) {
-                const local = (await this.local.getAll('products'))
-                    .filter(p => !p.deleted_at);
+                const local = (await this.local.getAll('products')).filter(p => !p.deleted_at);
                 MemCache.set('products', local);
                 return local;
             }
@@ -324,7 +384,7 @@
                     .order('name');
                 if (error) throw error;
 
-                const products = (data || []).map(p => ({
+                const remote = (data || []).map(p => ({
                     ...p,
                     units: (p.product_units || [])
                         .map(u => ({
@@ -334,18 +394,28 @@
                             minPrice: u.min_price, maxPrice: u.max_price,
                             barcode: u.barcode, isBase: u.is_base
                         }))
-                        .sort((a,b) => (b.isBase?1:0) - (a.isBase?1:0))
+                        .sort((a,b) => (b.isBase ? 1 : 0) - (a.isBase ? 1 : 0))
                 }));
 
-                // ✅ [FIX #10] احتفظ بالتعديلات المحلية الأحدث
+                // ✅ [FIX #11] دمج: تعديلات محلية + مخزون الخادم
                 const existing = await this.local.getAll('products');
-                const merged = products.map(remote => {
-                    const local = existing.find(e => e.id === remote.id);
-                    if (local?.updated_at && remote.updated_at &&
-                        new Date(local.updated_at) > new Date(remote.updated_at)) {
-                        return local;
+                const merged = remote.map(rp => {
+                    const lp = existing.find(e => e.id === rp.id);
+                    if (!lp?.updated_at || !rp.updated_at) return rp;
+
+                    if (new Date(lp.updated_at) > new Date(rp.updated_at)) {
+                        // اِحتفظ بحقول المستخدم المحلية، لكن خذ المخزون من الخادم
+                        const mergedUnits = (lp.units || []).map(lu => {
+                            const ru = (rp.units || []).find(u => u.id === lu.id);
+                            return ru ? { ...lu, stock: ru.stock } : lu;
+                        });
+                        // أضف وحدات جديدة من الخادم
+                        (rp.units || []).forEach(ru => {
+                            if (!mergedUnits.find(u => u.id === ru.id)) mergedUnits.push(ru);
+                        });
+                        return { ...lp, units: mergedUnits };
                     }
-                    return remote;
+                    return rp;
                 });
 
                 await this.local.putMany('products', merged);
@@ -358,7 +428,7 @@
         },
 
         async saveProduct(product) {
-            const id = product.id || U.uuid();
+            const id = product.id || fallbackUuid();
             const now = new Date().toISOString();
 
             const payload = {
@@ -376,14 +446,14 @@
             await this.local.put('products', { ...payload, units: product.units || [] });
 
             const unitsPayload = (product.units || []).map(u => ({
-                id: u.id || U.uuid(),
+                id: u.id || fallbackUuid(),
                 product_id: id,
                 tenant_id: getTenantId(),
                 unit_name: u.name,
                 barcode: u.barcode || null,
                 price: u.price || 0,
                 cost: u.cost || 0,
-                factor: u.factor || 1,
+                factor: u.isBase ? 1 : (u.factor || 1),
                 stock: u.stock || 0,
                 min_price: u.minPrice || 0,
                 max_price: u.maxPrice || 0,
@@ -403,12 +473,17 @@
                         if (uErr) throw uErr;
                     }
                 } catch (e) {
-                    await SyncQueue.enqueue({ type: 'save_product', id, payload: { product: payload } });
-                    await SyncQueue.enqueue({ type: 'save_units', id, payload: { units: unitsPayload } });
+                    if (isBusinessError(e)) throw e;
+                    await SyncQueue.enqueue({ type: 'save_product', id, payload });
+                    if (unitsPayload.length) {
+                        await SyncQueue.enqueue({ type: 'save_units', id, payload: unitsPayload });
+                    }
                 }
             } else {
-                await SyncQueue.enqueue({ type: 'save_product', id, payload: { product: payload } });
-                await SyncQueue.enqueue({ type: 'save_units', id, payload: { units: unitsPayload } });
+                await SyncQueue.enqueue({ type: 'save_product', id, payload });
+                if (unitsPayload.length) {
+                    await SyncQueue.enqueue({ type: 'save_units', id, payload: unitsPayload });
+                }
             }
 
             MemCache.clear('products');
@@ -423,12 +498,17 @@
                 await this.local.put('products', product);
             }
 
+            const doRemote = async () => {
+                return await this.client.from('products')
+                    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
+            };
+
             if (navigator.onLine && this.client) {
                 try {
-                    await this.client.from('products')
-                        .update({ deleted_at: new Date().toISOString() })
-                        .eq('id', id);
-                } catch {
+                    const { error } = await doRemote();
+                    if (error) throw error;
+                } catch (e) {
+                    if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({ type: 'delete_product', id, payload: { id } });
                 }
             } else {
@@ -457,17 +537,20 @@
             }
 
             try {
-                let q = this.client.from('parties').select('*').is('deleted_at', null).order('name');
+                let q = this.client.from('parties').select('*')
+                    .is('deleted_at', null).order('name');
                 if (type) q = q.or(`type.eq.${type},type.eq.both`);
                 const { data, error } = await q;
                 if (error) throw error;
 
                 const existing = await this.local.getAll('parties');
-                const merged = (data || []).map(remote => {
-                    const local = existing.find(e => e.id === remote.id);
-                    if (local?.updated_at && remote.updated_at &&
-                        new Date(local.updated_at) > new Date(remote.updated_at)) return local;
-                    return remote;
+                const merged = (data || []).map(rp => {
+                    const lp = existing.find(e => e.id === rp.id);
+                    if (lp?.updated_at && rp.updated_at &&
+                        new Date(lp.updated_at) > new Date(rp.updated_at)) {
+                        return { ...lp, balance: rp.balance };
+                    }
+                    return rp;
                 });
 
                 await this.local.putMany('parties', merged);
@@ -481,7 +564,7 @@
         },
 
         async saveParty(party) {
-            const id = party.id || U.uuid();
+            const id = party.id || fallbackUuid();
             const now = new Date().toISOString();
 
             const payload = {
@@ -493,7 +576,7 @@
                 email: party.email || null,
                 address: party.address || null,
                 balance: Number(party.balance) || 0,
-                credit_limit: party.credit_limit || 0,
+                credit_limit: Number(party.credit_limit) || 0,
                 notes: party.notes || null,
                 is_active: true,
                 updated_at: now
@@ -506,7 +589,8 @@
                     const { error } = await this.client.from('parties')
                         .upsert(payload, { onConflict: 'id' });
                     if (error) throw error;
-                } catch {
+                } catch (e) {
+                    if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({ type: 'save_party', id, payload });
                 }
             } else {
@@ -526,9 +610,11 @@
 
             if (navigator.onLine && this.client) {
                 try {
-                    await this.client.from('parties')
+                    const { error } = await this.client.from('parties')
                         .update({ deleted_at: new Date().toISOString() }).eq('id', id);
-                } catch {
+                    if (error) throw error;
+                } catch (e) {
+                    if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({ type: 'delete_party', id, payload: { id } });
                 }
             } else {
@@ -539,16 +625,14 @@
             return { success: true };
         },
 
-        // ✅ [FIX #6] حُذف party_balance — يعتمد على transactions كمصدر حقيقة
-
         /* ============================================
-           PAYMENTS — ✅ [FIX #5] RPC ذرّي
+           PAYMENTS — ✅ RPC ذرّي
            ============================================ */
         async addPayment(payment) {
             const client = getClient();
-            const id = U.uuid();
+            const id = payment.id || fallbackUuid();
             const now = new Date().toISOString();
-            const idempotency_key = id; // ✅
+            const idempotency_key = payment.idempotency_key || id;
 
             const payload = {
                 id,
@@ -566,15 +650,19 @@
                 idempotency_key
             };
 
+            if (payload.amount <= 0) {
+                throw new Error('المبلغ يجب أن يكون أكبر من صفر');
+            }
+
             await this.local.put('transactions', payload);
 
-            // تحديث محلي للرصيد
+            // ✅ تحديث الرصيد محليًا (اتفاقية: payment_in يرفع، payment_out يخفض)
             const party = await this.local.get('parties', payment.party_id);
             if (party) {
                 const delta = payment.type === 'payment_in'
-                    ? -payload.amount
-                    : payload.amount;
-                party.balance = U.round((Number(party.balance) || 0) + delta);
+                    ? payload.amount
+                    : -payload.amount;
+                party.balance = round3((Number(party.balance) || 0) + delta);
                 party.updated_at = now;
                 await this.local.put('parties', party);
             }
@@ -584,7 +672,7 @@
                     const { error } = await client.rpc('add_payment_atomic', { p_payment: payload });
                     if (error) throw error;
                 } catch (e) {
-                    console.warn('add_payment_atomic failed, queued', e);
+                    if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({ type: 'add_payment', id, payload });
                 }
             } else {
@@ -593,10 +681,6 @@
 
             MemCache.clear('parties');
             MemCache.clear('transactions');
-            if (window.SessionStore) {
-                window.SessionStore.invalidate?.('offline_parties');
-                window.SessionStore.invalidate?.('offline_transactions');
-            }
 
             return { success: true, id };
         },
@@ -658,25 +742,25 @@
         },
 
         /* ============================================
-           createInvoice — ✅ [FIX #1] idempotency + RPC
+           createInvoice — RPC ذرّي + idempotency
            ============================================ */
         async createInvoice(invoice) {
             if (!invoice.items?.length) throw new Error('لا توجد أصناف في الفاتورة');
 
-            const id = invoice.id || U.uuid();
+            const id = invoice.id || fallbackUuid();
             const now = new Date().toISOString();
-            const idempotency_key = invoice.idempotency_key || id; // ✅
+            const idempotency_key = invoice.idempotency_key || id;
 
             const normalizedItems = invoice.items.map(item => {
                 const productId = item.productId || item.product_id;
                 const unitName  = item.unitName  || item.unit_name;
                 return {
-                    ...item,
                     productId, product_id: productId,
                     unitName,  unit_name:  unitName,
                     quantity: Number(item.quantity) || 0,
                     price:    Number(item.price) || 0,
-                    cost:     Number(item.cost) || 0
+                    cost:     Number(item.cost) || 0,
+                    factor:   Number(item.factor) || 1
                 };
             });
 
@@ -711,6 +795,7 @@
                 idempotency_key
             };
 
+            // المسار السحابي: RPC
             if (navigator.onLine && this.client) {
                 try {
                     const { data, error } = await this.client.rpc(
@@ -718,22 +803,28 @@
                     );
                     if (error) throw error;
 
-                    await this.local.put('invoices', payload);
+                    await this.local.put('invoices', {
+                        ...payload,
+                        invoice_number: data?.invoice_number || payload.invoice_number,
+                        synced_at: now
+                    });
                     await this._applyLocalEffects(payload);
+
                     MemCache.clear();
                     return {
                         success: true, id,
-                        invoice_number: payload.invoice_number,
+                        invoice_number: data?.invoice_number || payload.invoice_number,
                         deduplicated: data?.deduplicated === true
                     };
                 } catch (cloudErr) {
-                    console.warn('RPC failed, queueing', cloudErr);
+                    if (isBusinessError(cloudErr)) throw cloudErr;
                     await SyncQueue.enqueue({ type: 'create_invoice', id, payload });
                 }
             } else {
                 await SyncQueue.enqueue({ type: 'create_invoice', id, payload });
             }
 
+            // المسار الأوفلاين
             await this.local.put('invoices', payload);
             await this._applyLocalEffects(payload);
             MemCache.clear();
@@ -741,12 +832,13 @@
         },
 
         /* ============================================
-           _applyLocalEffects — ✅ [FIX #3] وحدة أساسية موحّدة
+           _applyLocalEffects — يطابق SQL تمامًا
            ============================================ */
         async _applyLocalEffects(invoice) {
             const status = invoice.status || 'paid';
             const type = invoice.type;
 
+            // 1) المخزون
             if (status !== 'held') {
                 let sign = 0;
                 if (type === 'sale') sign = -1;
@@ -756,17 +848,15 @@
 
                 if (sign !== 0) {
                     for (const item of invoice.items) {
-                        const pid  = item.productId || item.product_id;
+                        const pid = item.productId || item.product_id;
                         const uname = item.unitName || item.unit_name;
-                        await this._applyLocalStockDelta(
-                            pid, uname,
-                            sign * (Number(item.quantity) || 0)
-                        );
+                        await this._applyLocalStockDelta(pid, uname,
+                            sign * (Number(item.quantity) || 0));
                     }
                 }
             }
 
-            // رصيد العميل — ✅ نفس معادلة SQL المصححة
+            // 2) رصيد العميل — اتفاقية: سالب = العميل مدين
             if (invoice.customer_id && ['sale','return_sale'].includes(type)) {
                 const cust = await this.local.get('parties', invoice.customer_id);
                 if (cust) {
@@ -774,19 +864,19 @@
                     let delta = 0;
                     if (type === 'sale') {
                         const remaining = Number(invoice.remaining) || 0;
-                        const change    = Number(invoice.change_amount) || 0;
                         const used      = Number(invoice.used_balance) || 0;
-                        delta = remaining - used - change;
+                        delta = -remaining - used;
                     } else {
-                        delta = -(Number(invoice.total) || 0);
+                        // return_sale
+                        delta = Number(invoice.total) || 0;
                     }
-                    cust.balance = U.round(oldBal + delta);
+                    cust.balance = round3(oldBal + delta);
                     cust.updated_at = new Date().toISOString();
                     await this.local.put('parties', cust);
                 }
             }
 
-            // رصيد المورد
+            // 3) رصيد المورد
             if (invoice.supplier_id && ['purchase','return_purchase'].includes(type)) {
                 const sup = await this.local.get('parties', invoice.supplier_id);
                 if (sup) {
@@ -797,37 +887,35 @@
                     } else {
                         delta = -(Number(invoice.total) || 0);
                     }
-                    sup.balance = U.round(oldBal + delta);
+                    sup.balance = round3(oldBal + delta);
                     sup.updated_at = new Date().toISOString();
                     await this.local.put('parties', sup);
                 }
             }
         },
 
-        /* ============================================
-           المخزون المحلي — ✅ [FIX #3] الوحدة الأساسية
-           ============================================ */
         async _applyLocalStockDelta(productId, unitName, qtyInSoldUnit) {
             const product = await this.local.get('products', productId);
             if (!product?.units?.length) return;
 
             const baseUnit = product.units.find(u => u.isBase) || product.units[0];
             const soldUnit = product.units.find(u => u.name === unitName) || baseUnit;
-            const factor = soldUnit === baseUnit ? 1 : (Number(soldUnit.factor) || 1);
+
+            // ✅ factor = 1 إذا كانت الوحدة المباعة هي الأساسية
+            const factor = soldUnit === baseUnit
+                ? 1
+                : (Number(soldUnit.factor) || 1);
 
             const deltaBase = Number(qtyInSoldUnit) * factor;
-
-            // حدّث المخزون على الوحدة الأساسية فقط
             const oldStock = Number(baseUnit.stock) || 0;
             const newStock = oldStock + deltaBase;
 
             if (newStock < 0) {
-                console.warn(`⚠️ مخزون سالب: ${product.name} (${oldStock} → ${newStock})`);
+                console.warn(`⚠️ مخزون سالب محلي: ${product.name} (${oldStock} → ${newStock})`);
             }
 
             baseUnit.stock = newStock;
             product.stock_updated_at = new Date().toISOString();
-
             await this.local.put('products', product);
             MemCache.clear('products');
         },
@@ -858,12 +946,17 @@
             const tenantId = getTenantId();
             await this.local.put('settings', { id: 'app_settings', data });
 
+            const push = async () => {
+                return await this.client.from('settings')
+                    .upsert({ tenant_id: tenantId, data }, { onConflict: 'tenant_id' });
+            };
+
             if (tenantId && navigator.onLine && this.client) {
                 try {
-                    const { error } = await this.client.from('settings')
-                        .upsert({ tenant_id: tenantId, data }, { onConflict: 'tenant_id' });
+                    const { error } = await push();
                     if (error) throw error;
-                } catch {
+                } catch (e) {
+                    if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({
                         type: 'save_settings', id: tenantId,
                         payload: { tenant_id: tenantId, data }
@@ -880,7 +973,6 @@
 
         /* ============================================
            generateInvoiceNumber — ✅ [FIX #7]
-           الخادم أولاً، والـ offline يبدأ من نطاق عالٍ
            ============================================ */
         async generateInvoiceNumber() {
             const deviceId = getDeviceId();
@@ -895,11 +987,11 @@
                 }
             }
 
-            // ✅ [FIX #7] نطاق OFFLINE يبدأ من 9000 لتجنب التصادم
+            // ✅ نطاق OFFLINE يبدأ من 9000 لتجنب التصادم
             const year = new Date().getFullYear().toString().slice(-2);
             const key = `invoice_counter_${year}_${deviceId}`;
             let current = parseInt(localStorage.getItem(key) || '8999', 10);
-            if (current < 8999) current = 8999;
+            if (!Number.isFinite(current) || current < 8999) current = 8999;
             const next = current + 1;
             localStorage.setItem(key, String(next));
 
@@ -907,7 +999,7 @@
         },
 
         /* ============================================
-           STOCK MOVEMENTS / MISC
+           STOCK MOVEMENTS / SYNC STATUS
            ============================================ */
         async getStockMovements(productId = null, limit = 100) {
             if (!navigator.onLine || !this.client) return [];
@@ -923,14 +1015,20 @@
 
         async getPendingSyncCount() { return await SyncQueue.pendingCount(); },
 
-        async getFailedSyncCount() {
-            return (await this.local.getAll('failed_sync') || []).length;
+        async getFailedSync() {
+            return await this.local.getAll('failed_sync') || [];
         },
+
+        async getFailedSyncCount() {
+            return (await this.getFailedSync()).length;
+        },
+
+        async clearFailedSync() { return await SyncQueue.clearFailed(); },
 
         clearCache() { MemCache.clear(); },
 
         /* ============================================
-           Cleanup كامل عند تسجيل الخروج — ✅ [FIX #3 في auth]
+           wipeLocalData عند تسجيل الخروج
            ============================================ */
         async wipeLocalData({ includePendingQueue = false } = {}) {
             await this.local.clear('products');
@@ -945,6 +1043,15 @@
             MemCache.clear();
         }
     };
+
+    // helper مشترك
+    function round3(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 0;
+        const f = 1000;
+        const s = n * f;
+        return Math.round(s + (s >= 0 ? 1e-9 : -1e-9)) / f;
+    }
 
     window.addEventListener('load', () => {
         window.DB.init().catch(e => console.error('DB init error', e));
