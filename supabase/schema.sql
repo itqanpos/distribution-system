@@ -1,13 +1,18 @@
 -- =====================================================
--- Hesaby POS - Complete Schema v4.0
--- Atomic Operations + Stock Movements + Tenant Isolation
+-- Hesaby POS - Complete Schema v4.1 (Fixed)
+-- Fixes:
+--   [1] profiles_update_self: منع تغيير role/tenant_id
+--   [2] handle_new_user trigger: إنشاء profile تلقائياً
+--   [3] create_invoice_atomic: idempotency صحيح + تحقق مالي
+--   [4] apply_stock_delta: تحديث الوحدة الأساسية + صلاحيات
+--   [5] parties.balance: NOT NULL + isfinite
+--   [6] باركود فريد
+--   [7] add_payment_atomic: RPC ذرّي جديد
+--   [8] سياسات admin للملفات الشخصية
 -- =====================================================
 
--- تحذير: هذا الملف يقوم بحذف كل الجداول!
--- استخدمه فقط لتنصيب جديد.
-
 DROP TABLE IF EXISTS
-    stock_movements, invoice_counters, sync_log, system_logs, sequences,
+    stock_movements, invoice_counters, system_logs, sequences,
     settings, transactions, invoices, parties, product_units, products,
     profiles, tenants
 CASCADE;
@@ -17,8 +22,8 @@ CASCADE;
 -- =====================================================
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    plan TEXT DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'enterprise', 'expired')),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0 AND length(name) <= 200),
+    plan TEXT DEFAULT 'free' CHECK (plan IN ('free','pro','enterprise','expired')),
     phone TEXT,
     email TEXT,
     address TEXT,
@@ -29,7 +34,7 @@ CREATE TABLE tenants (
 );
 
 -- =====================================================
--- 2. PROFILES (مرتبط بـ auth.users)
+-- 2. PROFILES
 -- =====================================================
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -37,7 +42,7 @@ CREATE TABLE profiles (
     full_name TEXT,
     email TEXT,
     phone TEXT,
-    role TEXT DEFAULT 'rep' CHECK (role IN ('super_admin', 'admin', 'rep')),
+    role TEXT DEFAULT 'rep' CHECK (role IN ('super_admin','admin','rep')),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -47,31 +52,37 @@ CREATE TABLE profiles (
 CREATE INDEX idx_profiles_tenant ON profiles(tenant_id) WHERE deleted_at IS NULL;
 
 -- =====================================================
--- 3. HELPER: get_my_tenant_id (يقرأ من JWT أولًا)
+-- 3. HELPER FUNCTIONS
 -- =====================================================
 CREATE OR REPLACE FUNCTION get_my_tenant_id()
 RETURNS UUID
-LANGUAGE SQL
-SECURITY DEFINER
-STABLE
+LANGUAGE SQL SECURITY DEFINER STABLE
 SET search_path = public
 AS $$
     SELECT COALESCE(
-        -- المسار السريع: من JWT
         NULLIF(current_setting('request.jwt.claims', true)::jsonb
                -> 'app_metadata' ->> 'tenant_id', '')::uuid,
-        -- المسار البطيء: من profiles
         (SELECT tenant_id FROM profiles WHERE id = auth.uid() LIMIT 1)
     );
 $$;
 
--- =====================================================
--- 4. SYNC tenant_id إلى app_metadata (للتسريع)
--- =====================================================
+CREATE OR REPLACE FUNCTION is_my_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL SECURITY DEFINER STABLE
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = auth.uid()
+          AND role IN ('admin','super_admin')
+          AND is_active = TRUE
+          AND deleted_at IS NULL
+    );
+$$;
+
 CREATE OR REPLACE FUNCTION sync_tenant_to_jwt()
 RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
@@ -89,13 +100,38 @@ CREATE TRIGGER trg_profiles_sync_tenant
 AFTER INSERT OR UPDATE OF tenant_id ON profiles
 FOR EACH ROW EXECUTE FUNCTION sync_tenant_to_jwt();
 
+-- ✅ [FIX #2] إنشاء profile تلقائياً عند تسجيل مستخدم جديد
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.profiles (id, full_name, email, phone, role)
+    VALUES (
+        NEW.id,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+        'rep'   -- ← لا نُعطي admin من العميل؛ يُرقّى لاحقاً عبر create_my_tenant
+    )
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- =====================================================
--- 5. PRODUCTS
+-- 4. PRODUCTS
 -- =====================================================
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
     code TEXT,
     barcode TEXT,
     category TEXT,
@@ -107,7 +143,7 @@ CREATE TABLE products (
 );
 
 -- =====================================================
--- 6. PRODUCT_UNITS (مع tenant_id للـ RLS السريع)
+-- 5. PRODUCT_UNITS
 -- =====================================================
 CREATE TABLE product_units (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -118,7 +154,7 @@ CREATE TABLE product_units (
     price NUMERIC NOT NULL DEFAULT 0 CHECK (price >= 0),
     cost NUMERIC NOT NULL DEFAULT 0 CHECK (cost >= 0),
     factor NUMERIC NOT NULL DEFAULT 1 CHECK (factor > 0),
-    stock NUMERIC NOT NULL DEFAULT 0,
+    stock NUMERIC NOT NULL DEFAULT 0 CHECK (isfinite(stock)),
     min_price NUMERIC DEFAULT 0 CHECK (min_price >= 0),
     max_price NUMERIC DEFAULT 0 CHECK (max_price >= 0),
     is_base BOOLEAN DEFAULT FALSE,
@@ -127,23 +163,33 @@ CREATE TABLE product_units (
     UNIQUE (product_id, unit_name)
 );
 
--- ضمان وجود وحدة أساسية واحدة فقط لكل منتج
 CREATE UNIQUE INDEX idx_product_units_one_base
     ON product_units(product_id) WHERE is_base = TRUE;
 
+-- ✅ [FIX #6] باركود فريد
+CREATE UNIQUE INDEX uq_products_barcode
+    ON products(tenant_id, barcode)
+    WHERE barcode IS NOT NULL AND deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_product_units_barcode
+    ON product_units(tenant_id, barcode)
+    WHERE barcode IS NOT NULL;
+
 -- =====================================================
--- 7. PARTIES
+-- 6. PARTIES
 -- =====================================================
 CREATE TABLE parties (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL DEFAULT 'customer' CHECK (type IN ('customer', 'supplier', 'both')),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    type TEXT NOT NULL DEFAULT 'customer'
+        CHECK (type IN ('customer','supplier','both')),
     phone TEXT,
     email TEXT,
     address TEXT,
-    balance NUMERIC DEFAULT 0 CHECK (balance = balance), -- منع NaN
-    credit_limit NUMERIC DEFAULT 0 CHECK (credit_limit >= 0),
+    -- ✅ [FIX #5] NOT NULL + isfinite (يمنع NaN و Infinity)
+    balance NUMERIC NOT NULL DEFAULT 0 CHECK (isfinite(balance)),
+    credit_limit NUMERIC NOT NULL DEFAULT 0 CHECK (credit_limit >= 0),
     notes TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -152,72 +198,62 @@ CREATE TABLE parties (
 );
 
 -- =====================================================
--- 8. INVOICES (مع device_id + idempotency)
+-- 7. INVOICES
 -- =====================================================
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    invoice_number TEXT NOT NULL,
+    invoice_number TEXT NOT NULL CHECK (length(trim(invoice_number)) > 0),
     type TEXT NOT NULL DEFAULT 'sale'
-        CHECK (type IN ('sale', 'purchase', 'return_sale', 'return_purchase', 'adjustment')),
+        CHECK (type IN ('sale','purchase','return_sale','return_purchase','adjustment')),
     date DATE NOT NULL DEFAULT CURRENT_DATE,
-
     customer_id UUID REFERENCES parties(id) ON DELETE SET NULL,
     customer_name TEXT,
     supplier_id UUID REFERENCES parties(id) ON DELETE SET NULL,
     supplier_name TEXT,
-
-    items JSONB NOT NULL DEFAULT '[]'::jsonb,
-
-    subtotal NUMERIC NOT NULL DEFAULT 0,
-    discount NUMERIC DEFAULT 0 CHECK (discount >= 0),
-    total NUMERIC NOT NULL DEFAULT 0,
-
-    cash_paid NUMERIC DEFAULT 0 CHECK (cash_paid >= 0),
-    transfer_paid NUMERIC DEFAULT 0 CHECK (transfer_paid >= 0),
-    card_paid NUMERIC DEFAULT 0 CHECK (card_paid >= 0),
-    used_balance NUMERIC DEFAULT 0 CHECK (used_balance >= 0),
-    paid NUMERIC DEFAULT 0 CHECK (paid >= 0),
-    remaining NUMERIC DEFAULT 0,
-    change_amount NUMERIC DEFAULT 0 CHECK (change_amount >= 0),
-
+    items JSONB NOT NULL DEFAULT '[]'::jsonb
+        CHECK (jsonb_typeof(items) = 'array'),
+    subtotal NUMERIC NOT NULL DEFAULT 0 CHECK (isfinite(subtotal)),
+    discount NUMERIC NOT NULL DEFAULT 0 CHECK (discount >= 0 AND isfinite(discount)),
+    total NUMERIC NOT NULL DEFAULT 0 CHECK (isfinite(total)),
+    cash_paid NUMERIC NOT NULL DEFAULT 0 CHECK (cash_paid >= 0),
+    transfer_paid NUMERIC NOT NULL DEFAULT 0 CHECK (transfer_paid >= 0),
+    card_paid NUMERIC NOT NULL DEFAULT 0 CHECK (card_paid >= 0),
+    used_balance NUMERIC NOT NULL DEFAULT 0 CHECK (used_balance >= 0),
+    paid NUMERIC NOT NULL DEFAULT 0 CHECK (paid >= 0),
+    remaining NUMERIC NOT NULL DEFAULT 0,
+    change_amount NUMERIC NOT NULL DEFAULT 0 CHECK (change_amount >= 0),
     payment_method TEXT DEFAULT 'cash'
-        CHECK (payment_method IN ('cash', 'card', 'transfer', 'credit', 'mixed')),
+        CHECK (payment_method IN ('cash','card','transfer','credit','mixed')),
     status TEXT DEFAULT 'paid'
-        CHECK (status IN ('paid', 'partial', 'credit', 'held', 'voided')),
-
+        CHECK (status IN ('paid','partial','credit','held','voided')),
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
     created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-
-    -- ← إضافات جديدة
     device_id TEXT,
     idempotency_key TEXT,
     synced_at TIMESTAMPTZ,
-
-    -- منع تكرار رقم الفاتورة داخل نفس المستأجر
     CONSTRAINT uq_invoice_number UNIQUE (tenant_id, invoice_number)
 );
 
--- منع تكرار نفس الفاتورة عند إعادة الإرسال
 CREATE UNIQUE INDEX uq_invoices_idempotency
     ON invoices(tenant_id, idempotency_key)
     WHERE idempotency_key IS NOT NULL;
 
 -- =====================================================
--- 9. TRANSACTIONS (الجدول المفقود — ضروري)
+-- 8. TRANSACTIONS
 -- =====================================================
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    type TEXT NOT NULL CHECK (type IN ('payment_in', 'payment_out', 'adjustment')),
-    amount NUMERIC NOT NULL CHECK (amount > 0),
+    type TEXT NOT NULL CHECK (type IN ('payment_in','payment_out','adjustment')),
+    amount NUMERIC NOT NULL CHECK (amount > 0 AND isfinite(amount)),
     party_id UUID REFERENCES parties(id) ON DELETE SET NULL,
     invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
     payment_method TEXT DEFAULT 'cash'
-        CHECK (payment_method IN ('cash', 'card', 'transfer', 'credit', 'mixed')),
+        CHECK (payment_method IN ('cash','card','transfer','credit','mixed')),
     reference TEXT,
     notes TEXT,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -232,7 +268,7 @@ CREATE UNIQUE INDEX uq_transactions_idempotency
     WHERE idempotency_key IS NOT NULL;
 
 -- =====================================================
--- 10. STOCK_MOVEMENTS (تدقيق المخزون)
+-- 9. STOCK_MOVEMENTS
 -- =====================================================
 CREATE TABLE stock_movements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -244,8 +280,8 @@ CREATE TABLE stock_movements (
     stock_before NUMERIC NOT NULL DEFAULT 0,
     stock_after NUMERIC NOT NULL,
     reason TEXT NOT NULL CHECK (reason IN (
-        'sale', 'purchase', 'return_sale', 'return_purchase',
-        'adjustment', 'transfer', 'inventory', 'correction'
+        'sale','purchase','return_sale','return_purchase',
+        'adjustment','transfer','inventory','correction'
     )),
     reference_type TEXT,
     reference_id UUID,
@@ -256,7 +292,7 @@ CREATE TABLE stock_movements (
 );
 
 -- =====================================================
--- 11. INVOICE_COUNTERS (أرقام الفواتير لكل جهاز — اختياري)
+-- 10. INVOICE_COUNTERS / SEQUENCES / SETTINGS / LOGS
 -- =====================================================
 CREATE TABLE invoice_counters (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -267,9 +303,6 @@ CREATE TABLE invoice_counters (
     PRIMARY KEY (tenant_id, year, device_id)
 );
 
--- =====================================================
--- 12. SEQUENCES (per-tenant الآن)
--- =====================================================
 CREATE TABLE sequences (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -278,23 +311,17 @@ CREATE TABLE sequences (
     PRIMARY KEY (tenant_id, name)
 );
 
--- =====================================================
--- 13. SETTINGS
--- =====================================================
 CREATE TABLE settings (
     tenant_id UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
     data JSONB DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- =====================================================
--- 14. SYSTEM_LOGS
--- =====================================================
 CREATE TABLE system_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    level TEXT DEFAULT 'error' CHECK (level IN ('info', 'warn', 'error', 'fatal')),
+    level TEXT DEFAULT 'error' CHECK (level IN ('info','warn','error','fatal')),
     message TEXT,
     stack TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
@@ -304,103 +331,77 @@ CREATE TABLE system_logs (
 CREATE INDEX idx_system_logs_tenant_time ON system_logs(tenant_id, created_at DESC);
 
 -- =====================================================
--- INDEXES
+-- 11. INDEXES
 -- =====================================================
-CREATE INDEX idx_products_tenant ON products(tenant_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_products_barcode ON products(tenant_id, barcode) WHERE deleted_at IS NULL;
+CREATE INDEX idx_products_tenant      ON products(tenant_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_product_units_tenant ON product_units(tenant_id);
 CREATE INDEX idx_product_units_product ON product_units(product_id);
-CREATE INDEX idx_product_units_barcode ON product_units(tenant_id, barcode) WHERE barcode IS NOT NULL;
-
-CREATE INDEX idx_parties_tenant ON parties(tenant_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_parties_type ON parties(tenant_id, type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_parties_phone ON parties(tenant_id, phone) WHERE phone IS NOT NULL;
-
-CREATE INDEX idx_invoices_tenant ON invoices(tenant_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_invoices_date ON invoices(tenant_id, date DESC) WHERE deleted_at IS NULL;
-CREATE INDEX idx_invoices_customer ON invoices(tenant_id, customer_id, date DESC) WHERE deleted_at IS NULL;
-CREATE INDEX idx_invoices_supplier ON invoices(tenant_id, supplier_id, date DESC) WHERE deleted_at IS NULL;
-CREATE INDEX idx_invoices_status ON invoices(tenant_id, status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_invoices_number ON invoices(tenant_id, invoice_number);
-
-CREATE INDEX idx_transactions_tenant ON transactions(tenant_id, date DESC);
-CREATE INDEX idx_transactions_party ON transactions(tenant_id, party_id, date DESC);
+CREATE INDEX idx_parties_tenant       ON parties(tenant_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_parties_type         ON parties(tenant_id, type) WHERE deleted_at IS NULL;
+CREATE INDEX idx_parties_phone        ON parties(tenant_id, phone) WHERE phone IS NOT NULL;
+CREATE INDEX idx_invoices_tenant      ON invoices(tenant_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_invoices_date        ON invoices(tenant_id, date DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_invoices_customer    ON invoices(tenant_id, customer_id, date DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_invoices_supplier    ON invoices(tenant_id, supplier_id, date DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_invoices_status      ON invoices(tenant_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_invoices_number      ON invoices(tenant_id, invoice_number);
+CREATE INDEX idx_transactions_tenant  ON transactions(tenant_id, date DESC);
+CREATE INDEX idx_transactions_party   ON transactions(tenant_id, party_id, date DESC);
 CREATE INDEX idx_transactions_invoice ON transactions(invoice_id);
-
-CREATE INDEX idx_stock_movements_tenant ON stock_movements(tenant_id, created_at DESC);
+CREATE INDEX idx_stock_movements_tenant  ON stock_movements(tenant_id, created_at DESC);
 CREATE INDEX idx_stock_movements_product ON stock_movements(product_id, created_at DESC);
-CREATE INDEX idx_stock_movements_ref ON stock_movements(reference_id) WHERE reference_id IS NOT NULL;
+CREATE INDEX idx_stock_movements_ref     ON stock_movements(reference_id) WHERE reference_id IS NOT NULL;
 
 -- =====================================================
--- FUNCTIONS
+-- 12. SEQUENCE FUNCTIONS
 -- =====================================================
-
--- أرقام الفواتير — per-tenant
 CREATE OR REPLACE FUNCTION next_sequence(p_name TEXT)
 RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_next BIGINT;
-    v_year TEXT;
-    v_tenant UUID;
+    v_next BIGINT; v_year TEXT; v_tenant UUID;
 BEGIN
     v_tenant := get_my_tenant_id();
-    IF v_tenant IS NULL THEN
-        RAISE EXCEPTION 'No tenant for current user' USING errcode = 'P0001';
-    END IF;
-
+    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant' USING errcode='P0001'; END IF;
     v_year := TO_CHAR(NOW(), 'YY');
-
     INSERT INTO sequences (tenant_id, name, current_value, updated_at)
     VALUES (v_tenant, p_name, 1, NOW())
     ON CONFLICT (tenant_id, name)
     DO UPDATE SET current_value = sequences.current_value + 1, updated_at = NOW()
     RETURNING current_value INTO v_next;
-
     RETURN v_year || '-' || LPAD(v_next::TEXT, 4, '0');
 END;
 $$;
 
--- رقم فاتورة مع device_id (لمنع تصادم الأوفلاين)
 CREATE OR REPLACE FUNCTION next_invoice_number(p_device_id TEXT)
 RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_next BIGINT;
-    v_year TEXT;
-    v_tenant UUID;
-    v_device_short TEXT;
+    v_next BIGINT; v_year TEXT; v_tenant UUID; v_dev TEXT;
 BEGIN
     v_tenant := get_my_tenant_id();
-    IF v_tenant IS NULL THEN
-        RAISE EXCEPTION 'No tenant for current user';
-    END IF;
-
+    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant'; END IF;
     v_year := TO_CHAR(NOW(), 'YY');
-    v_device_short := UPPER(LEFT(COALESCE(NULLIF(p_device_id, ''), 'GEN'), 4));
-
+    v_dev  := UPPER(LEFT(COALESCE(NULLIF(p_device_id,''),'GEN'), 4));
     INSERT INTO invoice_counters (tenant_id, year, device_id, last_number)
-    VALUES (v_tenant, v_year, v_device_short, 1)
+    VALUES (v_tenant, v_year, v_dev, 1)
     ON CONFLICT (tenant_id, year, device_id)
-    DO UPDATE SET last_number = invoice_counters.last_number + 1,
-                  updated_at = NOW()
+    DO UPDATE SET last_number = invoice_counters.last_number + 1, updated_at = NOW()
     RETURNING last_number INTO v_next;
-
-    RETURN v_year || '-' || v_device_short || '-' || LPAD(v_next::TEXT, 4, '0');
+    RETURN v_year || '-' || v_dev || '-' || LPAD(v_next::TEXT, 4, '0');
 END;
 $$;
 
--- إنشاء tenant
+-- =====================================================
+-- 13. CREATE_MY_TENANT (يرقّي المستخدم إلى admin)
+-- =====================================================
 CREATE OR REPLACE FUNCTION create_my_tenant(p_tenant_name TEXT)
 RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
@@ -410,28 +411,41 @@ BEGIN
     v_user_id := auth.uid();
     IF v_user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
 
-    -- منع إنشاء tenant ثانٍ لنفس المستخدم
-    IF EXISTS (SELECT 1 FROM profiles WHERE id = v_user_id AND tenant_id IS NOT NULL) THEN
+    IF p_tenant_name IS NULL OR length(trim(p_tenant_name)) = 0 THEN
+        RAISE EXCEPTION 'Tenant name required' USING errcode='P0004';
+    END IF;
+
+    -- موجود مسبقاً؟
+    SELECT tenant_id INTO v_tenant_id FROM profiles WHERE id = v_user_id;
+    IF v_tenant_id IS NOT NULL THEN
         RAISE EXCEPTION 'User already has a tenant';
     END IF;
 
-    INSERT INTO tenants (name) VALUES (p_tenant_name) RETURNING id INTO v_tenant_id;
+    INSERT INTO tenants (name) VALUES (trim(p_tenant_name))
+    RETURNING id INTO v_tenant_id;
 
-    UPDATE profiles SET tenant_id = v_tenant_id WHERE id = v_user_id;
+    -- ترقية إلى admin + ربط المستأجر
+    UPDATE profiles
+       SET tenant_id = v_tenant_id,
+           role = 'admin'
+     WHERE id = v_user_id;
 
-    INSERT INTO settings (tenant_id, data) VALUES (v_tenant_id, '{}'::jsonb);
+    INSERT INTO settings (tenant_id, data) VALUES (v_tenant_id, '{}'::jsonb)
+    ON CONFLICT (tenant_id) DO NOTHING;
 
     RETURN v_tenant_id;
 END;
 $$;
 
 -- =====================================================
--- STOCK MANAGEMENT (ذرّي + مُدقَّق)
+-- 14. APPLY_STOCK_DELTA (مُصلح)
+-- ✅ يحدّث الوحدة الأساسية دائماً
+-- ✅ يمنع non-admin من corrections
 -- =====================================================
 CREATE OR REPLACE FUNCTION apply_stock_delta(
     p_product_id UUID,
     p_unit_name TEXT,
-    p_delta NUMERIC,
+    p_delta NUMERIC,               -- الكمية بوحدة البيع (تُضرب بالـ factor داخلياً)
     p_reason TEXT,
     p_reference_id UUID DEFAULT NULL,
     p_reference_type TEXT DEFAULT NULL,
@@ -439,45 +453,70 @@ CREATE OR REPLACE FUNCTION apply_stock_delta(
     p_device_id TEXT DEFAULT NULL
 )
 RETURNS TABLE (unit_id UUID, stock_before NUMERIC, stock_after NUMERIC)
-LANGUAGE plpgsql
-SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_unit RECORD;
+    v_base RECORD;
+    v_sold RECORD;
+    v_factor NUMERIC;
+    v_delta_base NUMERIC;
     v_before NUMERIC;
     v_after NUMERIC;
     v_tenant UUID;
 BEGIN
     v_tenant := get_my_tenant_id();
-    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant'; END IF;
+    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant' USING errcode='P0001'; END IF;
 
-    -- قفل الصف لمنع السباق
-    SELECT id, stock, tenant_id
-      INTO v_unit
+    -- ✅ [FIX #4] فقط admin يمكنه corrections
+    IF p_reason IN ('correction','adjustment','inventory') AND NOT is_my_admin() THEN
+        RAISE EXCEPTION 'Only admins can perform % operations', p_reason USING errcode='P0003';
+    END IF;
+
+    -- احصل على factor وحدة البيع
+    SELECT id, factor, unit_name INTO v_sold
       FROM product_units
      WHERE product_id = p_product_id
        AND unit_name = p_unit_name
+       AND tenant_id = v_tenant;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Unit not found: % / %', p_product_id, p_unit_name USING errcode='P0001';
+    END IF;
+
+    v_factor := COALESCE(v_sold.factor, 1);
+    v_delta_base := p_delta * v_factor;
+
+    -- اقفل وحدّث الوحدة الأساسية
+    SELECT id, stock INTO v_base
+      FROM product_units
+     WHERE product_id = p_product_id
+       AND is_base = TRUE
        AND tenant_id = v_tenant
      FOR UPDATE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Unit not found: % / %', p_product_id, p_unit_name
-            USING errcode = 'P0001';
+        SELECT id, stock INTO v_base
+          FROM product_units
+         WHERE product_id = p_product_id AND tenant_id = v_tenant
+         ORDER BY is_base DESC, created_at LIMIT 1
+         FOR UPDATE;
     END IF;
 
-    v_before := COALESCE(v_unit.stock, 0);
-    v_after := v_before + p_delta;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'No units for product %', p_product_id USING errcode='P0001';
+    END IF;
+
+    v_before := COALESCE(v_base.stock, 0);
+    v_after  := v_before + v_delta_base;
 
     IF v_after < 0 THEN
         RAISE EXCEPTION 'Insufficient stock for % (%): have %, need %',
-            p_product_id, p_unit_name, v_before, ABS(p_delta)
-            USING errcode = 'P0002';
+            p_product_id, p_unit_name, v_before, ABS(v_delta_base)
+            USING errcode='P0002';
     END IF;
 
-    UPDATE product_units
-       SET stock = v_after, updated_at = NOW()
-     WHERE id = v_unit.id;
+    UPDATE product_units SET stock = v_after, updated_at = NOW() WHERE id = v_base.id;
 
     INSERT INTO stock_movements (
         tenant_id, product_id, unit_id, unit_name,
@@ -485,50 +524,117 @@ BEGIN
         reason, reference_type, reference_id,
         user_id, device_id, notes
     ) VALUES (
-        v_tenant, p_product_id, v_unit.id, p_unit_name,
-        p_delta, v_before, v_after,
+        v_tenant, p_product_id, v_base.id, p_unit_name,
+        v_delta_base, v_before, v_after,
         p_reason, p_reference_type, p_reference_id,
         auth.uid(), p_device_id, p_notes
     );
 
-    RETURN QUERY SELECT v_unit.id, v_before, v_after;
+    RETURN QUERY SELECT v_base.id, v_before, v_after;
 END;
 $$;
 
 -- =====================================================
--- ATOMIC INVOICE CREATION
+-- 15. CREATE_INVOICE_ATOMIC (مُصلح بالكامل)
+-- ✅ idempotency يعمل
+-- ✅ تحقق مالي
+-- ✅ تحقق من items
 -- =====================================================
 CREATE OR REPLACE FUNCTION create_invoice_atomic(p_invoice JSONB)
 RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
     v_tenant UUID;
     v_invoice_id UUID;
+    v_idempotency TEXT;
+    v_existing UUID;
     v_type TEXT;
     v_status TEXT;
     v_customer_id UUID;
     v_supplier_id UUID;
     v_item JSONB;
+    v_items JSONB;
     v_sign INTEGER;
     v_old_bal NUMERIC;
     v_new_bal NUMERIC;
     v_remaining NUMERIC;
     v_change NUMERIC;
     v_used_bal NUMERIC;
+    v_subtotal NUMERIC := 0;
+    v_computed_subtotal NUMERIC := 0;
+    v_discount NUMERIC;
+    v_total NUMERIC;
+    v_invoice_number TEXT;
+    v_qty NUMERIC;
+    v_price NUMERIC;
 BEGIN
     v_tenant := get_my_tenant_id();
-    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant'; END IF;
+    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant' USING errcode='P0001'; END IF;
 
-    v_invoice_id := COALESCE((p_invoice->>'id')::uuid, gen_random_uuid());
-    v_type := COALESCE(p_invoice->>'type', 'sale');
-    v_status := COALESCE(p_invoice->>'status', 'paid');
-    v_customer_id := NULLIF(p_invoice->>'customer_id', '')::uuid;
-    v_supplier_id := NULLIF(p_invoice->>'supplier_id', '')::uuid;
+    v_invoice_id     := COALESCE((p_invoice->>'id')::uuid, gen_random_uuid());
+    v_idempotency    := NULLIF(p_invoice->>'idempotency_key', '');
+    v_type           := COALESCE(p_invoice->>'type', 'sale');
+    v_status         := COALESCE(p_invoice->>'status', 'paid');
+    v_customer_id    := NULLIF(p_invoice->>'customer_id', '')::uuid;
+    v_supplier_id    := NULLIF(p_invoice->>'supplier_id', '')::uuid;
+    v_invoice_number := NULLIF(trim(p_invoice->>'invoice_number'), '');
+    v_items          := COALESCE(p_invoice->'items', '[]'::jsonb);
 
-    -- 1) إدراج الفاتورة
+    IF v_invoice_number IS NULL THEN
+        RAISE EXCEPTION 'invoice_number required' USING errcode='P0004';
+    END IF;
+    IF jsonb_typeof(v_items) <> 'array' THEN
+        RAISE EXCEPTION 'items must be array' USING errcode='P0004';
+    END IF;
+
+    -- ✅ [FIX #3] Idempotency فعلي
+    IF v_idempotency IS NOT NULL THEN
+        SELECT id INTO v_existing FROM invoices
+         WHERE tenant_id = v_tenant AND idempotency_key = v_idempotency LIMIT 1;
+        IF FOUND THEN
+            RETURN jsonb_build_object('success', true, 'id', v_existing, 'deduplicated', true);
+        END IF;
+    END IF;
+
+    SELECT id INTO v_existing FROM invoices WHERE id = v_invoice_id;
+    IF FOUND THEN
+        RETURN jsonb_build_object('success', true, 'id', v_existing, 'deduplicated', true);
+    END IF;
+
+    -- ✅ [FIX #8] تحقق من items + حساب subtotal من الخادم
+    FOR v_item IN SELECT * FROM jsonb_array_elements(v_items)
+    LOOP
+        IF COALESCE(v_item->>'productId', v_item->>'product_id') IS NULL THEN
+            RAISE EXCEPTION 'item missing productId' USING errcode='P0005';
+        END IF;
+        v_qty   := COALESCE((v_item->>'quantity')::numeric, 0);
+        v_price := COALESCE((v_item->>'price')::numeric, 0);
+        IF v_qty <= 0 THEN
+            RAISE EXCEPTION 'quantity must be > 0 (item %)' , v_item->>'productId' USING errcode='P0005';
+        END IF;
+        IF v_price < 0 THEN
+            RAISE EXCEPTION 'price must be >= 0' USING errcode='P0005';
+        END IF;
+        v_computed_subtotal := v_computed_subtotal + (v_qty * v_price);
+    END LOOP;
+
+    v_discount := COALESCE((p_invoice->>'discount')::numeric, 0);
+    v_total    := COALESCE((p_invoice->>'total')::numeric, 0);
+    v_subtotal := COALESCE((p_invoice->>'subtotal')::numeric, 0);
+
+    -- ✅ [FIX #3] التحقق المالي
+    IF ABS(v_subtotal - v_computed_subtotal) > 0.01 THEN
+        RAISE EXCEPTION 'subtotal mismatch: computed %, provided %',
+            v_computed_subtotal, v_subtotal USING errcode='P0006';
+    END IF;
+    IF ABS(v_total - (v_computed_subtotal - v_discount)) > 0.01 THEN
+        RAISE EXCEPTION 'total mismatch: expected %, provided %',
+            (v_computed_subtotal - v_discount), v_total USING errcode='P0006';
+    END IF;
+
+    -- إدراج الفاتورة
     INSERT INTO invoices (
         id, tenant_id, invoice_number, type, date,
         customer_id, customer_name, supplier_id, supplier_name,
@@ -537,18 +643,11 @@ BEGIN
         paid, remaining, change_amount, payment_method, status,
         notes, created_by, device_id, idempotency_key, synced_at
     ) VALUES (
-        v_invoice_id, v_tenant,
-        p_invoice->>'invoice_number',
-        v_type,
+        v_invoice_id, v_tenant, v_invoice_number, v_type,
         COALESCE((p_invoice->>'date')::date, CURRENT_DATE),
-        v_customer_id,
-        p_invoice->>'customer_name',
-        v_supplier_id,
-        p_invoice->>'supplier_name',
-        COALESCE(p_invoice->'items', '[]'::jsonb),
-        COALESCE((p_invoice->>'subtotal')::numeric, 0),
-        COALESCE((p_invoice->>'discount')::numeric, 0),
-        COALESCE((p_invoice->>'total')::numeric, 0),
+        v_customer_id, p_invoice->>'customer_name',
+        v_supplier_id, p_invoice->>'supplier_name',
+        v_items, v_computed_subtotal, v_discount, v_total,
         COALESCE((p_invoice->>'cash_paid')::numeric, 0),
         COALESCE((p_invoice->>'transfer_paid')::numeric, 0),
         COALESCE((p_invoice->>'card_paid')::numeric, 0),
@@ -561,12 +660,11 @@ BEGIN
         p_invoice->>'notes',
         auth.uid(),
         p_invoice->>'device_id',
-        p_invoice->>'idempotency_key',
+        v_idempotency,
         NOW()
-    )
-    ON CONFLICT (id) DO NOTHING;
+    );
 
-    -- 2) المخزون (فقط إذا ليست معلقة)
+    -- المخزون
     IF v_status <> 'held' THEN
         v_sign := CASE
             WHEN v_type = 'sale'            THEN -1
@@ -577,46 +675,44 @@ BEGIN
         END;
 
         IF v_sign <> 0 THEN
-            FOR v_item IN SELECT * FROM jsonb_array_elements(COALESCE(p_invoice->'items', '[]'::jsonb))
+            FOR v_item IN SELECT * FROM jsonb_array_elements(v_items)
             LOOP
                 PERFORM apply_stock_delta(
-                    (v_item->>'productId')::uuid,
+                    (COALESCE(v_item->>'productId', v_item->>'product_id'))::uuid,
                     COALESCE(v_item->>'unitName', v_item->>'unit_name'),
-                    v_sign * (COALESCE((v_item->>'quantity')::numeric, 0)
-                              * COALESCE((v_item->>'factor')::numeric, 1)),
+                    v_sign * (COALESCE((v_item->>'quantity')::numeric, 0)),
                     v_type,
-                    v_invoice_id,
-                    'invoice',
-                    NULL,
+                    v_invoice_id, 'invoice', NULL,
                     p_invoice->>'device_id'
                 );
             END LOOP;
         END IF;
     END IF;
 
-    -- 3) رصيد العميل
+    -- ✅ رصيد العميل (بعد الإصلاح)
     IF v_customer_id IS NOT NULL AND v_type IN ('sale','return_sale') THEN
         SELECT balance INTO v_old_bal FROM parties
          WHERE id = v_customer_id AND tenant_id = v_tenant FOR UPDATE;
 
         IF FOUND THEN
             v_remaining := COALESCE((p_invoice->>'remaining')::numeric, 0);
-            v_change := COALESCE((p_invoice->>'change_amount')::numeric, 0);
-            v_used_bal := COALESCE((p_invoice->>'used_balance')::numeric, 0);
+            v_change    := COALESCE((p_invoice->>'change_amount')::numeric, 0);
+            v_used_bal  := COALESCE((p_invoice->>'used_balance')::numeric, 0);
 
             IF v_type = 'sale' THEN
-                v_new_bal := v_old_bal + (v_change - v_remaining - v_used_bal);
+                -- ✅ balance = المبلغ المستحق على العميل
+                -- + remaining (دين جديد) - used (استهلك رصيد) - change (دفع زائد → دائن)
+                v_new_bal := v_old_bal + v_remaining - v_used_bal - v_change;
             ELSE
-                v_new_bal := v_old_bal + COALESCE((p_invoice->>'total')::numeric, 0);
+                v_new_bal := v_old_bal - COALESCE((p_invoice->>'total')::numeric, 0);
             END IF;
 
-            UPDATE parties
-               SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
+            UPDATE parties SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
              WHERE id = v_customer_id;
         END IF;
     END IF;
 
-    -- 4) رصيد المورد
+    -- رصيد المورد
     IF v_supplier_id IS NOT NULL AND v_type IN ('purchase','return_purchase') THEN
         SELECT balance INTO v_old_bal FROM parties
          WHERE id = v_supplier_id AND tenant_id = v_tenant FOR UPDATE;
@@ -631,8 +727,7 @@ BEGIN
                 v_new_bal := v_old_bal - COALESCE((p_invoice->>'total')::numeric, 0);
             END IF;
 
-            UPDATE parties
-               SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
+            UPDATE parties SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
              WHERE id = v_supplier_id;
         END IF;
     END IF;
@@ -640,37 +735,107 @@ BEGIN
     RETURN jsonb_build_object(
         'success', true,
         'id', v_invoice_id,
-        'invoice_number', p_invoice->>'invoice_number'
+        'invoice_number', v_invoice_number
     );
 END;
 $$;
 
 -- =====================================================
--- TRIGGERS for updated_at
+-- 16. ADD_PAYMENT_ATOMIC (جديد — يضمن اتساق المعاملة والرصيد)
+-- =====================================================
+CREATE OR REPLACE FUNCTION add_payment_atomic(p_payment JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_tenant UUID;
+    v_id UUID;
+    v_idem TEXT;
+    v_existing UUID;
+    v_party_id UUID;
+    v_amount NUMERIC;
+    v_type TEXT;
+    v_old_bal NUMERIC;
+    v_new_bal NUMERIC;
+    v_delta NUMERIC;
+BEGIN
+    v_tenant := get_my_tenant_id();
+    IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant' USING errcode='P0001'; END IF;
+
+    v_id       := COALESCE((p_payment->>'id')::uuid, gen_random_uuid());
+    v_idem     := NULLIF(p_payment->>'idempotency_key', '');
+    v_party_id := (p_payment->>'party_id')::uuid;
+    v_amount   := ABS(COALESCE((p_payment->>'amount')::numeric, 0));
+    v_type     := p_payment->>'type';
+
+    IF v_amount <= 0 THEN
+        RAISE EXCEPTION 'amount must be > 0' USING errcode='P0006';
+    END IF;
+    IF v_type NOT IN ('payment_in','payment_out') THEN
+        RAISE EXCEPTION 'invalid payment type' USING errcode='P0004';
+    END IF;
+
+    -- Idempotency
+    IF v_idem IS NOT NULL THEN
+        SELECT id INTO v_existing FROM transactions
+         WHERE tenant_id = v_tenant AND idempotency_key = v_idem LIMIT 1;
+        IF FOUND THEN
+            RETURN jsonb_build_object('success', true, 'id', v_existing, 'deduplicated', true);
+        END IF;
+    END IF;
+    SELECT id INTO v_existing FROM transactions WHERE id = v_id;
+    IF FOUND THEN
+        RETURN jsonb_build_object('success', true, 'id', v_existing, 'deduplicated', true);
+    END IF;
+
+    INSERT INTO transactions (
+        id, tenant_id, type, amount, party_id, payment_method,
+        reference, notes, date, created_by, created_at,
+        device_id, idempotency_key
+    ) VALUES (
+        v_id, v_tenant, v_type, v_amount, v_party_id,
+        COALESCE(p_payment->>'payment_method', 'cash'),
+        p_payment->>'reference',
+        p_payment->>'notes',
+        COALESCE((p_payment->>'date')::date, CURRENT_DATE),
+        auth.uid(), NOW(),
+        p_payment->>'device_id',
+        v_idem
+    );
+
+    SELECT balance INTO v_old_bal FROM parties
+     WHERE id = v_party_id AND tenant_id = v_tenant FOR UPDATE;
+
+    IF FOUND THEN
+        v_delta := CASE WHEN v_type = 'payment_in' THEN -v_amount ELSE v_amount END;
+        v_new_bal := COALESCE(v_old_bal, 0) + v_delta;
+        UPDATE parties
+           SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
+         WHERE id = v_party_id;
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'id', v_id);
+END;
+$$;
+
+-- =====================================================
+-- 17. TRIGGERS updated_at
 -- =====================================================
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_tenants_updated BEFORE UPDATE ON tenants
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_profiles_updated BEFORE UPDATE ON profiles
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_products_updated BEFORE UPDATE ON products
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_product_units_updated BEFORE UPDATE ON product_units
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_parties_updated BEFORE UPDATE ON parties
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_invoices_updated BEFORE UPDATE ON invoices
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_tenants_updated       BEFORE UPDATE ON tenants       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_profiles_updated      BEFORE UPDATE ON profiles      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_products_updated      BEFORE UPDATE ON products      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_product_units_updated BEFORE UPDATE ON product_units FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_parties_updated       BEFORE UPDATE ON parties       FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_invoices_updated      BEFORE UPDATE ON invoices      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- =====================================================
--- ROW LEVEL SECURITY
+-- 18. RLS
 -- =====================================================
 ALTER TABLE tenants         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles        ENABLE ROW LEVEL SECURITY;
@@ -685,91 +850,80 @@ ALTER TABLE sequences       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs     ENABLE ROW LEVEL SECURITY;
 
--- Tenants: يمكن للمستخدم رؤية tenant الخاص به فقط
 CREATE POLICY "tenants_select" ON tenants
-    FOR SELECT TO authenticated
-    USING (id = get_my_tenant_id());
+    FOR SELECT TO authenticated USING (id = get_my_tenant_id());
 
--- لا UPDATE/DELETE مباشر — فقط عبر RPC
+-- ✅ [FIX #8] admin يستطيع تحديث بيانات المستأجر
+CREATE POLICY "tenants_update_admin" ON tenants
+    FOR UPDATE TO authenticated
+    USING (id = get_my_tenant_id() AND is_my_admin())
+    WITH CHECK (id = get_my_tenant_id() AND is_my_admin());
 
 -- Profiles
 CREATE POLICY "profiles_select_self" ON profiles
-    FOR SELECT TO authenticated
-    USING (id = auth.uid());
+    FOR SELECT TO authenticated USING (id = auth.uid());
+
 CREATE POLICY "profiles_select_same_tenant" ON profiles
-    FOR SELECT TO authenticated
-    USING (tenant_id = get_my_tenant_id());
+    FOR SELECT TO authenticated USING (tenant_id = get_my_tenant_id());
+
+-- ✅ [FIX #1] حدّد الأعمدة القابلة للتحديث من المستخدم (عبر GRANT أدناه)
+-- سياسة UPDATE تمنع تغيير role/tenant_id
 CREATE POLICY "profiles_update_self" ON profiles
     FOR UPDATE TO authenticated
     USING (id = auth.uid())
-    WITH CHECK (id = auth.uid());
+    WITH CHECK (
+        id = auth.uid()
+        AND role = (SELECT role FROM profiles WHERE id = auth.uid())
+        AND COALESCE(tenant_id::text, '') = COALESCE(
+            (SELECT tenant_id::text FROM profiles WHERE id = auth.uid()), ''
+        )
+    );
 
--- بقية الجداول: scoped بـ tenant_id
-CREATE POLICY "products_access" ON products
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
+-- ✅ [FIX #8] admin يعدّل موظفيه
+CREATE POLICY "profiles_update_admin" ON profiles
+    FOR UPDATE TO authenticated
+    USING (tenant_id = get_my_tenant_id() AND is_my_admin())
+    WITH CHECK (tenant_id = get_my_tenant_id() AND is_my_admin());
 
-CREATE POLICY "product_units_access" ON product_units
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
+-- باقي الجداول
+CREATE POLICY "products_access"        ON products        FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "product_units_access"   ON product_units   FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "parties_access"         ON parties         FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "invoices_access"        ON invoices        FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "transactions_access"    ON transactions    FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "stock_movements_access" ON stock_movements FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "invoice_counters_access" ON invoice_counters FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "sequences_access"       ON sequences       FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
+CREATE POLICY "settings_access"        ON settings        FOR ALL TO authenticated USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
 
-CREATE POLICY "parties_access" ON parties
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
-CREATE POLICY "invoices_access" ON invoices
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
-CREATE POLICY "transactions_access" ON transactions
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
-CREATE POLICY "stock_movements_access" ON stock_movements
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
-CREATE POLICY "invoice_counters_access" ON invoice_counters
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
--- Sequences: scoped بـ tenant (كان مفتوح تمامًا!)
-CREATE POLICY "sequences_access" ON sequences
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
-CREATE POLICY "settings_access" ON settings
-    FOR ALL TO authenticated
-    USING (tenant_id = get_my_tenant_id())
-    WITH CHECK (tenant_id = get_my_tenant_id());
-
--- Logs: قراءة فقط لمستخدمي نفس المستأجر
+-- system_logs
 CREATE POLICY "system_logs_read" ON system_logs
     FOR SELECT TO authenticated
-    USING (tenant_id = get_my_tenant_id());
+    USING (tenant_id = get_my_tenant_id() AND is_my_admin());
+
 CREATE POLICY "system_logs_insert" ON system_logs
     FOR INSERT TO authenticated
     WITH CHECK (tenant_id = get_my_tenant_id());
 
 -- =====================================================
--- GRANTS
+-- 19. GRANTS — ✅ [FIX #1] أعمدة محددة لـ profiles
 -- =====================================================
--- ملاحظة: anon لم يعد بإمكانه استدعاء next_sequence
+REVOKE ALL ON profiles FROM authenticated;
+GRANT SELECT ON profiles TO authenticated;
+GRANT UPDATE (full_name, phone) ON profiles TO authenticated;
+-- role و tenant_id لا يمكن تحديثهما مباشرة من العميل
+
 GRANT EXECUTE ON FUNCTION next_sequence(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION next_invoice_number(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION create_my_tenant(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION apply_stock_delta(UUID, TEXT, NUMERIC, TEXT, UUID, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION create_invoice_atomic(JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION add_payment_atomic(JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_my_tenant_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION is_my_admin() TO authenticated;
+
+-- ⚠️ apply_stock_delta غير مُمنوحة لـ authenticated — تُستدعى فقط من دوال SECURITY DEFINER أخرى
+REVOKE ALL ON FUNCTION apply_stock_delta(UUID, TEXT, NUMERIC, TEXT, UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
 
 -- =====================================================
--- ✅ DONE — v4.0
+-- ✅ DONE — v4.1
 -- =====================================================
