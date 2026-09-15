@@ -1,24 +1,49 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   v5.1 (Fixed)
-   
-   Fixes:
-   - [1] capped paid <= net
-   - [2] cap discount percent 0..100
-   - [3] require customer when remaining > 0
-   - [4] distinguish business errors vs network in queue
-   - [5] round per-line before summing (FP-safe)
-   - [6] don't close payment/unit modal on backdrop
-   - [7] validate stock before addToCart
-   - [8] explicit used_balance: 0
-   - [9] reset qty field on invalid value
-   - [10] local reload after sale instead of cloud
+   Version: 5.2.0
+
+   Changelog من v5.1:
+   - [POS-1] validateStock: يحسب كل وحدات نفس المنتج في السلة
+   - [POS-2] تعديل qty في السلة: فحص مخزون
+   - [POS-3] F5 يعمل عند السلة الفارغة
+   - [POS-4] Auth.onChange — توجيه عند الخروج من تبويب آخر
+   - [POS-5] showToast يفضل window.Toast إن وُجد
+   - [POS-6] held invoices: حد أقصى 20
+   - [POS-7] ترجمة أخطاء الأعمال قبل العرض
+   - [POS-8] console gated by DEBUG
+   - [POS-9] إزالة _addingItem
+   - [POS-10] reset discountType بعد البيع
    ============================================= */
 (function() {
     'use strict';
 
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => [...document.querySelectorAll(s)];
+
+    const DEBUG = window.APP_CONFIG?.DEBUG === true ||
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1';
+    const log = (...a) => { if (DEBUG) console.log(...a); };
+
+    const HELD_MAX = 20;
+
+    const BUSINESS_MESSAGES = {
+        'P0001': 'السجل غير موجود',
+        'P0002': 'المخزون غير كافٍ',
+        'P0003': 'هذه العملية تتطلب صلاحيات مدير',
+        'P0004': 'بيانات غير صالحة',
+        'P0005': 'عنصر غير صالح في الفاتورة',
+        'P0006': 'عدم تطابق في الحسابات المالية',
+        'NO_TENANT': 'لا يوجد مستأجر مرتبط بالحساب',
+        '42501': 'ليس لديك صلاحية لهذه العملية',
+        '23505': 'الفاتورة مسجلة مسبقاً'
+    };
+
+    function translateError(err) {
+        const code = err?.code || '';
+        if (BUSINESS_MESSAGES[code]) return BUSINESS_MESSAGES[code];
+        return err?.message || 'فشل إتمام البيع';
+    }
 
     const State = {
         products: [],
@@ -32,8 +57,7 @@
         paymentMethod: 'cash',
         currentUser: null,
         currentCategory: 'الكل',
-        searchTerm: '',
-        _addingItem: false
+        searchTerm: ''
     };
 
     /* ============================================
@@ -49,7 +73,6 @@
             showToast('تعذر الاتصال بالخادم', 'error');
             return;
         }
-        await new Promise(r => setTimeout(r, 300));
 
         try {
             State.currentUser = await Auth.requireAuth();
@@ -58,6 +81,15 @@
             console.error('Auth failed:', e);
             return;
         }
+
+        // ✅ [POS-4] مراقبة تغيير الجلسة (خروج من تبويب آخر)
+        Auth.onChange((u) => {
+            if (!u && State.currentUser) {
+                log('User signed out elsewhere — redirecting');
+                State.currentUser = null;
+                location.replace('./index.html');
+            }
+        });
 
         updateUserUI();
         updateConnStatus();
@@ -114,7 +146,8 @@
         const btn = $('#themeBtn');
         if (!btn) return;
         const isDark = document.documentElement.dataset.theme === 'dark';
-        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
     function initTheme() {
         const theme = U.ls.get('theme', 'light');
@@ -307,10 +340,14 @@
         $('#unitPrice').value = u.price || 0;
         $('#unitQty').value = 1;
 
-        const base = p.units[0];
-        const stock = base.stock || 0;
-        const factor = u.factor || 1;
-        const max = u === base ? stock : Math.floor(stock / factor);
+        const base = p.units.find(x => x.isBase) || p.units[0];
+        const stock = Number(base.stock) || 0;
+        const factor = Number(u.factor) || 1;
+        const reservedInBase = getCartQtyInBase(p.id, -1);
+        const availableInBase = Math.max(0, stock - reservedInBase);
+        const max = u === base
+            ? Math.floor(availableInBase)
+            : Math.floor(availableInBase / factor);
         $('#stockInfo').textContent = `المخزون المتاح: ${max} ${u.name}`;
         updatePriceRangeHint(u);
     }
@@ -340,25 +377,42 @@
     }
 
     /* ============================================
-       Stock check — ✅ [FIX #7]
+       Stock — ✅ [POS-1] يحسب كل وحدات نفس المنتج
        ============================================ */
-    function validateStock(product, unit, qty) {
-        if (!product?.units?.length) return { valid: false, message: 'المنتج غير متوفر' };
+    function getCartQtyInBase(productId, excludeIdx = -1) {
+        const product = State.products.find(p => p.id === productId);
+        if (!product?.units?.length) return 0;
+        let total = 0;
+        for (let i = 0; i < State.cart.length; i++) {
+            if (i === excludeIdx) continue;
+            const it = State.cart[i];
+            if (it.productId !== productId) continue;
+            const soldUnit = product.units.find(u => u.name === it.unitName);
+            if (!soldUnit) continue;
+            const factor = Number(soldUnit.factor) || 1;
+            total += (Number(it.quantity) || 0) * factor;
+        }
+        return total;
+    }
+
+    function validateStock(product, unit, qty, excludeIdx = -1) {
+        if (!product?.units?.length) {
+            return { valid: false, message: 'المنتج غير متوفر' };
+        }
         const base = product.units.find(u => u.isBase) || product.units[0];
         const stock = Number(base.stock) || 0;
         const factor = Number(unit.factor) || 1;
-        const maxQty = unit === base ? stock : stock / factor;
 
-        // sum existing cart qty for same product+unit
-        const existing = State.cart.find(i =>
-            i.productId === product.id && i.unitName === unit.name);
-        const alreadyQty = existing ? Number(existing.quantity) || 0 : 0;
-        const totalQty = alreadyQty + qty;
+        const reservedBase = getCartQtyInBase(product.id, excludeIdx);
+        const newBase = (Number(qty) || 0) * factor;
+        const totalBase = reservedBase + newBase;
 
-        if (totalQty > maxQty + 0.0001) {
+        if (totalBase > stock + 0.0001) {
+            const availableBase = Math.max(0, stock - reservedBase);
+            const availableInUnit = availableBase / factor;
             return {
                 valid: false,
-                message: `المخزون المتاح: ${maxQty} ${unit.name} (بالسلة: ${alreadyQty})`
+                message: `المخزون المتاح: ${availableInUnit.toFixed(3)} ${unit.name}`
             };
         }
         return { valid: true };
@@ -432,14 +486,14 @@
                             ${hasLimits ? ` · <span style="color:var(--warning);font-weight:800;">${rangeTitle}</span>` : ''}
                         </div>
                         <div class="cart-item__controls">
-                            <button class="qty-btn" data-action="dec"><i class="fas fa-minus"></i></button>
+                            <button class="qty-btn" data-action="dec" aria-label="تقليل"><i class="fas fa-minus"></i></button>
                             <input type="number" class="cart-item__qty" value="${item.quantity}" min="0.001" step="0.001" data-action="qty" inputmode="decimal">
-                            <button class="qty-btn" data-action="inc"><i class="fas fa-plus"></i></button>
+                            <button class="qty-btn" data-action="inc" aria-label="زيادة"><i class="fas fa-plus"></i></button>
                             <input type="number" class="cart-item__price-input" value="${item.price}" step="0.01" min="0" data-action="price" inputmode="decimal" title="تعديل السعر">
                         </div>
                     </div>
                     <div class="cart-item__price">${U.money(lineTotal)}</div>
-                    <button class="cart-item__remove" data-action="remove"><i class="fas fa-times"></i></button>
+                    <button class="cart-item__remove" data-action="remove" aria-label="حذف"><i class="fas fa-times"></i></button>
                 </div>`;
         }).join('');
 
@@ -452,8 +506,16 @@
                 const item = State.cart[idx];
                 if (!item) return;
 
-                if (action === 'inc') item.quantity = U.round(item.quantity + 1, 3);
-                else if (action === 'dec') {
+                if (action === 'inc') {
+                    // ✅ فحص المخزون عند الزيادة
+                    const product = State.products.find(p => p.id === item.productId);
+                    const unit = product?.units?.find(u => u.name === item.unitName);
+                    if (product && unit) {
+                        const check = validateStock(product, unit, item.quantity + 1, idx);
+                        if (!check.valid) { showToast(check.message, 'error'); return; }
+                    }
+                    item.quantity = U.round(item.quantity + 1, 3);
+                } else if (action === 'dec') {
                     item.quantity = U.round(item.quantity - 1, 3);
                     if (item.quantity <= 0) State.cart.splice(idx, 1);
                 } else if (action === 'remove') {
@@ -463,16 +525,28 @@
                 saveCart();
             });
 
+            // ✅ [POS-2] فحص مخزون عند تعديل qty
             itemEl.querySelector('[data-action="qty"]')?.addEventListener('change', (e) => {
                 const v = +e.target.value;
-                if (!isNaN(v) && v > 0) {
-                    State.cart[idx].quantity = v;
+                const item = State.cart[idx];
+                if (!item) return;
+                if (!Number.isFinite(v) || v <= 0) {
                     renderCart();
-                    saveCart();
-                } else {
-                    // ✅ [FIX #9] أعد القيمة القديمة
-                    renderCart();
+                    return;
                 }
+                const product = State.products.find(p => p.id === item.productId);
+                const unit = product?.units?.find(u => u.name === item.unitName);
+                if (product && unit) {
+                    const check = validateStock(product, unit, v, idx);
+                    if (!check.valid) {
+                        showToast(check.message, 'error');
+                        renderCart();
+                        return;
+                    }
+                }
+                item.quantity = v;
+                renderCart();
+                saveCart();
             });
 
             itemEl.querySelector('[data-action="price"]')?.addEventListener('change', (e) => {
@@ -505,13 +579,11 @@
     }
 
     function calculateTotals() {
-        // ✅ [FIX #5] round per line
         const subtotal = U.round(
             State.cart.reduce((s, i) => s + U.round(i.price * i.quantity, 2), 0),
             2
         );
 
-        // ✅ [FIX #2] cap percent
         let disc = 0;
         if (State.discountType === 'amount') {
             disc = Math.min(Math.max(0, State.discount), subtotal);
@@ -666,11 +738,13 @@
         const value = $('#changeValue');
         if (remaining > 0) {
             display?.classList.add('is-short');
-            if (display?.querySelector('span')) display.querySelector('span').textContent = 'المتبقي:';
+            const span = display?.querySelector('span');
+            if (span) span.textContent = 'المتبقي:';
             if (value) value.textContent = U.money(remaining);
         } else {
             display?.classList.remove('is-short');
-            if (display?.querySelector('span')) display.querySelector('span').textContent = 'الباقي للعميل:';
+            const span = display?.querySelector('span');
+            if (span) span.textContent = 'الباقي للعميل:';
             if (value) value.textContent = U.money(Math.abs(remaining));
         }
     }
@@ -693,12 +767,10 @@
         else if (method === 'card') rawPaid = card;
         else if (method === 'mixed') rawPaid = cash + card;
 
-        // ✅ [FIX #1] لا يتجاوز صافي الفاتورة
         const paid = Math.min(rawPaid, net);
         const change = U.round(Math.max(0, rawPaid - net));
         const remaining = U.round(Math.max(0, net - rawPaid));
 
-        // ✅ [FIX #3] أي دين يتطلب عميل
         if (remaining > 0 && !State.selectedCustomer) {
             showToast('اختر عميلاً لتسجيل الدين', 'warning');
             $('#customerSearch')?.focus();
@@ -751,8 +823,10 @@
 
             State.cart = [];
             State.discount = 0;
+            State.discountType = 'amount';       // ✅ [POS-10]
             State.selectedCustomer = null;
             $('#discountValue').value = '0';
+            $('#discountType').value = 'amount'; // ✅ [POS-10]
             $('#customerSearch').value = '';
             $('#customerInfo').textContent = '';
             $('#customerInfo').style.color = '';
@@ -767,13 +841,12 @@
 
         } catch (e) {
             console.error('Sale error:', e);
-            showToast(e.message || 'فشل إتمام البيع', 'error');
+            showToast(translateError(e), 'error');   // ✅ [POS-7]
         } finally {
             if (btn) btn.disabled = false;
         }
     }
 
-    // ✅ [FIX #10] أعد التحميل من الذاكرة المحلية (بعد أن طبّق db.js التأثيرات)
     async function reloadProductsLocal() {
         try {
             const products = await DB.getProducts(false) || [];
@@ -798,11 +871,13 @@
 
         let itemsHtml = '';
         invoice.items.forEach(item => {
+            const price = Number(item.price) || 0;
+            const qty = Number(item.quantity) || 0;
             itemsHtml += `<tr>
                 <td>${U.escape(item.productName)}<br><small style="color:#666;font-size:10px;">${U.escape(item.unitName)}</small></td>
-                <td style="text-align:center;">${item.quantity}</td>
-                <td style="text-align:center;">${Number(item.price).toFixed(2)}</td>
-                <td style="text-align:left;">${(Number(item.price) * Number(item.quantity)).toFixed(2)}</td>
+                <td style="text-align:center;">${qty}</td>
+                <td style="text-align:center;">${price.toFixed(2)}</td>
+                <td style="text-align:left;">${(price * qty).toFixed(2)}</td>
             </tr>`;
         });
 
@@ -865,11 +940,15 @@
     }
 
     /* ============================================
-       Hold / Resume
+       Hold / Resume — ✅ [POS-6] حد أقصى
        ============================================ */
     function holdCurrentSale() {
         if (!State.cart.length) { showToast('السلة فارغة', 'info'); return; }
         const held = U.ls.get('heldInvoices', []) || [];
+        if (held.length >= HELD_MAX) {
+            showToast(`الحد الأقصى ${HELD_MAX} فاتورة معلقة. احذف واحدة أولاً.`, 'warning');
+            return;
+        }
         held.push({
             id: U.uuid(),
             customerId: State.selectedCustomer?.id || null,
@@ -912,7 +991,7 @@
                 <p>لا توجد فواتير معلقة</p></div>`;
         } else {
             container.innerHTML = held.map(h => {
-                const total = h.items.reduce((s, i) => s + (i.price * i.quantity), 0);
+                const total = h.items.reduce((s, i) => s + ((Number(i.price) || 0) * (Number(i.quantity) || 0)), 0);
                 return `<div class="held-item" data-id="${h.id}">
                     <div><strong>${U.escape(h.customerName)}</strong>
                     <small>${h.items.length} صنف · ${U.date(h.timestamp)}</small></div>
@@ -962,7 +1041,7 @@
     function restoreCart() {
         const data = U.ls.get('posCart');
         if (!data) { renderCart(); return; }
-        State.cart = data.cart || [];
+        State.cart = Array.isArray(data.cart) ? data.cart : [];
         State.discount = data.discount || 0;
         State.discountType = data.discountType || 'amount';
         if (data.customerId) {
@@ -980,7 +1059,12 @@
     function openModal(id) { document.getElementById(id)?.classList.add('open'); }
     function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 
+    // ✅ [POS-5] يفضل window.Toast إن وُجد
     function showToast(msg, type = 'info') {
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            try { window.Toast.show(msg, type); return; } catch (e) { /* fallback */ }
+        }
+
         let stack = $('#toastStack');
         if (!stack) {
             stack = document.createElement('div');
@@ -1081,7 +1165,6 @@
         });
         $('#discountType')?.addEventListener('change', (e) => {
             State.discountType = e.target.value;
-            // أعِد ضبط القيمة عند تغيير النوع
             if (State.discountType === 'percent') {
                 State.discount = Math.min(100, Math.max(0, State.discount));
                 $('#discountValue').value = State.discount;
@@ -1149,7 +1232,7 @@
             }
 
             const result = addToCart(product.id, idx, qty, price);
-            if (!result.ok) return; // الرسالة ظهرت بالفعل
+            if (!result.ok) return;
 
             closeModal('unitModal');
             showToast('تمت الإضافة للسلة', 'success');
@@ -1176,7 +1259,6 @@
             btn.addEventListener('click', () => closeModal(btn.dataset.close));
         });
 
-        // ✅ [FIX #6] لا تُغلق النوافذ الحرجة عند النقر على الخلفية
         const protectedModals = new Set(['paymentModal', 'unitModal']);
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
@@ -1195,7 +1277,11 @@
             if (e.key === 'F2') { e.preventDefault(); $('#productSearch')?.focus(); }
             if (e.key === 'F3') { e.preventDefault(); $('#productSearchInput')?.focus(); }
             if (e.key === 'F4') { e.preventDefault(); if (State.cart.length) openPayment(); }
-            if (e.key === 'F5') { e.preventDefault(); holdCurrentSale(); }
+            // ✅ [POS-3] F5 فقط عند وجود عناصر
+            if (e.key === 'F5' && State.cart.length) {
+                e.preventDefault();
+                holdCurrentSale();
+            }
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.open').forEach(m => {
                     if (!protectedModals.has(m.id)) m.classList.remove('open');
