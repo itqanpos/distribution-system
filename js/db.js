@@ -1,17 +1,12 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 5.2.2
+   Version: 5.2.3
 
-   Changelog من v5.2.1:
-   - [DB-MERGE-1] getProducts: يضم المنتجات المُنشأة محليًا (pending)
-   - [DB-MERGE-2] getParties: يضم الأطراف المُنشأة محليًا (pending)
-   - [DB-MERGE-3] getInvoices: يضم الفواتير المُنشأة محليًا (pending)
-   - [DB-MERGE-4] getPayments: يضم الدفعات المُنشأة محليًا (pending)
-   - [DB-HELPER] getPendingIds(types) — helper موحد لفحص sync_queue
-
-   القاعدة: السجلات المحلية التي ليست على السحابة تُعاد ONLY
-   إذا كانت موجودة في sync_queue (pending sync).
-   هذا يمنع "الأشباح": سجلات حُذفت على جهاز آخر من الظهور.
+   Changelog من v5.2.2:
+   - [DB-INV-NUM] generateInvoiceNumber:
+       * يحفظ آخر رقم سحابي في localStorage
+       * fallback محلي يبدأ من max(server, local) + 1
+       * الصيغة الجديدة: INV-YY-NNNNN
    ============================================= */
 (function() {
     'use strict';
@@ -60,8 +55,6 @@
         return Math.round(s + (s >= 0 ? 1e-9 : -1e-9)) / f;
     }
 
-    // ✅ أخطاء الأعمال — فشل فوري بلا retry
-    // ملاحظة: 42P01 (جدول/دالة غير موجودة) مستبعد — خطأ deployment لا أعمال
     const BUSINESS_ERROR_CODES = new Set([
         'P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'P0006',
         'NO_TENANT',
@@ -184,7 +177,6 @@
             });
         }
 
-        // ✅ حذف كل السجلات التي لا تنتمي لمستأجر معيّن
         async deleteByTenant(store, tenantId) {
             await this._ready();
             if (!this.db || !tenantId) return 0;
@@ -227,7 +219,6 @@
         return window.Auth?.user?.tenant_id || null;
     }
 
-    // ✅ يمنع أي كتابة بدون مستأجر
     function requireTenant() {
         const t = getTenantId();
         if (!t) {
@@ -238,7 +229,6 @@
         return t;
     }
 
-    // ✅ [DB-HELPER] فحص المفاتيح المعلّقة في sync_queue حسب النوع
     async function getPendingIds(types) {
         try {
             const ops = await window.DB.local.getAll('sync_queue') || [];
@@ -353,9 +343,6 @@
             return this.ready;
         },
 
-        /* ============================================
-           Sync
-           ============================================ */
         async flushSyncQueue() {
             if (!navigator.onLine || !this.client) return;
             const ops = await SyncQueue.all();
@@ -422,7 +409,6 @@
 
         /* ============================================
            PRODUCTS
-           ✅ [DB-MERGE-1] يضم المنتجات المعلّقة محليًا
            ============================================ */
         async getProducts(force = false) {
             if (!force) {
@@ -432,7 +418,6 @@
 
             const tenantId = getTenantId();
 
-            // مسار الأوفلاين: كل السجلات المحلية للمستأجر الحالي
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('products');
                 const local = all.filter(p =>
@@ -442,7 +427,6 @@
                 return local;
             }
 
-            // مسار السحابة
             const { data, error } = await this.client
                 .from('products')
                 .select('*, product_units(*)')
@@ -463,15 +447,12 @@
                     .sort((a,b) => (b.isBase ? 1 : 0) - (a.isBase ? 1 : 0))
             }));
 
-            // امسح بيانات مستأجرين آخرين من IDB
             if (tenantId) {
                 try { await this.local.deleteByTenant('products', tenantId); }
                 catch (e) { console.warn('deleteByTenant failed', e); }
             }
 
             const existing = await this.local.getAll('products');
-
-            // ✅ [DB-MERGE-1] دمج + إضافة السجلات المحلية المُعلّقة
             const merged = remote.map(rp => {
                 const lp = existing.find(e => e.id === rp.id);
                 if (!lp?.updated_at || !rp.updated_at) return rp;
@@ -489,7 +470,6 @@
                 return rp;
             });
 
-            // السجلات المُنشأة محليًا ولم تُزامن بعد
             const remoteIds = new Set(remote.map(p => p.id));
             const pendingProductIds = await getPendingIds(['save_product', 'save_units']);
             const localPending = existing.filter(lp =>
@@ -500,7 +480,6 @@
             );
 
             const finalList = [...merged, ...localPending];
-
             await this.local.putMany('products', finalList);
             MemCache.set('products', finalList);
             return finalList;
@@ -595,7 +574,6 @@
 
         /* ============================================
            PARTIES
-           ✅ [DB-MERGE-2] يضم الأطراف المعلّقة محليًا
            ============================================ */
         async getParties(type = null, force = false) {
             if (!force) {
@@ -628,7 +606,6 @@
             }
 
             const existing = await this.local.getAll('parties');
-
             const merged = (data || []).map(rp => {
                 const lp = existing.find(e => e.id === rp.id);
                 if (lp?.updated_at && rp.updated_at &&
@@ -638,7 +615,6 @@
                 return rp;
             });
 
-            // ✅ [DB-MERGE-2] الأطراف المُنشأة محليًا ولم تُزامن
             const remoteIds = new Set((data || []).map(p => p.id));
             const pendingPartyIds = await getPendingIds(['save_party']);
             const localPending = existing.filter(lp =>
@@ -722,7 +698,6 @@
 
         /* ============================================
            PAYMENTS
-           ✅ [DB-MERGE-4] يضم الدفعات المعلّقة محليًا
            ============================================ */
         async addPayment(payment) {
             const client = getClient();
@@ -750,7 +725,6 @@
                 throw new Error('المبلغ يجب أن يكون أكبر من صفر');
             }
 
-            // لا تغيير محلي قبل نجاح RPC أو queue
             if (navigator.onLine && client) {
                 try {
                     const { error } = await client.rpc('add_payment_atomic', { p_payment: payload });
@@ -763,7 +737,6 @@
                 await SyncQueue.enqueue({ type: 'add_payment', id, payload });
             }
 
-            // الآن نُطبّق محليًا
             await this.local.put('transactions', payload);
             const party = await this.local.get('parties', payment.party_id);
             if (party && party.tenant_id === tenantId) {
@@ -795,7 +768,6 @@
             const { data, error } = await q;
             if (error) throw error;
 
-            // ✅ [DB-MERGE-4] الدفعات المُنشأة محليًا ولم تُزامن
             const remoteIds = new Set((data || []).map(t => t.id));
             const pendingPaymentIds = await getPendingIds(['add_payment']);
             const existing = await this.local.getAll('transactions');
@@ -815,7 +787,6 @@
 
         /* ============================================
            INVOICES
-           ✅ [DB-MERGE-3] يضم الفواتير المعلّقة محليًا
            ============================================ */
         async getInvoices(force = false) {
             if (!force) {
@@ -842,7 +813,6 @@
                 catch (e) { console.warn('deleteByTenant failed', e); }
             }
 
-            // ✅ [DB-MERGE-3] الفواتير المُنشأة محليًا ولم تُزامن
             const remoteIds = new Set((data || []).map(i => i.id));
             const pendingInvoiceIds = await getPendingIds(['create_invoice']);
             const existing = await this.local.getAll('invoices');
@@ -878,7 +848,6 @@
                 .order('created_at', { ascending: false });
             if (error) throw error;
 
-            // ✅ نفس منطق getInvoices للفواتير المعلّقة (بدون items)
             const remoteIds = new Set((data || []).map(i => i.id));
             const pendingInvoiceIds = await getPendingIds(['create_invoice']);
             const existing = await this.local.getAll('invoices');
@@ -909,7 +878,7 @@
         },
 
         /* ============================================
-           CREATE INVOICE — RPC ذرّي
+           CREATE INVOICE
            ============================================ */
         async createInvoice(invoice) {
             if (!invoice.items?.length) throw new Error('لا توجد أصناف في الفاتورة');
@@ -1000,7 +969,6 @@
             return { success: true, id, invoice_number: payload.invoice_number };
         },
 
-        // أغلفة توافقية
         async createSaleInvoice(invoiceData) {
             return this.createInvoice({ ...invoiceData, type: 'sale' });
         },
@@ -1010,7 +978,7 @@
         },
 
         /* ============================================
-           PURCHASES — عرض مُفلتر من invoices
+           PURCHASES
            ============================================ */
         async getPurchases(force = false) {
             const all = await this.getInvoices(force);
@@ -1027,7 +995,7 @@
         },
 
         /* ============================================
-           VOID INVOICE — RPC ذرّي + Idempotency
+           VOID INVOICE
            ============================================ */
         async voidInvoice(id) {
             requireTenant();
@@ -1256,29 +1224,42 @@
         },
 
         /* ============================================
-           Invoice Numbers
+           ✅ [DB-INV-NUM] Invoice Numbers — تسلسلي موحد
            ============================================ */
         async generateInvoiceNumber() {
-            const deviceId = getDeviceId();
+            const year = new Date().getFullYear().toString().slice(-2);
+            const serverKey = `hesaby_invoice_server_counter_${year}`;
+            const localKey  = `hesaby_invoice_local_counter_${year}`;
+            const deviceId  = getDeviceId();
 
+            // 1) حاول الخادم أولاً (المصدر الرسمي)
             if (navigator.onLine && this.client) {
                 try {
                     const { data, error } = await this.client
                         .rpc('next_invoice_number', { p_device_id: deviceId });
-                    if (!error && data) return data;
+                    if (!error && data) {
+                        // احفظ آخر رقم سحابي لتجنب التصادم في الأوفلاين
+                        const m = String(data).match(/(\d+)$/);
+                        if (m) {
+                            const n = parseInt(m[1], 10);
+                            if (Number.isFinite(n)) {
+                                localStorage.setItem(serverKey, String(n));
+                            }
+                        }
+                        return data;
+                    }
                 } catch (e) {
-                    console.warn('Server invoice number failed', e);
+                    console.warn('Server invoice number failed, using local fallback', e);
                 }
             }
 
-            const year = new Date().getFullYear().toString().slice(-2);
-            const key = `invoice_counter_${year}_${deviceId}`;
-            let current = parseInt(localStorage.getItem(key) || '8999', 10);
-            if (!Number.isFinite(current) || current < 8999) current = 8999;
-            const next = current + 1;
-            localStorage.setItem(key, String(next));
+            // 2) Fallback محلي — يبدأ من max(server, local) + 1
+            const lastServer = parseInt(localStorage.getItem(serverKey) || '0', 10) || 0;
+            const lastLocal  = parseInt(localStorage.getItem(localKey)  || '0', 10) || 0;
+            const next = Math.max(lastServer, lastLocal) + 1;
+            localStorage.setItem(localKey, String(next));
 
-            return `${year}-${deviceId.slice(0, 4).toUpperCase()}-${String(next).padStart(4, '0')}`;
+            return `INV-${year}-${String(next).padStart(5, '0')}`;
         },
 
         /* ============================================
@@ -1310,9 +1291,6 @@
 
         clearCache() { MemCache.clear(); },
 
-        /* ============================================
-           Wipe
-           ============================================ */
         async wipeLocalData({ includePendingQueue = false } = {}) {
             await this.local.clear('products');
             await this.local.clear('parties');
