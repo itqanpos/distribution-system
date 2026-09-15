@@ -2,21 +2,60 @@
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>العملاء · نظام POS</title>
+    <meta name="description" content="إدارة العملاء والأرصدة - نظام POS">
+    <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#4f46e5">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="العملاء">
+
     <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="./icons/icon-192x192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+
+    <!-- Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Styles -->
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./css/pos.css">
     <link rel="stylesheet" href="./css/customers.css">
+
+    <!-- منع وميض الثيم -->
+    <script>
+        (function(){
+            try {
+                var t = JSON.parse(localStorage.getItem('hesaby_theme') || '"light"');
+                if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body>
     <div id="loading-bar"></div>
     <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
+
+    <noscript>
+        <div style="position:fixed;inset:0;background:#f5f5f5;display:grid;place-items:center;z-index:999999;padding:20px;text-align:center;font-family:Cairo,Arial,sans-serif;">
+            <div>
+                <h2 style="color:#ef4444;">JavaScript معطّل</h2>
+                <p style="color:#666;">هذا التطبيق يتطلب تفعيل JavaScript للعمل. يرجى تفعيله ثم إعادة تحميل الصفحة.</p>
+            </div>
+        </noscript>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- ============ الشريط العلوي ============ -->
@@ -25,7 +64,7 @@
             <button class="icon-btn" id="menuBtn" aria-label="القائمة"><i class="fas fa-bars"></i></button>
             <div class="brand">
                 <div class="brand__logo">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" class="js-logo-fallback">
                     <i class="fas fa-users" style="display:none;"></i>
                 </div>
                 <div class="brand__text">
@@ -35,9 +74,9 @@
             </div>
         </div>
         <div class="topbar__right">
-            <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
-            <button class="icon-btn" id="exportBtn" title="تصدير"><i class="fas fa-download"></i></button>
-            <button class="icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
+            <button class="icon-btn" id="themeBtn" title="الوضع" aria-label="تبديل الوضع"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="exportBtn" title="تصدير" aria-label="تصدير CSV"><i class="fas fa-download"></i></button>
+            <button class="icon-btn" id="refreshBtn" title="تحديث" aria-label="تحديث"><i class="fas fa-sync-alt"></i></button>
             <div class="user-chip">
                 <div class="user-chip__avatar" id="userAvatar">U</div>
             </div>
@@ -48,7 +87,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
             <div class="brand__logo">
-                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                <img src="./icons/icon-192x192.png" alt="حسابي" class="js-logo-fallback">
                 <i class="fas fa-cash-register" style="display:none;"></i>
             </div>
             <h3 id="sidebarUserName">مدير</h3>
@@ -80,7 +119,7 @@
                 <h1>العملاء</h1>
                 <p id="customersCount">0 عميل</p>
             </div>
-            <button class="btn btn--primary" id="addCustomerBtn">
+            <button class="btn btn--primary" id="addCustomerBtn" type="button">
                 <i class="fas fa-user-plus"></i>
                 <span>عميل جديد</span>
             </button>
@@ -94,17 +133,17 @@
             <div class="search-box">
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="ابحث بالاسم، الهاتف، أو البريد..." autocomplete="off">
-                <button class="search-clear" id="clearSearchBtn" style="display:none;">
+                <button class="search-clear" id="clearSearchBtn" style="display:none;" aria-label="مسح البحث" type="button">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <select id="balanceFilter" class="filter-select">
+            <select id="balanceFilter" class="filter-select" aria-label="فلترة الرصيد">
                 <option value="">كل الأرصدة</option>
                 <option value="debit">مدينون (عليهم دين)</option>
                 <option value="credit">دائنون (لهم رصيد)</option>
                 <option value="zero">لا رصيد</option>
             </select>
-            <select id="sortFilter" class="filter-select">
+            <select id="sortFilter" class="filter-select" aria-label="ترتيب">
                 <option value="name">الاسم (أ-ي)</option>
                 <option value="name-desc">الاسم (ي-أ)</option>
                 <option value="balance">الرصيد (تصاعدي)</option>
@@ -122,7 +161,7 @@
                 <i class="fas fa-user-plus"></i>
                 <h3>لا يوجد عملاء</h3>
                 <p>ابدأ بإضافة عميل جديد</p>
-                <button class="btn btn--primary" onclick="document.getElementById('addCustomerBtn').click()">
+                <button class="btn btn--primary" id="emptyAddCustomerBtn" type="button">
                     <i class="fas fa-plus"></i> إضافة عميل
                 </button>
             </div>
@@ -131,7 +170,7 @@
         </div>
 
         <!-- زر عائم -->
-        <button class="fab-add" id="fabAddBtn" aria-label="إضافة عميل">
+        <button class="fab-add" id="fabAddBtn" aria-label="إضافة عميل" type="button">
             <i class="fas fa-user-plus"></i>
         </button>
     </main>
@@ -141,31 +180,31 @@
         <div class="modal__content">
             <div class="modal__header">
                 <h2 id="customerModalTitle">إضافة عميل جديد</h2>
-                <button class="icon-btn" data-close="customerModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="customerModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <form id="customerForm">
+                <form id="customerForm" novalidate>
                     <input type="hidden" id="customerId">
 
                     <div class="form-group">
                         <label for="customerName">الاسم <span class="required">*</span></label>
-                        <input type="text" id="customerName" required placeholder="مثال: أحمد محمد">
+                        <input type="text" id="customerName" required placeholder="مثال: أحمد محمد" autocomplete="name">
                     </div>
 
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="customerPhone">رقم الهاتف</label>
-                            <input type="tel" id="customerPhone" placeholder="01xxxxxxxxx" inputmode="tel">
+                            <input type="tel" id="customerPhone" placeholder="01xxxxxxxxx" inputmode="tel" autocomplete="tel">
                         </div>
                         <div class="form-group">
                             <label for="customerEmail">البريد الإلكتروني</label>
-                            <input type="email" id="customerEmail" placeholder="اختياري">
+                            <input type="email" id="customerEmail" placeholder="اختياري" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="customerAddress">العنوان</label>
-                        <input type="text" id="customerAddress" placeholder="اختياري">
+                        <input type="text" id="customerAddress" placeholder="اختياري" autocomplete="street-address">
                     </div>
 
                     <div class="form-grid">
@@ -190,8 +229,8 @@
                 </form>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="customerModal">إلغاء</button>
-                <button class="btn btn--primary" id="saveCustomerBtn">
+                <button class="btn btn--ghost" data-close="customerModal" type="button">إلغاء</button>
+                <button class="btn btn--primary" id="saveCustomerBtn" type="button">
                     <i class="fas fa-save"></i> حفظ
                 </button>
             </div>
@@ -203,17 +242,17 @@
         <div class="modal__content">
             <div class="modal__header">
                 <h2>تفاصيل العميل</h2>
-                <button class="icon-btn" data-close="viewCustomerModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="viewCustomerModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body" id="viewCustomerBody"></div>
             <div class="modal__footer" style="flex-wrap:wrap;">
-                <button class="btn btn--ghost" id="viewInvoicesBtn" style="flex:1;min-width:100px;">
+                <button class="btn btn--ghost" id="viewInvoicesBtn" type="button" style="flex:1;min-width:100px;">
                     <i class="fas fa-file-invoice"></i> الفواتير
                 </button>
-                <button class="btn btn--ghost" id="viewEditBtn" style="flex:1;min-width:100px;">
+                <button class="btn btn--ghost" id="viewEditBtn" type="button" style="flex:1;min-width:100px;">
                     <i class="fas fa-edit"></i> تعديل
                 </button>
-                <button class="btn btn--success" id="viewCollectBtn" style="flex:1.2;min-width:120px;">
+                <button class="btn btn--success" id="viewCollectBtn" type="button" style="flex:1.2;min-width:120px;">
                     <i class="fas fa-hand-holding-usd"></i> تحصيل
                 </button>
             </div>
@@ -225,7 +264,7 @@
         <div class="modal__content modal__content--sm">
             <div class="modal__header">
                 <h2>تحصيل من عميل</h2>
-                <button class="icon-btn" data-close="collectModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="collectModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
                 <input type="hidden" id="collectCustomerId">
@@ -265,13 +304,16 @@
 
                 <div class="form-group">
                     <label for="collectReference">رقم المرجع / الشيك</label>
-                    <input type="text" id="collectReference" placeholder="اختياري">
+                    <input type="text" id="collectReference" placeholder="اختياري" autocomplete="off">
                 </div>
 
                 <div class="form-group">
                     <label for="collectNotes">ملاحظات</label>
-                    <input type="text" id="collectNotes" placeholder="اختياري">
+                    <input type="text" id="collectNotes" placeholder="اختياري" autocomplete="off">
                 </div>
+
+                <!-- ✅ تحذير تجاوز الدين -->
+                <div class="collect-warning" id="collectWarning" style="display:none;"></div>
 
                 <div class="balance-preview" id="collectPreview">
                     <span>الرصيد بعد التحصيل</span>
@@ -279,8 +321,8 @@
                 </div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="collectModal">إلغاء</button>
-                <button class="btn btn--success" id="confirmCollectBtn">
+                <button class="btn btn--ghost" data-close="collectModal" type="button">إلغاء</button>
+                <button class="btn btn--success" id="confirmCollectBtn" type="button">
                     <i class="fas fa-check"></i> تأكيد التحصيل
                 </button>
             </div>
@@ -292,20 +334,20 @@
         <div class="modal__content modal__content--lg">
             <div class="modal__header">
                 <h2 id="customerInvoicesTitle">فواتير العميل</h2>
-                <button class="icon-btn" data-close="customerInvoicesModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="customerInvoicesModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
                 <div class="invoices-filters">
-                    <button class="filter-pill active" data-filter="all">الكل</button>
-                    <button class="filter-pill" data-filter="paid">مدفوعة</button>
-                    <button class="filter-pill" data-filter="partial">جزئية</button>
-                    <button class="filter-pill" data-filter="credit">آجلة</button>
+                    <button class="filter-pill active" data-filter="all" type="button">الكل</button>
+                    <button class="filter-pill" data-filter="paid" type="button">مدفوعة</button>
+                    <button class="filter-pill" data-filter="partial" type="button">جزئية</button>
+                    <button class="filter-pill" data-filter="credit" type="button">آجلة</button>
                 </div>
                 <div id="customerInvoicesList"></div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="customerInvoicesModal">إغلاق</button>
-                <button class="btn btn--primary" id="gotoAllInvoicesBtn">
+                <button class="btn btn--ghost" data-close="customerInvoicesModal" type="button">إغلاق</button>
+                <button class="btn btn--primary" id="gotoAllInvoicesBtn" type="button">
                     <i class="fas fa-external-link-alt"></i> عرض في الفواتير
                 </button>
             </div>
@@ -317,7 +359,7 @@
         <div class="modal__content modal__content--sm">
             <div class="modal__header">
                 <h2>تأكيد الحذف</h2>
-                <button class="icon-btn" data-close="confirmDeleteModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="confirmDeleteModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
                 <div class="confirm-delete">
@@ -330,8 +372,8 @@
                 </div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="confirmDeleteModal">إلغاء</button>
-                <button class="btn btn--danger" id="confirmDeleteBtn">
+                <button class="btn btn--ghost" data-close="confirmDeleteModal" type="button">إلغاء</button>
+                <button class="btn btn--danger" id="confirmDeleteBtn" type="button">
                     <i class="fas fa-trash"></i> حذف نهائياً
                 </button>
             </div>
@@ -341,11 +383,97 @@
     <div id="toastStack" class="toast-stack"></div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/config.js"></script>
-    <script src="./js/utils.js"></script>
-    <script src="./js/db.js"></script>
-    <script src="./js/auth.js"></script>
-    <script src="./js/customers.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="./js/config.js"></script>
+    <script defer src="./js/utils.js"></script>
+    <script defer src="./js/toast.js"></script>
+    <script defer src="./js/db.js"></script>
+    <script defer src="./js/auth.js"></script>
+    <script defer src="./js/customers.js"></script>
+
+    <!-- Post-load: SW + theme-color + logo fallback + empty-state button -->
+    <script>
+    (function() {
+        'use strict';
+
+        /* ============ فشل تحميل الشعار ============ */
+        document.querySelectorAll('.js-logo-fallback').forEach(img => {
+            img.addEventListener('error', function() {
+                this.style.display = 'none';
+                const sibling = this.nextElementSibling;
+                if (sibling) sibling.style.display = 'grid';
+            });
+        });
+
+        /* ============ مزامنة theme-color ============ */
+        function syncThemeColor() {
+            const isDark = document.documentElement.dataset.theme === 'dark';
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', isDark ? '#1e1b4b' : '#4f46e5');
+        }
+        syncThemeColor();
+        new MutationObserver(syncThemeColor).observe(
+            document.documentElement,
+            { attributes: true, attributeFilter: ['data-theme'] }
+        );
+
+        /* ============ empty-state → add ============ */
+        document.getElementById('emptyAddCustomerBtn')?.addEventListener('click', () => {
+            document.getElementById('addCustomerBtn')?.click();
+        });
+
+        /* ============ تسجيل Service Worker ============ */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const reg = await navigator.serviceWorker.register(
+                        './service-worker.js',
+                        { scope: './', updateViaCache: 'none' }
+                    );
+
+                    reg.addEventListener('updatefound', () => {
+                        const nw = reg.installing;
+                        if (!nw) return;
+                        nw.addEventListener('statechange', () => {
+                            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm('يتوفر تحديث جديد. إعادة التحميل الآن؟')) {
+                                    nw.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            }
+                        });
+                    });
+
+                    let reloaded = false;
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        if (reloaded) return;
+                        reloaded = true;
+                        window.location.reload();
+                    });
+
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        if (event.data?.type === 'SYNC_NOW' && window.DB?.flushSyncQueue) {
+                            window.DB.flushSyncQueue().catch(() => {});
+                        }
+                    });
+                } catch (e) {
+                    console.warn('SW registration failed', e);
+                }
+            });
+        }
+
+        /* ============ فحص تحميل Supabase ============ */
+        window.addEventListener('load', () => {
+            if (typeof window.supabase === 'undefined') {
+                const stack = document.getElementById('toastStack');
+                if (stack) {
+                    const el = document.createElement('div');
+                    el.style.cssText = 'padding:12px 22px;background:#ef4444;color:#fff;border-radius:12px;font-weight:700;font-size:14px;';
+                    el.textContent = 'فشل تحميل مكتبة الاتصال. تحقق من الإنترنت وأعد التحميل.';
+                    stack.appendChild(el);
+                }
+            }
+        });
+    })();
+    </script>
 </body>
 </html>
