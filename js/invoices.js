@@ -1,17 +1,13 @@
 /* =============================================
    invoices.js - Invoices Page Logic
-   Version: 2.0.0
+   Version: 2.1.0
 
-   Changelog:
-   - [INV-1] تواريخ محلية في الفلاتر
-   - [INV-2] استبعاد voided وheld من renderSummary
-   - [INV-3] editInvoice → تنبيه بدل سلوك مكسور
-   - [INV-4] Auth.onChange — توجيه عند الخروج
-   - [INV-5] showToast يفضّل window.Toast
-   - [INV-6] console gated by DEBUG
-   - [INV-7] getTypeLabel يعالج adjustment
-   - [INV-8] handleUrlParams يحترم الفلاتر النشطة
-   - [INV-9] guard: hideSkeleton قبل Apply الفلاتر
+   Changelog من v2.0.0:
+   - [INV-10] ربط زر إلغاء الفاتورة (DB.voidInvoice)
+   - [INV-11] إظهار زر الإلغاء للمدير فقط + فقط للفواتير غير الملغاة
+   - [INV-12] تحديث الحالة محليًا بعد الإلغاء + إعادة الرسم
+   - [INV-13] ترجمة أخطاء RPC إلى رسائل عربية
+   - [INV-14] مؤشر بصري "ملغية" على الفاتورة في القائمة
    ============================================= */
 (function() {
     'use strict';
@@ -22,6 +18,24 @@
                   window.location.hostname === 'localhost' ||
                   window.location.hostname === '127.0.0.1';
     const log = (...a) => { if (DEBUG) console.log(...a); };
+
+    const BUSINESS_MESSAGES = {
+        'P0001': 'السجل غير موجود',
+        'P0002': 'المخزون غير كافٍ',
+        'P0003': 'هذه العملية تتطلب صلاحيات مدير',
+        'P0004': 'بيانات غير صالحة',
+        'P0005': 'عنصر غير صالح في الفاتورة',
+        'P0006': 'عدم تطابق في الحسابات المالية',
+        'NO_TENANT': 'لا يوجد مستأجر مرتبط بالحساب',
+        '42501': 'ليس لديك صلاحية لهذه العملية',
+        '23505': 'الفاتورة مسجلة مسبقاً'
+    };
+
+    function translateError(err) {
+        const code = err?.code || '';
+        if (BUSINESS_MESSAGES[code]) return BUSINESS_MESSAGES[code];
+        return err?.message || 'فشل العملية';
+    }
 
     // ✅ [INV-1] تاريخ محلي
     function localDateStr(d = new Date()) {
@@ -44,6 +58,7 @@
         filtered: [],
         currentUser: null,
         viewingId: null,
+        _voiding: false,
         filters: {
             search: '',
             type: '',
@@ -52,6 +67,11 @@
             sort: 'recent'
         }
     };
+
+    function isAdmin() {
+        return State.currentUser?.role === 'admin' ||
+               State.currentUser?.role === 'super_admin';
+    }
 
     /* ============================================
        Init
@@ -84,6 +104,8 @@
             if (!u && State.currentUser) {
                 State.currentUser = null;
                 location.replace('./index.html');
+            } else if (u) {
+                State.currentUser = u;
             }
         });
 
@@ -125,12 +147,10 @@
         const partyId = params.get('party');
 
         if (invoiceId) {
-            // ابحث في المصفوفة المحمّلة مسبقًا (لا حاجة لتأخير)
             const found = State.invoices.find(i => i.id === invoiceId);
             if (found) {
                 setTimeout(() => openInvoiceDetails(invoiceId), 100);
             } else {
-                // حمّلها من السحابة
                 DB.getInvoiceById(invoiceId).then(inv => {
                     if (inv) {
                         State.invoices.push(inv);
@@ -141,7 +161,6 @@
             }
             window.history.replaceState({}, '', './invoices.html');
         } else if (partyId) {
-            // ✅ [INV-8] فلترة بسيطة
             State.filtered = State.invoices.filter(inv =>
                 inv.customer_id === partyId || inv.supplier_id === partyId
             );
@@ -152,13 +171,12 @@
     }
 
     /* ============================================
-       Summary — ✅ [INV-2] استبعاد voided وheld
+       Summary — ✅ استبعاد voided وheld
        ============================================ */
     function renderSummary() {
         const container = $('#summaryCards');
         if (!container) return;
 
-        let salesCount = 0, purchasesCount = 0, creditCount = 0;
         let totalSales = 0, totalPurchases = 0, totalCredit = 0;
 
         for (const inv of State.invoices) {
@@ -170,15 +188,12 @@
 
             if (inv.type === 'sale' && inv.status !== 'held') {
                 totalSales += total;
-                salesCount++;
             } else if (inv.type === 'purchase' && inv.status !== 'held') {
                 totalPurchases += total;
-                purchasesCount++;
             }
 
             if ((inv.status === 'credit' || inv.status === 'partial') && remaining > 0) {
                 totalCredit += remaining;
-                creditCount++;
             }
         }
 
@@ -223,8 +238,7 @@
     }
 
     /* ============================================
-       Filters & Sorting
-       ✅ [INV-1] تواريخ محلية
+       Filters
        ============================================ */
     function applyFilters() {
         let list = [...State.invoices];
@@ -291,7 +305,7 @@
     }
 
     /* ============================================
-       Render Invoices
+       Render Invoices — ✅ [INV-14] مؤشر ملغية
        ============================================ */
     function renderInvoices() {
         const gridView = $('#invoicesGridView');
@@ -320,6 +334,7 @@
     function renderInvoiceCard(inv) {
         const isPurchase = inv.type === 'purchase';
         const isReturn = String(inv.type || '').startsWith('return');
+        const isVoided = inv.status === 'voided';
         const iconClass = isReturn ? 'return' : isPurchase ? 'purchase' : '';
         const statusClass = inv.status || 'paid';
         const statusLabel = getStatusLabel(inv.status);
@@ -330,8 +345,12 @@
         const paid = Number(inv.paid) || 0;
         const remaining = Number(inv.remaining) || 0;
 
+        const cardStyle = isVoided
+            ? 'opacity:0.65;text-decoration:line-through;'
+            : '';
+
         return `
-            <div class="invoice-item" data-id="${U.escape(inv.id)}">
+            <div class="invoice-item" data-id="${U.escape(inv.id)}" style="${cardStyle}">
                 <div class="invoice-item__status ${statusClass}">${statusLabel}</div>
 
                 <div class="invoice-item__head">
@@ -353,7 +372,7 @@
                         <label>المدفوع</label>
                         <span>${U.money(paid)}</span>
                     </div>
-                    ${remaining > 0 ? `
+                    ${remaining > 0 && !isVoided ? `
                         <div class="invoice-item__total" style="background:rgba(239,68,68,0.1);">
                             <label style="color:var(--danger);">المتبقي</label>
                             <strong style="color:var(--danger);">${U.money(remaining)}</strong>
@@ -372,14 +391,19 @@
     function renderInvoiceListItem(inv) {
         const isPurchase = inv.type === 'purchase';
         const isReturn = String(inv.type || '').startsWith('return');
+        const isVoided = inv.status === 'voided';
         const iconClass = isReturn ? 'return' : isPurchase ? 'purchase' : '';
         const statusClass = inv.status || 'paid';
         const statusLabel = getStatusLabel(inv.status);
 
         const customerName = inv.customer_name || inv.supplier_name || 'نقدي';
 
+        const itemStyle = isVoided
+            ? 'opacity:0.65;text-decoration:line-through;'
+            : '';
+
         return `
-            <div class="invoice-list-item" data-id="${U.escape(inv.id)}">
+            <div class="invoice-list-item" data-id="${U.escape(inv.id)}" style="${itemStyle}">
                 <div class="invoice-list-item__icon ${iconClass}">
                     <i class="fas fa-${isPurchase ? 'shopping-cart' : isReturn ? 'undo-alt' : 'file-invoice'}"></i>
                 </div>
@@ -407,7 +431,6 @@
         }[status] || '—';
     }
 
-    // ✅ [INV-7] معالجة adjustment
     function getTypeLabel(type) {
         return {
             sale: 'بيع',
@@ -447,6 +470,15 @@
         }
 
         renderInvoiceReceipt(invoice);
+
+        // ✅ [INV-11] إظهار زر الإلغاء للمدير فقط، وغير الملغاة فقط
+        const voidBtn = $('#voidInvoiceBtn');
+        if (voidBtn) {
+            const canVoid = isAdmin() && invoice.status !== 'voided';
+            voidBtn.style.display = canVoid ? 'inline-flex' : 'none';
+            voidBtn.disabled = false;
+        }
+
         openModal('invoiceDetailsModal');
     }
 
@@ -566,13 +598,91 @@
     }
 
     /* ============================================
-       Edit — ✅ [INV-3] تنبيه بدل سلوك مكسور
+       Edit — تنبيه بدل سلوك مكسور
        ============================================ */
     function editInvoice() {
         showToast(
             'لا يمكن تعديل فاتورة صادرة. استخدم "إلغاء الفاتورة" لإنشاء واحدة جديدة.',
             'info'
         );
+    }
+
+    /* ============================================
+       Void Invoice — ✅ [INV-10..13]
+       ============================================ */
+    async function voidInvoice() {
+        if (State._voiding) return;
+
+        if (!isAdmin()) {
+            showToast('هذه العملية تتطلب صلاحيات مدير', 'error');
+            return;
+        }
+
+        const id = State.viewingId;
+        if (!id) return;
+
+        const invoice = State.invoices.find(i => i.id === id);
+        if (!invoice) {
+            showToast('الفاتورة غير موجودة', 'error');
+            return;
+        }
+
+        if (invoice.status === 'voided') {
+            showToast('الفاتورة ملغاة مسبقًا', 'info');
+            return;
+        }
+
+        const invoiceNumber = invoice.invoice_number || '---';
+        const confirmed = confirm(
+            `هل أنت متأكد من إلغاء الفاتورة ${invoiceNumber}؟\n\n` +
+            `سيتم:\n` +
+            `- إعادة المخزون للمنتجات\n` +
+            `- عكس تأثير الرصيد على العميل/المورد\n\n` +
+            `لا يمكن التراجع عن هذه العملية.`
+        );
+        if (!confirmed) return;
+
+        State._voiding = true;
+        const btn = $('#voidInvoiceBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإلغاء...';
+        }
+
+        try {
+            const result = await DB.voidInvoice(id);
+
+            // ✅ [INV-12] تحديث محليًا
+            const localInv = State.invoices.find(i => i.id === id);
+            if (localInv) {
+                localInv.status = 'voided';
+                localInv.updated_at = new Date().toISOString();
+                if (!localInv.voided_at) localInv.voided_at = new Date().toISOString();
+            }
+
+            // إعادة رسم الشاشة
+            renderSummary();
+            applyFilters();
+
+            // إغلاق المودال
+            closeModal('invoiceDetailsModal');
+
+            if (result?.alreadyVoided) {
+                showToast('الفاتورة كانت ملغاة مسبقًا', 'info');
+            } else {
+                showToast(`تم إلغاء الفاتورة ${invoiceNumber} بنجاح`, 'success');
+            }
+
+        } catch (e) {
+            console.error('Void error:', e);
+            showToast(translateError(e), 'error');
+        } finally {
+            State._voiding = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-ban"></i> إلغاء الفاتورة';
+            }
+        }
     }
 
     /* ============================================
@@ -705,7 +815,7 @@
     }
 
     /* ============================================
-       Toast — ✅ [INV-5] يفضل window.Toast
+       Toast — يفضل window.Toast
        ============================================ */
     function showToast(msg, type = 'info') {
         if (window.Toast && typeof window.Toast.show === 'function') {
@@ -823,7 +933,8 @@
             const input = $('#searchInput');
             if (input) input.value = '';
             State.filters.search = '';
-            $('#clearSearchBtn').style.display = 'none';
+            const clearBtn = $('#clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = 'none';
             applyFilters();
         });
 
@@ -848,6 +959,7 @@
         $('#closeDetailsModalBtn2')?.addEventListener('click', () => closeModal('invoiceDetailsModal'));
         $('#printInvoiceBtn')?.addEventListener('click', printInvoice);
         $('#editInvoiceBtn')?.addEventListener('click', editInvoice);
+        $('#voidInvoiceBtn')?.addEventListener('click', voidInvoice);
 
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
