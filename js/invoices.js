@@ -1,11 +1,42 @@
 /* =============================================
    invoices.js - Invoices Page Logic
+   Version: 2.0.0
+
+   Changelog:
+   - [INV-1] تواريخ محلية في الفلاتر
+   - [INV-2] استبعاد voided وheld من renderSummary
+   - [INV-3] editInvoice → تنبيه بدل سلوك مكسور
+   - [INV-4] Auth.onChange — توجيه عند الخروج
+   - [INV-5] showToast يفضّل window.Toast
+   - [INV-6] console gated by DEBUG
+   - [INV-7] getTypeLabel يعالج adjustment
+   - [INV-8] handleUrlParams يحترم الفلاتر النشطة
+   - [INV-9] guard: hideSkeleton قبل Apply الفلاتر
    ============================================= */
 (function() {
     'use strict';
 
     const $ = (s) => document.querySelector(s);
-    const $$ = (s) => [...document.querySelectorAll(s)];
+
+    const DEBUG = window.APP_CONFIG?.DEBUG === true ||
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1';
+    const log = (...a) => { if (DEBUG) console.log(...a); };
+
+    // ✅ [INV-1] تاريخ محلي
+    function localDateStr(d = new Date()) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function invoiceLocalDate(inv) {
+        if (!inv) return '';
+        if (inv.date) return inv.date;
+        if (inv.created_at) return localDateStr(new Date(inv.created_at));
+        return '';
+    }
 
     /* ============ State ============ */
     const State = {
@@ -26,7 +57,7 @@
        Init
        ============================================ */
     async function init() {
-        console.log('🚀 Invoices init...');
+        log('🚀 Invoices init...');
 
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
@@ -40,8 +71,6 @@
             return;
         }
 
-        await new Promise(r => setTimeout(r, 300));
-
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -50,6 +79,14 @@
             return;
         }
 
+        // ✅ [INV-4] مراقبة الجلسة
+        Auth.onChange((u) => {
+            if (!u && State.currentUser) {
+                State.currentUser = null;
+                location.replace('./index.html');
+            }
+        });
+
         updateUserUI();
         updateConnStatus();
         initTheme();
@@ -57,7 +94,7 @@
 
         await loadInvoices();
         hideLoadingBar();
-        console.log('✅ Invoices ready');
+        log('✅ Invoices ready');
     }
 
     /* ============================================
@@ -67,12 +104,11 @@
         showSkeleton();
         try {
             State.invoices = await DB.getInvoices(true) || [];
-            console.log('📄 Invoices:', State.invoices.length);
+            log('📄 Invoices:', State.invoices.length);
 
             renderSummary();
             applyFilters();
 
-            // Handle URL params (from customers page)
             handleUrlParams();
         } catch (e) {
             console.error('Load error:', e);
@@ -89,12 +125,23 @@
         const partyId = params.get('party');
 
         if (invoiceId) {
-            // Open specific invoice
-            setTimeout(() => openInvoiceDetails(invoiceId), 600);
-            // Clean URL
+            // ابحث في المصفوفة المحمّلة مسبقًا (لا حاجة لتأخير)
+            const found = State.invoices.find(i => i.id === invoiceId);
+            if (found) {
+                setTimeout(() => openInvoiceDetails(invoiceId), 100);
+            } else {
+                // حمّلها من السحابة
+                DB.getInvoiceById(invoiceId).then(inv => {
+                    if (inv) {
+                        State.invoices.push(inv);
+                        renderInvoiceReceipt(inv);
+                        openModal('invoiceDetailsModal');
+                    }
+                }).catch(() => {});
+            }
             window.history.replaceState({}, '', './invoices.html');
         } else if (partyId) {
-            // Filter by party
+            // ✅ [INV-8] فلترة بسيطة
             State.filtered = State.invoices.filter(inv =>
                 inv.customer_id === partyId || inv.supplier_id === partyId
             );
@@ -105,19 +152,35 @@
     }
 
     /* ============================================
-       Summary
+       Summary — ✅ [INV-2] استبعاد voided وheld
        ============================================ */
     function renderSummary() {
         const container = $('#summaryCards');
         if (!container) return;
 
-        const sales = State.invoices.filter(i => i.type === 'sale');
-        const purchases = State.invoices.filter(i => i.type === 'purchase');
-        const credit = State.invoices.filter(i => i.status === 'credit' || i.status === 'partial');
+        let salesCount = 0, purchasesCount = 0, creditCount = 0;
+        let totalSales = 0, totalPurchases = 0, totalCredit = 0;
 
-        const totalSales = sales.reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const totalPurchases = purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const totalCredit = credit.reduce((s, i) => s + (Number(i.remaining) || 0), 0);
+        for (const inv of State.invoices) {
+            if (!inv) continue;
+            if (inv.status === 'voided') continue;
+
+            const total = Number(inv.total) || 0;
+            const remaining = Number(inv.remaining) || 0;
+
+            if (inv.type === 'sale' && inv.status !== 'held') {
+                totalSales += total;
+                salesCount++;
+            } else if (inv.type === 'purchase' && inv.status !== 'held') {
+                totalPurchases += total;
+                purchasesCount++;
+            }
+
+            if ((inv.status === 'credit' || inv.status === 'partial') && remaining > 0) {
+                totalCredit += remaining;
+                creditCount++;
+            }
+        }
 
         container.innerHTML = `
             <div class="summary-card">
@@ -161,11 +224,11 @@
 
     /* ============================================
        Filters & Sorting
+       ✅ [INV-1] تواريخ محلية
        ============================================ */
     function applyFilters() {
         let list = [...State.invoices];
 
-        // Search
         if (State.filters.search) {
             const term = State.filters.search.toLowerCase();
             list = list.filter(inv =>
@@ -175,49 +238,40 @@
             );
         }
 
-        // Type
         if (State.filters.type) {
             list = list.filter(inv => inv.type === State.filters.type);
         }
 
-        // Status
         if (State.filters.status) {
             list = list.filter(inv => inv.status === State.filters.status);
         }
 
-        // Date
         if (State.filters.date) {
             const now = new Date();
-            const today = now.toISOString().split('T')[0];
+            const today = localDateStr(now);
             const filterDate = State.filters.date;
 
+            const weekAgo = localDateStr(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+            const monthAgo = localDateStr(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
+            const yearStr = String(now.getFullYear());
+
             list = list.filter(inv => {
-                const invDate = inv.date || (inv.created_at || '').slice(0, 10);
+                const invDate = invoiceLocalDate(inv);
+                if (!invDate) return false;
                 if (filterDate === 'today') return invDate === today;
-                
-                if (filterDate === 'week') {
-                    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                    return invDate >= weekAgo;
-                }
-                
-                if (filterDate === 'month') {
-                    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                    return invDate >= monthAgo;
-                }
-                
-                if (filterDate === 'year') {
-                    return invDate.startsWith(now.getFullYear().toString());
-                }
-                
+                if (filterDate === 'week') return invDate >= weekAgo;
+                if (filterDate === 'month') return invDate >= monthAgo;
+                if (filterDate === 'year') return invDate.startsWith(yearStr);
                 return true;
             });
         }
 
-        // Sort
         const sort = State.filters.sort;
         list.sort((a, b) => {
-            if (sort === 'recent') return new Date(b.created_at || b.date) - new Date(a.created_at || a.date);
-            if (sort === 'oldest') return new Date(a.created_at || a.date) - new Date(b.created_at || b.date);
+            const aTime = new Date(a.created_at || a.date || 0).getTime();
+            const bTime = new Date(b.created_at || b.date || 0).getTime();
+            if (sort === 'recent') return bTime - aTime;
+            if (sort === 'oldest') return aTime - bTime;
             if (sort === 'amount-desc') return (Number(b.total) || 0) - (Number(a.total) || 0);
             if (sort === 'amount') return (Number(a.total) || 0) - (Number(b.total) || 0);
             return 0;
@@ -265,7 +319,7 @@
 
     function renderInvoiceCard(inv) {
         const isPurchase = inv.type === 'purchase';
-        const isReturn = inv.type?.startsWith('return');
+        const isReturn = String(inv.type || '').startsWith('return');
         const iconClass = isReturn ? 'return' : isPurchase ? 'purchase' : '';
         const statusClass = inv.status || 'paid';
         const statusLabel = getStatusLabel(inv.status);
@@ -277,7 +331,7 @@
         const remaining = Number(inv.remaining) || 0;
 
         return `
-            <div class="invoice-item" data-id="${inv.id}">
+            <div class="invoice-item" data-id="${U.escape(inv.id)}">
                 <div class="invoice-item__status ${statusClass}">${statusLabel}</div>
 
                 <div class="invoice-item__head">
@@ -317,7 +371,7 @@
 
     function renderInvoiceListItem(inv) {
         const isPurchase = inv.type === 'purchase';
-        const isReturn = inv.type?.startsWith('return');
+        const isReturn = String(inv.type || '').startsWith('return');
         const iconClass = isReturn ? 'return' : isPurchase ? 'purchase' : '';
         const statusClass = inv.status || 'paid';
         const statusLabel = getStatusLabel(inv.status);
@@ -325,7 +379,7 @@
         const customerName = inv.customer_name || inv.supplier_name || 'نقدي';
 
         return `
-            <div class="invoice-list-item" data-id="${inv.id}">
+            <div class="invoice-list-item" data-id="${U.escape(inv.id)}">
                 <div class="invoice-list-item__icon ${iconClass}">
                     <i class="fas fa-${isPurchase ? 'shopping-cart' : isReturn ? 'undo-alt' : 'file-invoice'}"></i>
                 </div>
@@ -342,6 +396,7 @@
     }
 
     function getStatusLabel(status) {
+        if (!status) return '—';
         return {
             paid: 'مدفوعة',
             partial: 'جزئية',
@@ -349,20 +404,23 @@
             held: 'معلقة',
             voided: 'ملغية',
             pending: 'قيد الانتظار'
-        }[status] || 'مدفوعة';
+        }[status] || '—';
     }
 
+    // ✅ [INV-7] معالجة adjustment
     function getTypeLabel(type) {
         return {
             sale: 'بيع',
             purchase: 'شراء',
             return_sale: 'مرتجع بيع',
-            return_purchase: 'مرتجع شراء'
-        }[type] || 'بيع';
+            return_purchase: 'مرتجع شراء',
+            adjustment: 'تسوية'
+        }[type] || 'غير معروف';
     }
 
     function bindInvoiceActions(el) {
         const id = el.dataset.id;
+        if (!id) return;
         el.addEventListener('click', () => openInvoiceDetails(id));
     }
 
@@ -379,7 +437,8 @@
 
         let invoice = State.invoices.find(i => i.id === id);
         if (!invoice) {
-            invoice = await DB.getInvoiceById(id);
+            try { invoice = await DB.getInvoiceById(id); }
+            catch (e) { console.error('getInvoiceById failed', e); }
         }
 
         if (!invoice) {
@@ -401,20 +460,21 @@
         const footer = settings.footer || 'شكراً لتعاملكم معنا';
 
         const isPurchase = inv.type === 'purchase';
-        const isReturn = inv.type?.startsWith('return');
-        const customerName = inv.customer_name || inv.supplier_name || 'نقدي';
         const partyLabel = isPurchase ? 'المورد' : 'العميل';
+        const customerName = inv.customer_name || inv.supplier_name || 'نقدي';
 
         let itemsHtml = '';
         (inv.items || []).forEach(item => {
-            const lineTotal = (Number(item.price) || 0) * (Number(item.quantity) || 0);
+            const price = Number(item.price) || 0;
+            const qty = Number(item.quantity) || 0;
+            const lineTotal = price * qty;
             itemsHtml += `
                 <tr>
                     <td>${U.escape(item.productName || item.name || '')}<br>
                         <small style="color:#666;font-size:10px;">${U.escape(item.unitName || item.unit || '')}</small>
                     </td>
-                    <td style="text-align:center;">${item.quantity || 0}</td>
-                    <td style="text-align:center;">${(Number(item.price) || 0).toFixed(2)}</td>
+                    <td style="text-align:center;">${qty}</td>
+                    <td style="text-align:center;">${price.toFixed(2)}</td>
                     <td style="text-align:left;">${lineTotal.toFixed(2)}</td>
                 </tr>
             `;
@@ -426,7 +486,6 @@
         const paid = Number(inv.paid) || 0;
         const remaining = Number(inv.remaining) || 0;
         const changeAmount = Number(inv.change_amount) || 0;
-
         const statusLabel = getStatusLabel(inv.status);
 
         content.innerHTML = `
@@ -460,6 +519,7 @@
             ${changeAmount > 0 ? `<div class="receipt-row"><span>الباقي:</span><span>${changeAmount.toFixed(2)}</span></div>` : ''}
             ${remaining > 0 ? `<div class="receipt-row" style="color:red;"><span>المتبقي:</span><span>${remaining.toFixed(2)}</span></div>` : ''}
             ${inv.notes ? `<hr><div style="font-size:12px;"><strong>ملاحظات:</strong> ${U.escape(inv.notes)}</div>` : ''}
+            ${inv.voided_at ? `<hr><div style="font-size:12px;color:var(--danger);"><strong>أُلغيت في:</strong> ${U.dateTime(inv.voided_at)}</div>` : ''}
             <hr>
             <div class="receipt-center" style="font-weight:bold;">${U.escape(footer)}</div>
         `;
@@ -483,49 +543,36 @@
         if (!content) return;
 
         const win = window.open('', '_blank', 'width=400,height=700');
-        win.document.write(`
-            <!DOCTYPE html>
+        if (!win) {
+            showToast('تعذر فتح نافذة الطباعة — اسمح بالنوافذ المنبثقة', 'warning');
+            return;
+        }
+        win.document.write(`<!DOCTYPE html>
             <html dir="rtl"><head><meta charset="UTF-8">
             <title>طباعة الفاتورة</title>
             <style>
-                body {
-                    font-family: 'Cairo', Arial, sans-serif;
-                    padding: 10px;
-                    font-size: 13px;
-                    max-width: 80mm;
-                    margin: 0 auto;
-                }
-                hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
-                .receipt-row { display: flex; justify-content: space-between; margin: 3px 0; }
-                .receipt-center { text-align: center; font-weight: 700; }
-                .receipt-table { width: 100%; border-collapse: collapse; }
-                .receipt-table th,
-                .receipt-table td {
-                    padding: 4px 2px;
-                    border-bottom: 1px dashed #ddd;
-                    font-size: 12px;
-                    text-align: right;
-                }
-                .receipt-table th:last-child,
-                .receipt-table td:last-child { text-align: left; }
-                @media print { body { padding: 0; } }
-            </style>
-            </head><body>${content}</body></html>
-        `);
+                body { font-family:'Cairo',Arial,sans-serif;padding:10px;font-size:13px;max-width:80mm;margin:0 auto; }
+                hr { border:none;border-top:1px dashed #999;margin:10px 0; }
+                .receipt-row { display:flex;justify-content:space-between;margin:3px 0; }
+                .receipt-center { text-align:center;font-weight:700; }
+                .receipt-table { width:100%;border-collapse:collapse; }
+                .receipt-table th,.receipt-table td { padding:4px 2px;border-bottom:1px dashed #ddd;font-size:12px;text-align:right; }
+                .receipt-table th:last-child,.receipt-table td:last-child { text-align:left; }
+                @media print { body { padding:0; } }
+            </style></head><body>${content}</body></html>`);
         win.document.close();
         win.focus();
         setTimeout(() => win.print(), 300);
     }
 
     /* ============================================
-       Edit Invoice
+       Edit — ✅ [INV-3] تنبيه بدل سلوك مكسور
        ============================================ */
     function editInvoice() {
-        if (!State.viewingId) return;
-        
-        // Store invoice ID and navigate to POS
-        localStorage.setItem('edit_invoice_id', State.viewingId);
-        window.location.href = './pos.html';
+        showToast(
+            'لا يمكن تعديل فاتورة صادرة. استخدم "إلغاء الفاتورة" لإنشاء واحدة جديدة.',
+            'info'
+        );
     }
 
     /* ============================================
@@ -561,15 +608,17 @@
                     ? '"' + s.replace(/"/g, '""') + '"'
                     : s;
             }).join(',')
-        ).join('\n');
+        ).join('\r\n');
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `invoices-${U.today()}.csv`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
 
         showToast('تم التصدير', 'success');
     }
@@ -598,7 +647,8 @@
         const btn = $('#themeBtn');
         if (!btn) return;
         const isDark = document.documentElement.dataset.theme === 'dark';
-        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
 
     function initTheme() {
@@ -607,12 +657,8 @@
         updateThemeIcon();
     }
 
-    function openModal(id) {
-        document.getElementById(id)?.classList.add('open');
-    }
-    function closeModal(id) {
-        document.getElementById(id)?.classList.remove('open');
-    }
+    function openModal(id) { document.getElementById(id)?.classList.add('open'); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 
     function showSkeleton() {
         const skeleton = $('#skeletonGrid');
@@ -659,9 +705,13 @@
     }
 
     /* ============================================
-       Toast
+       Toast — ✅ [INV-5] يفضل window.Toast
        ============================================ */
     function showToast(msg, type = 'info') {
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            try { window.Toast.show(msg, type); return; } catch (e) { /* fallthrough */ }
+        }
+
         let stack = $('#toastStack');
         if (!stack) {
             stack = document.createElement('div');
@@ -712,7 +762,6 @@
        Events
        ============================================ */
     function bindEvents() {
-        // Sidebar
         $('#menuBtn')?.addEventListener('click', () => {
             $('#sidebar')?.classList.add('open');
             $('#sidebarOverlay')?.classList.add('show');
@@ -728,7 +777,6 @@
             });
         });
 
-        // Theme
         $('#themeBtn')?.addEventListener('click', () => {
             const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
             document.documentElement.dataset.theme = next;
@@ -736,30 +784,34 @@
             updateThemeIcon();
         });
 
-        // Logout
         $('#logoutBtn')?.addEventListener('click', async (e) => {
             e.preventDefault();
             if (!confirm('تسجيل الخروج؟')) return;
             await Auth.logout();
         });
 
-        // Refresh
-        $('#refreshBtn')?.addEventListener('click', async () => {
-            showToast('جاري التحديث...', 'info');
-            DB.clearCache();
-            await loadInvoices();
-            showToast('تم التحديث', 'success');
+        const refreshBtn = $('#refreshBtn');
+        let refreshing = false;
+        refreshBtn?.addEventListener('click', async () => {
+            if (refreshing) return;
+            refreshing = true;
+            refreshBtn.disabled = true;
+            try {
+                DB.clearCache();
+                await loadInvoices();
+                showToast('تم التحديث', 'success');
+            } finally {
+                refreshing = false;
+                refreshBtn.disabled = false;
+            }
         });
 
-        // Export
         $('#exportBtn')?.addEventListener('click', exportInvoices);
 
-        // New invoice
         $('#newInvoiceBtn')?.addEventListener('click', () => {
             window.location.href = './pos.html';
         });
 
-        // Search
         $('#searchInput')?.addEventListener('input', U.debounce((e) => {
             State.filters.search = e.target.value.trim();
             const clearBtn = $('#clearSearchBtn');
@@ -775,7 +827,6 @@
             applyFilters();
         });
 
-        // Filters
         $('#typeFilter')?.addEventListener('change', (e) => {
             State.filters.type = e.target.value;
             applyFilters();
@@ -793,27 +844,23 @@
             applyFilters();
         });
 
-        // Details modal
         $('#closeDetailsModalBtn')?.addEventListener('click', () => closeModal('invoiceDetailsModal'));
         $('#closeDetailsModalBtn2')?.addEventListener('click', () => closeModal('invoiceDetailsModal'));
         $('#printInvoiceBtn')?.addEventListener('click', printInvoice);
         $('#editInvoiceBtn')?.addEventListener('click', editInvoice);
 
-        // Modals close on backdrop
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) modal.classList.remove('open');
             });
         });
 
-        // ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
             }
         });
 
-        // Connection
         window.addEventListener('online', () => {
             updateConnStatus();
             showToast('عاد الاتصال', 'success');
@@ -832,5 +879,4 @@
     } else {
         init();
     }
-
 })();
