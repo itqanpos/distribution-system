@@ -1374,4 +1374,208 @@
             $('#sidebar')?.classList.add('open');
             $('#sidebarOverlay')?.classList.add('show');
         });
-        $('#sidebarOverlay')?.addEventListener('click', () =>
+        $('#sidebarOverlay')?.addEventListener('click', () => {
+            $('#sidebar')?.classList.remove('open');
+            $('#sidebarOverlay')?.classList.remove('show');
+        });
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                $('#sidebar')?.classList.remove('open');
+                $('#sidebarOverlay')?.classList.remove('show');
+            });
+        });
+
+        $('#themeBtn')?.addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            U.ls.set('theme', next);
+            updateThemeIcon();
+        });
+
+        $('#logoutBtn')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('تسجيل الخروج؟')) return;
+            await Auth.logout();
+        });
+
+        $('#productSearch')?.addEventListener('input', U.debounce((e) => {
+            State.searchTerm = e.target.value.trim();
+            renderProductGrid();
+        }, 200));
+
+        $('#productSearch')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const term = e.target.value.trim();
+                if (!term) return;
+                const product = State.products.find(p => p.barcode === term || p.code === term);
+                if (product) {
+                    e.target.value = '';
+                    State.searchTerm = '';
+                    renderProductGrid();
+                    openUnitModal(product.id);
+                }
+            }
+        });
+
+        bindProductSearch();
+
+        $('#closeProductsBtn')?.addEventListener('click', () => {
+            $('#productsArea')?.classList.remove('show');
+        });
+
+        $('#checkoutBtn')?.addEventListener('click', openPayment);
+        $('#clearCartBtn')?.addEventListener('click', clearCart);
+
+        $('#discountValue')?.addEventListener('input', (e) => {
+            let v = +e.target.value || 0;
+            if (State.discountType === 'percent') v = Math.min(100, Math.max(0, v));
+            else v = Math.max(0, v);
+            State.discount = v;
+            updateSummary();
+            saveCart();
+        });
+        $('#discountType')?.addEventListener('change', (e) => {
+            State.discountType = e.target.value;
+            if (State.discountType === 'percent') {
+                State.discount = Math.min(100, Math.max(0, State.discount));
+                $('#discountValue').value = State.discount;
+            }
+            updateSummary();
+            saveCart();
+        });
+
+        $('#customerSearch')?.addEventListener('focus', (e) => {
+            renderCustomerDropdown(e.target.value);
+        });
+        $('#customerSearch')?.addEventListener('input', U.debounce((e) => {
+            renderCustomerDropdown(e.target.value);
+        }, 200));
+        $('#clearCustomerBtn')?.addEventListener('click', () => selectCustomer(null));
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.customer-input-wrap') && !e.target.closest('.customer-dropdown')) {
+                $('#customerDropdown')?.classList.remove('show');
+            }
+        });
+
+        $('#unitChips')?.addEventListener('click', (e) => {
+            const chip = e.target.closest('.unit-chip');
+            if (!chip) return;
+            const idx = +chip.dataset.index;
+            State.selectedUnit = State.selectedProduct.units[idx];
+            $$('.unit-chip').forEach((c, i) => c.classList.toggle('active', i === idx));
+            updateUnitFields();
+        });
+
+        $('#unitPrice')?.addEventListener('input', () => {
+            const price = +$('#unitPrice')?.value || 0;
+            const u = State.selectedUnit;
+            const errorEl = $('#priceLimitError');
+            if (!u || !errorEl) return;
+            const validation = validatePrice(price, u);
+            if (!validation.valid) {
+                errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${validation.message}`;
+                errorEl.style.display = 'flex';
+            } else {
+                errorEl.style.display = 'none';
+            }
+        });
+
+        $('#unitAddBtn')?.addEventListener('click', () => {
+            const product = State.selectedProduct;
+            const unit = State.selectedUnit;
+            if (!product || !unit) return;
+            const idx = product.units.indexOf(unit);
+            const qty = +$('#unitQty').value || 0;
+            const price = +$('#unitPrice').value || 0;
+
+            if (qty <= 0) { showToast('أدخل كمية صحيحة', 'warning'); return; }
+
+            const priceCheck = validatePrice(price, unit);
+            if (!priceCheck.valid) {
+                const errorEl = $('#priceLimitError');
+                if (errorEl) {
+                    errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${priceCheck.message}`;
+                    errorEl.style.display = 'flex';
+                }
+                showToast(priceCheck.message, 'error');
+                return;
+            }
+
+            const result = addToCart(product.id, idx, qty, $('# price);
+            if (!result.ok) return;
+
+           cash closeModal('unitModal');
+Input            showToast('تمت الإ')ضافة للسلة', 'success');
+?.        });
+
+        $('#unitQty')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') $('#unitAddBtn').click();
+        });
+
+        $$('.method').forEach(btn => {
+            btn.addEventListener('click', () => setPaymentMethod(btn.dataset.method));
+        });
+       addEventListener('input', updateChange);
+        $('#cardInput')?.addEventListener('input', updateChange);
+        $('#confirmPayBtn')?.addEventListener('click', completeSale);
+
+        $('#printReceiptBtn')?.addEventListener('click', printReceipt);
+        $('#newSaleBtn')?.addEventListener('click', () => closeModal('receiptModal'));
+
+        $('#holdBtn')?.addEventListener('click', holdCurrentSale);
+        $('#heldBtn')?.addEventListener('click', showHeldInvoices);
+
+        document.querySelectorAll('[data-close]').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.dataset.close));
+        });
+
+        const protectedModals = new Set(['paymentModal', 'unitModal']);
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target !== modal) return;
+                if (protectedModals.has(modal.id)) return;
+                modal.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch') {
+                if (e.key === 'Escape') e.target.blur();
+                return;
+            }
+            if (e.key === 'F1') { e.preventDefault(); $('#customerSearch')?.focus(); }
+            if (e.key === 'F2') { e.preventDefault(); $('#productSearch')?.focus(); }
+            if (e.key === 'F3') { e.preventDefault(); $('#productSearchInput')?.focus(); }
+            if (e.key === 'F4') { e.preventDefault(); if (State.cart.length) openPayment(); }
+            if (e.key === 'F5' && State.cart.length) {
+                e.preventDefault();
+                holdCurrentSale();
+            }
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.open').forEach(m => {
+                    if (!protectedModals.has(m.id)) m.classList.remove('open');
+                });
+                $('#productsArea')?.classList.remove('show');
+            }
+        });
+
+        window.addEventListener('online', () => {
+            updateConnStatus();
+            showToast('عاد الاتصال', 'success');
+        });
+        window.addEventListener('offline', () => {
+            updateConnStatus();
+            showToast('انقطع الاتصال', 'warning');
+        });
+    }
+
+    /* ============================================
+       Start
+       ============================================ */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
