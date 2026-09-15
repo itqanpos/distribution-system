@@ -1,16 +1,22 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 5.2.0
+   Version: 5.2.1
 
-   Changes from v5.0.0:
-   - [1] requireTenant() — يمنع الكتابة بدون tenant
-   - [2] لا fallback لـ IDB عند الفشل أونلاين
-   - [3] deleteByTenant() — عزل بيانات المستأجرين في IDB
-   - [4] getProducts/getParties/getInvoices يحترمون tenant
-   - [5] createSaleInvoice / createPurchaseInvoice كأغلفة
-   - [6] getInvoicesLight / getPurchases / getPurchaseById / getPurchasesLight
-   - [7] addPayment: لا تغيير محلي قبل نجاح RPC
-   - [8] wipeLocalData يشمل failed_sync
+   Changelog:
+   - v5.2.0: requireTenant + deleteByTenant + tenant-scoped reads
+             + createSaleInvoice/createPurchaseInvoice wrappers
+             + getInvoicesLight/getPurchases/getPurchasesLight
+             + voidInvoice + _reverseLocalEffects
+             + addPayment لا يعدّل محليًا قبل تأكيد RPC
+             + DB_NAME=hesaby_pos, DB_VERSION=3
+
+   - v5.2.1 (بعد مراجعة مستقلة):
+     [FIX-1] voidInvoice: idempotency guard (alreadyVoided)
+     [FIX-2] voidInvoice: تخطّي عكس التأثيرات لفاتورة held
+     [FIX-3] _dispatchSync: نوع مجهول → خطأ مصنّف (فشل فوري)
+     [FIX-4] createInvoice: احترام data.id عند dedup
+     [FIX-5] getInvoicesLight: حذف فعلي لحقل items
+     [FIX-6] isBusinessError: إزالة 42P01 وإضافة NO_TENANT
    ============================================= */
 (function() {
     'use strict';
@@ -59,9 +65,12 @@
         return Math.round(s + (s >= 0 ? 1e-9 : -1e-9)) / f;
     }
 
+    // ✅ [FIX-6] 42P01 مستبعد (خطأ deployment، لا أعمال)
+    //             NO_TENANT مُضاف (فشل فوري بدل retry)
     const BUSINESS_ERROR_CODES = new Set([
         'P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'P0006',
-        '42501', '23505', '23514', '23503', '42P01'
+        'NO_TENANT',
+        '42501', '23505', '23514', '23503'
     ]);
 
     function isBusinessError(err) {
@@ -392,8 +401,12 @@
                     return await this.client.from('settings')
                         .upsert({ tenant_id: op.payload.tenant_id, data: op.payload.data },
                                 { onConflict: 'tenant_id' });
-                default:
-                    return { error: new Error('Unknown sync type: ' + op.type) };
+                default: {
+                    // ✅ [FIX-3] نوع مجهول → فشل فوري بدل 8 محاولات
+                    const err = new Error('Unknown sync type: ' + op.type);
+                    err.code = 'P0004';
+                    return { error: err };
+                }
             }
         },
 
@@ -774,6 +787,7 @@
             return data || [];
         },
 
+        // ✅ [FIX-5] حذف فعلي لحقل items (لا undefined)
         async getInvoicesLight(force = false) {
             const tenantId = getTenantId();
 
@@ -781,7 +795,10 @@
                 const all = await this.local.getAll('invoices');
                 const local = all.filter(i => !tenantId || i.tenant_id === tenantId);
                 local.sort((a,b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
-                return local.map(i => ({ ...i, items: undefined }));
+                return local.map(i => {
+                    const { items, ...light } = i;
+                    return light;
+                });
             }
 
             const { data, error } = await this.client.from('invoices')
@@ -864,17 +881,22 @@
                     );
                     if (error) throw error;
 
+                    // ✅ [FIX-4] احترام data.id عند dedup
+                    const persistedId = data?.id || id;
+                    const persistedNumber = data?.invoice_number || payload.invoice_number;
+                    const persisted = { ...payload, id: persistedId, invoice_number: persistedNumber };
+
                     await this.local.put('invoices', {
-                        ...payload,
-                        invoice_number: data?.invoice_number || payload.invoice_number,
+                        ...persisted,
                         synced_at: now
                     });
-                    await this._applyLocalEffects(payload);
+                    await this._applyLocalEffects(persisted);
 
                     MemCache.clear();
                     return {
-                        success: true, id,
-                        invoice_number: data?.invoice_number || payload.invoice_number,
+                        success: true,
+                        id: persistedId,
+                        invoice_number: persistedNumber,
                         deduplicated: data?.deduplicated === true
                     };
                 } catch (cloudErr) {
@@ -901,7 +923,7 @@
         },
 
         /* ============================================
-           PURCHASES — كعرض مُفلتر من invoices
+           PURCHASES — عرض مُفلتر من invoices
            ============================================ */
         async getPurchases(force = false) {
             const all = await this.getInvoices(force);
@@ -918,11 +940,21 @@
         },
 
         /* ============================================
-           VOID INVOICE — RPC ذرّي
+           VOID INVOICE — RPC ذرّي + Idempotency
+           ✅ [FIX-1] حماية من الإلغاء المزدوج
+           ✅ [FIX-2] تخطّي عكس فاتورة held
            ============================================ */
         async voidInvoice(id) {
-            const tenantId = requireTenant();
+            requireTenant();
             if (!id) throw new Error('معرّف الفاتورة مطلوب');
+
+            // افحص الحالة المحلية أولًا لمنع الإلغاء المزدوج
+            const localBefore = await this.local.get('invoices', id);
+            if (localBefore?.status === 'voided') {
+                return { success: true, id, alreadyVoided: true };
+            }
+
+            const wasHeld = localBefore?.status === 'held';
 
             if (navigator.onLine && this.client) {
                 try {
@@ -931,13 +963,12 @@
                     );
                     if (error) throw error;
 
-                    // حدّث محليًا
-                    const local = await this.local.get('invoices', id);
-                    if (local) {
-                        local.status = 'voided';
-                        local.updated_at = new Date().toISOString();
-                        await this.local.put('invoices', local);
-                        await this._reverseLocalEffects(local);
+                    if (localBefore && !localBefore.deleted_at) {
+                        localBefore.status = 'voided';
+                        localBefore.updated_at = new Date().toISOString();
+                        await this.local.put('invoices', localBefore);
+                        // لا نعكس تأثيرات فاتورة معلقة (لم تُطبَّق أصلًا)
+                        if (!wasHeld) await this._reverseLocalEffects(localBefore);
                     }
 
                     MemCache.clear();
@@ -950,13 +981,12 @@
                 await SyncQueue.enqueue({ type: 'void_invoice', id, payload: { id } });
             }
 
-            // محليًا
-            const local = await this.local.get('invoices', id);
-            if (local) {
-                local.status = 'voided';
-                local.updated_at = new Date().toISOString();
-                await this.local.put('invoices', local);
-                await this._reverseLocalEffects(local);
+            // مسار الأوفلاين / الطابور
+            if (localBefore && !localBefore.deleted_at) {
+                localBefore.status = 'voided';
+                localBefore.updated_at = new Date().toISOString();
+                await this.local.put('invoices', localBefore);
+                if (!wasHeld) await this._reverseLocalEffects(localBefore);
             }
             MemCache.clear();
             return { success: true, id };
