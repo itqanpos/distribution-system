@@ -1,10 +1,9 @@
 /* =============================================
    pos.css - Point of Sale Styles
-   Version: 5.1
+   Version: 5.2
 
-   Changelog من v5.0:
-   - [CSS-POS-1] إضافة touch-action: manipulation
-                 لكل العناصر التفاعلية (منع double-tap zoom على iOS)
+   Changelog من v5.1:
+   - [CSS-POS-2] أنماط الإيصال الجديدة (شعار، صفوف، رصيد)
    ============================================= */
 
 :root {
@@ -26,7 +25,6 @@ body {
 
 /* =============================================
    منع double-tap / pinch zoom على العناصر التفاعلية
-   (iOS PWA)
    ============================================= */
 .cat-tab,
 .product-card,
@@ -54,7 +52,6 @@ body {
     touch-action: manipulation;
 }
 
-/* استثناء حقول النص الحر — للسماح بتحديد النص ونسخه */
 input[type="text"],
 input[type="search"],
 input[type="email"],
@@ -223,7 +220,7 @@ textarea {
 }
 
 /* =============================================
-   Products Area (Desktop)
+   Products Area
    ============================================= */
 .products-area {
     padding: 14px;
@@ -377,57 +374,13 @@ textarea {
     gap: 10px;
 }
 
-/* ============ Customer Input ============ */
-.customer-input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.customer-input-wrap > i {
-    position: absolute;
-    right: 14px;
-    color: var(--text-faint);
-    pointer-events: none;
-    font-size: 14px;
-    z-index: 1;
-}
-.customer-input-wrap input {
-    width: 100%;
-    padding: 12px 40px 12px 48px;
-    border: 1px solid var(--border);
-    background: var(--bg-sunken);
-    color: var(--text);
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 700;
-    outline: none;
-    font-family: inherit;
-    transition: all 0.2s;
-}
-.customer-input-wrap input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
-}
-.customer-input-wrap input::placeholder {
-    color: var(--text-faint);
-    font-weight: 500;
-}
-.customer-input-wrap .icon-btn {
-    position: absolute;
-    left: 4px;
-    background: transparent;
-    display: none;
-}
-.customer-input-wrap input:not(:placeholder-shown) ~ .icon-btn {
-    display: grid;
-}
-
-/* ============ Product Input (بنفس تصميم العميل) ============ */
+.customer-input-wrap,
 .product-input-wrap {
     position: relative;
     display: flex;
     align-items: center;
 }
+.customer-input-wrap > i,
 .product-input-wrap > i {
     position: absolute;
     right: 14px;
@@ -436,6 +389,7 @@ textarea {
     font-size: 14px;
     z-index: 1;
 }
+.customer-input-wrap input,
 .product-input-wrap input {
     width: 100%;
     padding: 12px 40px 12px 48px;
@@ -449,25 +403,28 @@ textarea {
     font-family: inherit;
     transition: all 0.2s;
 }
+.customer-input-wrap input:focus,
 .product-input-wrap input:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-light);
 }
+.customer-input-wrap input::placeholder,
 .product-input-wrap input::placeholder {
     color: var(--text-faint);
     font-weight: 500;
 }
+.customer-input-wrap .icon-btn,
 .product-input-wrap .icon-btn {
     position: absolute;
     left: 4px;
     background: transparent;
     display: none;
 }
+.customer-input-wrap input:not(:placeholder-shown) ~ .icon-btn,
 .product-input-wrap input:not(:placeholder-shown) ~ .icon-btn {
     display: grid;
 }
 
-/* ============ Dropdowns ============ */
 .customer-dropdown,
 .product-dropdown {
     position: absolute;
@@ -487,7 +444,6 @@ textarea {
 .customer-dropdown.show,
 .product-dropdown.show { display: block; }
 
-/* Customer item */
 .cust-item {
     padding: 10px 12px;
     border-radius: 8px;
@@ -514,7 +470,6 @@ textarea {
 .cust-item__balance.neg { background: rgba(239,68,68,0.15); color: var(--danger); }
 .cust-item__balance.zero { background: var(--bg-sunken); color: var(--text-muted); }
 
-/* Product item */
 .product-option {
     padding: 10px 12px;
     border-radius: 8px;
@@ -542,12 +497,6 @@ textarea {
     font-size: 11px;
     color: var(--text-muted);
     font-weight: 600;
-}
-.product-option__price {
-    font-weight: 800;
-    font-size: 13px;
-    color: var(--primary);
-    white-space: nowrap;
 }
 .product-option__stock {
     font-size: 10px;
@@ -685,7 +634,7 @@ textarea {
     left: 6px;
     width: 22px; height: 22px;
     border-radius: 50%;
-    background: var(--danger-light, #fee2e2);
+    background: #fee2e2;
     color: var(--danger);
     border: none;
     cursor: pointer;
@@ -794,7 +743,6 @@ textarea {
     font-size: 18px;
     color: var(--text-soft);
     box-shadow: var(--shadow-md);
-    -webkit-tap-highlight-color: transparent;
 }
 .mobile-close-btn:active { transform: scale(0.9); }
 
@@ -836,7 +784,7 @@ textarea {
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .modal__content--sm { max-width: 420px; }
-.modal__content--receipt { max-width: 400px; }
+.modal__content--receipt { max-width: 420px; }
 
 .modal__header {
     display: flex;
@@ -1056,7 +1004,7 @@ textarea {
 .change-display.is-short { background: rgba(239,68,68,0.15); color: var(--danger); }
 
 /* =============================================
-   Receipt
+   Receipt — ✅ [CSS-POS-2] محسّن
    ============================================= */
 .receipt-toolbar {
     padding: 12px 16px;
@@ -1072,7 +1020,7 @@ textarea {
     background: #fffef9;
     color: #000;
     font-size: 13px;
-    line-height: 1.7;
+    line-height: 1.6;
     overflow-y: auto;
     max-height: 65vh;
     font-family: 'Cairo', sans-serif;
@@ -1086,9 +1034,39 @@ textarea {
 .receipt-row {
     display: flex;
     justify-content: space-between;
-    margin: 3px 0;
+    margin: 4px 0;
+    gap: 8px;
 }
-.receipt-center { text-align: center; font-weight: 700; }
+.receipt-row span:first-child { color: #333; }
+.receipt-center { text-align: center; }
+.receipt-shop {
+    font-size: 17px;
+    font-weight: 800;
+    margin-bottom: 3px;
+}
+.receipt-phone {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 4px;
+}
+.receipt-inv-num {
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+    font-weight: 800;
+}
+.receipt-total {
+    font-weight: 800;
+    font-size: 15px;
+    margin-top: 6px;
+}
+.receipt-remaining {
+    color: #d00;
+    font-weight: 800;
+}
+.receipt-footer {
+    font-weight: 700;
+    margin-top: 8px;
+}
 .receipt-table {
     width: 100%;
     border-collapse: collapse;
@@ -1096,13 +1074,37 @@ textarea {
 }
 .receipt-table th,
 .receipt-table td {
-    padding: 4px 2px;
+    padding: 5px 3px;
     border-bottom: 1px dashed #ddd;
     font-size: 12px;
     text-align: right;
+    vertical-align: top;
 }
-.receipt-table th:last-child,
-.receipt-table td:last-child { text-align: left; }
+.receipt-table th {
+    font-weight: 800;
+    border-bottom: 1px solid #999;
+}
+.receipt-col-center { text-align: center; }
+.receipt-col-total { text-align: left; font-weight: 700; }
+.receipt-item-unit {
+    color: #666;
+    font-size: 10px;
+}
+.receipt-balance {
+    background: #f5f5f5;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin: 10px 0;
+    border: 1px solid #eee;
+}
+.receipt-balance .receipt-row {
+    font-weight: 700;
+    font-size: 12px;
+    padding: 2px 0;
+}
+.receipt-balance-debit { color: #d00; }
+.receipt-balance-credit { color: #090; }
+.receipt-balance-zero { color: #666; }
 
 /* =============================================
    Held Invoices
@@ -1254,15 +1256,9 @@ textarea {
     font-size: 14px;
 }
 
-.pcb-value--debit {
-    color: var(--danger);
-}
-.pcb-value--credit {
-    color: var(--success);
-}
-.pcb-value--zero {
-    color: var(--text-muted);
-}
+.pcb-value--debit { color: var(--danger); }
+.pcb-value--credit { color: var(--success); }
+.pcb-value--zero { color: var(--text-muted); }
 
 .pcb-arrow {
     text-align: center;
@@ -1280,7 +1276,6 @@ textarea {
     font-size: 16px;
 }
 
-/* تمييز بصري عندما يزداد الدين */
 .payment-customer-balance.pcb--increasing-debt {
     border-color: rgba(239, 68, 68, 0.35);
     background: rgba(239, 68, 68, 0.04);
