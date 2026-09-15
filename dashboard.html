@@ -2,21 +2,61 @@
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>لوحة التحكم · نظام POS</title>
+    <meta name="description" content="لوحة تحكم نظام POS - إحصائيات المبيعات والمخزون">
+    <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#4f46e5">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="لوحة التحكم">
+
+    <!-- PWA -->
     <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="./icons/icon-192x192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+
+    <!-- Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Styles -->
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./css/pos.css">
     <link rel="stylesheet" href="./css/dashboard.css">
+
+    <!-- منع وميض الثيم -->
+    <script>
+        (function(){
+            try {
+                var t = JSON.parse(localStorage.getItem('hesaby_theme') || '"light"');
+                if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body>
     <div id="loading-bar"></div>
     <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
+
+    <noscript>
+        <div style="position:fixed;inset:0;background:#f5f5f5;display:grid;place-items:center;z-index:999999;padding:20px;text-align:center;font-family:Cairo,Arial,sans-serif;">
+            <div>
+                <h2 style="color:#ef4444;">JavaScript معطّل</h2>
+                <p style="color:#666;">هذا التطبيق يتطلب تفعيل JavaScript للعمل. يرجى تفعيله ثم إعادة تحميل الصفحة.</p>
+            </div>
+        </noscript>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- ============ الشريط العلوي ============ -->
@@ -25,7 +65,7 @@
             <button class="icon-btn" id="menuBtn" aria-label="القائمة"><i class="fas fa-bars"></i></button>
             <div class="brand">
                 <div class="brand__logo">
-                    <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                    <img src="./icons/icon-192x192.png" alt="حسابي" class="js-logo-fallback">
                     <i class="fas fa-tachometer-alt" style="display:none;"></i>
                 </div>
                 <div class="brand__text">
@@ -35,8 +75,8 @@
             </div>
         </div>
         <div class="topbar__right">
-            <button class="icon-btn" id="themeBtn" title="الوضع"><i class="fas fa-moon"></i></button>
-            <button class="icon-btn" id="refreshBtn" title="تحديث"><i class="fas fa-sync-alt"></i></button>
+            <button class="icon-btn" id="themeBtn" title="الوضع" aria-label="تبديل الوضع"><i class="fas fa-moon"></i></button>
+            <button class="icon-btn" id="refreshBtn" title="تحديث" aria-label="تحديث"><i class="fas fa-sync-alt"></i></button>
             <div class="user-chip">
                 <div class="user-chip__avatar" id="userAvatar">U</div>
             </div>
@@ -47,7 +87,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
             <div class="brand__logo">
-                <img src="./icons/icon-192x192.png" alt="حسابي" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+                <img src="./icons/icon-192x192.png" alt="حسابي" class="js-logo-fallback">
                 <i class="fas fa-cash-register" style="display:none;"></i>
             </div>
             <h3 id="sidebarUserName">مدير</h3>
@@ -90,7 +130,7 @@
 
         <!-- كروت الإحصائيات -->
         <div class="stats-grid" id="statsGrid">
-            <!-- يُملأ ديناميكياً -->
+            <!-- يُملأ ديناميكياً بواسطة dashboard.js -->
         </div>
 
         <!-- الصف الثاني: رسم بياني + أفضل المنتجات -->
@@ -221,11 +261,79 @@
     <div id="toastStack" class="toast-stack"></div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/config.js"></script>
-    <script src="./js/utils.js"></script>
-    <script src="./js/db.js"></script>
-    <script src="./js/auth.js"></script>
-    <script src="./js/dashboard.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="./js/config.js"></script>
+    <script defer src="./js/utils.js"></script>
+    <script defer src="./js/toast.js"></script>
+    <script defer src="./js/db.js"></script>
+    <script defer src="./js/auth.js"></script>
+    <script defer src="./js/dashboard.js"></script>
+
+    <!-- Post-load: SW + theme-color + logo fallback -->
+    <script>
+    (function() {
+        'use strict';
+
+        /* ============ فشل تحميل الشعار ============ */
+        document.querySelectorAll('.js-logo-fallback').forEach(img => {
+            img.addEventListener('error', function() {
+                this.style.display = 'none';
+                const sibling = this.nextElementSibling;
+                if (sibling) sibling.style.display = 'grid';
+            });
+        });
+
+        /* ============ مزامنة theme-color ============ */
+        function syncThemeColor() {
+            const isDark = document.documentElement.dataset.theme === 'dark';
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', isDark ? '#1e1b4b' : '#4f46e5');
+        }
+        syncThemeColor();
+        new MutationObserver(syncThemeColor).observe(
+            document.documentElement,
+            { attributes: true, attributeFilter: ['data-theme'] }
+        );
+
+        /* ============ تسجيل Service Worker ============ */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const reg = await navigator.serviceWorker.register(
+                        './service-worker.js',
+                        { scope: './', updateViaCache: 'none' }
+                    );
+
+                    reg.addEventListener('updatefound', () => {
+                        const nw = reg.installing;
+                        if (!nw) return;
+                        nw.addEventListener('statechange', () => {
+                            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm('يتوفر تحديث جديد. إعادة التحميل الآن؟')) {
+                                    nw.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            }
+                        });
+                    });
+
+                    let reloaded = false;
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        if (reloaded) return;
+                        reloaded = true;
+                        window.location.reload();
+                    });
+
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        if (event.data?.type === 'SYNC_NOW' && window.DB?.flushSyncQueue) {
+                            window.DB.flushSyncQueue().catch(() => {});
+                        }
+                    });
+                } catch (e) {
+                    console.warn('SW registration failed', e);
+                }
+            });
+        }
+    })();
+    </script>
 </body>
 </html>
