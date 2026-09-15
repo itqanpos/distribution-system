@@ -1,8 +1,18 @@
 /* =============================================
    main.css - Base Styles
+   Version: 2.0.0
+
+   Changelog من v1.0:
+   - [CSS-1] دمج كتل :root في كتلة واحدة
+   - [CSS-2] إضافة --topbar-h
+   - [CSS-3] تحسين html/body لـ iOS PWA (min-height: 100dvh)
+   - [CSS-4] إزالة تكرار -webkit-tap-highlight-color
+   - [CSS-5] استثناء input/textarea/[contenteditable] من touch-callout:none
+   - [CSS-6] إضافة -moz-text-size-adjust
    ============================================= */
 
 :root {
+    /* ===== الألوان ===== */
     --primary: #4f46e5;
     --primary-dark: #4338ca;
     --primary-light: #eef2ff;
@@ -11,30 +21,44 @@
     --danger: #ef4444;
     --warning: #f59e0b;
     --info: #3b82f6;
-    
+
+    /* ===== الخلفيات ===== */
     --bg: #f1f5f9;
     --bg-elev: #ffffff;
     --bg-sunken: #f8fafc;
     --bg-hover: #e2e8f0;
-    
+
+    /* ===== النصوص ===== */
     --text: #0f172a;
     --text-soft: #334155;
     --text-muted: #64748b;
     --text-faint: #94a3b8;
-    
+
+    /* ===== الحدود ===== */
     --border: #e2e8f0;
     --border-strong: #cbd5e1;
-    
+
+    /* ===== الظلال ===== */
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 4px rgba(0,0,0,0.06);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
     --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
-    
+
+    /* ===== الأنصاف ===== */
     --r-xs: 6px;
     --r-sm: 8px;
     --r-md: 12px;
     --r-lg: 16px;
     --r-xl: 24px;
+
+    /* ===== الإطار ===== */
+    --topbar-h: 60px;
+
+    /* ===== iOS Safe Areas ===== */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
 }
 
 [data-theme="dark"] {
@@ -45,35 +69,59 @@
     --danger: #f87171;
     --warning: #fbbf24;
     --info: #60a5fa;
-    
+
     --bg: #0f172a;
     --bg-elev: #1e293b;
     --bg-sunken: #0b1220;
     --bg-hover: #334155;
-    
+
     --text: #f1f5f9;
     --text-soft: #cbd5e1;
     --text-muted: #94a3b8;
     --text-faint: #64748b;
-    
+
     --border: #334155;
     --border-strong: #475569;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* ========== Reset ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
 
-html, body { height: 100%; }
+html {
+    height: 100%;
+}
 
 body {
+    min-height: 100%;
+    min-height: 100dvh;
     font-family: 'Cairo', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    touch-action: pan-y pan-x;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
 }
 
 button, input, select, textarea {
     font-family: inherit;
+}
+
+/* ========== استثناءات iOS: السماح بالنسخ/اللصق في حقول الإدخال ========== */
+input, textarea, [contenteditable="true"] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+    touch-action: auto;
 }
 
 /* ========== Buttons ========== */
@@ -91,6 +139,7 @@ button, input, select, textarea {
     transition: all 0.2s;
     text-decoration: none;
     color: inherit;
+    touch-action: manipulation;
 }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn--primary { background: var(--primary); color: #fff; }
@@ -221,28 +270,3 @@ button, input, select, textarea {
     transition: transform 0.3s;
 }
 body.is-offline #offline-banner { transform: translateY(0); }
-html, body {
-    touch-action: pan-y pan-x;
-    -webkit-text-size-adjust: 100%;
-    -webkit-touch-callout: none;
-    overscroll-behavior: none;
-}
-
-button, a, .nav-item, .icon-btn, .method, .cat-tab,
-.product-card, .cart-item, .unit-chip,
-.customer-item, .invoice-item, .purchase-item,
-.purchase-list-item, .customer-list-item,
-.quick-action, .stat-card, .summary-card, .alert-item {
-    touch-action: manipulation;
-}
-
-* {
-    -webkit-tap-highlight-color: transparent;
-}
-
-:root {
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-left: env(safe-area-inset-left, 0px);
-    --safe-right: env(safe-area-inset-right, 0px);
-}
