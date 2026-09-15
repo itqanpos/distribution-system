@@ -1,5 +1,10 @@
 /* =============================================
    customers.css - Customers Page Styles
+   Version: 2.0.0
+
+   Changelog:
+   - [CSS-CUST-1] إضافة .collect-warning (تحذير تجاوز الدين)
+   - [CSS-CUST-2] إضافة .customer-invoice-item__icon.return (تمييز المرتجعات)
    ============================================= */
 
 /* ============ Main Container ============ */
@@ -656,6 +661,32 @@
 .balance-preview.negative strong { color: var(--danger); }
 .balance-preview.positive strong { color: var(--success); }
 
+/* ✅ [CSS-CUST-1] تحذير تجاوز الدين */
+.collect-warning {
+    padding: 12px 14px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: var(--warning, #f59e0b);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin-top: 12px;
+    margin-bottom: 0;
+    animation: warningPulse 0.4s ease-out;
+}
+.collect-warning::before {
+    content: '\f071';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    margin-left: 8px;
+    display: inline-block;
+}
+@keyframes warningPulse {
+    from { transform: scale(0.98); opacity: 0.7; }
+    to   { transform: scale(1);    opacity: 1;   }
+}
+
 /* ============ Customer Invoices ============ */
 .invoices-filters {
     display: flex;
@@ -714,6 +745,11 @@
     font-size: 16px;
     background: rgba(37, 99, 235, 0.15);
     color: var(--primary);
+}
+/* ✅ [CSS-CUST-2] تمييز أيقونة المرتجع */
+.customer-invoice-item__icon.return {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning, #f59e0b);
 }
 .customer-invoice-item__info { min-width: 0; }
 .customer-invoice-item__number {
