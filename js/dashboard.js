@@ -1,11 +1,59 @@
 /* =============================================
    dashboard.js - Dashboard Logic
+   Version: 2.0.0
+
+   Fixes:
+   - [DASH-1] تواريخ محلية بدل UTC في stats/weekly
+   - [DASH-2] استبعاد voided وheld من مبيعات/مشتريات
+   - [DASH-3] رسم بياني بمرور واحد
+   - [DASH-4] تعطيل زر التحديث أثناء العمل
+   - [DASH-5] showToast صحيح (لا يُعرض عند الفشل)
+   - [DASH-6] console gated by DEBUG
+   - [DASH-7] عدّاد فواتير معلقة صحيح
+   - [DASH-8] تفادي السحر رقم العتبة للديون
+   - [DASH-9] قبول استخدام window.Toast إن وُجد
    ============================================= */
 (function() {
     'use strict';
 
     const $ = (s) => document.querySelector(s);
-    const $$ = (s) => [...document.querySelectorAll(s)];
+
+    const DEBUG = window.APP_CONFIG?.DEBUG === true ||
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1';
+    const log = (...a) => { if (DEBUG) console.log(...a); };
+
+    // ✅ [DASH-1] تاريخ محلي (Y-M-D)
+    function localDateStr(d = new Date()) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function invoiceLocalDate(inv) {
+        if (!inv) return '';
+        if (inv.date) return inv.date;                      // Y-M-D من DB
+        if (inv.created_at) {
+            const d = new Date(inv.created_at);
+            return localDateStr(d);
+        }
+        return '';
+    }
+
+    // ✅ [DASH-2] استبعاد الملغاة والمعلقة من الأرقام المالية
+    function isCountedSale(inv) {
+        return inv
+            && inv.type === 'sale'
+            && inv.status !== 'voided'
+            && inv.status !== 'held';
+    }
+    function isCountedPurchase(inv) {
+        return inv
+            && inv.type === 'purchase'
+            && inv.status !== 'voided'
+            && inv.status !== 'held';
+    }
 
     /* ============ State ============ */
     const State = {
@@ -13,28 +61,27 @@
         products: [],
         parties: [],
         invoices: [],
-        loaded: false
+        loaded: false,
+        _refreshing: false
     };
 
     /* ============================================
        Init
        ============================================ */
     async function init() {
-        console.log('🚀 Dashboard init...');
+        log('🚀 Dashboard init...');
 
+        // انتظار جهوزية DB.client
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
             attempts++;
         }
-
         if (!window.DB?.client) {
             console.error('❌ Supabase غير محمّل');
             showToast('تعذر الاتصال بالخادم', 'error');
             return;
         }
-
-        await new Promise(r => setTimeout(r, 300));
 
         try {
             State.currentUser = await Auth.requireAuth();
@@ -44,7 +91,7 @@
             return;
         }
 
-        console.log('👤 User:', State.currentUser.email);
+        log('👤 User:', State.currentUser.email);
 
         updateUserUI();
         updateConnStatus();
@@ -55,7 +102,7 @@
         showSkeleton();
         await loadData();
         hideLoadingBar();
-        console.log('✅ Dashboard ready');
+        log('✅ Dashboard ready');
     }
 
     /* ============================================
@@ -74,7 +121,7 @@
             State.products = products || [];
             State.loaded = true;
 
-            console.log('📊 Data:', {
+            log('📊 Data:', {
                 invoices: State.invoices.length,
                 parties: State.parties.length,
                 products: State.products.length
@@ -85,9 +132,11 @@
             renderTopProducts();
             renderRecentInvoices();
             renderAlerts();
+            return true;
         } catch (e) {
             console.error('Load error:', e);
             showToast('تعذر تحميل البيانات', 'error');
+            return false;
         }
     }
 
@@ -135,7 +184,8 @@
         const btn = $('#themeBtn');
         if (!btn) return;
         const isDark = document.documentElement.dataset.theme === 'dark';
-        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
 
     function initTheme() {
@@ -151,44 +201,51 @@
         const grid = $('#statsGrid');
         if (!grid) return;
 
-        const today = U.today();
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+        // ✅ [DASH-1] تواريخ محلية
+        const today = localDateStr(new Date());
+        const yesterday = localDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
+        const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const startOfMonth = localDateStr(firstOfMonth);
 
-        // Today's sales
-        const todaySales = State.invoices
-            .filter(inv => (inv.date === today || (inv.created_at || '').startsWith(today)) && inv.type === 'sale')
-            .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+        // ✅ [DASH-2] استبعاد voided وheld
+        let todaySales = 0;
+        let yesterdaySales = 0;
+        let monthlySales = 0;
+        let todayPurchases = 0;
+        let pendingCount = 0;
 
-        const yesterdaySales = State.invoices
-            .filter(inv => (inv.date === yesterday || (inv.created_at || '').startsWith(yesterday)) && inv.type === 'sale')
-            .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+        for (const inv of State.invoices) {
+            if (!inv) continue;
 
-        // Monthly sales
-        const monthlySales = State.invoices
-            .filter(inv => {
-                const invDate = inv.date || (inv.created_at || '').slice(0, 10);
-                return invDate >= startOfMonth && inv.type === 'sale';
-            })
-            .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+            const invDate = invoiceLocalDate(inv);
 
-        // Today's purchases
-        const todayPurchases = State.invoices
-            .filter(inv => (inv.date === today || (inv.created_at || '').startsWith(today)) && inv.type === 'purchase')
-            .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+            // ملغاة: تُحتسب فقط في "المعلقة"؟ لا. تتخطى الجميع
+            if (inv.status === 'voided') continue;
 
-        // Pending invoices count
-        const pendingCount = State.invoices
-            .filter(inv => ['held', 'partial', 'credit'].includes(inv.status))
-            .length;
+            if (isCountedSale(inv)) {
+                if (invDate === today) todaySales += Number(inv.total) || 0;
+                if (invDate === yesterday) yesterdaySales += Number(inv.total) || 0;
+                if (invDate >= startOfMonth) monthlySales += Number(inv.total) || 0;
+            }
 
-        // Total debt (customer debit)
-        const totalDebt = State.parties
-            .filter(p => p.type === 'customer' || p.type === 'both')
-            .filter(p => (p.balance || 0) < 0)
-            .reduce((sum, p) => sum + Math.abs(p.balance || 0), 0);
+            if (isCountedPurchase(inv) && invDate === today) {
+                todayPurchases += Number(inv.total) || 0;
+            }
 
-        // Trend calculation
+            // ✅ [DASH-7] المعلقة = held فقط (partial وcredit فواتير مكتملة)
+            if (inv.status === 'held') pendingCount++;
+        }
+
+        // ديون العملاء (رصيد سالب)
+        let totalDebt = 0;
+        for (const p of State.parties) {
+            if (!p) continue;
+            if (p.type !== 'customer' && p.type !== 'both') continue;
+            const bal = Number(p.balance) || 0;
+            if (bal < 0) totalDebt += Math.abs(bal);
+        }
+
+        // Trend
         let salesTrend = null;
         if (yesterdaySales > 0) {
             const diff = ((todaySales - yesterdaySales) / yesterdaySales) * 100;
@@ -248,7 +305,6 @@
                     </span>
                 `;
             }
-
             return `
                 <div class="stat-card">
                     <div class="stat-card__header">
@@ -268,36 +324,40 @@
 
     /* ============================================
        Weekly Chart
+       ✅ [DASH-1] تواريخ محلية
+       ✅ [DASH-3] مرور واحد
        ============================================ */
     function renderWeeklyChart() {
         const container = $('#weeklyChart');
         if (!container) return;
 
-        // Build last 7 days data
-        const days = [];
         const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
+        // بناء الأيام السبعة الأخيرة
+        const days = [];
+        const dayMap = new Map();
         for (let i = 6; i >= 0; i--) {
             const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-            const dateStr = date.toISOString().split('T')[0];
-            const sales = State.invoices
-                .filter(inv => {
-                    const invDate = inv.date || (inv.created_at || '').slice(0, 10);
-                    return invDate === dateStr && inv.type === 'sale';
-                })
-                .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
-
-            days.push({
+            const dateStr = localDateStr(date);
+            const entry = {
                 name: dayNames[date.getDay()],
                 date: dateStr,
                 shortDate: `${date.getDate()}/${date.getMonth() + 1}`,
-                sales
-            });
+                sales: 0
+            };
+            days.push(entry);
+            dayMap.set(dateStr, entry);
+        }
+
+        // ✅ مرور واحد على الفواتير
+        for (const inv of State.invoices) {
+            if (!isCountedSale(inv)) continue;
+            const invDate = invoiceLocalDate(inv);
+            const day = dayMap.get(invDate);
+            if (day) day.sales += Number(inv.total) || 0;
         }
 
         const maxSales = Math.max(...days.map(d => d.sales), 1);
-
-        // Check if all zero
         const allZero = days.every(d => d.sales === 0);
 
         if (allZero) {
@@ -325,30 +385,33 @@
     }
 
     /* ============================================
-       Top Products
+       Top Products — ✅ [DASH-2] استبعاد voided/held
        ============================================ */
     function renderTopProducts() {
         const container = $('#topProducts');
         if (!container) return;
 
-        // Aggregate products sold
         const productSales = new Map();
 
-        State.invoices
-            .filter(inv => inv.type === 'sale' && Array.isArray(inv.items))
-            .forEach(inv => {
-                inv.items.forEach(item => {
-                    const key = item.productId || item.productName;
-                    const current = productSales.get(key) || {
-                        name: item.productName || 'منتج',
-                        qty: 0,
-                        amount: 0
-                    };
-                    current.qty += Number(item.quantity) || 0;
-                    current.amount += (Number(item.price) || 0) * (Number(item.quantity) || 0);
-                    productSales.set(key, current);
-                });
-            });
+        for (const inv of State.invoices) {
+            if (!isCountedSale(inv)) continue;
+            if (!Array.isArray(inv.items)) continue;
+
+            for (const item of inv.items) {
+                const key = item.productId || item.product_id || item.productName;
+                if (!key) continue;
+                const current = productSales.get(key) || {
+                    name: item.productName || 'منتج',
+                    qty: 0,
+                    amount: 0
+                };
+                const qty = Number(item.quantity) || 0;
+                const price = Number(item.price) || 0;
+                current.qty += qty;
+                current.amount += price * qty;
+                productSales.set(key, current);
+            }
+        }
 
         const sorted = [...productSales.values()]
             .sort((a, b) => b.qty - a.qty)
@@ -406,7 +469,7 @@
             const customerName = inv.customer_name || inv.supplier_name || 'نقدي';
 
             return `
-                <div class="recent-invoice-item" data-id="${inv.id}">
+                <div class="recent-invoice-item" data-id="${U.escape(inv.id)}">
                     <div class="recent-invoice-item__icon ${isPurchase ? 'purchase' : ''}">
                         <i class="fas fa-${isPurchase ? 'shopping-cart' : 'file-invoice'}"></i>
                     </div>
@@ -420,11 +483,11 @@
             `;
         }).join('');
 
-        // Bind click to open invoices page
         container.querySelectorAll('.recent-invoice-item').forEach(el => {
             el.addEventListener('click', () => {
                 const id = el.dataset.id;
-                window.location.href = `./invoices.html?invoice=${id}`;
+                if (!id) return;
+                window.location.href = `./invoices.html?invoice=${encodeURIComponent(id)}`;
             });
         });
     }
@@ -440,20 +503,20 @@
     }
 
     /* ============================================
-       Alerts
+       Alerts — ✅ [DASH-8] عتبة من CFG
        ============================================ */
     function renderAlerts() {
         const container = $('#alertsList');
         if (!container) return;
 
         const alerts = [];
+        const debtThreshold = Number(window.APP_CONFIG?.DASHBOARD_DEBT_THRESHOLD) || 1000;
 
-        // Alert: Low stock products
+        // Low stock
         const lowStock = State.products.filter(p => {
             const stock = p.units?.[0]?.stock || 0;
             return stock > 0 && stock <= 5;
         });
-
         if (lowStock.length > 0) {
             alerts.push({
                 type: 'warning',
@@ -464,7 +527,7 @@
             });
         }
 
-        // Alert: Out of stock
+        // Out of stock
         const outOfStock = State.products.filter(p => (p.units?.[0]?.stock || 0) <= 0);
         if (outOfStock.length > 0) {
             alerts.push({
@@ -476,20 +539,20 @@
             });
         }
 
-        // Alert: Pending invoices
-        const pending = State.invoices.filter(inv => inv.status === 'held');
-        if (pending.length > 0) {
+        // Held invoices
+        const held = State.invoices.filter(inv => inv.status === 'held');
+        if (held.length > 0) {
             alerts.push({
                 type: 'info',
                 icon: 'fa-pause-circle',
                 title: 'فواتير معلقة',
-                desc: `${pending.length} فاتورة بحاجة لمراجعة`,
+                desc: `${held.length} فاتورة بحاجة لمراجعة`,
                 link: './invoices.html?status=held'
             });
         }
 
-        // Alert: High debts
-        const bigDebts = State.parties.filter(p => (p.balance || 0) < -1000);
+        // Big debts
+        const bigDebts = State.parties.filter(p => (Number(p.balance) || 0) < -debtThreshold);
         if (bigDebts.length > 0) {
             alerts.push({
                 type: 'danger',
@@ -500,7 +563,7 @@
             });
         }
 
-        // Alert: Credit invoices
+        // Credit invoices
         const credit = State.invoices.filter(inv => inv.status === 'credit');
         if (credit.length > 0) {
             const total = credit.reduce((s, i) => s + (Number(i.remaining) || 0), 0);
@@ -524,21 +587,21 @@
         }
 
         container.innerHTML = alerts.slice(0, 5).map(a => `
-            <div class="alert-item ${a.type}" data-link="${a.link}">
+            <div class="alert-item ${a.type}" data-link="${U.escape(a.link)}">
                 <div class="alert-item__icon">
                     <i class="fas ${a.icon}"></i>
                 </div>
                 <div class="alert-item__content">
-                    <div class="alert-item__title">${a.title}</div>
-                    <div class="alert-item__desc">${a.desc}</div>
+                    <div class="alert-item__title">${U.escape(a.title)}</div>
+                    <div class="alert-item__desc">${U.escape(a.desc)}</div>
                 </div>
             </div>
         `).join('');
 
-        // Bind click to navigate
         container.querySelectorAll('.alert-item[data-link]').forEach(el => {
             el.addEventListener('click', () => {
-                window.location.href = el.dataset.link;
+                const url = el.dataset.link;
+                if (url) window.location.href = url;
             });
         });
     }
@@ -593,9 +656,14 @@
     }
 
     /* ============================================
-       Toast
+       Toast — ✅ [DASH-9] يفضل window.Toast إن وُجد
        ============================================ */
     function showToast(msg, type = 'info') {
+        // استخدم النظام الموحّد إن وُجد
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            try { window.Toast.show(msg, type); return; } catch (e) { /* fallthrough */ }
+        }
+
         let stack = $('#toastStack');
         if (!stack) {
             stack = document.createElement('div');
@@ -643,7 +711,7 @@
     }
 
     /* ============================================
-       Events
+       Events — ✅ [DASH-4] تعطيل التحديث أثناء العمل
        ============================================ */
     function bindEvents() {
         // Sidebar
@@ -678,12 +746,27 @@
         });
 
         // Refresh
-        $('#refreshBtn')?.addEventListener('click', async () => {
-            showToast('جاري التحديث...', 'info');
-            DB.clearCache();
-            showSkeleton();
-            await loadData();
-            showToast('تم التحديث', 'success');
+        const refreshBtn = $('#refreshBtn');
+        refreshBtn?.addEventListener('click', async () => {
+            if (State._refreshing) return;
+            State._refreshing = true;
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add('is-spinning');
+
+            try {
+                DB.clearCache();
+                showSkeleton();
+                const ok = await loadData();
+                if (ok) {
+                    showToast('تم التحديث', 'success');
+                } else {
+                    showToast('فشل التحديث، تحقق من الاتصال', 'error');
+                }
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.classList.remove('is-spinning');
+                State._refreshing = false;
+            }
         });
 
         // Connection
@@ -705,5 +788,4 @@
     } else {
         init();
     }
-
 })();
