@@ -1,6 +1,10 @@
 /* =============================================
    pos.css - Point of Sale Styles
-   v5.0 - Direct Product Search + Min/Max Price
+   Version: 5.1
+
+   Changelog من v5.0:
+   - [CSS-POS-1] إضافة touch-action: manipulation
+                 لكل العناصر التفاعلية (منع double-tap zoom على iOS)
    ============================================= */
 
 :root {
@@ -18,6 +22,45 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+/* =============================================
+   منع double-tap / pinch zoom على العناصر التفاعلية
+   (iOS PWA)
+   ============================================= */
+.cat-tab,
+.product-card,
+.cart-item,
+.qty-btn,
+.cart-item__remove,
+.cart-item__qty,
+.cart-item__price-input,
+.unit-chip,
+.method,
+.quick-cash button,
+.nav-item,
+.held-item,
+.cust-item,
+.product-option,
+.mobile-close-btn,
+.icon-btn,
+.icon-btn--sm,
+.user-chip,
+.discount-wrap input,
+.discount-wrap select,
+.search-bar input,
+.customer-input-wrap input,
+.product-input-wrap input {
+    touch-action: manipulation;
+}
+
+/* استثناء حقول النص الحر — للسماح بتحديد النص ونسخه */
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="tel"],
+textarea {
+    touch-action: auto;
 }
 
 /* =============================================
@@ -379,7 +422,7 @@ body {
     display: grid;
 }
 
-/* ============ ✅ Product Input (بنفس تصميم العميل) ============ */
+/* ============ Product Input (بنفس تصميم العميل) ============ */
 .product-input-wrap {
     position: relative;
     display: flex;
@@ -1153,8 +1196,9 @@ body {
     .cart-item__qty { width: 46px; }
     .cart-item__price-input { width: 60px; }
 }
+
 /* ============================================
-   ✅ [POS-11] معاينة رصيد العميل في مودال الدفع
+   [POS-11] معاينة رصيد العميل في مودال الدفع
    ============================================ */
 .payment-customer-balance {
     background: var(--bg-sunken);
