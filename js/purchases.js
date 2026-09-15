@@ -1,15 +1,68 @@
 /* =============================================
    purchases.js - Purchases Page Logic
-   v2.0 - Reviewed & Fixed
-   ✅ إضافة المخزون بعد الشراء
-   ✅ تحديث سعر التكلفة وسعر البيع
-   ✅ معالجة صحيحة لرصيد المورد
+   Version: 2.1.0
+
+   Changelog من v2.0:
+   - [PUR-1] حذف مضاعفة المخزون — createInvoice يكفي
+   - [PUR-2] حذف DB.updatePartyBalance — غير موجود، و RPC يتولى الأمر
+   - [PUR-3] updateProductPrices: تحديث cost/price فقط (بدون stock)
+   - [PUR-4] confirmPaySupplier: لا UPDATE مباشر، لا window.localDB
+   - [PUR-5] تواريخ محلية في renderSummary + applyFilters
+   - [PUR-6] getPurchases بدل getInvoices(true)
+   - [PUR-7] Auth.onChange — توجيه عند الخروج من تبويب آخر
+   - [PUR-8] _saving guard على savePurchase
+   - [PUR-9] _refreshing guard على refreshBtn
+   - [PUR-10] showToast يفضل window.Toast
+   - [PUR-11] translateError للأخطاء
+   - [PUR-12] console gated by DEBUG
+   - [PUR-13] عملة من APP_CONFIG
+   - [PUR-14] escape لـ id في data-attributes
    ============================================= */
 (function() {
     'use strict';
 
     const $ = (s) => document.querySelector(s);
-    const $$ = (s) => [...document.querySelectorAll(s)];
+
+    const DEBUG = window.APP_CONFIG?.DEBUG === true ||
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1';
+    const log = (...a) => { if (DEBUG) console.log(...a); };
+    const CURRENCY = (window.APP_CONFIG && window.APP_CONFIG.CURRENCY) || 'ج.م';
+
+    const DB_ERROR_MESSAGES = {
+        '23505': 'قيمة مكررة (رقم الفاتورة أو الباركود)',
+        '23514': 'قيمة خارج النطاق المسموح',
+        '23503': 'مرجع غير موجود',
+        'P0001': 'السجل غير موجود',
+        'P0002': 'المخزون غير كافٍ',
+        'P0003': 'هذه العملية تتطلب صلاحيات مدير',
+        'P0004': 'بيانات غير صالحة',
+        'P0005': 'عنصر غير صالح في الفاتورة',
+        'P0006': 'عدم تطابق في الحسابات المالية',
+        'NO_TENANT': 'لا يوجد مستأجر مرتبط بالحساب',
+        '42501': 'ليس لديك صلاحية لهذه العملية'
+    };
+
+    function translateError(err) {
+        const code = err?.code || '';
+        if (DB_ERROR_MESSAGES[code]) return DB_ERROR_MESSAGES[code];
+        return err?.message || 'فشل العملية';
+    }
+
+    // ✅ [PUR-5] تاريخ محلي
+    function localDateStr(d = new Date()) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function invoiceLocalDate(inv) {
+        if (!inv) return '';
+        if (inv.date) return inv.date;
+        if (inv.created_at) return localDateStr(new Date(inv.created_at));
+        return '';
+    }
 
     /* ============ State ============ */
     const State = {
@@ -17,10 +70,14 @@
         filtered: [],
         suppliers: [],
         products: [],
-        invoices: [],
         currentUser: null,
         viewingId: null,
         editingId: null,
+        _saving: false,
+        _refreshing: false,
+        _paySupplierId: null,
+        _payInvoiceId: null,
+        _payInvoiceRemaining: 0,
         draft: {
             supplierId: null,
             items: [],
@@ -42,9 +99,8 @@
        Init
        ============================================ */
     async function init() {
-        console.log('🚀 Purchases init...');
+        log('🚀 Purchases init...');
 
-        // انتظار Supabase
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
             await new Promise(r => setTimeout(r, 100));
@@ -57,9 +113,6 @@
             return;
         }
 
-        await new Promise(r => setTimeout(r, 300));
-
-        // المصادقة
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -68,6 +121,16 @@
             return;
         }
 
+        // ✅ [PUR-7]
+        Auth.onChange((u) => {
+            if (!u && State.currentUser) {
+                State.currentUser = null;
+                location.replace('./index.html');
+            } else if (u) {
+                State.currentUser = u;
+            }
+        });
+
         updateUserUI();
         updateConnStatus();
         initTheme();
@@ -75,40 +138,39 @@
 
         await loadAllData();
         hideLoadingBar();
-        console.log('✅ Purchases ready');
+        log('✅ Purchases ready');
     }
 
     /* ============================================
-       Load Data
+       Load Data — ✅ [PUR-6] getPurchases بدل getInvoices(true)
        ============================================ */
     async function loadAllData() {
         showSkeleton();
         try {
-            const [suppliers, products, allInvoices] = await Promise.all([
+            const [suppliers, products, purchases] = await Promise.all([
                 DB.getParties('supplier', true).catch(() => []),
                 DB.getProducts(true).catch(() => []),
-                DB.getInvoices(true).catch(() => [])
+                DB.getPurchases(true).catch(() => [])
             ]);
 
             State.suppliers = suppliers || [];
             State.products = products || [];
-            State.invoices = allInvoices || [];
+            State.purchases = purchases || [];
 
-            // Filter purchases only
-            State.purchases = State.invoices.filter(inv => inv.type === 'purchase');
-
-            console.log('🚚 Suppliers:', State.suppliers.length);
-            console.log('📦 Products:', State.products.length);
-            console.log('🛒 Purchases:', State.purchases.length);
+            log('🚚 Suppliers:', State.suppliers.length);
+            log('📦 Products:', State.products.length);
+            log('🛒 Purchases:', State.purchases.length);
 
             renderSummary();
             applyFilters();
 
             handleUrlParams();
+            return true;
         } catch (e) {
             console.error('Load error:', e);
-            showToast('تعذر تحميل البيانات', 'error');
+            showToast(translateError(e) || 'تعذر تحميل البيانات', 'error');
             showEmpty(true);
+            return false;
         } finally {
             hideSkeleton();
         }
@@ -118,34 +180,43 @@
         const params = new URLSearchParams(window.location.search);
         const id = params.get('invoice');
         if (id) {
-            setTimeout(() => openPurchaseDetails(id), 500);
+            setTimeout(() => openPurchaseDetails(id), 200);
             window.history.replaceState({}, '', './purchases.html');
         }
     }
 
     /* ============================================
-       Summary
+       Summary — ✅ [PUR-5] تواريخ محلية
        ============================================ */
     function renderSummary() {
         const container = $('#summaryCards');
         if (!container) return;
 
-        const today = U.today();
-        const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+        const now = new Date();
+        const today = localDateStr(now);
+        const monthStart = localDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
 
-        const totalPurchases = State.purchases.reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const todayPurchases = State.purchases
-            .filter(i => (i.date === today || (i.created_at || '').startsWith(today)))
-            .reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const monthPurchases = State.purchases
-            .filter(i => {
-                const d = i.date || (i.created_at || '').slice(0, 10);
-                return d >= monthStart;
-            })
-            .reduce((s, i) => s + (Number(i.total) || 0), 0);
-        const creditTotal = State.purchases
-            .filter(i => i.status === 'credit' || i.status === 'partial')
-            .reduce((s, i) => s + (Number(i.remaining) || 0), 0);
+        let totalPurchases = 0;
+        let todayPurchases = 0;
+        let monthPurchases = 0;
+        let creditTotal = 0;
+
+        for (const inv of State.purchases) {
+            if (!inv) continue;
+            if (inv.status === 'voided') continue;
+
+            const total = Number(inv.total) || 0;
+            const remaining = Number(inv.remaining) || 0;
+            const invDate = invoiceLocalDate(inv);
+
+            totalPurchases += total;
+            if (invDate === today) todayPurchases += total;
+            if (invDate >= monthStart) monthPurchases += total;
+
+            if ((inv.status === 'credit' || inv.status === 'partial') && remaining > 0) {
+                creditTotal += remaining;
+            }
+        }
 
         container.innerHTML = `
             <div class="summary-card">
@@ -180,7 +251,7 @@
     }
 
     /* ============================================
-       Filters
+       Filters — ✅ [PUR-5] تواريخ محلية
        ============================================ */
     function applyFilters() {
         let list = [...State.purchases];
@@ -199,29 +270,29 @@
 
         if (State.filters.date) {
             const now = new Date();
-            const today = now.toISOString().split('T')[0];
+            const today = localDateStr(now);
             const filterDate = State.filters.date;
+            const weekAgo = localDateStr(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+            const monthAgo = localDateStr(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
+            const yearStr = String(now.getFullYear());
 
             list = list.filter(inv => {
-                const invDate = inv.date || (inv.created_at || '').slice(0, 10);
+                const invDate = invoiceLocalDate(inv);
+                if (!invDate) return false;
                 if (filterDate === 'today') return invDate === today;
-                if (filterDate === 'week') {
-                    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                    return invDate >= weekAgo;
-                }
-                if (filterDate === 'month') {
-                    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                    return invDate >= monthAgo;
-                }
-                if (filterDate === 'year') return invDate.startsWith(now.getFullYear().toString());
+                if (filterDate === 'week') return invDate >= weekAgo;
+                if (filterDate === 'month') return invDate >= monthAgo;
+                if (filterDate === 'year') return invDate.startsWith(yearStr);
                 return true;
             });
         }
 
         const sort = State.filters.sort;
         list.sort((a, b) => {
-            if (sort === 'recent') return new Date(b.created_at || b.date) - new Date(a.created_at || a.date);
-            if (sort === 'oldest') return new Date(a.created_at || a.date) - new Date(b.created_at || b.date);
+            const aTime = new Date(a.created_at || a.date || 0).getTime();
+            const bTime = new Date(b.created_at || b.date || 0).getTime();
+            if (sort === 'recent') return bTime - aTime;
+            if (sort === 'oldest') return aTime - bTime;
             if (sort === 'amount-desc') return (Number(b.total) || 0) - (Number(a.total) || 0);
             if (sort === 'amount') return (Number(a.total) || 0) - (Number(b.total) || 0);
             return 0;
@@ -235,12 +306,13 @@
     function updateCount() {
         const el = $('#purchasesCount');
         if (el) {
-            el.textContent = State.filtered.length === 1 ? '1 فاتورة شراء' : `${State.filtered.length} فاتورة شراء`;
+            const n = State.filtered.length;
+            el.textContent = n === 1 ? '1 فاتورة شراء' : `${n} فاتورة شراء`;
         }
     }
 
     /* ============================================
-       Render Purchases List
+       Render List
        ============================================ */
     function renderPurchases() {
         const gridView = $('#purchasesGridView');
@@ -276,9 +348,10 @@
         const total = Number(inv.total) || 0;
         const paid = Number(inv.paid) || 0;
         const remaining = Number(inv.remaining) || 0;
+        const isVoided = inv.status === 'voided';
 
         return `
-            <div class="purchase-item" data-id="${inv.id}">
+            <div class="purchase-item" data-id="${U.escape(inv.id)}" ${isVoided ? 'style="opacity:0.65;"' : ''}>
                 <div class="purchase-item__status ${statusClass}">${statusLabel}</div>
                 <div class="purchase-item__head">
                     <div>
@@ -315,9 +388,10 @@
     function renderPurchaseListItem(inv) {
         const statusClass = inv.status || 'paid';
         const statusLabel = getStatusLabel(inv.status);
+        const isVoided = inv.status === 'voided';
 
         return `
-            <div class="purchase-list-item" data-id="${inv.id}">
+            <div class="purchase-list-item" data-id="${U.escape(inv.id)}" ${isVoided ? 'style="opacity:0.65;"' : ''}>
                 <div class="purchase-list-item__icon"><i class="fas fa-shopping-cart"></i></div>
                 <div class="purchase-list-item__info">
                     <div class="purchase-list-item__number">${U.escape(inv.invoice_number || '---')}</div>
@@ -335,7 +409,8 @@
         return {
             paid: 'مدفوعة',
             partial: 'جزئية',
-            credit: 'آجلة'
+            credit: 'آجلة',
+            voided: 'ملغية'
         }[status] || 'مدفوعة';
     }
 
@@ -345,7 +420,7 @@
     }
 
     /* ============================================
-       Open Purchase Details
+       Details
        ============================================ */
     async function openPurchaseDetails(id) {
         State.viewingId = id;
@@ -364,14 +439,16 @@
 
         let itemsHtml = '';
         (inv.items || []).forEach(item => {
-            const lineTotal = (Number(item.price) || 0) * (Number(item.quantity) || 0);
+            const price = Number(item.price) || 0;
+            const qty = Number(item.quantity) || 0;
+            const lineTotal = price * qty;
             itemsHtml += `
                 <tr>
                     <td>${U.escape(item.productName || '')}<br>
                         <small style="color:#666;font-size:10px;">${U.escape(item.unitName || '')}</small>
                     </td>
-                    <td style="text-align:center;">${item.quantity || 0}</td>
-                    <td style="text-align:center;">${(Number(item.price) || 0).toFixed(2)}</td>
+                    <td style="text-align:center;">${qty}</td>
+                    <td style="text-align:center;">${price.toFixed(2)}</td>
                     <td style="text-align:left;">${lineTotal.toFixed(2)}</td>
                 </tr>
             `;
@@ -401,7 +478,7 @@
                         <th style="text-align:left;">إجمالي</th>
                     </tr>
                 </thead>
-                <tbody>${itemsHtml}</tbody>
+                <tbody>${itemsHtml || '<tr><td colspan="4" style="text-align:center;">لا توجد عناصر</td></tr>'}</tbody>
             </table>
             <hr>
             <div class="receipt-row"><span>الإجمالي:</span><span>${subtotal.toFixed(2)}</span></div>
@@ -413,25 +490,27 @@
             ${inv.notes ? `<hr><div style="font-size:12px;"><strong>ملاحظات:</strong> ${U.escape(inv.notes)}</div>` : ''}
         `;
 
-        // Show/hide pay button based on remaining
         const payBtn = $('#payPurchaseBtn');
         if (payBtn) {
-            payBtn.style.display = remaining > 0 ? 'flex' : 'none';
+            payBtn.style.display = (remaining > 0 && inv.status !== 'voided') ? 'flex' : 'none';
         }
 
         openModal('purchaseDetailsModal');
     }
 
     /* ============================================
-       Print Purchase
+       Print
        ============================================ */
     function printPurchase() {
         const content = $('#purchaseDetailsContent')?.innerHTML;
         if (!content) return;
 
         const win = window.open('', '_blank', 'width=400,height=700');
-        win.document.write(`
-            <!DOCTYPE html>
+        if (!win) {
+            showToast('تعذر فتح نافذة الطباعة', 'warning');
+            return;
+        }
+        win.document.write(`<!DOCTYPE html>
             <html dir="rtl"><head><meta charset="UTF-8">
             <title>طباعة فاتورة المشتريات</title>
             <style>
@@ -446,8 +525,7 @@
                 .receipt-table th:last-child, .receipt-table td:last-child { text-align: left; }
                 @media print { body { padding: 0; } }
             </style>
-            </head><body>${content}</body></html>
-        `);
+            </head><body>${content}</body></html>`);
         win.document.close();
         win.focus();
         setTimeout(() => win.print(), 300);
@@ -458,8 +536,6 @@
        ============================================ */
     function openPurchaseModal(id = null) {
         State.editingId = id;
-
-        // Reset draft
         State.draft = {
             supplierId: null,
             items: [],
@@ -479,14 +555,12 @@
         $('#purchaseDiscountType').value = 'amount';
         $('#purchaseNotes').value = '';
 
-        // If editing, load invoice
         if (id) {
             const inv = State.purchases.find(p => p.id === id);
             if (inv) {
                 State.draft.supplierId = inv.supplier_id;
                 State.draft.items = (inv.items || []).map(i => ({ ...i }));
                 State.draft.discount = Number(inv.discount) || 0;
-                State.draft.discountType = 'amount';
                 State.draft.notes = inv.notes || '';
 
                 if (inv.supplier_id) {
@@ -512,7 +586,6 @@
         if (!dd) return;
 
         let list = State.suppliers;
-
         if (term) {
             const t = term.toLowerCase();
             list = list.filter(s =>
@@ -528,9 +601,8 @@
                 const bal = Number(s.balance) || 0;
                 const cls = bal > 0 ? 'pos' : bal < 0 ? 'neg' : 'zero';
                 const label = bal > 0 ? `+${U.moneyRaw(bal)}` : bal < 0 ? `-${U.moneyRaw(-bal)}` : '0';
-
                 return `
-                    <div class="supplier-option" data-id="${s.id}">
+                    <div class="supplier-option" data-id="${U.escape(s.id)}">
                         <div class="supplier-option__info">
                             <h4>${U.escape(s.name)}</h4>
                             ${s.phone ? `<small>${U.escape(s.phone)}</small>` : ''}
@@ -622,10 +694,10 @@
             dd.innerHTML = list.map(p => {
                 const base = p.units?.[0] || { price: 0, cost: 0, stock: 0 };
                 return `
-                    <div class="product-option" data-id="${p.id}">
+                    <div class="product-option" data-id="${U.escape(p.id)}">
                         <div class="product-option__info">
                             <h4>${U.escape(p.name)}</h4>
-                            ${p.barcode ? `<small>${U.escape(p.barcode)} · مخزون: ${base.stock || 0}</small>` : `<small>مخزون: ${base.stock || 0}</small>`}
+                            <small>${p.barcode ? U.escape(p.barcode) + ' · ' : ''}مخزون: ${base.stock || 0}</small>
                         </div>
                         <div class="product-option__price">تكلفة: ${U.moneyRaw(base.cost || 0)}</div>
                     </div>
@@ -671,7 +743,6 @@
 
         $('#productSearchInput').value = product.name;
 
-        // Render units
         const units = product.units || [];
         const chipsEl = $('#unitChips');
         chipsEl.innerHTML = units.map((u, i) =>
@@ -689,7 +760,6 @@
 
         $('#unitSelectionGroup').style.display = 'block';
         $('#itemDetailsGroup').style.display = 'block';
-
         updateItemCostFields();
         $('#confirmAddItemBtn').disabled = false;
     }
@@ -697,7 +767,6 @@
     function updateItemCostFields() {
         const u = State.selectedUnit;
         if (!u) return;
-
         $('#itemCost').value = u.cost || 0;
         $('#itemPrice').value = u.price || 0;
         $('#itemQuantity').value = '1';
@@ -713,17 +782,10 @@
         const cost = +$('#itemCost').value || 0;
         const price = +$('#itemPrice').value || 0;
 
-        if (qty <= 0) {
-            showToast('أدخل كمية صحيحة', 'warning');
-            return;
-        }
+        if (qty <= 0) { showToast('أدخل كمية صحيحة', 'warning'); return; }
+        if (cost < 0) { showToast('سعر الشراء غير صالح', 'warning'); return; }
+        if (price < 0) { showToast('سعر البيع غير صالح', 'warning'); return; }
 
-        if (cost < 0) {
-            showToast('سعر الشراء غير صالح', 'warning');
-            return;
-        }
-
-        // Check if item already exists
         const existing = State.draft.items.find(i =>
             i.productId === product.id && i.unitName === unit.name
         );
@@ -738,8 +800,8 @@
                 productName: product.name,
                 unitName: unit.name,
                 quantity: qty,
-                price: cost,        // سعر الشراء (يُخزّن في حقل price للفاتورة)
-                sellPrice: price,    // سعر البيع الجديد (لتحديث المنتج)
+                price: cost,         // سعر الشراء
+                sellPrice: price,     // سعر البيع الجديد (لتحديث المنتج)
                 factor: unit.factor || 1
             });
         }
@@ -751,7 +813,7 @@
     }
 
     /* ============================================
-       Render Purchase Items
+       Render Items
        ============================================ */
     function renderPurchaseItems() {
         const container = $('#purchaseItems');
@@ -782,7 +844,7 @@
                         <input type="number" class="purchase-item-row__qty-input" value="${item.quantity}" min="0.001" step="0.001" data-action="qty" data-idx="${idx}" title="الكمية" inputmode="decimal">
                         <input type="number" class="purchase-item-row__cost-input" value="${item.price}" min="0" step="0.01" data-action="cost" data-idx="${idx}" title="سعر الشراء" inputmode="decimal">
                         <div class="purchase-item-row__total">${U.money(lineTotal)}</div>
-                        <button class="purchase-item-row__remove" data-action="remove" data-idx="${idx}" title="حذف">
+                        <button class="purchase-item-row__remove" data-action="remove" data-idx="${idx}" title="حذف" type="button">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -790,7 +852,6 @@
             `;
         }).join('');
 
-        // Bind actions
         container.querySelectorAll('[data-action]').forEach(el => {
             const action = el.dataset.action;
             const idx = +el.dataset.idx;
@@ -805,11 +866,8 @@
                 el.addEventListener('change', (e) => {
                     const v = +e.target.value || 0;
                     if (action === 'qty') {
-                        if (v <= 0) {
-                            State.draft.items.splice(idx, 1);
-                        } else {
-                            State.draft.items[idx].quantity = v;
-                        }
+                        if (v <= 0) State.draft.items.splice(idx, 1);
+                        else State.draft.items[idx].quantity = v;
                     } else {
                         State.draft.items[idx].price = v;
                     }
@@ -831,11 +889,15 @@
         const discountValue = +$('#purchaseDiscount')?.value || 0;
         const discountType = $('#purchaseDiscountType')?.value || 'amount';
 
-        const discount = discountType === 'amount'
-            ? Math.min(discountValue, subtotal)
-            : U.round(subtotal * (discountValue / 100));
+        let discount;
+        if (discountType === 'amount') {
+            discount = Math.min(Math.max(0, discountValue), subtotal);
+        } else {
+            const pct = Math.min(100, Math.max(0, discountValue));
+            discount = U.round(subtotal * (pct / 100), 2);
+        }
 
-        const net = U.round(subtotal - discount);
+        const net = U.round(subtotal - discount, 2);
 
         $('#purchaseSubtotal').textContent = U.moneyRaw(subtotal);
         $('#purchaseDiscountDisplay').textContent = U.moneyRaw(discount);
@@ -843,10 +905,11 @@
     }
 
     /* ============================================
-       Save Purchase (مع تحديث المخزون والأسعار)
+       Save Purchase — ✅ [PUR-1, PUR-2] لا مضاعفة
        ============================================ */
     async function savePurchase() {
-        // Validate
+        if (State._saving) return;  // ✅ [PUR-8]
+
         if (!State.draft.supplierId) {
             showToast('يجب اختيار مورد', 'warning');
             return;
@@ -857,11 +920,11 @@
             return;
         }
 
+        State._saving = true;
         const saveBtn = $('#savePurchaseBtn');
         if (saveBtn) saveBtn.disabled = true;
 
         try {
-            // Calculate totals
             const subtotal = State.draft.items.reduce((s, i) =>
                 s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0
             );
@@ -869,15 +932,14 @@
             const discountValue = +$('#purchaseDiscount')?.value || 0;
             const discountType = $('#purchaseDiscountType')?.value || 'amount';
             const discount = discountType === 'amount'
-                ? Math.min(discountValue, subtotal)
-                : U.round(subtotal * (discountValue / 100));
+                ? Math.min(Math.max(0, discountValue), subtotal)
+                : U.round(subtotal * (Math.min(100, Math.max(0, discountValue)) / 100), 2);
 
-            const net = U.round(subtotal - discount);
+            const net = U.round(subtotal - discount, 2);
 
             const supplier = State.suppliers.find(s => s.id === State.draft.supplierId);
             const invoiceNumber = await DB.generateInvoiceNumber();
 
-            // Build invoice
             const invoice = {
                 id: State.editingId || U.uuid(),
                 invoice_number: invoiceNumber,
@@ -903,6 +965,7 @@
                 cash_paid: 0,
                 transfer_paid: 0,
                 card_paid: 0,
+                used_balance: 0,
                 paid: 0,
                 remaining: net,
                 change_amount: 0,
@@ -911,88 +974,73 @@
                 notes: $('#purchaseNotes')?.value.trim() || ''
             };
 
-            console.log('💾 Saving purchase:', invoice);
+            log('💾 Saving purchase:', invoice);
 
-            // 1. Create invoice
+            // ✅ [PUR-1] RPC واحد يضيف المخزون ويُحدّث رصيد المورد + يحفظ الفاتورة
             const result = await DB.createInvoice(invoice);
             if (!result.success) throw new Error('فشل حفظ الفاتورة');
 
-            // 2. ✅ Add stock to products + update cost & price
-            await addStockAndUpdateProducts(State.draft.items);
-
-            // 3. ✅ Update supplier balance (we owe them more)
-            if (supplier) {
-                const currentBal = Number(supplier.balance) || 0;
-                const newBal = U.round(currentBal - net);
-                await DB.updatePartyBalance(supplier.id, newBal);
-                console.log('💰 Supplier balance updated:', currentBal, '→', newBal);
-            }
+            // ✅ [PUR-3] تحديث أسعار المنتجات (cost + sellPrice فقط، بدون stock)
+            await updateProductPrices(State.draft.items);
 
             showToast(State.editingId ? 'تم تحديث الفاتورة' : 'تم حفظ فاتورة الشراء', 'success');
             closeModal('purchaseModal');
 
-            // 4. Reload all data
             await loadAllData();
 
         } catch (e) {
             console.error('Save error:', e);
-            showToast(e.message || 'فشل حفظ الفاتورة', 'error');
+            showToast(translateError(e), 'error');
         } finally {
+            State._saving = false;
             if (saveBtn) saveBtn.disabled = false;
         }
     }
 
     /* ============================================
-       ✅ Add Stock + Update Product (Cost & Price)
+       ✅ [PUR-3] تحديث أسعار المنتجات — بدون stock
        ============================================ */
-    async function addStockAndUpdateProducts(items) {
-        const products = await DB.getProducts(true) || [];
+    async function updateProductPrices(items) {
+        if (!items.length) return;
+
+        // اقرأ المنتجات الحديثة (بعد أن حدّث RPC المخزون)
+        const products = await DB.getProducts(false) || [];
 
         for (const item of items) {
             try {
                 const product = products.find(p => p.id === item.productId);
                 if (!product?.units?.length) continue;
 
-                const baseUnit = product.units[0];
-                const unit = product.units.find(u => u.name === item.unitName) || baseUnit;
-                const factor = unit.factor || 1;
+                const unit = product.units.find(u => u.name === item.unitName);
+                if (!unit) continue;
 
-                // حساب الكمية بالوحدة الأساسية
-                const addQty = (item.unitName === baseUnit.name)
-                    ? item.quantity
-                    : item.quantity * factor;
-
-                // ✅ إضافة المخزون
-                baseUnit.stock = U.round((Number(baseUnit.stock) || 0) + addQty, 3);
-
-                // ✅ تحديث سعر التكلفة (cost)
-                if (item.price > 0) {
+                let changed = false;
+                if (item.price > 0 && unit.cost !== item.price) {
                     unit.cost = item.price;
+                    changed = true;
                 }
-
-                // ✅ تحديث سعر البيع (price) إذا تم إدخاله
-                if (item.sellPrice && item.sellPrice > 0) {
+                if (item.sellPrice && item.sellPrice > 0 && unit.price !== item.sellPrice) {
                     unit.price = item.sellPrice;
+                    changed = true;
                 }
 
-                // حفظ المنتج (محلياً وسحابياً)
-                await DB.saveProduct(product);
-
-                console.log('✅ Product updated:', product.name, 'stock:', baseUnit.stock);
-
+                if (changed) {
+                    // saveProduct يحفظ stock الحالي (من IDB بعد RPC) مع cost/price الجديدة
+                    await DB.saveProduct(product);
+                    log('✅ Product prices updated:', product.name);
+                }
             } catch (e) {
-                console.warn('Failed to update product:', item.productName, e);
+                console.warn('Failed to update product prices:', item.productName, e);
             }
         }
     }
 
     /* ============================================
-       Pay Supplier Modal
+       Pay Supplier — ✅ [PUR-4] مُبسَّط
        ============================================ */
     function openPaySupplierModal(supplierId = null) {
-        // If called from details modal, get the supplier from the invoice
         const inv = State.viewingId ? State.purchases.find(p => p.id === State.viewingId) : null;
-        const sid = supplierId || inv?.supplier_id || State.draft.supplierId;
+        const sid = supplierId || inv?.supplier_id;
 
         if (!sid) {
             showToast('لا يوجد مورد محدد', 'warning');
@@ -1005,7 +1053,6 @@
             return;
         }
 
-        // Store current pay target
         State._paySupplierId = sid;
         State._payInvoiceId = inv?.id || null;
         State._payInvoiceRemaining = Number(inv?.remaining) || 0;
@@ -1018,9 +1065,8 @@
         const balLabel = bal > 0 ? `مستحق له: ${U.money(bal)}` : bal < 0 ? `مستحق عليه: ${U.money(-bal)}` : 'لا رصيد';
         $('#paySupplierBalance').textContent = balLabel;
 
-        // Default amount = invoice remaining or full balance
-        const defaultAmount = State._payInvoiceRemaining > 0 
-            ? State._payInvoiceRemaining 
+        const defaultAmount = State._payInvoiceRemaining > 0
+            ? State._payInvoiceRemaining
             : Math.abs(bal);
 
         $('#payAmount').value = defaultAmount > 0 ? defaultAmount : '';
@@ -1028,7 +1074,6 @@
         $('#payNotes').value = '';
         setPayMethod('cash');
 
-        // Quick amounts
         const quick = $('#payQuickAmounts');
         if (defaultAmount > 0) {
             const opts = [
@@ -1053,7 +1098,7 @@
     }
 
     function setPayMethod(method) {
-        $$('#paySupplierModal .method-btn').forEach(b => {
+        document.querySelectorAll('#paySupplierModal .method-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.method === method);
         });
         $('#payMethod').value = method;
@@ -1075,59 +1120,26 @@
         if (btn) btn.disabled = true;
 
         try {
-            // Add payment (this handles balance update)
+            // ✅ [PUR-4] دفع على مستوى المورد — الرصيد يُحدَّث تلقائيًا عبر RPC
+            // ملاحظة معمارية: add_payment_atomic لا يقبل invoice_id، لذا لا نُحدّث
+            // paid/remaining للفاتورة الفردية. هذا قيد schema v5.2.0.
             await DB.addPayment({
                 party_id: sid,
-                type: 'payment_out', // سداد لمورد
+                type: 'payment_out',
                 amount,
                 payment_method: method,
                 reference,
                 notes
             });
 
-            // If from a specific invoice, update its paid & remaining
-            if (State._payInvoiceId) {
-                const inv = await DB.getInvoiceById(State._payInvoiceId);
-                if (inv) {
-                    const newPaid = U.round((Number(inv.paid) || 0) + amount);
-                    const newRemaining = Math.max(0, (Number(inv.total) || 0) - newPaid);
-                    const newStatus = newRemaining <= 0 ? 'paid' : 'partial';
-
-                    // Update invoice
-                    if (navigator.onLine && window.DB?.client) {
-                        await window.DB.client
-                            .from('invoices')
-                            .update({
-                                paid: newPaid,
-                                remaining: newRemaining,
-                                status: newStatus,
-                                updated_at: new Date().toISOString()
-                            })
-                            .eq('id', State._payInvoiceId);
-                    }
-
-                    // Update local
-                    if (window.localDB?.ready) {
-                        const localInv = await window.localDB.get('invoices', State._payInvoiceId);
-                        if (localInv) {
-                            localInv.paid = newPaid;
-                            localInv.remaining = newRemaining;
-                            localInv.status = newStatus;
-                            await window.localDB.put('invoices', localInv);
-                        }
-                    }
-                }
-            }
-
             showToast('تم السداد بنجاح', 'success');
             closeModal('paySupplierModal');
             closeModal('purchaseDetailsModal');
 
-            // Reload
             await loadAllData();
         } catch (e) {
             console.error('Payment error:', e);
-            showToast(e.message || 'فشل السداد', 'error');
+            showToast(translateError(e), 'error');
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -1158,17 +1170,21 @@
         const csv = rows.map(row =>
             row.map(cell => {
                 const s = String(cell ?? '');
-                return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g, '""') + '"' : s;
+                return (s.includes(',') || s.includes('"') || s.includes('\n'))
+                    ? '"' + s.replace(/"/g, '""') + '"'
+                    : s;
             }).join(',')
-        ).join('\n');
+        ).join('\r\n');
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `purchases-${U.today()}.csv`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
 
         showToast('تم التصدير', 'success');
     }
@@ -1197,7 +1213,8 @@
         const btn = $('#themeBtn');
         if (!btn) return;
         const isDark = document.documentElement.dataset.theme === 'dark';
-        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
 
     function initTheme() {
@@ -1206,14 +1223,8 @@
         updateThemeIcon();
     }
 
-    function openModal(id) {
-        const m = document.getElementById(id);
-        if (m) m.classList.add('open');
-    }
-    function closeModal(id) {
-        const m = document.getElementById(id);
-        if (m) m.classList.remove('open');
-    }
+    function openModal(id) { document.getElementById(id)?.classList.add('open'); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 
     function showSkeleton() {
         const skeleton = $('#skeletonGrid');
@@ -1259,9 +1270,13 @@
     }
 
     /* ============================================
-       Toast
+       Toast — ✅ [PUR-10] يفضل window.Toast
        ============================================ */
     function showToast(msg, type = 'info') {
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            try { window.Toast.show(msg, type); return; } catch (e) { /* fallthrough */ }
+        }
+
         let stack = $('#toastStack');
         if (!stack) {
             stack = document.createElement('div');
@@ -1270,18 +1285,8 @@
             document.body.appendChild(stack);
         }
 
-        const icons = {
-            success: 'check-circle',
-            error: 'times-circle',
-            warning: 'exclamation-triangle',
-            info: 'info-circle'
-        };
-        const colors = {
-            success: '#10b981',
-            error: '#ef4444',
-            warning: '#f59e0b',
-            info: '#3b82f6'
-        };
+        const icons = { success: 'check-circle', error: 'times-circle', warning: 'exclamation-triangle', info: 'info-circle' };
+        const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
 
         const toast = document.createElement('div');
         toast.style.cssText = `
@@ -1343,12 +1348,21 @@
             await Auth.logout();
         });
 
-        // Refresh
-        $('#refreshBtn')?.addEventListener('click', async () => {
-            showToast('جاري التحديث...', 'info');
-            DB.clearCache();
-            await loadAllData();
-            showToast('تم التحديث', 'success');
+        // ✅ [PUR-9] Refresh محمي
+        const refreshBtn = $('#refreshBtn');
+        refreshBtn?.addEventListener('click', async () => {
+            if (State._refreshing) return;
+            State._refreshing = true;
+            refreshBtn.disabled = true;
+            try {
+                DB.clearCache();
+                const ok = await loadAllData();
+                if (ok) showToast('تم التحديث', 'success');
+                else showToast('فشل التحديث، تحقق من الاتصال', 'error');
+            } finally {
+                State._refreshing = false;
+                refreshBtn.disabled = false;
+            }
         });
 
         // Export
@@ -1370,7 +1384,8 @@
             const input = $('#searchInput');
             if (input) input.value = '';
             State.filters.search = '';
-            $('#clearSearchBtn').style.display = 'none';
+            const clearBtn = $('#clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = 'none';
             applyFilters();
         });
 
@@ -1441,7 +1456,7 @@
         });
 
         // Pay supplier
-        $$('#paySupplierModal .method-btn').forEach(btn => {
+        document.querySelectorAll('#paySupplierModal .method-btn').forEach(btn => {
             btn.addEventListener('click', () => setPayMethod(btn.dataset.method));
         });
         $('#confirmPaySupplierBtn')?.addEventListener('click', confirmPaySupplier);
@@ -1482,5 +1497,4 @@
     } else {
         init();
     }
-
 })();
