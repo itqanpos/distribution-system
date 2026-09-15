@@ -221,3 +221,28 @@ button, input, select, textarea {
     transition: transform 0.3s;
 }
 body.is-offline #offline-banner { transform: translateY(0); }
+html, body {
+    touch-action: pan-y pan-x;
+    -webkit-text-size-adjust: 100%;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+}
+
+button, a, .nav-item, .icon-btn, .method, .cat-tab,
+.product-card, .cart-item, .unit-chip,
+.customer-item, .invoice-item, .purchase-item,
+.purchase-list-item, .customer-list-item,
+.quick-action, .stat-card, .summary-card, .alert-item {
+    touch-action: manipulation;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+}
