@@ -1,20 +1,16 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 5.0.0 (Production-ready)
+   Version: 5.2.0
 
-   Fixes (جديد في v5):
-   - [1] idempotency_key في كل الفواتير والدفعات
-   - [2] Sync Queue لكل عمليات الكتابة
-   - [3] توحيد وحدة المخزون (base unit)
-   - [4] getTenantId من profile فقط (لا user_metadata)
-   - [5] addPayment عبر RPC ذرّي
-   - [6] إزالة party_balance من queue
-   - [7] أرقام الفواتير الأوفلاين تبدأ من 9000
-   - [8] soft delete محلي + مزامنة الحذف
-   - [9] تصنيف أخطاء الأعمال عن أخطاء الشبكة
-   - [10] failed_sync store للأخطاء الدائمة
-   - [11] merge ذكي: تعديلات محلية + مخزون الخادم
-   - [12] wipeLocalData عند logout
+   Changes from v5.0.0:
+   - [1] requireTenant() — يمنع الكتابة بدون tenant
+   - [2] لا fallback لـ IDB عند الفشل أونلاين
+   - [3] deleteByTenant() — عزل بيانات المستأجرين في IDB
+   - [4] getProducts/getParties/getInvoices يحترمون tenant
+   - [5] createSaleInvoice / createPurchaseInvoice كأغلفة
+   - [6] getInvoicesLight / getPurchases / getPurchaseById / getPurchasesLight
+   - [7] addPayment: لا تغيير محلي قبل نجاح RPC
+   - [8] wipeLocalData يشمل failed_sync
    ============================================= */
 (function() {
     'use strict';
@@ -55,17 +51,17 @@
         return `${y}-${m}-${day}`;
     }
 
-    // ✅ [FIX #9] أخطاء الأعمال لا تُعاد إلى الطابور
+    function round3(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 0;
+        const f = 1000;
+        const s = n * f;
+        return Math.round(s + (s >= 0 ? 1e-9 : -1e-9)) / f;
+    }
+
     const BUSINESS_ERROR_CODES = new Set([
-        'P0002', // insufficient stock
-        'P0003', // not admin
-        'P0004', // validation
-        'P0005', // bad item
-        'P0006', // financial mismatch
-        '42501', // RLS
-        '23505', // unique violation
-        '23514', // check violation
-        '23503'  // FK violation
+        'P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'P0006',
+        '42501', '23505', '23514', '23503', '42P01'
     ]);
 
     function isBusinessError(err) {
@@ -82,7 +78,7 @@
         init() {
             return new Promise((resolve) => {
                 if (typeof indexedDB === 'undefined') { resolve(this); return; }
-                const req = indexedDB.open(CFG.DB_NAME || 'hesaby_db', CFG.DB_VERSION || 4);
+                const req = indexedDB.open(CFG.DB_NAME || 'hesaby_pos', CFG.DB_VERSION || 3);
 
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
@@ -97,18 +93,22 @@
                             store.createIndex('date', 'date');
                             store.createIndex('status', 'status');
                             store.createIndex('customer_id', 'customer_id');
+                            store.createIndex('tenant_id', 'tenant_id');
                         }
                         if (name === 'products') {
                             store.createIndex('barcode', 'barcode');
                             store.createIndex('category', 'category');
+                            store.createIndex('tenant_id', 'tenant_id');
                         }
                         if (name === 'parties') {
                             store.createIndex('type', 'type');
                             store.createIndex('phone', 'phone');
+                            store.createIndex('tenant_id', 'tenant_id');
                         }
                         if (name === 'transactions') {
                             store.createIndex('party_id', 'party_id');
                             store.createIndex('date', 'date');
+                            store.createIndex('tenant_id', 'tenant_id');
                         }
                         if (name === 'sync_queue') {
                             store.createIndex('created_at', 'created_at');
@@ -179,6 +179,22 @@
                 tx.onerror = () => rej(new Error('IDB clear failed'));
             });
         }
+
+        // ✅ حذف كل السجلات التي لا تنتمي لمستأجر معيّن
+        async deleteByTenant(store, tenantId) {
+            await this._ready();
+            if (!this.db || !tenantId) return 0;
+            const all = await this.getAll(store);
+            const foreign = all.filter(x => x.tenant_id && x.tenant_id !== tenantId);
+            if (!foreign.length) return 0;
+            return new Promise((res, rej) => {
+                const tx = this.db.transaction(store, 'readwrite');
+                const s = tx.objectStore(store);
+                foreign.forEach(f => s.delete(f.id));
+                tx.oncomplete = () => res(foreign.length);
+                tx.onerror = () => rej(new Error('IDB bulk delete failed'));
+            });
+        }
     }
 
     /* ============================================
@@ -195,18 +211,31 @@
                           autoRefreshToken: true, detectSessionInUrl: false } }
             );
             return supabaseClient;
-        } catch (e) { return null; }
+        } catch (e) {
+            console.error('Supabase init failed', e);
+            return null;
+        }
     }
 
     function getClient() { return window.DB?.client || supabaseClient; }
 
-    // ✅ [FIX #4] من profile فقط — لا user_metadata القابل للتزوير
     function getTenantId() {
         return window.Auth?.user?.tenant_id || null;
     }
 
+    // ✅ يمنع أي كتابة بدون مستأجر
+    function requireTenant() {
+        const t = getTenantId();
+        if (!t) {
+            const err = new Error('لا يوجد مستأجر مرتبط بالحساب. أعد تسجيل الدخول.');
+            err.code = 'NO_TENANT';
+            throw err;
+        }
+        return t;
+    }
+
     /* ============================================
-       Memory Cache (LRU بسيط)
+       Memory Cache
        ============================================ */
     const MemCache = {
         _data: {}, _time: {}, _max: 2000,
@@ -241,6 +270,13 @@
                     retries: 0,
                     next_retry_at: 0
                 });
+
+                if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                    try {
+                        const reg = await navigator.serviceWorker.ready;
+                        await reg.sync.register('hesaby-sync-queue');
+                    } catch (e) { /* ignore */ }
+                }
             } catch (e) { console.warn('sync_queue enqueue failed', e); }
         },
 
@@ -288,10 +324,9 @@
                     this.flushSyncQueue().catch(e => console.warn('flush error', e));
                 });
 
-                // محاولة flush دورية
                 setInterval(() => {
                     if (navigator.onLine) this.flushSyncQueue().catch(() => {});
-                }, 30000);
+                }, CFG.SYNC_INTERVAL || 30000);
 
                 return this;
             })();
@@ -299,7 +334,7 @@
         },
 
         /* ============================================
-           flushSyncQueue — backoff + تصنيف أخطاء
+           Sync
            ============================================ */
         async flushSyncQueue() {
             if (!navigator.onLine || !this.client) return;
@@ -316,14 +351,13 @@
                     if (result?.error) throw result.error;
                     await SyncQueue.dequeue(op);
                 } catch (e) {
-                    // ✅ [FIX #9] أخطاء الأعمال → فشل نهائي فورًا
                     if (isBusinessError(e)) {
                         console.error('Business error in sync op', op, e);
                         await SyncQueue.moveToFailed(op, e);
                         continue;
                     }
                     op.retries = (op.retries || 0) + 1;
-                    if (op.retries >= 8) {
+                    if (op.retries >= (CFG.SYNC_MAX_RETRIES || 8)) {
                         console.error('Sync op failed permanently', op, e);
                         await SyncQueue.moveToFailed(op, e);
                     } else {
@@ -338,6 +372,8 @@
             switch (op.type) {
                 case 'create_invoice':
                     return await this.client.rpc('create_invoice_atomic', { p_invoice: op.payload });
+                case 'void_invoice':
+                    return await this.client.rpc('void_invoice_atomic', { p_invoice_id: op.payload.id });
                 case 'add_payment':
                     return await this.client.rpc('add_payment_atomic', { p_payment: op.payload });
                 case 'save_product':
@@ -370,70 +406,73 @@
                 if (c?.length) return c;
             }
 
+            const tenantId = getTenantId();
+
             if (!navigator.onLine || !this.client) {
-                const local = (await this.local.getAll('products')).filter(p => !p.deleted_at);
+                const all = await this.local.getAll('products');
+                const local = all.filter(p =>
+                    !p.deleted_at && (!tenantId || p.tenant_id === tenantId)
+                );
                 MemCache.set('products', local);
                 return local;
             }
 
-            try {
-                const { data, error } = await this.client
-                    .from('products')
-                    .select('*, product_units(*)')
-                    .is('deleted_at', null)
-                    .order('name');
-                if (error) throw error;
+            const { data, error } = await this.client
+                .from('products')
+                .select('*, product_units(*)')
+                .is('deleted_at', null)
+                .order('name');
+            if (error) throw error;
 
-                const remote = (data || []).map(p => ({
-                    ...p,
-                    units: (p.product_units || [])
-                        .map(u => ({
-                            id: u.id, name: u.unit_name,
-                            price: u.price, cost: u.cost,
-                            factor: u.factor, stock: u.stock,
-                            minPrice: u.min_price, maxPrice: u.max_price,
-                            barcode: u.barcode, isBase: u.is_base
-                        }))
-                        .sort((a,b) => (b.isBase ? 1 : 0) - (a.isBase ? 1 : 0))
-                }));
+            const remote = (data || []).map(p => ({
+                ...p,
+                units: (p.product_units || [])
+                    .map(u => ({
+                        id: u.id, name: u.unit_name,
+                        price: u.price, cost: u.cost,
+                        factor: u.factor, stock: u.stock,
+                        minPrice: u.min_price, maxPrice: u.max_price,
+                        barcode: u.barcode, isBase: u.is_base
+                    }))
+                    .sort((a,b) => (b.isBase ? 1 : 0) - (a.isBase ? 1 : 0))
+            }));
 
-                // ✅ [FIX #11] دمج: تعديلات محلية + مخزون الخادم
-                const existing = await this.local.getAll('products');
-                const merged = remote.map(rp => {
-                    const lp = existing.find(e => e.id === rp.id);
-                    if (!lp?.updated_at || !rp.updated_at) return rp;
-
-                    if (new Date(lp.updated_at) > new Date(rp.updated_at)) {
-                        // اِحتفظ بحقول المستخدم المحلية، لكن خذ المخزون من الخادم
-                        const mergedUnits = (lp.units || []).map(lu => {
-                            const ru = (rp.units || []).find(u => u.id === lu.id);
-                            return ru ? { ...lu, stock: ru.stock } : lu;
-                        });
-                        // أضف وحدات جديدة من الخادم
-                        (rp.units || []).forEach(ru => {
-                            if (!mergedUnits.find(u => u.id === ru.id)) mergedUnits.push(ru);
-                        });
-                        return { ...lp, units: mergedUnits };
-                    }
-                    return rp;
-                });
-
-                await this.local.putMany('products', merged);
-                MemCache.set('products', merged);
-                return merged;
-            } catch (e) {
-                console.warn('Cloud fetch failed', e);
-                return (await this.local.getAll('products')).filter(p => !p.deleted_at);
+            // امسح بيانات مستأجرين آخرين
+            if (tenantId) {
+                try { await this.local.deleteByTenant('products', tenantId); }
+                catch (e) { console.warn('deleteByTenant failed', e); }
             }
+
+            const existing = await this.local.getAll('products');
+            const merged = remote.map(rp => {
+                const lp = existing.find(e => e.id === rp.id);
+                if (!lp?.updated_at || !rp.updated_at) return rp;
+
+                if (new Date(lp.updated_at) > new Date(rp.updated_at)) {
+                    const mergedUnits = (lp.units || []).map(lu => {
+                        const ru = (rp.units || []).find(u => u.id === lu.id);
+                        return ru ? { ...lu, stock: ru.stock } : lu;
+                    });
+                    (rp.units || []).forEach(ru => {
+                        if (!mergedUnits.find(u => u.id === ru.id)) mergedUnits.push(ru);
+                    });
+                    return { ...lp, tenant_id: rp.tenant_id, units: mergedUnits };
+                }
+                return rp;
+            });
+
+            await this.local.putMany('products', merged);
+            MemCache.set('products', merged);
+            return merged;
         },
 
         async saveProduct(product) {
+            const tenantId = requireTenant();
             const id = product.id || fallbackUuid();
             const now = new Date().toISOString();
 
             const payload = {
-                id,
-                tenant_id: getTenantId(),
+                id, tenant_id: tenantId,
                 name: product.name,
                 code: product.code || null,
                 barcode: product.barcode || null,
@@ -448,7 +487,7 @@
             const unitsPayload = (product.units || []).map(u => ({
                 id: u.id || fallbackUuid(),
                 product_id: id,
-                tenant_id: getTenantId(),
+                tenant_id: tenantId,
                 unit_name: u.name,
                 barcode: u.barcode || null,
                 price: u.price || 0,
@@ -460,7 +499,6 @@
                 is_base: !!u.isBase
             }));
 
-            // ✅ [FIX #2] مسار سحابي أو queue
             if (navigator.onLine && this.client) {
                 try {
                     const { error } = await this.client.from('products')
@@ -491,21 +529,17 @@
         },
 
         async deleteProduct(id) {
-            // ✅ [FIX #8] soft delete محلي + queue
+            requireTenant();
             const product = await this.local.get('products', id);
             if (product) {
                 product.deleted_at = new Date().toISOString();
                 await this.local.put('products', product);
             }
 
-            const doRemote = async () => {
-                return await this.client.from('products')
-                    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
-            };
-
             if (navigator.onLine && this.client) {
                 try {
-                    const { error } = await doRemote();
+                    const { error } = await this.client.from('products')
+                        .update({ deleted_at: new Date().toISOString() }).eq('id', id);
                     if (error) throw error;
                 } catch (e) {
                     if (isBusinessError(e)) throw e;
@@ -530,46 +564,50 @@
                 }
             }
 
+            const tenantId = getTenantId();
+
             if (!navigator.onLine || !this.client) {
-                const local = (await this.local.getAll('parties')).filter(p => !p.deleted_at);
+                const all = await this.local.getAll('parties');
+                const local = all.filter(p =>
+                    !p.deleted_at && (!tenantId || p.tenant_id === tenantId)
+                );
                 MemCache.set('parties', local);
                 return type ? local.filter(p => p.type === type || p.type === 'both') : local;
             }
 
-            try {
-                let q = this.client.from('parties').select('*')
-                    .is('deleted_at', null).order('name');
-                if (type) q = q.or(`type.eq.${type},type.eq.both`);
-                const { data, error } = await q;
-                if (error) throw error;
+            let q = this.client.from('parties').select('*')
+                .is('deleted_at', null).order('name');
+            if (type) q = q.or(`type.eq.${type},type.eq.both`);
+            const { data, error } = await q;
+            if (error) throw error;
 
-                const existing = await this.local.getAll('parties');
-                const merged = (data || []).map(rp => {
-                    const lp = existing.find(e => e.id === rp.id);
-                    if (lp?.updated_at && rp.updated_at &&
-                        new Date(lp.updated_at) > new Date(rp.updated_at)) {
-                        return { ...lp, balance: rp.balance };
-                    }
-                    return rp;
-                });
-
-                await this.local.putMany('parties', merged);
-                MemCache.set('parties', merged);
-                return merged;
-            } catch (e) {
-                console.warn('Cloud parties fetch failed', e);
-                const local = (await this.local.getAll('parties')).filter(p => !p.deleted_at);
-                return type ? local.filter(p => p.type === type || p.type === 'both') : local;
+            if (tenantId) {
+                try { await this.local.deleteByTenant('parties', tenantId); }
+                catch (e) { console.warn('deleteByTenant failed', e); }
             }
+
+            const existing = await this.local.getAll('parties');
+            const merged = (data || []).map(rp => {
+                const lp = existing.find(e => e.id === rp.id);
+                if (lp?.updated_at && rp.updated_at &&
+                    new Date(lp.updated_at) > new Date(rp.updated_at)) {
+                    return { ...lp, tenant_id: rp.tenant_id, balance: rp.balance };
+                }
+                return rp;
+            });
+
+            await this.local.putMany('parties', merged);
+            MemCache.set('parties', merged);
+            return merged;
         },
 
         async saveParty(party) {
+            const tenantId = party.tenant_id || requireTenant();
             const id = party.id || fallbackUuid();
             const now = new Date().toISOString();
 
             const payload = {
-                id,
-                tenant_id: party.tenant_id || getTenantId(),
+                id, tenant_id: tenantId,
                 name: party.name,
                 type: party.type || 'customer',
                 phone: party.phone || null,
@@ -602,6 +640,7 @@
         },
 
         async deleteParty(id) {
+            requireTenant();
             const party = await this.local.get('parties', id);
             if (party) {
                 party.deleted_at = new Date().toISOString();
@@ -626,17 +665,17 @@
         },
 
         /* ============================================
-           PAYMENTS — ✅ RPC ذرّي
+           PAYMENTS
            ============================================ */
         async addPayment(payment) {
             const client = getClient();
+            const tenantId = requireTenant();
             const id = payment.id || fallbackUuid();
             const now = new Date().toISOString();
             const idempotency_key = payment.idempotency_key || id;
 
             const payload = {
-                id,
-                tenant_id: getTenantId(),
+                id, tenant_id: tenantId,
                 type: payment.type,
                 amount: Math.abs(Number(payment.amount) || 0),
                 party_id: payment.party_id,
@@ -654,19 +693,7 @@
                 throw new Error('المبلغ يجب أن يكون أكبر من صفر');
             }
 
-            await this.local.put('transactions', payload);
-
-            // ✅ تحديث الرصيد محليًا (اتفاقية: payment_in يرفع، payment_out يخفض)
-            const party = await this.local.get('parties', payment.party_id);
-            if (party) {
-                const delta = payment.type === 'payment_in'
-                    ? payload.amount
-                    : -payload.amount;
-                party.balance = round3((Number(party.balance) || 0) + delta);
-                party.updated_at = now;
-                await this.local.put('parties', party);
-            }
-
+            // ✅ لا تغيير محلي قبل نجاح RPC أو queue
             if (navigator.onLine && client) {
                 try {
                     const { error } = await client.rpc('add_payment_atomic', { p_payment: payload });
@@ -679,29 +706,39 @@
                 await SyncQueue.enqueue({ type: 'add_payment', id, payload });
             }
 
+            // الآن نُطبّق محليًا
+            await this.local.put('transactions', payload);
+            const party = await this.local.get('parties', payment.party_id);
+            if (party && party.tenant_id === tenantId) {
+                const delta = payment.type === 'payment_in'
+                    ? payload.amount
+                    : -payload.amount;
+                party.balance = round3((Number(party.balance) || 0) + delta);
+                party.updated_at = now;
+                await this.local.put('parties', party);
+            }
+
             MemCache.clear('parties');
             MemCache.clear('transactions');
-
             return { success: true, id };
         },
 
         async getPayments(partyId = null) {
+            const tenantId = getTenantId();
+
             if (!navigator.onLine || !this.client) {
-                const local = await this.local.getAll('transactions');
+                const all = await this.local.getAll('transactions');
+                const local = all.filter(t => !tenantId || t.tenant_id === tenantId);
                 return partyId ? local.filter(t => t.party_id === partyId) : local;
             }
-            try {
-                let q = this.client.from('transactions').select('*')
-                    .order('date', { ascending: false });
-                if (partyId) q = q.eq('party_id', partyId);
-                const { data, error } = await q;
-                if (error) throw error;
-                await this.local.putMany('transactions', data || []);
-                return data || [];
-            } catch {
-                const local = await this.local.getAll('transactions');
-                return partyId ? local.filter(t => t.party_id === partyId) : local;
-            }
+
+            let q = this.client.from('transactions').select('*')
+                .order('date', { ascending: false });
+            if (partyId) q = q.eq('party_id', partyId);
+            const { data, error } = await q;
+            if (error) throw error;
+            await this.local.putMany('transactions', data || []);
+            return data || [];
         },
 
         /* ============================================
@@ -712,22 +749,47 @@
                 const c = MemCache.get('invoices', 30000);
                 if (c?.length) return c;
             }
+
+            const tenantId = getTenantId();
+
             if (!navigator.onLine || !this.client) {
-                const local = await this.local.getAll('invoices');
+                const all = await this.local.getAll('invoices');
+                const local = all.filter(i => !tenantId || i.tenant_id === tenantId);
                 local.sort((a,b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
                 return local;
             }
-            try {
-                const { data, error } = await this.client.from('invoices')
-                    .select('*').is('deleted_at', null)
-                    .order('created_at', { ascending: false });
-                if (error) throw error;
-                await this.local.putMany('invoices', data || []);
-                MemCache.set('invoices', data || []);
-                return data || [];
-            } catch {
-                return await this.local.getAll('invoices');
+
+            const { data, error } = await this.client.from('invoices')
+                .select('*').is('deleted_at', null)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+
+            if (tenantId) {
+                try { await this.local.deleteByTenant('invoices', tenantId); }
+                catch (e) { console.warn('deleteByTenant failed', e); }
             }
+
+            await this.local.putMany('invoices', data || []);
+            MemCache.set('invoices', data || []);
+            return data || [];
+        },
+
+        async getInvoicesLight(force = false) {
+            const tenantId = getTenantId();
+
+            if (!navigator.onLine || !this.client) {
+                const all = await this.local.getAll('invoices');
+                const local = all.filter(i => !tenantId || i.tenant_id === tenantId);
+                local.sort((a,b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+                return local.map(i => ({ ...i, items: undefined }));
+            }
+
+            const { data, error } = await this.client.from('invoices')
+                .select('id, tenant_id, invoice_number, type, date, customer_id, customer_name, supplier_id, supplier_name, subtotal, discount, total, cash_paid, transfer_paid, card_paid, used_balance, paid, remaining, change_amount, payment_method, status, notes, created_at, updated_at, created_by, device_id')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
         },
 
         async getInvoiceById(id) {
@@ -736,17 +798,18 @@
                     const { data, error } = await this.client.from('invoices')
                         .select('*').eq('id', id).maybeSingle();
                     if (!error && data) return data;
-                } catch {}
+                } catch { /* ignore */ }
             }
             return await this.local.get('invoices', id);
         },
 
         /* ============================================
-           createInvoice — RPC ذرّي + idempotency
+           CREATE INVOICE — RPC ذرّي
            ============================================ */
         async createInvoice(invoice) {
             if (!invoice.items?.length) throw new Error('لا توجد أصناف في الفاتورة');
 
+            const tenantId = requireTenant();
             const id = invoice.id || fallbackUuid();
             const now = new Date().toISOString();
             const idempotency_key = invoice.idempotency_key || id;
@@ -765,8 +828,7 @@
             });
 
             const payload = {
-                id,
-                tenant_id: getTenantId(),
+                id, tenant_id: tenantId,
                 invoice_number: invoice.invoice_number,
                 type: invoice.type || 'sale',
                 date: invoice.date || localDateStr(),
@@ -795,7 +857,6 @@
                 idempotency_key
             };
 
-            // المسار السحابي: RPC
             if (navigator.onLine && this.client) {
                 try {
                     const { data, error } = await this.client.rpc(
@@ -824,22 +885,91 @@
                 await SyncQueue.enqueue({ type: 'create_invoice', id, payload });
             }
 
-            // المسار الأوفلاين
             await this.local.put('invoices', payload);
             await this._applyLocalEffects(payload);
             MemCache.clear();
             return { success: true, id, invoice_number: payload.invoice_number };
         },
 
+        // ✅ أغلفة توافقية
+        async createSaleInvoice(invoiceData) {
+            return this.createInvoice({ ...invoiceData, type: 'sale' });
+        },
+
+        async createPurchaseInvoice(invoiceData) {
+            return this.createInvoice({ ...invoiceData, type: 'purchase' });
+        },
+
         /* ============================================
-           _applyLocalEffects — يطابق SQL تمامًا
+           PURCHASES — كعرض مُفلتر من invoices
+           ============================================ */
+        async getPurchases(force = false) {
+            const all = await this.getInvoices(force);
+            return all.filter(i => i.type === 'purchase' || i.type === 'return_purchase');
+        },
+
+        async getPurchasesLight(force = false) {
+            const all = await this.getInvoicesLight(force);
+            return all.filter(i => i.type === 'purchase' || i.type === 'return_purchase');
+        },
+
+        async getPurchaseById(id) {
+            return this.getInvoiceById(id);
+        },
+
+        /* ============================================
+           VOID INVOICE — RPC ذرّي
+           ============================================ */
+        async voidInvoice(id) {
+            const tenantId = requireTenant();
+            if (!id) throw new Error('معرّف الفاتورة مطلوب');
+
+            if (navigator.onLine && this.client) {
+                try {
+                    const { data, error } = await this.client.rpc(
+                        'void_invoice_atomic', { p_invoice_id: id }
+                    );
+                    if (error) throw error;
+
+                    // حدّث محليًا
+                    const local = await this.local.get('invoices', id);
+                    if (local) {
+                        local.status = 'voided';
+                        local.updated_at = new Date().toISOString();
+                        await this.local.put('invoices', local);
+                        await this._reverseLocalEffects(local);
+                    }
+
+                    MemCache.clear();
+                    return { success: true, id, data };
+                } catch (e) {
+                    if (isBusinessError(e)) throw e;
+                    await SyncQueue.enqueue({ type: 'void_invoice', id, payload: { id } });
+                }
+            } else {
+                await SyncQueue.enqueue({ type: 'void_invoice', id, payload: { id } });
+            }
+
+            // محليًا
+            const local = await this.local.get('invoices', id);
+            if (local) {
+                local.status = 'voided';
+                local.updated_at = new Date().toISOString();
+                await this.local.put('invoices', local);
+                await this._reverseLocalEffects(local);
+            }
+            MemCache.clear();
+            return { success: true, id };
+        },
+
+        /* ============================================
+           Local Effects
            ============================================ */
         async _applyLocalEffects(invoice) {
             const status = invoice.status || 'paid';
             const type = invoice.type;
 
-            // 1) المخزون
-            if (status !== 'held') {
+            if (status !== 'held' && status !== 'voided') {
                 let sign = 0;
                 if (type === 'sale') sign = -1;
                 else if (type === 'purchase') sign = +1;
@@ -851,15 +981,14 @@
                         const pid = item.productId || item.product_id;
                         const uname = item.unitName || item.unit_name;
                         await this._applyLocalStockDelta(pid, uname,
-                            sign * (Number(item.quantity) || 0));
+                            sign * (Number(item.quantity) || 0), invoice.tenant_id);
                     }
                 }
             }
 
-            // 2) رصيد العميل — اتفاقية: سالب = العميل مدين
             if (invoice.customer_id && ['sale','return_sale'].includes(type)) {
                 const cust = await this.local.get('parties', invoice.customer_id);
-                if (cust) {
+                if (cust && cust.tenant_id === invoice.tenant_id) {
                     const oldBal = Number(cust.balance) || 0;
                     let delta = 0;
                     if (type === 'sale') {
@@ -867,7 +996,6 @@
                         const used      = Number(invoice.used_balance) || 0;
                         delta = -remaining - used;
                     } else {
-                        // return_sale
                         delta = Number(invoice.total) || 0;
                     }
                     cust.balance = round3(oldBal + delta);
@@ -876,10 +1004,9 @@
                 }
             }
 
-            // 3) رصيد المورد
             if (invoice.supplier_id && ['purchase','return_purchase'].includes(type)) {
                 const sup = await this.local.get('parties', invoice.supplier_id);
-                if (sup) {
+                if (sup && sup.tenant_id === invoice.tenant_id) {
                     const oldBal = Number(sup.balance) || 0;
                     let delta = 0;
                     if (type === 'purchase') {
@@ -894,18 +1021,71 @@
             }
         },
 
-        async _applyLocalStockDelta(productId, unitName, qtyInSoldUnit) {
+        // ✅ عكس تأثيرات الفاتورة (للإلغاء)
+        async _reverseLocalEffects(invoice) {
+            const type = invoice.type;
+
+            // عكس المخزون
+            let sign = 0;
+            if (type === 'sale') sign = +1;
+            else if (type === 'purchase') sign = -1;
+            else if (type === 'return_sale') sign = -1;
+            else if (type === 'return_purchase') sign = +1;
+
+            if (sign !== 0 && Array.isArray(invoice.items)) {
+                for (const item of invoice.items) {
+                    const pid = item.productId || item.product_id;
+                    const uname = item.unitName || item.unit_name;
+                    await this._applyLocalStockDelta(pid, uname,
+                        sign * (Number(item.quantity) || 0), invoice.tenant_id);
+                }
+            }
+
+            // عكس رصيد العميل
+            if (invoice.customer_id && ['sale','return_sale'].includes(type)) {
+                const cust = await this.local.get('parties', invoice.customer_id);
+                if (cust && cust.tenant_id === invoice.tenant_id) {
+                    const oldBal = Number(cust.balance) || 0;
+                    let delta = 0;
+                    if (type === 'sale') {
+                        const remaining = Number(invoice.remaining) || 0;
+                        const used      = Number(invoice.used_balance) || 0;
+                        delta = +remaining + used;
+                    } else {
+                        delta = -(Number(invoice.total) || 0);
+                    }
+                    cust.balance = round3(oldBal + delta);
+                    cust.updated_at = new Date().toISOString();
+                    await this.local.put('parties', cust);
+                }
+            }
+
+            // عكس رصيد المورد
+            if (invoice.supplier_id && ['purchase','return_purchase'].includes(type)) {
+                const sup = await this.local.get('parties', invoice.supplier_id);
+                if (sup && sup.tenant_id === invoice.tenant_id) {
+                    const oldBal = Number(sup.balance) || 0;
+                    let delta = 0;
+                    if (type === 'purchase') {
+                        delta = -((Number(invoice.total) || 0) - (Number(invoice.paid) || 0));
+                    } else {
+                        delta = (Number(invoice.total) || 0);
+                    }
+                    sup.balance = round3(oldBal + delta);
+                    sup.updated_at = new Date().toISOString();
+                    await this.local.put('parties', sup);
+                }
+            }
+        },
+
+        async _applyLocalStockDelta(productId, unitName, qtyInSoldUnit, tenantId) {
             const product = await this.local.get('products', productId);
             if (!product?.units?.length) return;
+            if (tenantId && product.tenant_id && product.tenant_id !== tenantId) return;
 
             const baseUnit = product.units.find(u => u.isBase) || product.units[0];
             const soldUnit = product.units.find(u => u.name === unitName) || baseUnit;
-
-            // ✅ factor = 1 إذا كانت الوحدة المباعة هي الأساسية
-            const factor = soldUnit === baseUnit
-                ? 1
-                : (Number(soldUnit.factor) || 1);
-
+            const factor = soldUnit === baseUnit ? 1 : (Number(soldUnit.factor) || 1);
             const deltaBase = Number(qtyInSoldUnit) * factor;
             const oldStock = Number(baseUnit.stock) || 0;
             const newStock = oldStock + deltaBase;
@@ -937,23 +1117,19 @@
                         await this.local.put('settings', { id: 'app_settings', data: data.data });
                         return data.data;
                     }
-                } catch {}
+                } catch { /* ignore */ }
             }
             return {};
         },
 
         async saveSettings(data) {
-            const tenantId = getTenantId();
+            const tenantId = requireTenant();
             await this.local.put('settings', { id: 'app_settings', data });
 
-            const push = async () => {
-                return await this.client.from('settings')
-                    .upsert({ tenant_id: tenantId, data }, { onConflict: 'tenant_id' });
-            };
-
-            if (tenantId && navigator.onLine && this.client) {
+            if (navigator.onLine && this.client) {
                 try {
-                    const { error } = await push();
+                    const { error } = await this.client.from('settings')
+                        .upsert({ tenant_id: tenantId, data }, { onConflict: 'tenant_id' });
                     if (error) throw error;
                 } catch (e) {
                     if (isBusinessError(e)) throw e;
@@ -962,7 +1138,7 @@
                         payload: { tenant_id: tenantId, data }
                     });
                 }
-            } else if (tenantId) {
+            } else {
                 await SyncQueue.enqueue({
                     type: 'save_settings', id: tenantId,
                     payload: { tenant_id: tenantId, data }
@@ -972,7 +1148,7 @@
         },
 
         /* ============================================
-           generateInvoiceNumber — ✅ [FIX #7]
+           Invoice Numbers
            ============================================ */
         async generateInvoiceNumber() {
             const deviceId = getDeviceId();
@@ -987,7 +1163,6 @@
                 }
             }
 
-            // ✅ نطاق OFFLINE يبدأ من 9000 لتجنب التصادم
             const year = new Date().getFullYear().toString().slice(-2);
             const key = `invoice_counter_${year}_${deviceId}`;
             let current = parseInt(localStorage.getItem(key) || '8999', 10);
@@ -999,7 +1174,7 @@
         },
 
         /* ============================================
-           STOCK MOVEMENTS / SYNC STATUS
+           Stock Movements / Sync Status
            ============================================ */
         async getStockMovements(productId = null, limit = 100) {
             if (!navigator.onLine || !this.client) return [];
@@ -1028,7 +1203,7 @@
         clearCache() { MemCache.clear(); },
 
         /* ============================================
-           wipeLocalData عند تسجيل الخروج
+           Wipe
            ============================================ */
         async wipeLocalData({ includePendingQueue = false } = {}) {
             await this.local.clear('products');
@@ -1044,16 +1219,15 @@
         }
     };
 
-    // helper مشترك
-    function round3(v) {
-        const n = Number(v);
-        if (!Number.isFinite(n)) return 0;
-        const f = 1000;
-        const s = n * f;
-        return Math.round(s + (s >= 0 ? 1e-9 : -1e-9)) / f;
-    }
-
     window.addEventListener('load', () => {
         window.DB.init().catch(e => console.error('DB init error', e));
     });
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === 'SYNC_NOW' && window.DB?.flushSyncQueue) {
+                window.DB.flushSyncQueue().catch(() => {});
+            }
+        });
+    }
 })();
