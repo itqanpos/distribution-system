@@ -1,12 +1,48 @@
 /* =============================================
    customers.js - Customers Page Logic
-   v3.0 - Customer-Only Version
+   Version: 3.1.0
+
+   Changelog من v3.0:
+   - [CUST-1] احترام type='both' — لا إخفاء ولا تحويل
+   - [CUST-2] تحميل كسول للفواتير (lazy) بدل التحميل الأولي
+   - [CUST-3] فحص تسجيل دخول مزدوج (_saving)
+   - [CUST-4] Auth.onChange — توجيه عند الخروج من تبويب آخر
+   - [CUST-5] showToast يفضّل window.Toast
+   - [CUST-6] refreshBtn محمي
+   - [CUST-7] translateError للأخطاء
+   - [CUST-8] console gated by DEBUG
+   - [CUST-9] عرض المرتجعات في فواتير العميل
+   - [CUST-10] تحذير عند تحصيل يتجاوز الدين
+   - [CUST-11] عملة من APP_CONFIG
    ============================================= */
 (function() {
     'use strict';
 
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => [...document.querySelectorAll(s)];
+
+    const DEBUG = window.APP_CONFIG?.DEBUG === true ||
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1';
+    const log = (...a) => { if (DEBUG) console.log(...a); };
+
+    const DB_ERROR_MESSAGES = {
+        '23505': 'قيمة مكررة',
+        '23514': 'قيمة خارج النطاق المسموح',
+        '23503': 'مرجع غير موجود',
+        'P0001': 'السجل غير موجود',
+        'P0003': 'هذه العملية تتطلب صلاحيات مدير',
+        'P0004': 'بيانات غير صالحة',
+        'P0006': 'المبلغ غير صحيح',
+        'NO_TENANT': 'لا يوجد مستأجر مرتبط بالحساب',
+        '42501': 'ليس لديك صلاحية لهذه العملية'
+    };
+
+    function translateError(err) {
+        const code = err?.code || '';
+        if (DB_ERROR_MESSAGES[code]) return DB_ERROR_MESSAGES[code];
+        return err?.message || 'فشل العملية';
+    }
 
     /* ============ State ============ */
     const State = {
@@ -19,6 +55,9 @@
         viewingId: null,
         collectCustomerId: null,
         invoicesFilter: 'all',
+        _saving: false,
+        _refreshing: false,
+        _invoicesLoaded: false,
         filters: {
             search: '',
             balance: '',
@@ -30,7 +69,7 @@
        Init
        ============================================ */
     async function init() {
-        console.log('🚀 Customers init...');
+        log('🚀 Customers init...');
 
         let attempts = 0;
         while (!window.DB?.client && attempts < 50) {
@@ -44,8 +83,6 @@
             return;
         }
 
-        await new Promise(r => setTimeout(r, 300));
-
         try {
             State.currentUser = await Auth.requireAuth();
             if (!State.currentUser) return;
@@ -54,6 +91,16 @@
             return;
         }
 
+        // ✅ [CUST-4] مراقبة الجلسة
+        Auth.onChange((u) => {
+            if (!u && State.currentUser) {
+                State.currentUser = null;
+                location.replace('./index.html');
+            } else if (u) {
+                State.currentUser = u;
+            }
+        });
+
         updateUserUI();
         updateConnStatus();
         initTheme();
@@ -61,34 +108,46 @@
 
         await loadData();
         hideLoadingBar();
-        console.log('✅ Customers ready');
+        log('✅ Customers ready');
     }
 
     /* ============================================
-       Load Data
+       Load Data — ✅ [CUST-2] بدون فواتير (lazy)
        ============================================ */
     async function loadData() {
         showSkeleton();
         try {
-            const [customers, invoices] = await Promise.all([
-                DB.getParties('customer', true).catch(() => []),
-                DB.getInvoices(true).catch(() => [])
-            ]);
+            // ✅ [CUST-1] احتفظ بالعملاء والمزدوجين (both)
+            const raw = await DB.getParties('customer', true).catch(() => []);
+            State.customers = (raw || []).filter(c =>
+                c.type === 'customer' || c.type === 'both'
+            );
 
-            // Filter only customers (not 'both')
-            State.customers = (customers || []).filter(c => c.type === 'customer');
-            State.invoices = invoices || [];
-
-            console.log('👥 Customers:', State.customers.length);
+            log('👥 Customers:', State.customers.length);
 
             renderSummary();
             applyFilters();
+            return true;
         } catch (e) {
             console.error('Load error:', e);
-            showToast('تعذر تحميل البيانات', 'error');
+            showToast(translateError(e) || 'تعذر تحميل البيانات', 'error');
             showEmpty(true);
+            return false;
         } finally {
             hideSkeleton();
+        }
+    }
+
+    // ✅ [CUST-2] تحميل الفواتير عند الحاجة فقط
+    async function ensureInvoicesLoaded() {
+        if (State._invoicesLoaded) return State.invoices;
+        try {
+            State.invoices = await DB.getInvoices(false).catch(() => []) || [];
+            State._invoicesLoaded = true;
+            return State.invoices;
+        } catch (e) {
+            console.warn('Failed to load invoices', e);
+            return State.invoices;
         }
     }
 
@@ -101,15 +160,16 @@
 
         const totalCount = State.customers.length;
 
-        const totalDebit = State.customers
-            .filter(c => (c.balance || 0) < 0)
-            .reduce((s, c) => s + Math.abs(c.balance || 0), 0);
-
-        const totalCredit = State.customers
-            .filter(c => (c.balance || 0) > 0)
-            .reduce((s, c) => s + (c.balance || 0), 0);
-
-        const debitCount = State.customers.filter(c => (c.balance || 0) < 0).length;
+        let totalDebit = 0, totalCredit = 0, debitCount = 0;
+        for (const c of State.customers) {
+            const bal = Number(c.balance) || 0;
+            if (bal < 0) {
+                totalDebit += Math.abs(bal);
+                debitCount++;
+            } else if (bal > 0) {
+                totalCredit += bal;
+            }
+        }
 
         container.innerHTML = `
             <div class="summary-card">
@@ -182,7 +242,7 @@
             if (sort === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'ar');
             if (sort === 'balance') return (a.balance || 0) - (b.balance || 0);
             if (sort === 'balance-desc') return (b.balance || 0) - (a.balance || 0);
-            if (sort === 'recent') return (b.created_at || '').localeCompare(a.created_at || '');
+            if (sort === 'recent') return String(b.created_at || '').localeCompare(String(a.created_at || ''));
             return 0;
         });
 
@@ -227,29 +287,33 @@
     }
 
     function renderCustomerCard(c) {
-        const bal = c.balance || 0;
+        const bal = Number(c.balance) || 0;
         const balClass = bal < 0 ? 'debit' : bal > 0 ? 'credit' : 'zero';
         const balLabel = bal < 0 ? 'مدين' : bal > 0 ? 'دائن' : 'لا رصيد';
         const balValue = U.money(Math.abs(bal));
         const initials = (c.name || '?').trim()[0] || '?';
+        const isBoth = c.type === 'both';
 
         return `
-            <div class="customer-item" data-id="${c.id}">
+            <div class="customer-item" data-id="${U.escape(c.id)}">
                 <div class="customer-item__actions">
-                    <button class="icon-action success" data-action="collect" title="تحصيل">
+                    <button class="icon-action success" data-action="collect" title="تحصيل" type="button">
                         <i class="fas fa-hand-holding-usd"></i>
                     </button>
-                    <button class="icon-action" data-action="edit" title="تعديل">
+                    <button class="icon-action" data-action="edit" title="تعديل" type="button">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="icon-action danger" data-action="delete" title="حذف">
+                    <button class="icon-action danger" data-action="delete" title="حذف" type="button">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
                 <div class="customer-item__head">
                     <div class="customer-item__avatar">${U.escape(initials)}</div>
                     <div class="customer-item__title">
-                        <div class="customer-item__name">${U.escape(c.name || '')}</div>
+                        <div class="customer-item__name">
+                            ${U.escape(c.name || '')}
+                            ${isBoth ? '<span style="font-size:10px;padding:2px 6px;background:var(--primary);color:#fff;border-radius:6px;margin-right:6px;">مورد أيضاً</span>' : ''}
+                        </div>
                         ${c.phone ? `<div class="customer-item__phone"><i class="fas fa-phone"></i>${U.escape(c.phone)}</div>` : ''}
                     </div>
                 </div>
@@ -272,13 +336,13 @@
     }
 
     function renderCustomerListItem(c) {
-        const bal = c.balance || 0;
+        const bal = Number(c.balance) || 0;
         const balClass = bal < 0 ? 'debit' : bal > 0 ? 'credit' : 'zero';
         const balLabel = bal < 0 ? `${U.moneyRaw(-bal)}-` : bal > 0 ? `+${U.moneyRaw(bal)}` : '0';
         const initials = (c.name || '?').trim()[0] || '?';
 
         return `
-            <div class="customer-list-item" data-id="${c.id}">
+            <div class="customer-list-item" data-id="${U.escape(c.id)}">
                 <div class="customer-list-item__avatar">${U.escape(initials)}</div>
                 <div class="customer-list-item__info">
                     <div class="customer-list-item__name">${U.escape(c.name || '')}</div>
@@ -316,7 +380,7 @@
     }
 
     /* ============================================
-       Add/Edit Customer
+       Add/Edit Customer — ✅ [CUST-1] احترام type
        ============================================ */
     function openCustomerModal(id = null) {
         State.editingId = id;
@@ -350,6 +414,8 @@
     }
 
     async function saveCustomer() {
+        if (State._saving) return;
+
         const name = $('#customerName')?.value.trim();
         if (!name) {
             showToast('الاسم مطلوب', 'warning');
@@ -359,11 +425,19 @@
         const phone = $('#customerPhone')?.value.trim() || '';
         const email = $('#customerEmail')?.value.trim() || '';
 
-        if (email && !email.includes('@')) {
+        if (email && (!email.includes('@') || !email.includes('.'))) {
             showToast('صيغة البريد الإلكتروني غير صحيحة', 'warning');
             return;
         }
 
+        // ✅ [CUST-1] احترم type الأصلي عند التعديل
+        const existing = State.editingId
+            ? State.customers.find(x => x.id === State.editingId)
+            : null;
+        const originalType = existing?.type || 'customer';
+        const type = (originalType === 'both') ? 'both' : 'customer';
+
+        State._saving = true;
         const saveBtn = $('#saveCustomerBtn');
         if (saveBtn) saveBtn.disabled = true;
 
@@ -371,7 +445,7 @@
             const data = {
                 id: State.editingId || undefined,
                 name,
-                type: 'customer', // دائماً عميل
+                type,
                 phone,
                 email,
                 address: $('#customerAddress')?.value.trim() || '',
@@ -388,8 +462,9 @@
             await loadData();
         } catch (e) {
             console.error('Save error:', e);
-            showToast(e.message || 'فشل الحفظ', 'error');
+            showToast(translateError(e), 'error');
         } finally {
+            State._saving = false;
             if (saveBtn) saveBtn.disabled = false;
         }
     }
@@ -406,17 +481,19 @@
         const body = $('#viewCustomerBody');
         if (!body) return;
 
-        const bal = c.balance || 0;
+        const bal = Number(c.balance) || 0;
         const balClass = bal < 0 ? 'debit' : bal > 0 ? 'credit' : 'zero';
         const balLabel = bal < 0 ? 'عليه دين' : bal > 0 ? 'له رصيد' : 'لا رصيد';
         const initials = (c.name || '?').trim()[0] || '?';
+        const isBoth = c.type === 'both';
+        const typeLabel = isBoth ? 'عميل ومورد' : 'عميل';
 
         body.innerHTML = `
             <div class="view-customer__header">
                 <div class="view-customer__avatar">${U.escape(initials)}</div>
                 <div class="view-customer__title">
                     <h3>${U.escape(c.name || '')}</h3>
-                    <p>عميل · ${U.date(c.created_at || new Date())}</p>
+                    <p>${U.escape(typeLabel)} · ${U.date(c.created_at || new Date())}</p>
                 </div>
             </div>
 
@@ -459,7 +536,6 @@
             </div>
         `;
 
-        // Bind buttons
         rebindButton('#viewCollectBtn', () => {
             closeModal('viewCustomerModal');
             setTimeout(() => openCollectModal(id), 200);
@@ -487,7 +563,7 @@
     }
 
     /* ============================================
-       Collect from Customer
+       Collect — ✅ [CUST-10] تحذير عند التجاوز
        ============================================ */
     function openCollectModal(id) {
         const c = State.customers.find(x => x.id === id);
@@ -508,7 +584,6 @@
         $('#collectNotes').value = '';
         setCollectMethod('cash');
 
-        // Quick amounts
         const quick = $('#collectQuickAmounts');
         const absBal = Math.abs(bal);
         if (absBal > 0) {
@@ -530,10 +605,8 @@
             quick.innerHTML = '';
         }
 
-        // Preview
         updateCollectPreview();
 
-        // Bind amount input
         const amountInput = $('#collectAmount');
         if (amountInput) {
             const newInput = amountInput.cloneNode(true);
@@ -559,17 +632,29 @@
         const amount = Number($('#collectAmount')?.value) || 0;
         const currentBal = Number(c.balance) || 0;
 
-        // Customer pays us: balance increases toward 0 (or positive)
         const newBal = U.round(currentBal + amount);
 
         const el = $('#collectNewBalance');
         const box = $('#collectPreview');
+        const warningEl = $('#collectWarning');
 
         if (el) el.textContent = U.money(Math.abs(newBal));
         if (box) {
             box.classList.remove('positive', 'negative');
             if (newBal < 0) box.classList.add('negative');
             else if (newBal > 0) box.classList.add('positive');
+        }
+
+        // ✅ [CUST-10] تحذير عند تجاوز الدين
+        if (warningEl) {
+            const willOvershoot = currentBal < 0 && amount > Math.abs(currentBal) + 0.001;
+            if (willOvershoot) {
+                const over = amount - Math.abs(currentBal);
+                warningEl.textContent = `تحصيل ${U.money(over)} زيادة عن الدين — سيصبح للعميل رصيد دائن.`;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
         }
     }
 
@@ -583,6 +668,17 @@
         if (amount <= 0) {
             showToast('أدخل مبلغاً صحيحاً', 'warning');
             return;
+        }
+
+        const c = State.customers.find(x => x.id === customerId);
+        const currentBal = c ? (Number(c.balance) || 0) : 0;
+
+        // ✅ تأكيد عند التجاوز
+        if (currentBal < 0 && amount > Math.abs(currentBal) + 0.001) {
+            const over = amount - Math.abs(currentBal);
+            if (!confirm(`المبلغ يتجاوز الدين بـ ${U.money(over)}. سيصبح للعميل رصيد دائن. متابعة؟`)) {
+                return;
+            }
         }
 
         const btn = $('#confirmCollectBtn');
@@ -600,20 +696,19 @@
 
             showToast('تم التحصيل بنجاح', 'success');
             closeModal('collectModal');
-
             await loadData();
         } catch (e) {
             console.error('Collect error:', e);
-            showToast(e.message || 'فشل التحصيل', 'error');
+            showToast(translateError(e), 'error');
         } finally {
             if (btn) btn.disabled = false;
         }
     }
 
     /* ============================================
-       Customer Invoices
+       Customer Invoices — ✅ [CUST-2, CUST-9]
        ============================================ */
-    function openCustomerInvoices(id) {
+    async function openCustomerInvoices(id) {
         const c = State.customers.find(x => x.id === id);
         if (!c) return;
 
@@ -625,6 +720,18 @@
 
         $$('.filter-pill').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
 
+        // ✅ [CUST-2] تحميل كسول
+        const container = $('#customerInvoicesList');
+        if (container) {
+            container.innerHTML = `
+                <div class="invoices-empty">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>جاري التحميل...</p>
+                </div>
+            `;
+        }
+
+        await ensureInvoicesLoaded();
         renderCustomerInvoices(id);
         openModal('customerInvoicesModal');
     }
@@ -633,11 +740,13 @@
         const container = $('#customerInvoicesList');
         if (!container) return;
 
-        let list = State.invoices.filter(inv => 
-            inv.customer_id === customerId && inv.type === 'sale'
+        // ✅ [CUST-9] يشمل البيع والمرتجعات
+        let list = State.invoices.filter(inv =>
+            inv.customer_id === customerId &&
+            (inv.type === 'sale' || inv.type === 'return_sale') &&
+            inv.status !== 'voided'
         );
 
-        // Apply filter
         if (State.invoicesFilter !== 'all') {
             list = list.filter(i => i.status === State.invoicesFilter);
         }
@@ -655,6 +764,7 @@
         }
 
         container.innerHTML = list.map(inv => {
+            const isReturn = inv.type === 'return_sale';
             const total = Number(inv.total) || 0;
             const statusClass = inv.status || 'paid';
             const statusLabel = {
@@ -665,12 +775,15 @@
             }[inv.status] || 'مدفوعة';
 
             return `
-                <div class="customer-invoice-item" data-invoice-id="${inv.id}">
-                    <div class="customer-invoice-item__icon">
-                        <i class="fas fa-file-invoice"></i>
+                <div class="customer-invoice-item" data-invoice-id="${U.escape(inv.id)}">
+                    <div class="customer-invoice-item__icon ${isReturn ? 'return' : ''}">
+                        <i class="fas fa-${isReturn ? 'undo-alt' : 'file-invoice'}"></i>
                     </div>
                     <div class="customer-invoice-item__info">
-                        <div class="customer-invoice-item__number">${U.escape(inv.invoice_number || '---')}</div>
+                        <div class="customer-invoice-item__number">
+                            ${U.escape(inv.invoice_number || '---')}
+                            ${isReturn ? '<span style="font-size:10px;color:var(--warning);font-weight:800;"> (مرتجع)</span>' : ''}
+                        </div>
                         <div class="customer-invoice-item__date">${U.date(inv.date || inv.created_at)}</div>
                     </div>
                     <div class="customer-invoice-item__amount">${U.money(total)}</div>
@@ -681,7 +794,7 @@
 
         container.querySelectorAll('.customer-invoice-item').forEach(el => {
             el.addEventListener('click', () => {
-                window.location.href = `./invoices.html?invoice=${el.dataset.invoiceId}`;
+                window.location.href = `./invoices.html?invoice=${encodeURIComponent(el.dataset.invoiceId)}`;
             });
         });
     }
@@ -711,17 +824,18 @@
             showToast('تم حذف العميل', 'success');
             closeModal('confirmDeleteModal');
             State.deletingId = null;
+            State._invoicesLoaded = false;
             await loadData();
         } catch (e) {
             console.error('Delete error:', e);
-            showToast('فشل الحذف', 'error');
+            showToast(translateError(e), 'error');
         } finally {
             if (btn) btn.disabled = false;
         }
     }
 
     /* ============================================
-       Export
+       Export — يستخدم State.filtered
        ============================================ */
     function exportCustomers() {
         if (!State.filtered.length) {
@@ -749,15 +863,17 @@
                     ? '"' + s.replace(/"/g, '""') + '"'
                     : s;
             }).join(',')
-        ).join('\n');
+        ).join('\r\n');
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `customers-${U.today()}.csv`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
 
         showToast('تم التصدير', 'success');
     }
@@ -786,7 +902,8 @@
         const btn = $('#themeBtn');
         if (!btn) return;
         const isDark = document.documentElement.dataset.theme === 'dark';
-        btn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
 
     function initTheme() {
@@ -795,13 +912,12 @@
         updateThemeIcon();
     }
 
-    function openModal(id) {
-        document.getElementById(id)?.classList.add('open');
-    }
-    function closeModal(id) {
-        document.getElementById(id)?.classList.remove('open');
-    }
+    function openModal(id) { document.getElementById(id)?.classList.add('open'); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 
+    /* ============================================
+       Skeleton
+       ============================================ */
     function showSkeleton() {
         const skeleton = $('#skeletonGrid');
         const gridView = $('#customersGridView');
@@ -847,9 +963,13 @@
     }
 
     /* ============================================
-       Toast
+       Toast — يفضل window.Toast
        ============================================ */
     function showToast(msg, type = 'info') {
+        if (window.Toast && typeof window.Toast.show === 'function') {
+            try { window.Toast.show(msg, type); return; } catch (e) { /* fallthrough */ }
+        }
+
         let stack = $('#toastStack');
         if (!stack) {
             stack = document.createElement('div');
@@ -931,12 +1051,22 @@
             await Auth.logout();
         });
 
-        // Refresh
-        $('#refreshBtn')?.addEventListener('click', async () => {
-            showToast('جاري التحديث...', 'info');
-            DB.clearCache();
-            await loadData();
-            showToast('تم التحديث', 'success');
+        // ✅ [CUST-6] Refresh محمي
+        const refreshBtn = $('#refreshBtn');
+        refreshBtn?.addEventListener('click', async () => {
+            if (State._refreshing) return;
+            State._refreshing = true;
+            refreshBtn.disabled = true;
+            try {
+                DB.clearCache();
+                State._invoicesLoaded = false;
+                const ok = await loadData();
+                if (ok) showToast('تم التحديث', 'success');
+                else showToast('فشل التحديث، تحقق من الاتصال', 'error');
+            } finally {
+                State._refreshing = false;
+                refreshBtn.disabled = false;
+            }
         });
 
         // Export
@@ -958,7 +1088,8 @@
             const input = $('#searchInput');
             if (input) input.value = '';
             State.filters.search = '';
-            $('#clearSearchBtn').style.display = 'none';
+            const clearBtn = $('#clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = 'none';
             applyFilters();
         });
 
@@ -998,7 +1129,7 @@
         // Go to all invoices
         $('#gotoAllInvoicesBtn')?.addEventListener('click', () => {
             if (State.viewingId) {
-                window.location.href = `./invoices.html?party=${State.viewingId}`;
+                window.location.href = `./invoices.html?party=${encodeURIComponent(State.viewingId)}`;
             }
         });
 
@@ -1038,5 +1169,4 @@
     } else {
         init();
     }
-
 })();
