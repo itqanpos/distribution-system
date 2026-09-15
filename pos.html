@@ -9,13 +9,11 @@
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#4f46e5">
 
-    <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="نقطة البيع">
 
     <link rel="icon" href="./icons/icon-192x192.png">
-
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
 
@@ -45,8 +43,7 @@
                 <h2 style="color:#ef4444;">JavaScript معطّل</h2>
                 <p style="color:#666;">هذا التطبيق يتطلب تفعيل JavaScript للعمل. يرجى تفعيله ثم إعادة تحميل الصفحة.</p>
             </div>
-        </div>
-    </noscript>
+        </noscript>
 
     <div id="loading-bar"></div>
     <div id="offline-banner"><i class="fas fa-wifi"></i> أنت غير متصل</div>
@@ -187,7 +184,7 @@
         <div class="modal__content modal__content--sm">
             <div class="modal__header">
                 <h2 id="unitProductName">اختر الوحدة</h2>
-                <button class="icon-btn" data-close="unitModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="unitModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
                 <div class="form-group">
@@ -209,8 +206,8 @@
                 <div class="price-limit-error" id="priceLimitError" style="display:none;"></div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="unitModal">إلغاء</button>
-                <button class="btn btn--primary" id="unitAddBtn">
+                <button class="btn btn--ghost" data-close="unitModal" type="button">إلغاء</button>
+                <button class="btn btn--primary" id="unitAddBtn" type="button">
                     <i class="fas fa-plus"></i> إضافة
                 </button>
             </div>
@@ -222,7 +219,7 @@
         <div class="modal__content">
             <div class="modal__header">
                 <h2>إتمام الدفع</h2>
-                <button class="icon-btn" data-close="paymentModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="paymentModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
                 <div class="payment-summary">
@@ -230,13 +227,35 @@
                     <div class="pay-row"><span>الخصم</span><strong id="payDiscount">0.00</strong></div>
                     <div class="pay-row pay-row--total"><span>الصافي</span><strong id="payNet">0.00</strong></div>
                 </div>
+
+                <!-- ✅ [جديد] رصيد العميل -->
+                <div class="payment-customer-balance" id="paymentCustomerBalance" style="display:none;">
+                    <div class="pcb-header">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="pcbCustomerName">—</span>
+                    </div>
+                    <div class="pcb-rows">
+                        <div class="pcb-row">
+                            <span class="pcb-label">الرصيد السابق</span>
+                            <strong class="pcb-value" id="pcbPrevious">—</strong>
+                        </div>
+                        <div class="pcb-arrow">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="pcb-row pcb-row--total">
+                            <span class="pcb-label">الرصيد بعد الفاتورة</span>
+                            <strong class="pcb-value" id="pcbNew">—</strong>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>طريقة الدفع</label>
                     <div class="payment-methods">
-                        <button class="method active" data-method="cash"><i class="fas fa-money-bill-wave"></i><span>نقدي</span></button>
-                        <button class="method" data-method="card"><i class="fas fa-credit-card"></i><span>بطاقة</span></button>
-                        <button class="method" data-method="credit"><i class="fas fa-hand-holding-usd"></i><span>آجل</span></button>
-                        <button class="method" data-method="mixed"><i class="fas fa-layer-group"></i><span>مختلط</span></button>
+                        <button class="method active" data-method="cash" type="button"><i class="fas fa-money-bill-wave"></i><span>نقدي</span></button>
+                        <button class="method" data-method="card" type="button"><i class="fas fa-credit-card"></i><span>بطاقة</span></button>
+                        <button class="method" data-method="credit" type="button"><i class="fas fa-hand-holding-usd"></i><span>آجل</span></button>
+                        <button class="method" data-method="mixed" type="button"><i class="fas fa-layer-group"></i><span>مختلط</span></button>
                     </div>
                 </div>
                 <div class="form-group" id="cashGroup">
@@ -258,8 +277,8 @@
                 </div>
             </div>
             <div class="modal__footer">
-                <button class="btn btn--ghost" data-close="paymentModal">إلغاء</button>
-                <button class="btn btn--success" id="confirmPayBtn">
+                <button class="btn btn--ghost" data-close="paymentModal" type="button">إلغاء</button>
+                <button class="btn btn--success" id="confirmPayBtn" type="button">
                     <i class="fas fa-check"></i> تأكيد وطباعة
                 </button>
             </div>
@@ -270,12 +289,12 @@
     <div class="modal" id="receiptModal">
         <div class="modal__content modal__content--receipt">
             <div class="receipt-toolbar">
-                <button class="icon-btn" data-close="receiptModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="receiptModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
                 <div class="receipt-toolbar__actions">
-                    <button class="btn btn--sm btn--ghost" id="newSaleBtn">
+                    <button class="btn btn--sm btn--ghost" id="newSaleBtn" type="button">
                         <i class="fas fa-plus"></i> بيع جديد
                     </button>
-                    <button class="btn btn--sm btn--primary" id="printReceiptBtn">
+                    <button class="btn btn--sm btn--primary" id="printReceiptBtn" type="button">
                         <i class="fas fa-print"></i> طباعة
                     </button>
                 </div>
@@ -289,7 +308,7 @@
         <div class="modal__content">
             <div class="modal__header">
                 <h2>الفواتير المعلقة</h2>
-                <button class="icon-btn" data-close="heldModal"><i class="fas fa-times"></i></button>
+                <button class="icon-btn" data-close="heldModal" type="button" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body" id="heldList"></div>
         </div>
@@ -308,12 +327,11 @@
     <script defer src="./js/auth.js"></script>
     <script defer src="./js/pos.js"></script>
 
-    <!-- معالج فشل تحميل الشعار + تسجيل SW + ربط الثيم -->
+    <!-- Post-load: SW + theme-color + logo fallback -->
     <script>
     (function() {
         'use strict';
 
-        /* ============ فشل تحميل الشعار ============ */
         document.querySelectorAll('.js-logo-fallback').forEach(img => {
             img.addEventListener('error', function() {
                 this.style.display = 'none';
@@ -322,7 +340,6 @@
             });
         });
 
-        /* ============ مزامنة theme-color ============ */
         function syncThemeColor() {
             const isDark = document.documentElement.dataset.theme === 'dark';
             const meta = document.querySelector('meta[name="theme-color"]');
@@ -334,7 +351,6 @@
             { attributes: true, attributeFilter: ['data-theme'] }
         );
 
-        /* ============ تسجيل Service Worker ============ */
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
@@ -373,7 +389,6 @@
             });
         }
 
-        /* ============ فحص تحميل Supabase ============ */
         window.addEventListener('load', () => {
             if (typeof window.supabase === 'undefined') {
                 const stack = document.getElementById('toastStack');
