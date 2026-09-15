@@ -1,9 +1,22 @@
 -- =====================================================
--- Hesaby POS - Schema v5.0 (Production-ready)
+-- Hesaby POS - Schema v5.2.0 (Production-ready)
 -- Atomic Operations + Tenant Isolation + Idempotency
 -- =====================================================
 -- ⚠️ يحذف كل الجداول — استخدمه للتنصيب الجديد فقط
+--
+-- Changelog من v5.0 → v5.2.0:
+--   [SCHEMA-1] create_my_tenant: يرفض إن لم يوجد profile (منع tenant يتيم)
+--   [SCHEMA-2] create_invoice_atomic: ترتيب الأصناف (منع Deadlock)
+--   [SCHEMA-3] create_invoice_atomic: تحقق مالي كامل
+--   [SCHEMA-4] void_invoice_atomic: RPC جديد ذرّي (admin فقط)
+--   [SCHEMA-5] apply_stock_delta: يُرجع sold unit_id بدل base unit_id
+--   [SCHEMA-6] system_logs: user_id إلزامي = auth.uid()
+--   [SCHEMA-7] invoices: أعمدة voided_at و voided_by
+--   [SCHEMA-8] فهارس إضافية (created_by, voided_at)
 -- =====================================================
+
+-- DROP TRIGGER على auth.users قبل الحذف
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
 DROP TABLE IF EXISTS
     stock_movements, invoice_counters, sequences,
@@ -50,7 +63,6 @@ CREATE INDEX idx_profiles_active ON profiles(tenant_id, role) WHERE deleted_at I
 -- 3. HELPER FUNCTIONS
 -- =====================================================
 
--- يقرأ tenant_id من JWT (سريع) أو من profiles (بديل)
 CREATE OR REPLACE FUNCTION get_my_tenant_id()
 RETURNS UUID
 LANGUAGE SQL SECURITY DEFINER STABLE
@@ -63,7 +75,6 @@ AS $$
     );
 $$;
 
--- يتحقق أن المستخدم admin نشط
 CREATE OR REPLACE FUNCTION is_my_admin()
 RETURNS BOOLEAN
 LANGUAGE SQL SECURITY DEFINER STABLE
@@ -78,7 +89,6 @@ AS $$
     );
 $$;
 
--- يزامن tenant_id من profiles إلى JWT
 CREATE OR REPLACE FUNCTION sync_tenant_to_jwt()
 RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER
@@ -99,7 +109,6 @@ CREATE TRIGGER trg_profiles_sync_tenant
 AFTER INSERT OR UPDATE OF tenant_id ON profiles
 FOR EACH ROW EXECUTE FUNCTION sync_tenant_to_jwt();
 
--- ✅ إنشاء profile تلقائياً عند تسجيل مستخدم جديد
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER
@@ -119,7 +128,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -159,7 +167,6 @@ CREATE TABLE product_units (
     is_base BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    -- ✅ الوحدة الأساسية factor = 1 إلزامياً
     CONSTRAINT uq_units_product_name UNIQUE (product_id, unit_name),
     CONSTRAINT ck_base_factor CHECK (is_base = FALSE OR factor = 1)
 );
@@ -167,7 +174,6 @@ CREATE TABLE product_units (
 CREATE UNIQUE INDEX uq_product_units_one_base
     ON product_units(product_id) WHERE is_base = TRUE;
 
--- ✅ باركود فريد داخل المستأجر
 CREATE UNIQUE INDEX uq_products_barcode
     ON products(tenant_id, barcode)
     WHERE barcode IS NOT NULL AND deleted_at IS NULL;
@@ -199,7 +205,7 @@ CREATE TABLE parties (
 );
 
 -- =====================================================
--- 7. INVOICES
+-- 7. INVOICES — ✅ [SCHEMA-7] voided_at + voided_by
 -- =====================================================
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -243,6 +249,10 @@ CREATE TABLE invoices (
     device_id TEXT,
     idempotency_key TEXT,
     synced_at TIMESTAMPTZ,
+
+    -- ✅ [SCHEMA-7]
+    voided_at TIMESTAMPTZ,
+    voided_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
 
     CONSTRAINT uq_invoice_number UNIQUE (tenant_id, invoice_number)
 );
@@ -356,16 +366,22 @@ CREATE INDEX idx_invoices_customer      ON invoices(tenant_id, customer_id, date
 CREATE INDEX idx_invoices_supplier      ON invoices(tenant_id, supplier_id, date DESC) WHERE deleted_at IS NULL;
 CREATE INDEX idx_invoices_status        ON invoices(tenant_id, status) WHERE deleted_at IS NULL;
 CREATE INDEX idx_invoices_number        ON invoices(tenant_id, invoice_number);
+-- ✅ [SCHEMA-8]
+CREATE INDEX idx_invoices_created_by    ON invoices(created_by) WHERE created_by IS NOT NULL;
+CREATE INDEX idx_invoices_voided        ON invoices(tenant_id, voided_at DESC) WHERE voided_at IS NOT NULL;
 
 CREATE INDEX idx_transactions_tenant    ON transactions(tenant_id, date DESC);
 CREATE INDEX idx_transactions_party     ON transactions(tenant_id, party_id, date DESC);
 CREATE INDEX idx_transactions_invoice   ON transactions(invoice_id);
+CREATE INDEX idx_transactions_created_by ON transactions(created_by) WHERE created_by IS NOT NULL;
 
 CREATE INDEX idx_stock_movements_tenant ON stock_movements(tenant_id, created_at DESC);
 CREATE INDEX idx_stock_movements_product ON stock_movements(product_id, created_at DESC);
 CREATE INDEX idx_stock_movements_ref    ON stock_movements(reference_id) WHERE reference_id IS NOT NULL;
+CREATE INDEX idx_stock_movements_user   ON stock_movements(user_id) WHERE user_id IS NOT NULL;
 
 CREATE INDEX idx_system_logs_tenant     ON system_logs(tenant_id, created_at DESC);
+CREATE INDEX idx_system_logs_user       ON system_logs(user_id) WHERE user_id IS NOT NULL;
 
 -- =====================================================
 -- 12. SEQUENCE FUNCTIONS
@@ -413,6 +429,7 @@ $$;
 
 -- =====================================================
 -- 13. CREATE_MY_TENANT
+-- ✅ [SCHEMA-1] يرفض إن لم يوجد profile
 -- =====================================================
 CREATE OR REPLACE FUNCTION create_my_tenant(p_tenant_name TEXT)
 RETURNS UUID
@@ -422,23 +439,35 @@ AS $$
 DECLARE
     v_tenant_id UUID;
     v_user_id UUID;
+    v_existing_tenant UUID;
+    v_profile_exists BOOLEAN;
 BEGIN
     v_user_id := auth.uid();
-    IF v_user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated' USING errcode='P0001'; END IF;
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated' USING errcode='P0001';
+    END IF;
 
     IF p_tenant_name IS NULL OR length(trim(p_tenant_name)) = 0 THEN
         RAISE EXCEPTION 'Tenant name required' USING errcode='P0004';
     END IF;
 
-    SELECT tenant_id INTO v_tenant_id FROM profiles WHERE id = v_user_id;
-    IF v_tenant_id IS NOT NULL THEN
+    -- ✅ [SCHEMA-1] افحص وجود profile أولًا
+    SELECT EXISTS (SELECT 1 FROM profiles WHERE id = v_user_id)
+      INTO v_profile_exists;
+
+    IF NOT v_profile_exists THEN
+        RAISE EXCEPTION 'User profile not found. Try again in a moment.'
+            USING errcode='P0004';
+    END IF;
+
+    SELECT tenant_id INTO v_existing_tenant FROM profiles WHERE id = v_user_id;
+    IF v_existing_tenant IS NOT NULL THEN
         RAISE EXCEPTION 'User already has a tenant' USING errcode='P0004';
     END IF;
 
     INSERT INTO tenants (name) VALUES (trim(p_tenant_name))
     RETURNING id INTO v_tenant_id;
 
-    -- ترقية المستخدم إلى admin + ربط المستأجر
     UPDATE profiles
        SET tenant_id = v_tenant_id,
            role = 'admin',
@@ -453,13 +482,13 @@ END;
 $$;
 
 -- =====================================================
--- 14. APPLY_STOCK_DELTA (داخلية — لا تُمنح للمستخدم)
--- p_delta = الكمية بوحدة البيع (تُضرب بالـ factor داخلياً)
+-- 14. APPLY_STOCK_DELTA
+-- ✅ [SCHEMA-5] يُرجع sold unit_id
 -- =====================================================
 CREATE OR REPLACE FUNCTION apply_stock_delta(
     p_product_id UUID,
     p_unit_name TEXT,
-    p_delta NUMERIC,
+    p_delta NUMERIC,               -- الكمية بوحدة البيع
     p_reason TEXT,
     p_reference_id UUID DEFAULT NULL,
     p_reference_type TEXT DEFAULT NULL,
@@ -487,7 +516,6 @@ BEGIN
         RAISE EXCEPTION 'Only admins can perform % operations', p_reason USING errcode='P0003';
     END IF;
 
-    -- احصل على factor وحدة البيع
     SELECT id, factor, unit_name, is_base INTO v_sold
       FROM product_units
      WHERE product_id = p_product_id
@@ -498,7 +526,6 @@ BEGIN
         RAISE EXCEPTION 'Unit not found: % / %', p_product_id, p_unit_name USING errcode='P0001';
     END IF;
 
-    -- إذا كانت وحدة البيع هي الأساسية، factor = 1
     v_factor := CASE WHEN v_sold.is_base THEN 1 ELSE COALESCE(v_sold.factor, 1) END;
     v_delta_base := p_delta * v_factor;
 
@@ -509,7 +536,6 @@ BEGIN
      FOR UPDATE;
 
     IF NOT FOUND THEN
-        -- fallback: أول وحدة متاحة
         SELECT id, stock INTO v_base
           FROM product_units
          WHERE product_id = p_product_id AND tenant_id = v_tenant
@@ -540,18 +566,23 @@ BEGIN
         reason, reference_type, reference_id,
         user_id, device_id, notes
     ) VALUES (
-        v_tenant, p_product_id, v_base.id, p_unit_name,
+        v_tenant, p_product_id,
+        v_sold.id,                       -- ✅ [SCHEMA-5] sold unit
+        p_unit_name,
         v_delta_base, v_before, v_after,
         p_reason, p_reference_type, p_reference_id,
         auth.uid(), p_device_id, p_notes
     );
 
-    RETURN QUERY SELECT v_base.id, v_before, v_after;
+    -- ✅ [SCHEMA-5] نُعيد id وحدة البيع
+    RETURN QUERY SELECT v_sold.id, v_before, v_after;
 END;
 $$;
 
 -- =====================================================
 -- 15. CREATE_INVOICE_ATOMIC
+-- ✅ [SCHEMA-2] ترتيب الأصناف (منع Deadlock)
+-- ✅ [SCHEMA-3] تحقق مالي كامل
 -- =====================================================
 CREATE OR REPLACE FUNCTION create_invoice_atomic(p_invoice JSONB)
 RETURNS JSONB
@@ -574,6 +605,11 @@ DECLARE
     v_new_bal NUMERIC;
     v_remaining NUMERIC;
     v_used_bal NUMERIC;
+    v_paid NUMERIC;
+    v_change NUMERIC;
+    v_cash NUMERIC;
+    v_transfer NUMERIC;
+    v_card NUMERIC;
     v_computed_subtotal NUMERIC := 0;
     v_subtotal NUMERIC;
     v_discount NUMERIC;
@@ -581,7 +617,7 @@ DECLARE
     v_invoice_number TEXT;
     v_qty NUMERIC;
     v_price NUMERIC;
-    v_factor NUMERIC;
+    v_methods_total NUMERIC;
 BEGIN
     v_tenant := get_my_tenant_id();
     IF v_tenant IS NULL THEN RAISE EXCEPTION 'No tenant' USING errcode='P0001'; END IF;
@@ -598,7 +634,7 @@ BEGIN
         RAISE EXCEPTION 'items must be array' USING errcode='P0004';
     END IF;
 
-    -- ✅ Idempotency: فاتورة بنفس المفتاح موجودة
+    -- Idempotency
     IF v_idempotency IS NOT NULL THEN
         SELECT id INTO v_existing FROM invoices
          WHERE tenant_id = v_tenant AND idempotency_key = v_idempotency LIMIT 1;
@@ -607,13 +643,12 @@ BEGIN
         END IF;
     END IF;
 
-    -- ✅ Idempotency: نفس UUID
     SELECT id INTO v_existing FROM invoices WHERE id = v_invoice_id;
     IF FOUND THEN
         RETURN jsonb_build_object('success', true, 'id', v_existing, 'deduplicated', true);
     END IF;
 
-    -- ✅ التحقق من items وحساب subtotal من الخادم
+    -- ✅ التحقق من items وحساب subtotal
     FOR v_item IN SELECT * FROM jsonb_array_elements(v_items)
     LOOP
         IF COALESCE(v_item->>'productId', v_item->>'product_id') IS NULL THEN
@@ -635,7 +670,7 @@ BEGIN
     v_discount := COALESCE((p_invoice->>'discount')::numeric, 0);
     v_total    := COALESCE((p_invoice->>'total')::numeric, 0);
 
-    -- ✅ التحقق المالي
+    -- ✅ التحقق المالي الأساسي
     IF ABS(v_subtotal - v_computed_subtotal) > 0.01 THEN
         RAISE EXCEPTION 'subtotal mismatch: computed %, provided %',
             v_computed_subtotal, v_subtotal USING errcode='P0006';
@@ -648,13 +683,37 @@ BEGIN
             (v_computed_subtotal - v_discount), v_total USING errcode='P0006';
     END IF;
 
-    -- ✅ أي دين يتطلب عميل
+    -- استخرج قيم الدفع
+    v_cash     := COALESCE((p_invoice->>'cash_paid')::numeric, 0);
+    v_transfer := COALESCE((p_invoice->>'transfer_paid')::numeric, 0);
+    v_card     := COALESCE((p_invoice->>'card_paid')::numeric, 0);
+    v_used_bal := COALESCE((p_invoice->>'used_balance')::numeric, 0);
+    v_paid     := COALESCE((p_invoice->>'paid')::numeric, 0);
     v_remaining := COALESCE((p_invoice->>'remaining')::numeric, 0);
+    v_change   := COALESCE((p_invoice->>'change_amount')::numeric, 0);
+
+    -- ✅ [SCHEMA-3] التحقق المالي الكامل
+    -- 1) أي دين يتطلب عميل
     IF v_remaining > 0 AND v_customer_id IS NULL THEN
         RAISE EXCEPTION 'remaining > 0 requires customer_id' USING errcode='P0006';
     END IF;
 
-    -- ✅ رقم الفاتورة: من العميل أو يُولَّد على الخادم
+    -- 2) paid + remaining = total (لغير المعلقة وغير الآجلة الصافية)
+    IF v_status NOT IN ('held','voided') THEN
+        IF ABS((v_paid + v_remaining) - v_total) > 0.01 THEN
+            RAISE EXCEPTION 'paid+remaining mismatch: paid=%, remaining=%, total=%',
+                v_paid, v_remaining, v_total USING errcode='P0006';
+        END IF;
+
+        -- 3) طرق الدفع = paid + change
+        v_methods_total := v_cash + v_transfer + v_card + v_used_bal;
+        IF ABS(v_methods_total - (v_paid + v_change)) > 0.01 THEN
+            RAISE EXCEPTION 'payment methods mismatch: methods=%, paid=%, change=%',
+                v_methods_total, v_paid, v_change USING errcode='P0006';
+        END IF;
+    END IF;
+
+    -- رقم الفاتورة
     v_invoice_number := NULLIF(trim(COALESCE(p_invoice->>'invoice_number', '')), '');
     IF v_invoice_number IS NULL THEN
         v_invoice_number := next_invoice_number(p_invoice->>'device_id');
@@ -674,13 +733,8 @@ BEGIN
         v_customer_id, p_invoice->>'customer_name',
         v_supplier_id, p_invoice->>'supplier_name',
         v_items, v_computed_subtotal, v_discount, v_total,
-        COALESCE((p_invoice->>'cash_paid')::numeric, 0),
-        COALESCE((p_invoice->>'transfer_paid')::numeric, 0),
-        COALESCE((p_invoice->>'card_paid')::numeric, 0),
-        COALESCE((p_invoice->>'used_balance')::numeric, 0),
-        COALESCE((p_invoice->>'paid')::numeric, 0),
-        v_remaining,
-        COALESCE((p_invoice->>'change_amount')::numeric, 0),
+        v_cash, v_transfer, v_card, v_used_bal,
+        v_paid, v_remaining, v_change,
         COALESCE(p_invoice->>'payment_method', 'cash'),
         v_status,
         p_invoice->>'notes',
@@ -690,7 +744,7 @@ BEGIN
         NOW()
     );
 
-    -- المخزون (فقط إذا ليست معلقة)
+    -- المخزون — ✅ [SCHEMA-2] ترتيب حسب productId لمنع Deadlock
     IF v_status <> 'held' THEN
         v_sign := CASE
             WHEN v_type = 'sale'            THEN -1
@@ -701,9 +755,10 @@ BEGIN
         END;
 
         IF v_sign <> 0 THEN
-            FOR v_item IN SELECT * FROM jsonb_array_elements(v_items)
+            FOR v_item IN
+                SELECT * FROM jsonb_array_elements(v_items)
+                ORDER BY COALESCE(value->>'productId', value->>'product_id')
             LOOP
-                -- ⚠️ نمرر الكمية بوحدة البيع فقط (factor يُطبَّق داخل الدالة)
                 PERFORM apply_stock_delta(
                     (COALESCE(v_item->>'productId', v_item->>'product_id'))::uuid,
                     COALESCE(v_item->>'unitName', v_item->>'unit_name'),
@@ -716,19 +771,15 @@ BEGIN
         END IF;
     END IF;
 
-    -- ✅ رصيد العميل (اتفاقية: سالب = العميل مدين لنا)
+    -- رصيد العميل (اتفاقية: سالب = العميل مدين لنا)
     IF v_customer_id IS NOT NULL AND v_type IN ('sale','return_sale') THEN
         SELECT balance INTO v_old_bal FROM parties
          WHERE id = v_customer_id AND tenant_id = v_tenant FOR UPDATE;
 
         IF FOUND THEN
-            v_used_bal := COALESCE((p_invoice->>'used_balance')::numeric, 0);
-
             IF v_type = 'sale' THEN
-                -- دين جديد يزيد سالبية الرصيد، و used يُقللها
                 v_new_bal := v_old_bal - v_remaining - v_used_bal;
             ELSE
-                -- return_sale: نُعيد قيمة المرتجع → يرفع الرصيد
                 v_new_bal := v_old_bal + v_total;
             END IF;
 
@@ -745,7 +796,7 @@ BEGIN
 
         IF FOUND THEN
             IF v_type = 'purchase' THEN
-                v_new_bal := v_old_bal + (v_total - COALESCE((p_invoice->>'paid')::numeric, 0));
+                v_new_bal := v_old_bal + (v_total - v_paid);
             ELSE
                 v_new_bal := v_old_bal - v_total;
             END IF;
@@ -765,7 +816,129 @@ END;
 $$;
 
 -- =====================================================
--- 16. ADD_PAYMENT_ATOMIC
+-- 16. VOID_INVOICE_ATOMIC — ✅ [SCHEMA-4] RPC جديد
+-- يعكس المخزون والأرصدة ذرّيًا (admin فقط)
+-- =====================================================
+CREATE OR REPLACE FUNCTION void_invoice_atomic(p_invoice_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_tenant UUID;
+    v_inv RECORD;
+    v_item JSONB;
+    v_sign INTEGER;
+BEGIN
+    v_tenant := get_my_tenant_id();
+    IF v_tenant IS NULL THEN
+        RAISE EXCEPTION 'No tenant' USING errcode='P0001';
+    END IF;
+
+    IF NOT is_my_admin() THEN
+        RAISE EXCEPTION 'Only admins can void invoices' USING errcode='P0003';
+    END IF;
+
+    IF p_invoice_id IS NULL THEN
+        RAISE EXCEPTION 'invoice id required' USING errcode='P0004';
+    END IF;
+
+    -- اقفل السجل لمنع الازدواج
+    SELECT * INTO v_inv FROM invoices
+     WHERE id = p_invoice_id
+       AND tenant_id = v_tenant
+       AND deleted_at IS NULL
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Invoice not found' USING errcode='P0001';
+    END IF;
+
+    -- Idempotency: إن كانت ملغاة مسبقًا
+    IF v_inv.status = 'voided' THEN
+        RETURN jsonb_build_object('success', true, 'id', p_invoice_id, 'deduplicated', true);
+    END IF;
+
+    -- فاتورة معلقة: لا حاجة لعكس التأثيرات
+    IF v_inv.status = 'held' THEN
+        UPDATE invoices
+           SET status = 'voided',
+               voided_at = NOW(),
+               voided_by = auth.uid(),
+               updated_at = NOW()
+         WHERE id = p_invoice_id;
+        RETURN jsonb_build_object('success', true, 'id', p_invoice_id, 'wasHeld', true);
+    END IF;
+
+    -- ✅ عكس المخزون
+    v_sign := CASE
+        WHEN v_inv.type = 'sale'            THEN  1
+        WHEN v_inv.type = 'purchase'        THEN -1
+        WHEN v_inv.type = 'return_sale'     THEN -1
+        WHEN v_inv.type = 'return_purchase' THEN  1
+        ELSE 0
+    END;
+
+    IF v_sign <> 0 AND jsonb_typeof(v_inv.items) = 'array' THEN
+        FOR v_item IN
+            SELECT * FROM jsonb_array_elements(v_inv.items)
+            ORDER BY COALESCE(value->>'productId', value->>'product_id')
+        LOOP
+            PERFORM apply_stock_delta(
+                (COALESCE(v_item->>'productId', v_item->>'product_id'))::uuid,
+                COALESCE(v_item->>'unitName', v_item->>'unit_name'),
+                v_sign * (COALESCE((v_item->>'quantity')::numeric, 0)),
+                'correction',
+                p_invoice_id, 'invoice_void', 'فاتورة ملغاة',
+                v_inv.device_id
+            );
+        END LOOP;
+    END IF;
+
+    -- ✅ عكس رصيد العميل
+    IF v_inv.customer_id IS NOT NULL AND v_inv.type IN ('sale','return_sale') THEN
+        IF v_inv.type = 'sale' THEN
+            UPDATE parties
+               SET balance = ROUND(balance + v_inv.remaining + v_inv.used_balance, 3),
+                   updated_at = NOW()
+             WHERE id = v_inv.customer_id AND tenant_id = v_tenant;
+        ELSE
+            UPDATE parties
+               SET balance = ROUND(balance - v_inv.total, 3),
+                   updated_at = NOW()
+             WHERE id = v_inv.customer_id AND tenant_id = v_tenant;
+        END IF;
+    END IF;
+
+    -- ✅ عكس رصيد المورد
+    IF v_inv.supplier_id IS NOT NULL AND v_inv.type IN ('purchase','return_purchase') THEN
+        IF v_inv.type = 'purchase' THEN
+            UPDATE parties
+               SET balance = ROUND(balance - (v_inv.total - v_inv.paid), 3),
+                   updated_at = NOW()
+             WHERE id = v_inv.supplier_id AND tenant_id = v_tenant;
+        ELSE
+            UPDATE parties
+               SET balance = ROUND(balance + v_inv.total, 3),
+                   updated_at = NOW()
+             WHERE id = v_inv.supplier_id AND tenant_id = v_tenant;
+        END IF;
+    END IF;
+
+    -- تحديث حالة الفاتورة
+    UPDATE invoices
+       SET status = 'voided',
+           voided_at = NOW(),
+           voided_by = auth.uid(),
+           updated_at = NOW()
+     WHERE id = p_invoice_id;
+
+    RETURN jsonb_build_object('success', true, 'id', p_invoice_id);
+END;
+$$;
+
+-- =====================================================
+-- 17. ADD_PAYMENT_ATOMIC
 -- =====================================================
 CREATE OR REPLACE FUNCTION add_payment_atomic(p_payment JSONB)
 RETURNS JSONB
@@ -799,6 +972,9 @@ BEGIN
     IF v_type NOT IN ('payment_in','payment_out') THEN
         RAISE EXCEPTION 'invalid payment type' USING errcode='P0004';
     END IF;
+    IF v_party_id IS NULL THEN
+        RAISE EXCEPTION 'party_id required' USING errcode='P0004';
+    END IF;
 
     -- Idempotency
     IF v_idem IS NOT NULL THEN
@@ -810,7 +986,7 @@ BEGIN
     END IF;
     SELECT id INTO v_existing FROM transactions WHERE id = v_id;
     IF FOUND THEN
-        RETURN jsonb_build_object('success', true, 'id', v_existing, 'deduplicated', true);
+        RETURN jsonb_build_object('success', true, 'id', v_id, 'deduplicated', true);
     END IF;
 
     INSERT INTO transactions (
@@ -828,18 +1004,18 @@ BEGIN
         v_idem
     );
 
-    IF v_party_id IS NOT NULL THEN
-        SELECT balance INTO v_old_bal FROM parties
-         WHERE id = v_party_id AND tenant_id = v_tenant FOR UPDATE;
+    SELECT balance INTO v_old_bal FROM parties
+     WHERE id = v_party_id AND tenant_id = v_tenant FOR UPDATE;
 
-        IF FOUND THEN
-            -- ✅ اتفاقية: payment_in = العميل يدفع لنا → دينه ينقص → الرصيد يرتفع
-            v_delta := CASE WHEN v_type = 'payment_in' THEN v_amount ELSE -v_amount END;
-            v_new_bal := COALESCE(v_old_bal, 0) + v_delta;
-            UPDATE parties
-               SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
-             WHERE id = v_party_id;
-        END IF;
+    IF FOUND THEN
+        -- ✅ payment_in = العميل يدفع لنا → دينه ينقص → الرصيد يرتفع
+        v_delta := CASE WHEN v_type = 'payment_in' THEN v_amount ELSE -v_amount END;
+        v_new_bal := COALESCE(v_old_bal, 0) + v_delta;
+        UPDATE parties
+           SET balance = ROUND(v_new_bal, 3), updated_at = NOW()
+         WHERE id = v_party_id;
+    ELSE
+        RAISE EXCEPTION 'Party not found: %', v_party_id USING errcode='P0001';
     END IF;
 
     RETURN jsonb_build_object('success', true, 'id', v_id);
@@ -847,7 +1023,7 @@ END;
 $$;
 
 -- =====================================================
--- 17. TRIGGERS updated_at
+-- 18. TRIGGERS updated_at
 -- =====================================================
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
@@ -863,7 +1039,7 @@ CREATE TRIGGER trg_invoices_updated      BEFORE UPDATE ON invoices      FOR EACH
 CREATE TRIGGER trg_settings_updated      BEFORE UPDATE ON settings      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- =====================================================
--- 18. RLS
+-- 19. RLS
 -- =====================================================
 ALTER TABLE tenants         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles        ENABLE ROW LEVEL SECURITY;
@@ -897,25 +1073,18 @@ CREATE POLICY "profiles_select_same_tenant" ON profiles
     FOR SELECT TO authenticated
     USING (tenant_id = get_my_tenant_id() AND deleted_at IS NULL);
 
--- ✅ منع تغيير role/tenant_id من المستخدم العادي
+-- ملاحظة: سياسة UPDATE محدودة بأعمدة GRANT (full_name, phone فقط)
 CREATE POLICY "profiles_update_self" ON profiles
     FOR UPDATE TO authenticated
     USING (id = auth.uid())
-    WITH CHECK (
-        id = auth.uid()
-        AND role = (SELECT role FROM profiles WHERE id = auth.uid())
-        AND COALESCE(tenant_id::text, '') = COALESCE(
-            (SELECT tenant_id::text FROM profiles WHERE id = auth.uid()), ''
-        )
-    );
+    WITH CHECK (id = auth.uid());
 
--- ✅ admin يعدّل موظفيه
 CREATE POLICY "profiles_update_admin" ON profiles
     FOR UPDATE TO authenticated
     USING (tenant_id = get_my_tenant_id() AND is_my_admin())
     WITH CHECK (tenant_id = get_my_tenant_id() AND is_my_admin());
 
--- بقية الجداول — tenant scoped
+-- بقية الجداول
 CREATE POLICY "products_access"        ON products        FOR ALL TO authenticated
     USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
 CREATE POLICY "product_units_access"   ON product_units   FOR ALL TO authenticated
@@ -935,25 +1104,28 @@ CREATE POLICY "sequences_access"       ON sequences       FOR ALL TO authenticat
 CREATE POLICY "settings_access"        ON settings        FOR ALL TO authenticated
     USING (tenant_id = get_my_tenant_id()) WITH CHECK (tenant_id = get_my_tenant_id());
 
--- SYSTEM_LOGS
+-- SYSTEM_LOGS — ✅ [SCHEMA-6] user_id إلزامي
 CREATE POLICY "system_logs_read" ON system_logs
     FOR SELECT TO authenticated
     USING (tenant_id = get_my_tenant_id() AND is_my_admin());
 
 CREATE POLICY "system_logs_insert" ON system_logs
     FOR INSERT TO authenticated
-    WITH CHECK (tenant_id = get_my_tenant_id());
+    WITH CHECK (
+        tenant_id = get_my_tenant_id()
+        AND (user_id IS NULL OR user_id = auth.uid())
+    );
 
 -- =====================================================
--- 19. GRANTS
+-- 20. GRANTS
 -- =====================================================
 
--- ✅ profiles: منع UPDATE على الأعمدة الحساسة
+-- ✅ profiles: أعمدة محددة فقط قابلة للتحديث
 REVOKE INSERT, UPDATE, DELETE ON profiles FROM authenticated;
 GRANT SELECT ON profiles TO authenticated;
 GRANT UPDATE (full_name, phone) ON profiles TO authenticated;
 
--- الجداول التي تُكتب مباشرة من العميل (products, units, parties, settings)
+-- جداول تُكتب مباشرة من العميل
 GRANT SELECT, INSERT, UPDATE ON products      TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON product_units TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON parties       TO authenticated;
@@ -962,7 +1134,7 @@ GRANT SELECT                 ON tenants       TO authenticated;
 GRANT SELECT                 ON system_logs   TO authenticated;
 GRANT INSERT                 ON system_logs   TO authenticated;
 
--- الجداول التي تُكتب فقط عبر RPC
+-- جداول تُكتب فقط عبر RPC
 REVOKE INSERT, UPDATE, DELETE ON invoices, transactions, stock_movements,
        sequences, invoice_counters, tenants FROM authenticated;
 GRANT SELECT ON invoices, transactions, stock_movements,
@@ -973,15 +1145,16 @@ GRANT EXECUTE ON FUNCTION next_sequence(TEXT)       TO authenticated;
 GRANT EXECUTE ON FUNCTION next_invoice_number(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION create_my_tenant(TEXT)    TO authenticated;
 GRANT EXECUTE ON FUNCTION create_invoice_atomic(JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION void_invoice_atomic(UUID)    TO authenticated;
 GRANT EXECUTE ON FUNCTION add_payment_atomic(JSONB)    TO authenticated;
 GRANT EXECUTE ON FUNCTION get_my_tenant_id()        TO authenticated;
 GRANT EXECUTE ON FUNCTION is_my_admin()             TO authenticated;
 
--- ✅ apply_stock_delta داخلية فقط
+-- apply_stock_delta داخلية فقط
 REVOKE ALL ON FUNCTION apply_stock_delta(UUID, TEXT, NUMERIC, TEXT, UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
 
 -- =====================================================
--- 20. MIGRATION (لمن لديهم مستخدمون قدامى بدون profile)
+-- 21. MIGRATION HELPER (لمن لديهم مستخدمون قدامى)
 -- =====================================================
 -- INSERT INTO profiles (id, email, full_name)
 -- SELECT id, email, raw_user_meta_data->>'full_name'
@@ -990,5 +1163,5 @@ REVOKE ALL ON FUNCTION apply_stock_delta(UUID, TEXT, NUMERIC, TEXT, UUID, TEXT, 
 -- ON CONFLICT DO NOTHING;
 
 -- =====================================================
--- ✅ DONE — v5.0
+-- ✅ DONE — v5.2.0
 -- =====================================================
