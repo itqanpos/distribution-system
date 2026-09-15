@@ -1,48 +1,83 @@
 /* =============================================
    Service Worker - PWA Cache
-   Version: 4.0.0 (Production-ready)
+   Version: 4.1.0
 
-   Fixes:
-   - [1] precache متسامح مع الملفات المفقودة
-   - [2] fallback محلي (offline shell)
-   - [3] HTML → network-first
-   - [4] JS/CSS/assets → stale-while-revalidate
-   - [5] Background Sync
-   - [6] message handler (SKIP_WAITING, CLEAR_CACHE)
-   - [7] فحص دقيق لنطاق Supabase
-   - [8] ignoreSearch للأصول الثابتة
-   - [9] trimRuntimeCache لحجم محدود
-   - [10] skipWaiting غير تلقائي — من الواجهة فقط
+   Changelog من v4.0.0:
+   - [SW-1] CACHE_VERSION = 4.1.0 (لإبطال الكاش القديم)
+   - [SW-2] PRECACHE_ASSETS كاملة (toast, dashboard, invoices, ...)
+   - [SW-3] networkFirstNavigation: يبحث في STATIC_CACHE أولاً
+   - [SW-4] offline.html مخصص بدل index.html
+   - [SW-5] message handler: فحص event.waitUntil
+   - [SW-6] isStaticAsset: يشمل .map
+   - [SW-7] cacheFirst: لا throw عند الفشل، Response فاضل
+   - [SW-8] staleWhileRevalidate: تعليق صحيح
    ============================================= */
 
-const CACHE_VERSION = '4.0.0';
+const CACHE_VERSION = '4.1.0';
 const STATIC_CACHE  = `hesaby-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `hesaby-runtime-${CACHE_VERSION}`;
 const MAX_RUNTIME_ENTRIES = 120;
 const SYNC_TAG = 'hesaby-sync-queue';
+const OFFLINE_URL = './offline.html';
 
+// ✅ [SW-2] قائمة كاملة — بعضها قد لا يوجد، install يتسامح
 const PRECACHE_ASSETS = [
+    // Root
     './',
+    './manifest.json',
+
+    // HTML
     './index.html',
     './signup.html',
-    './pos.html',
     './dashboard.html',
+    './pos.html',
     './invoices.html',
     './purchases.html',
+    './returns.html',
     './customers.html',
     './products.html',
+    './settings.html',
+    './offline.html',
+
+    // CSS
     './css/main.css',
     './css/pos.css',
+    './css/dashboard.css',
+    './css/invoices.css',
+    './css/purchases.css',
+    './css/returns.css',
+    './css/customers.css',
+    './css/products.css',
+    './css/settings.css',
+
+    // JS core
     './js/config.js',
     './js/utils.js',
+    './js/toast.js',
     './js/db.js',
     './js/auth.js',
+
+    // JS pages
+    './js/dashboard.js',
     './js/pos.js',
-    './manifest.json'
+    './js/invoices.js',
+    './js/purchases.js',
+    './js/returns.js',
+    './js/customers.js',
+    './js/products.js',
+    './js/settings.js',
+
+    // JS services
+    './js/services/invoiceService.js',
+    './js/services/purchaseService.js',
+
+    // Icons
+    './icons/icon-192x192.png',
+    './icons/icon-512x512.png'
 ];
 
 /* ============================================
-   Install — ✅ [FIX #1] كل ملف على حدة
+   Install — tolerant of missing files
    ============================================ */
 self.addEventListener('install', (event) => {
     event.waitUntil((async () => {
@@ -56,7 +91,6 @@ self.addEventListener('install', (event) => {
         if (failed.length) {
             console.warn('[SW] ملفات لم تُخزَّن:', failed);
         }
-        // ملاحظة: لا نستدعي skipWaiting هنا — يفعّله العميل صراحةً
     })());
 });
 
@@ -75,27 +109,37 @@ self.addEventListener('activate', (event) => {
 });
 
 /* ============================================
-   Message Handler — ✅ [FIX #6]
+   Message Handler — ✅ [SW-5] فحص waitUntil
    ============================================ */
 self.addEventListener('message', (event) => {
     const data = event.data || {};
+    const tasks = [];
 
     if (data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
 
     if (data.type === 'CLEAR_CACHE') {
-        event.waitUntil((async () => {
+        tasks.push((async () => {
             const keys = await caches.keys();
             await Promise.all(keys.map(k => caches.delete(k)));
         })());
     }
 
     if (data.type === 'CACHE_URLS' && Array.isArray(data.urls)) {
-        event.waitUntil((async () => {
+        tasks.push((async () => {
             const cache = await caches.open(RUNTIME_CACHE);
             await Promise.allSettled(data.urls.map(u => cache.add(u)));
         })());
+    }
+
+    if (tasks.length) {
+        if (typeof event.waitUntil === 'function') {
+            event.waitUntil(Promise.all(tasks));
+        } else {
+            // fallback: shush, best-effort
+            Promise.all(tasks).catch(() => {});
+        }
     }
 });
 
@@ -103,7 +147,6 @@ self.addEventListener('message', (event) => {
    Helpers
    ============================================ */
 function isSupabaseUrl(url) {
-    // ✅ [FIX #7] فحص دقيق
     return url.hostname === 'supabase.co' ||
            url.hostname.endsWith('.supabase.co');
 }
@@ -118,8 +161,9 @@ function isNavigation(request) {
             (request.headers.get('accept') || '').includes('text/html'));
 }
 
+// ✅ [SW-6] .map مُضاف
 function isStaticAsset(url) {
-    return /\.(css|js|mjs|woff2?|ttf|eot|otf|png|jpg|jpeg|gif|svg|webp|ico|json)$/i.test(url.pathname);
+    return /\.(css|js|mjs|map|woff2?|ttf|eot|otf|png|jpg|jpeg|gif|svg|webp|ico|json)$/i.test(url.pathname);
 }
 
 async function trimCache(cacheName, maxEntries) {
@@ -133,10 +177,52 @@ async function trimCache(cacheName, maxEntries) {
 }
 
 /* ============================================
+   Offline Response — ✅ [SW-4]
+   ============================================ */
+async function offlineResponse() {
+    // حاول offline.html أولاً
+    try {
+        const staticCache = await caches.open(STATIC_CACHE);
+        const offline = await staticCache.match(OFFLINE_URL);
+        if (offline) return offline;
+
+        const runtimeCache = await caches.open(RUNTIME_CACHE);
+        const offlineRuntime = await runtimeCache.match(OFFLINE_URL);
+        if (offlineRuntime) return offlineRuntime;
+    } catch { /* ignore */ }
+
+    // آخر ملاذ: HTML مضمّن
+    return new Response(
+        `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+         <meta name="viewport" content="width=device-width,initial-scale=1">
+         <title>غير متصل</title>
+         <style>
+            body { font-family: 'Cairo', Arial, sans-serif; padding: 40px; text-align: center;
+                   background: #f5f5f5; color: #333; min-height: 100vh;
+                   display: grid; place-items: center; margin: 0; }
+            .box { max-width: 400px; }
+            h1 { color: #333; margin-bottom: 12px; }
+            p { color: #666; line-height: 1.7; }
+            button { padding: 12px 28px; background: #4f46e5; color: #fff; border: none;
+                     border-radius: 10px; font-weight: 700; cursor: pointer;
+                     font-size: 15px; font-family: inherit; margin-top: 16px; }
+            button:hover { background: #4338ca; }
+         </style></head>
+         <body><div class="box">
+            <h1>لا يوجد اتصال</h1>
+            <p>لا يمكن الوصول إلى الصفحة المطلوبة الآن. تحقق من الشبكة ثم أعد المحاولة.</p>
+            <button onclick="location.reload()">إعادة المحاولة</button>
+         </div></body></html>`,
+        { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    );
+}
+
+/* ============================================
    Strategies
    ============================================ */
 
-// HTML: Network-first (يضمن أحدث نسخة، fallback للكاش/الصفحة الرئيسية)
+// HTML: Network-first
+// ✅ [SW-3] يبحث في RUNTIME ثم STATIC (لنفس الـ URL) قبل offline
 async function networkFirstNavigation(request) {
     try {
         const response = await fetch(request);
@@ -147,35 +233,30 @@ async function networkFirstNavigation(request) {
         }
         return response;
     } catch (err) {
-        // ✅ [FIX #2] fallback للكاش
-        const cache = await caches.open(RUNTIME_CACHE);
-        const cached = await cache.match(request, { ignoreSearch: true });
-        if (cached) return cached;
+        // 1) حاول في RUNTIME_CACHE بنفس الـ URL
+        try {
+            const runtimeCache = await caches.open(RUNTIME_CACHE);
+            const runtimeHit = await runtimeCache.match(request, { ignoreSearch: true });
+            if (runtimeHit) return runtimeHit;
+        } catch { /* ignore */ }
 
-        // fallback للصفحة الرئيسية
-        const staticCache = await caches.open(STATIC_CACHE);
-        const shell = await staticCache.match('./index.html') ||
-                      await caches.match('./index.html');
-        if (shell) return shell;
+        // 2) ✅ [SW-3] حاول في STATIC_CACHE بنفس الـ URL
+        try {
+            const staticCache = await caches.open(STATIC_CACHE);
+            const staticHit = await staticCache.match(request, { ignoreSearch: true });
+            if (staticHit) return staticHit;
+        } catch { /* ignore */ }
 
-        // آخر ملاذ: استجابة HTML بسيطة
-        return new Response(
-            `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>غير متصل</title>
-             <style>body{font-family:Cairo,Arial,sans-serif;padding:40px;text-align:center;}
-             h1{color:#333;} p{color:#666;}</style></head>
-             <body><h1>لا يوجد اتصال</h1>
-             <p>تحقق من الشبكة ثم أعد المحاولة.</p>
-             <button onclick="location.reload()">إعادة المحاولة</button></body></html>`,
-            { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-        );
+        // 3) offline page
+        return offlineResponse();
     }
 }
 
-// JS/CSS/الأصول: Stale-While-Revalidate
+// JS/CSS/assets: Stale-While-Revalidate
+// ✅ [SW-8] تعليق صحيح — ignoreSearch: false للـ JS/CSS
 async function staleWhileRevalidate(request, cacheName) {
     const cache = await caches.open(cacheName);
-    // ✅ [FIX #8] ignoreSearch
-    const cached = await cache.match(request, { ignoreSearch: false });
+    const cached = await cache.match(request);
 
     const networkPromise = fetch(request).then(response => {
         if (response && response.ok) {
@@ -185,7 +266,6 @@ async function staleWhileRevalidate(request, cacheName) {
     }).catch(() => null);
 
     if (cached) {
-        // حدّث في الخلفية ولا ننتظر
         networkPromise.catch(() => {});
         return cached;
     }
@@ -193,11 +273,10 @@ async function staleWhileRevalidate(request, cacheName) {
     const fresh = await networkPromise;
     if (fresh) return fresh;
 
-    // فشل كلي
     throw new Error('Resource unavailable offline');
 }
 
-// مسار عام للأصول خارج origin
+// ✅ [SW-7] cacheFirst — لا throw، Response 503
 async function cacheFirst(request, cacheName) {
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
@@ -211,12 +290,17 @@ async function cacheFirst(request, cacheName) {
         }
         return response;
     } catch (err) {
-        throw err;
+        // ✅ لا throw — Response فاضل
+        return new Response('Offline — resource unavailable', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        });
     }
 }
 
 /* ============================================
-   Fetch Router — ✅ [FIX #3, #4]
+   Fetch Router
    ============================================ */
 self.addEventListener('fetch', (event) => {
     const { request } = event;
@@ -225,7 +309,7 @@ self.addEventListener('fetch', (event) => {
     // تجاهل غير GET
     if (request.method !== 'GET') return;
 
-    // تجاهل Supabase (network only)
+    // تجاهل Supabase
     if (isSupabaseUrl(url)) return;
 
     // تجاهل طلبات Range
@@ -250,7 +334,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 /* ============================================
-   Background Sync — ✅ [FIX #5]
+   Background Sync
    ============================================ */
 self.addEventListener('sync', (event) => {
     if (event.tag === SYNC_TAG) {
@@ -267,7 +351,7 @@ self.addEventListener('sync', (event) => {
 });
 
 /* ============================================
-   Notification Click (اختياري — لا يفعل شيئاً إن لم تُستخدم)
+   Notification Click
    ============================================ */
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
