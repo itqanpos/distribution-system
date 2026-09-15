@@ -1,22 +1,17 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 5.2.1
+   Version: 5.2.2
 
-   Changelog:
-   - v5.2.0: requireTenant + deleteByTenant + tenant-scoped reads
-             + createSaleInvoice/createPurchaseInvoice wrappers
-             + getInvoicesLight/getPurchases/getPurchasesLight
-             + voidInvoice + _reverseLocalEffects
-             + addPayment لا يعدّل محليًا قبل تأكيد RPC
-             + DB_NAME=hesaby_pos, DB_VERSION=3
+   Changelog من v5.2.1:
+   - [DB-MERGE-1] getProducts: يضم المنتجات المُنشأة محليًا (pending)
+   - [DB-MERGE-2] getParties: يضم الأطراف المُنشأة محليًا (pending)
+   - [DB-MERGE-3] getInvoices: يضم الفواتير المُنشأة محليًا (pending)
+   - [DB-MERGE-4] getPayments: يضم الدفعات المُنشأة محليًا (pending)
+   - [DB-HELPER] getPendingIds(types) — helper موحد لفحص sync_queue
 
-   - v5.2.1 (بعد مراجعة مستقلة):
-     [FIX-1] voidInvoice: idempotency guard (alreadyVoided)
-     [FIX-2] voidInvoice: تخطّي عكس التأثيرات لفاتورة held
-     [FIX-3] _dispatchSync: نوع مجهول → خطأ مصنّف (فشل فوري)
-     [FIX-4] createInvoice: احترام data.id عند dedup
-     [FIX-5] getInvoicesLight: حذف فعلي لحقل items
-     [FIX-6] isBusinessError: إزالة 42P01 وإضافة NO_TENANT
+   القاعدة: السجلات المحلية التي ليست على السحابة تُعاد ONLY
+   إذا كانت موجودة في sync_queue (pending sync).
+   هذا يمنع "الأشباح": سجلات حُذفت على جهاز آخر من الظهور.
    ============================================= */
 (function() {
     'use strict';
@@ -65,8 +60,8 @@
         return Math.round(s + (s >= 0 ? 1e-9 : -1e-9)) / f;
     }
 
-    // ✅ [FIX-6] 42P01 مستبعد (خطأ deployment، لا أعمال)
-    //             NO_TENANT مُضاف (فشل فوري بدل retry)
+    // ✅ أخطاء الأعمال — فشل فوري بلا retry
+    // ملاحظة: 42P01 (جدول/دالة غير موجودة) مستبعد — خطأ deployment لا أعمال
     const BUSINESS_ERROR_CODES = new Set([
         'P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'P0006',
         'NO_TENANT',
@@ -243,6 +238,22 @@
         return t;
     }
 
+    // ✅ [DB-HELPER] فحص المفاتيح المعلّقة في sync_queue حسب النوع
+    async function getPendingIds(types) {
+        try {
+            const ops = await window.DB.local.getAll('sync_queue') || [];
+            const typeSet = new Set(Array.isArray(types) ? types : [types]);
+            const ids = new Set();
+            for (const op of ops) {
+                if (typeSet.has(op.type) && op.id) ids.add(op.id);
+            }
+            return ids;
+        } catch (e) {
+            console.warn('getPendingIds failed', e);
+            return new Set();
+        }
+    }
+
     /* ============================================
        Memory Cache
        ============================================ */
@@ -402,7 +413,6 @@
                         .upsert({ tenant_id: op.payload.tenant_id, data: op.payload.data },
                                 { onConflict: 'tenant_id' });
                 default: {
-                    // ✅ [FIX-3] نوع مجهول → فشل فوري بدل 8 محاولات
                     const err = new Error('Unknown sync type: ' + op.type);
                     err.code = 'P0004';
                     return { error: err };
@@ -412,6 +422,7 @@
 
         /* ============================================
            PRODUCTS
+           ✅ [DB-MERGE-1] يضم المنتجات المعلّقة محليًا
            ============================================ */
         async getProducts(force = false) {
             if (!force) {
@@ -421,6 +432,7 @@
 
             const tenantId = getTenantId();
 
+            // مسار الأوفلاين: كل السجلات المحلية للمستأجر الحالي
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('products');
                 const local = all.filter(p =>
@@ -430,6 +442,7 @@
                 return local;
             }
 
+            // مسار السحابة
             const { data, error } = await this.client
                 .from('products')
                 .select('*, product_units(*)')
@@ -450,13 +463,15 @@
                     .sort((a,b) => (b.isBase ? 1 : 0) - (a.isBase ? 1 : 0))
             }));
 
-            // امسح بيانات مستأجرين آخرين
+            // امسح بيانات مستأجرين آخرين من IDB
             if (tenantId) {
                 try { await this.local.deleteByTenant('products', tenantId); }
                 catch (e) { console.warn('deleteByTenant failed', e); }
             }
 
             const existing = await this.local.getAll('products');
+
+            // ✅ [DB-MERGE-1] دمج + إضافة السجلات المحلية المُعلّقة
             const merged = remote.map(rp => {
                 const lp = existing.find(e => e.id === rp.id);
                 if (!lp?.updated_at || !rp.updated_at) return rp;
@@ -474,9 +489,21 @@
                 return rp;
             });
 
-            await this.local.putMany('products', merged);
-            MemCache.set('products', merged);
-            return merged;
+            // السجلات المُنشأة محليًا ولم تُزامن بعد
+            const remoteIds = new Set(remote.map(p => p.id));
+            const pendingProductIds = await getPendingIds(['save_product', 'save_units']);
+            const localPending = existing.filter(lp =>
+                !remoteIds.has(lp.id) &&
+                !lp.deleted_at &&
+                pendingProductIds.has(lp.id) &&
+                (!tenantId || !lp.tenant_id || lp.tenant_id === tenantId)
+            );
+
+            const finalList = [...merged, ...localPending];
+
+            await this.local.putMany('products', finalList);
+            MemCache.set('products', finalList);
+            return finalList;
         },
 
         async saveProduct(product) {
@@ -568,6 +595,7 @@
 
         /* ============================================
            PARTIES
+           ✅ [DB-MERGE-2] يضم الأطراف المعلّقة محليًا
            ============================================ */
         async getParties(type = null, force = false) {
             if (!force) {
@@ -600,6 +628,7 @@
             }
 
             const existing = await this.local.getAll('parties');
+
             const merged = (data || []).map(rp => {
                 const lp = existing.find(e => e.id === rp.id);
                 if (lp?.updated_at && rp.updated_at &&
@@ -609,9 +638,23 @@
                 return rp;
             });
 
-            await this.local.putMany('parties', merged);
-            MemCache.set('parties', merged);
-            return merged;
+            // ✅ [DB-MERGE-2] الأطراف المُنشأة محليًا ولم تُزامن
+            const remoteIds = new Set((data || []).map(p => p.id));
+            const pendingPartyIds = await getPendingIds(['save_party']);
+            const localPending = existing.filter(lp =>
+                !remoteIds.has(lp.id) &&
+                !lp.deleted_at &&
+                pendingPartyIds.has(lp.id) &&
+                (!tenantId || !lp.tenant_id || lp.tenant_id === tenantId)
+            );
+
+            const finalList = [...merged, ...localPending];
+            await this.local.putMany('parties', finalList);
+            MemCache.set('parties', finalList);
+
+            return type
+                ? finalList.filter(p => p.type === type || p.type === 'both')
+                : finalList;
         },
 
         async saveParty(party) {
@@ -679,6 +722,7 @@
 
         /* ============================================
            PAYMENTS
+           ✅ [DB-MERGE-4] يضم الدفعات المعلّقة محليًا
            ============================================ */
         async addPayment(payment) {
             const client = getClient();
@@ -706,7 +750,7 @@
                 throw new Error('المبلغ يجب أن يكون أكبر من صفر');
             }
 
-            // ✅ لا تغيير محلي قبل نجاح RPC أو queue
+            // لا تغيير محلي قبل نجاح RPC أو queue
             if (navigator.onLine && client) {
                 try {
                     const { error } = await client.rpc('add_payment_atomic', { p_payment: payload });
@@ -750,12 +794,28 @@
             if (partyId) q = q.eq('party_id', partyId);
             const { data, error } = await q;
             if (error) throw error;
-            await this.local.putMany('transactions', data || []);
-            return data || [];
+
+            // ✅ [DB-MERGE-4] الدفعات المُنشأة محليًا ولم تُزامن
+            const remoteIds = new Set((data || []).map(t => t.id));
+            const pendingPaymentIds = await getPendingIds(['add_payment']);
+            const existing = await this.local.getAll('transactions');
+            const localPending = existing.filter(lt =>
+                !remoteIds.has(lt.id) &&
+                pendingPaymentIds.has(lt.id) &&
+                (!tenantId || !lt.tenant_id || lt.tenant_id === tenantId)
+            );
+
+            const finalList = [...(data || []), ...localPending];
+            await this.local.putMany('transactions', finalList);
+
+            return partyId
+                ? finalList.filter(t => t.party_id === partyId)
+                : finalList;
         },
 
         /* ============================================
            INVOICES
+           ✅ [DB-MERGE-3] يضم الفواتير المعلّقة محليًا
            ============================================ */
         async getInvoices(force = false) {
             if (!force) {
@@ -782,12 +842,23 @@
                 catch (e) { console.warn('deleteByTenant failed', e); }
             }
 
-            await this.local.putMany('invoices', data || []);
-            MemCache.set('invoices', data || []);
-            return data || [];
+            // ✅ [DB-MERGE-3] الفواتير المُنشأة محليًا ولم تُزامن
+            const remoteIds = new Set((data || []).map(i => i.id));
+            const pendingInvoiceIds = await getPendingIds(['create_invoice']);
+            const existing = await this.local.getAll('invoices');
+            const localPending = existing.filter(li =>
+                !remoteIds.has(li.id) &&
+                !li.deleted_at &&
+                pendingInvoiceIds.has(li.id) &&
+                (!tenantId || !li.tenant_id || li.tenant_id === tenantId)
+            );
+
+            const finalList = [...(data || []), ...localPending];
+            await this.local.putMany('invoices', finalList);
+            MemCache.set('invoices', finalList);
+            return finalList;
         },
 
-        // ✅ [FIX-5] حذف فعلي لحقل items (لا undefined)
         async getInvoicesLight(force = false) {
             const tenantId = getTenantId();
 
@@ -806,7 +877,24 @@
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false });
             if (error) throw error;
-            return data || [];
+
+            // ✅ نفس منطق getInvoices للفواتير المعلّقة (بدون items)
+            const remoteIds = new Set((data || []).map(i => i.id));
+            const pendingInvoiceIds = await getPendingIds(['create_invoice']);
+            const existing = await this.local.getAll('invoices');
+            const localPending = existing
+                .filter(li =>
+                    !remoteIds.has(li.id) &&
+                    !li.deleted_at &&
+                    pendingInvoiceIds.has(li.id) &&
+                    (!tenantId || !li.tenant_id || li.tenant_id === tenantId)
+                )
+                .map(i => {
+                    const { items, ...light } = i;
+                    return light;
+                });
+
+            return [...(data || []), ...localPending];
         },
 
         async getInvoiceById(id) {
@@ -881,7 +969,6 @@
                     );
                     if (error) throw error;
 
-                    // ✅ [FIX-4] احترام data.id عند dedup
                     const persistedId = data?.id || id;
                     const persistedNumber = data?.invoice_number || payload.invoice_number;
                     const persisted = { ...payload, id: persistedId, invoice_number: persistedNumber };
@@ -913,7 +1000,7 @@
             return { success: true, id, invoice_number: payload.invoice_number };
         },
 
-        // ✅ أغلفة توافقية
+        // أغلفة توافقية
         async createSaleInvoice(invoiceData) {
             return this.createInvoice({ ...invoiceData, type: 'sale' });
         },
@@ -941,14 +1028,11 @@
 
         /* ============================================
            VOID INVOICE — RPC ذرّي + Idempotency
-           ✅ [FIX-1] حماية من الإلغاء المزدوج
-           ✅ [FIX-2] تخطّي عكس فاتورة held
            ============================================ */
         async voidInvoice(id) {
             requireTenant();
             if (!id) throw new Error('معرّف الفاتورة مطلوب');
 
-            // افحص الحالة المحلية أولًا لمنع الإلغاء المزدوج
             const localBefore = await this.local.get('invoices', id);
             if (localBefore?.status === 'voided') {
                 return { success: true, id, alreadyVoided: true };
@@ -967,7 +1051,6 @@
                         localBefore.status = 'voided';
                         localBefore.updated_at = new Date().toISOString();
                         await this.local.put('invoices', localBefore);
-                        // لا نعكس تأثيرات فاتورة معلقة (لم تُطبَّق أصلًا)
                         if (!wasHeld) await this._reverseLocalEffects(localBefore);
                     }
 
@@ -981,7 +1064,6 @@
                 await SyncQueue.enqueue({ type: 'void_invoice', id, payload: { id } });
             }
 
-            // مسار الأوفلاين / الطابور
             if (localBefore && !localBefore.deleted_at) {
                 localBefore.status = 'voided';
                 localBefore.updated_at = new Date().toISOString();
@@ -1051,11 +1133,9 @@
             }
         },
 
-        // ✅ عكس تأثيرات الفاتورة (للإلغاء)
         async _reverseLocalEffects(invoice) {
             const type = invoice.type;
 
-            // عكس المخزون
             let sign = 0;
             if (type === 'sale') sign = +1;
             else if (type === 'purchase') sign = -1;
@@ -1071,7 +1151,6 @@
                 }
             }
 
-            // عكس رصيد العميل
             if (invoice.customer_id && ['sale','return_sale'].includes(type)) {
                 const cust = await this.local.get('parties', invoice.customer_id);
                 if (cust && cust.tenant_id === invoice.tenant_id) {
@@ -1090,7 +1169,6 @@
                 }
             }
 
-            // عكس رصيد المورد
             if (invoice.supplier_id && ['purchase','return_purchase'].includes(type)) {
                 const sup = await this.local.get('parties', invoice.supplier_id);
                 if (sup && sup.tenant_id === invoice.tenant_id) {
