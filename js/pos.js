@@ -1,16 +1,28 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 5.6.0
+   Version: 6.0.0
 
-   Changelog من v5.5.0:
-   - [POS-28] تصميم إيصال جديد مطابق للطباعة الحرارية
-             * جدول بـ 5 أعمدة (م، الصنف، الكمية، السعر، الإجمالي)
-             * حد صلب بدل متقطع
-             * صف "المجموع الفرعي" داخل الجدول
-             * جدول ملخص رصيد منفصل
-   - [POS-29] عرض عنوان العميل في الإيصال
-   - [POS-30] تمرير _customerAddress في invoice
-   - [POS-31] طباعة iframe بنفس CSS الجديد
+   Changelog من v5.6.0:
+   - [POS-32] [BUG-1] إزالة صف "إجمالي الفاتورة" المكرر في الإيصال
+   - [POS-33] [BUG-2] إعادة كتابة printReceipt:
+              load event + readyState check + 2s fallback
+              + الانتظار لتحميل الخطوط (document.fonts.ready)
+   - [POS-34] [BUG-3] restoreCart يتحقق من وجود المنتجات والوحدات
+              ويسقط العناصر التالفة مع تحذير للمستخدم
+   - [POS-35] [BUG-4] clearCart يُعيد discountType إلى "amount"
+   - [POS-36] [BUG-5] addToCart يُحدّث cost/factor/minPrice/maxPrice
+              عند وجود العنصر مسبقًا (منع تكلفة قديمة)
+   - [POS-37] [BUG-7] F1–F5 تُتجاهل أثناء الكتابة في أي input
+              (كانت تُنفَّذ داخل productSearch)
+   - [POS-38] [LOGIC-1] تسديد الدين يتطلب موافقة صريحة
+              عبر checkbox #payDebtCheckbox
+   - [POS-39] [LOGIC-3] استخدام invoice._saleTimestamp للطباعة
+              (كانت تستخدم Date.now() = وقت العرض)
+   - [POS-40] [INT-1] State.settings من DB.getSettings()
+              (كانت من localStorage غير المتزامن مع DB)
+   - [POS-41] [HTML-5] طباعة تلقائية بعد إتمام البيع
+   - [POS-42] dedup: computePaymentBreakdown يُحسب مرة واحدة
+              لكل تحديث ويُمرَّر إلى renderPaymentCustomerBalance
    ============================================= */
 (function() {
     'use strict';
@@ -56,7 +68,10 @@
         paymentMethod: 'cash',
         currentUser: null,
         currentCategory: 'الكل',
-        searchTerm: ''
+        searchTerm: '',
+        settings: {},
+        // ✅ [LOGIC-1] موافقة صريحة على تسديد دين سابق
+        payDebtFromChange: false
     };
 
     /* ============================================
@@ -93,6 +108,7 @@
         initTheme();
         bindEvents();
 
+        await loadSettings();
         await loadData();
         restoreCart();
         updateHeldCount();
@@ -103,6 +119,24 @@
     /* ============================================
        Data
        ============================================ */
+
+    /**
+     * ✅ [INT-1] الإعدادات من DB (المصدر الرسمي)
+     * مع fallback إلى localStorage للتوافق مع تثبيتات قديمة
+     */
+    async function loadSettings() {
+        try {
+            const fromDb = await DB.getSettings();
+            if (fromDb && Object.keys(fromDb).length > 0) {
+                State.settings = fromDb;
+                return;
+            }
+        } catch (e) {
+            console.warn('DB.getSettings failed, falling back to localStorage', e);
+        }
+        State.settings = U.ls.get('settings', {}) || {};
+    }
+
     async function loadData() {
         showLoading();
         try {
@@ -436,6 +470,12 @@
         if (existing) {
             existing.quantity = U.round(existing.quantity + qty, 3);
             existing.price = price;
+            // ✅ [BUG-5] حدّث الحقول التي قد تتغير على الخادم
+            existing.cost = Number(unit.cost) || 0;
+            existing.factor = Number(unit.factor) || 1;
+            existing.minPrice = Number(unit.minPrice) || 0;
+            existing.maxPrice = Number(unit.maxPrice) || 0;
+            existing.productName = product.name;
         } else {
             State.cart.push({
                 productId,
@@ -597,10 +637,15 @@
     function clearCart() {
         if (!State.cart.length) return;
         if (!confirm('هل تريد إلغاء الفاتورة الحالية؟')) return;
+
         State.cart = [];
         State.discount = 0;
+        State.discountType = 'amount';        // ✅ [BUG-4]
         State.selectedCustomer = null;
+        State.payDebtFromChange = false;      // ✅ [LOGIC-1]
+
         $('#discountValue').value = '0';
+        $('#discountType').value = 'amount';
         $('#customerSearch').value = '';
         $('#customerInfo').textContent = '';
         $('#customerInfo').style.color = '';
@@ -668,8 +713,13 @@
         }
         $('#customerDropdown').classList.remove('show');
 
+        // ✅ [LOGIC-1] عند تغيير العميل، ألغِ الموافقة القديمة
+        State.payDebtFromChange = false;
+        const cb = $('#payDebtCheckbox');
+        if (cb) cb.checked = false;
+
         if ($('#paymentModal')?.classList.contains('open')) {
-            renderPaymentCustomerBalance();
+            updateChange();
         }
     }
 
@@ -686,9 +736,14 @@
         $('#cashInput').value = '';
         $('#cardInput').value = '';
         $('#paymentNotes').value = '';
+
+        // ✅ [LOGIC-1] أعِد ضبط خيار تسديد الدين (الافتراضي: غير مُفعّل)
+        State.payDebtFromChange = false;
+        const debtCb = $('#payDebtCheckbox');
+        if (debtCb) debtCb.checked = false;
+
         renderQuickCash(net);
         updateChange();
-        renderPaymentCustomerBalance();
 
         openModal('paymentModal');
         setTimeout(() => $('#cashInput')?.focus(), 200);
@@ -737,8 +792,11 @@
         const oldBalance = State.selectedCustomer
             ? (Number(State.selectedCustomer.balance) || 0)
             : 0;
+
+        // ✅ [LOGIC-1] التسديد يتطلب: عميل + رصيد سالب + extra + موافقة صريحة
         const canPayDebt = !!State.selectedCustomer && oldBalance < 0 && extra > 0;
-        const debtPayment = canPayDebt
+        const shouldPayDebt = canPayDebt && State.payDebtFromChange === true;
+        const debtPayment = shouldPayDebt
             ? U.round(Math.min(extra, Math.abs(oldBalance)))
             : 0;
 
@@ -749,6 +807,7 @@
         else if (method === 'card') cardFinal = card;
         else if (method === 'mixed') { cashFinal = cash; cardFinal = card; }
 
+        // اخصم debtPayment من cash ثم card بالتسلسل
         let deduct = debtPayment;
         const d1 = Math.min(cashFinal, deduct); cashFinal -= d1; deduct -= d1;
         const d2 = Math.min(cardFinal, deduct); cardFinal -= d2; deduct -= d2;
@@ -765,6 +824,8 @@
             remaining,
             paidForInvoice,
             oldBalance,
+            canPayDebt,
+            shouldPayDebt,
             debtPayment,
             change,
             cashFinal,
@@ -776,6 +837,7 @@
     function updateChange() {
         const b = computePaymentBreakdown();
 
+        // 1) display التغيير
         const display = $('#changeDisplay');
         const value = $('#changeValue');
         const span = display?.querySelector('span');
@@ -790,20 +852,41 @@
             if (value) value.textContent = U.money(b.change);
         }
 
+        // 2) ✅ [LOGIC-1] إظهار/إخفاء مجموعة تسديد الدين
+        const group = $('#debtPaymentGroup');
+        if (group) {
+            if (b.canPayDebt) {
+                group.style.display = 'block';
+            } else {
+                group.style.display = 'none';
+                const cb = $('#payDebtCheckbox');
+                if (cb && cb.checked) {
+                    cb.checked = false;
+                    State.payDebtFromChange = false;
+                }
+            }
+        }
+
+        // 3) ✅ [LOGIC-1] نص المبلغ الذي سيُسدَّد
         const hintEl = $('#debtPaymentHint');
         if (hintEl) {
             if (b.debtPayment > 0) {
-                hintEl.textContent = `سيُسدد من الدين السابق: ${U.money(b.debtPayment)}`;
+                hintEl.textContent = `سيُسدَّد من الدين السابق: ${U.money(b.debtPayment)}`;
                 hintEl.style.display = 'block';
             } else {
                 hintEl.style.display = 'none';
             }
         }
 
-        renderPaymentCustomerBalance();
+        // 4) رصيد العميل
+        renderPaymentCustomerBalance(b);
     }
 
-    function renderPaymentCustomerBalance() {
+    /**
+     * ✅ [POS-42] يقبل breakdown محسوبًا مسبقًا من updateChange
+     * (يمنع احتساب مزدوج)
+     */
+    function renderPaymentCustomerBalance(breakdown) {
         const container = $('#paymentCustomerBalance');
         const prevEl = $('#pcbPrevious');
         const newEl = $('#pcbNew');
@@ -818,7 +901,7 @@
         container.style.display = 'block';
         if (nameEl) nameEl.textContent = State.selectedCustomer.name || 'العميل';
 
-        const b = computePaymentBreakdown();
+        const b = breakdown || computePaymentBreakdown();
 
         prevEl.textContent = formatBalance(b.oldBalance);
         prevEl.className = 'pcb-value ' + balanceClass(b.oldBalance);
@@ -880,9 +963,8 @@
         if (method === 'credit' && State.selectedCustomer) {
             if (!confirm(`سيتم تسجيل ${U.money(net)} كدين على العميل. متابعة؟`)) return;
         }
-        if (b.debtPayment > 0) {
-            if (!confirm(`سيتم تخصيص ${U.money(b.debtPayment)} من المبلغ المُستلم لتسديد دين سابق. متابعة؟`)) return;
-        }
+        // ✅ [LOGIC-1] لا confirm لتسديد الدين —
+        // المستخدم أشّر الـ checkbox صراحةً ورأى المبلغ في #debtPaymentHint
 
         const btn = $('#confirmPayBtn');
         if (btn) btn.disabled = true;
@@ -895,6 +977,8 @@
                 invoice_number: invoiceNumber,
                 type: 'sale',
                 date: U.today(),
+                // ✅ [LOGIC-3] طابع وقت البيع الفعلي
+                _saleTimestamp: Date.now(),
                 customer_id: State.selectedCustomer?.id || null,
                 customer_name: State.selectedCustomer?.name || 'نقدي',
                 items: State.cart.map(i => ({ ...i })),
@@ -912,7 +996,6 @@
                 status: method === 'credit' ? 'credit' : (b.remaining > 0 ? 'partial' : 'paid'),
                 notes,
 
-                // بيانات للعرض في الإيصال
                 _hasCustomer: !!State.selectedCustomer,
                 _oldBalance: b.oldBalance,
                 _newBalance: b.newBalance,
@@ -948,10 +1031,19 @@
 
             showReceipt(invoice);
 
+            // ✅ [HTML-5] طباعة تلقائية بعد البيع (زر "تأكيد وطباعة")
+            setTimeout(() => {
+                if ($('#receiptModal')?.classList.contains('open')) {
+                    try { printReceipt(); } catch (e) { console.warn('Auto-print failed', e); }
+                }
+            }, 400);
+
+            // إعادة ضبط الحالة
             State.cart = [];
             State.discount = 0;
             State.discountType = 'amount';
             State.selectedCustomer = null;
+            State.payDebtFromChange = false;
             $('#discountValue').value = '0';
             $('#discountType').value = 'amount';
             $('#customerSearch').value = '';
@@ -992,10 +1084,11 @@
     }
 
     /* ============================================
-       Receipt — ✅ [POS-28, POS-29]
+       Receipt — v6.0.0 (بدون صفوف مكررة)
        ============================================ */
     function showReceipt(invoice) {
-        const settings = U.ls.get('settings', {}) || {};
+        // ✅ [INT-1] الإعدادات من DB (مع fallback LS في loadSettings)
+        const settings = State.settings || {};
         const shopName = settings.shopName || 'حسابي';
         const shopPhone = settings.phone || '';
         const shopAddress = settings.address || '';
@@ -1023,6 +1116,10 @@
 
         const customerAddress = invoice._customerAddress || invoice.customer_address || '-';
 
+        // ✅ [LOGIC-3] وقت البيع (وليس وقت العرض)
+        const saleTs = Number(invoice._saleTimestamp) ||
+                       (invoice.created_at ? new Date(invoice.created_at).getTime() : Date.now());
+
         const preview = $('#receiptPreview');
         if (!preview) return;
 
@@ -1040,7 +1137,7 @@
                 </tr>
                 <tr>
                     <td class="rc-info-label">التاريخ:</td>
-                    <td class="rc-info-value">${U.date(invoice.date)} ${U.time(Date.now())}</td>
+                    <td class="rc-info-value">${U.date(invoice.date)} ${U.time(saleTs)}</td>
                 </tr>
                 <tr>
                     <td class="rc-info-label">العميل:</td>
@@ -1090,10 +1187,6 @@
                     <td class="rc-sum-value">${oldBal.toFixed(2)}</td>
                 </tr>
                 <tr>
-                    <td class="rc-sum-label">إجمالي الفاتورة:</td>
-                    <td class="rc-sum-value">${Number(invoice.total).toFixed(2)}</td>
-                </tr>
-                <tr>
                     <td class="rc-sum-label">صافي الرصيد بعد الفاتورة:</td>
                     <td class="rc-sum-value">${newBal.toFixed(2)}</td>
                 </tr>
@@ -1124,7 +1217,12 @@
     }
 
     /* ============================================
-       Print — ✅ [POS-31] iframe بتصميم جديد
+       Print — v6.0.0
+       ✅ [BUG-2] ثلاث طبقات:
+         1) load event بعد إضافة المستمع
+         2) فحص readyState (cover load-fired-before)
+         3) fallback 2s لو فشل الكل
+       + الانتظار لتحميل الخطوط (document.fonts.ready)
        ============================================ */
     function printReceipt() {
         const preview = $('#receiptPreview');
@@ -1263,16 +1361,44 @@
 </html>`);
             doc.close();
 
-            const doPrint = () => {
+            // ✅ [BUG-2] طبقة واحدة للتنفيذ (تضمن تشغيل print مرة واحدة فقط)
+            let printed = false;
+            const doPrint = async () => {
+                if (printed) return;
+                printed = true;
+
+                // انتظر تحميل الخطوط (best-effort)
                 try {
-                    iframe.contentWindow.focus();
-                    iframe.contentWindow.print();
-                } catch (e) {
-                    console.error('Print call failed:', e);
-                    showToast('تعذر فتح حوار الطباعة', 'error');
-                }
+                    const docFonts = iframe.contentDocument?.fonts;
+                    if (docFonts?.ready) await docFonts.ready;
+                } catch { /* ignore */ }
+
+                // مهلة صغيرة لاستقرار الـ layout بعد تحميل الخطوط
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    } catch (e) {
+                        console.error('Print call failed:', e);
+                        showToast('تعذر فتح حوار الطباعة', 'error');
+                    }
+                }, 50);
             };
 
+            // ✅ استمع لـ load أولًا (قبل فحص readyState)
+            try {
+                iframe.contentWindow.addEventListener('load', doPrint, { once: true });
+            } catch (e) { /* ignore */ }
+
+            // ✅ لو أن load قد اكتمل بالفعل
+            if (doc.readyState === 'complete') {
+                doPrint();
+            }
+
+            // ✅ [BUG-2] fallback أخير: إن لم يُنفَّذ أي مسار خلال 2 ثانية
+            setTimeout(() => { if (!printed) doPrint(); }, 2000);
+
+            // تنظيف بعد الطباعة
             const cleanup = () => {
                 setTimeout(() => {
                     if (iframe && iframe.parentNode) {
@@ -1285,13 +1411,8 @@
                 iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
             } catch {}
 
+            // حد أقصى: 30 ثانية ثم نظّف
             setTimeout(cleanup, 30000);
-
-            if (doc.readyState === 'complete') {
-                doPrint();
-            } else {
-                iframe.contentWindow.addEventListener('load', doPrint, { once: true });
-            }
 
         } catch (err) {
             console.error('Print setup failed:', err);
@@ -1324,8 +1445,11 @@
         U.ls.set('heldInvoices', held);
         State.cart = [];
         State.discount = 0;
+        State.discountType = 'amount';
         State.selectedCustomer = null;
+        State.payDebtFromChange = false;
         $('#discountValue').value = '0';
+        $('#discountType').value = 'amount';
         $('#customerSearch').value = '';
         $('#customerInfo').textContent = '';
         $('#customerInfo').style.color = '';
@@ -1375,6 +1499,7 @@
         State.cart = item.items.map(i => ({ ...i }));
         State.discount = item.discount || 0;
         State.discountType = item.discountType || 'amount';
+        State.payDebtFromChange = false;
         if (item.customerId) {
             const c = State.customers.find(x => x.id === item.customerId);
             if (c) selectCustomer(c.id);
@@ -1401,19 +1526,74 @@
             discountType: State.discountType
         });
     }
+
+    /**
+     * ✅ [BUG-3] يتحقق من صحة كل عنصر مقابل State.products:
+     * - يحذف المنتجات المحذوفة
+     * - يحذف الوحدات المحذوفة
+     * - يُحدّث الحقول (cost, factor, min/max price) من المنتج الحالي
+     */
     function restoreCart() {
         const data = U.ls.get('posCart');
         if (!data) { renderCart(); return; }
-        State.cart = Array.isArray(data.cart) ? data.cart : [];
-        State.discount = data.discount || 0;
-        State.discountType = data.discountType || 'amount';
+
+        const rawCart = Array.isArray(data.cart) ? data.cart : [];
+        const productsById = new Map(State.products.map(p => [p.id, p]));
+
+        const validCart = [];
+        const dropped = [];
+
+        for (const item of rawCart) {
+            if (!item || !item.productId) continue;
+
+            const product = productsById.get(item.productId);
+            if (!product) {
+                dropped.push(item.productName || item.productId);
+                continue;
+            }
+            const unit = product.units?.find(u => u.name === item.unitName);
+            if (!unit) {
+                dropped.push(`${item.productName || product.name} (${item.unitName})`);
+                continue;
+            }
+            const qty = Number(item.quantity) || 0;
+            if (qty <= 0) continue;
+
+            // ✅ حدّث الحقول من المنتج الحالي
+            validCart.push({
+                productId: item.productId,
+                productName: product.name,
+                unitName: item.unitName,
+                quantity: qty,
+                price: Number(item.price) || 0,
+                cost: Number(unit.cost) || 0,
+                factor: Number(unit.factor) || 1,
+                minPrice: Number(unit.minPrice) || 0,
+                maxPrice: Number(unit.maxPrice) || 0
+            });
+        }
+
+        State.cart = validCart;
+        State.discount = Number(data.discount) || 0;
+        State.discountType = data.discountType === 'percent' ? 'percent' : 'amount';
+        State.payDebtFromChange = false;
+
         if (data.customerId) {
             const c = State.customers.find(x => x.id === data.customerId);
             if (c) State.selectedCustomer = c;
         }
+
         $('#discountValue').value = State.discount;
         $('#discountType').value = State.discountType;
         renderCart();
+
+        if (dropped.length) {
+            console.warn('Dropped stale cart items:', dropped);
+            // defer toast حتى ينتهي init
+            setTimeout(() => {
+                showToast(`تم حذف ${dropped.length} صنف غير متوفر من السلة`, 'warning');
+            }, 500);
+        }
     }
 
     /* ============================================
@@ -1611,6 +1791,12 @@
         $('#cardInput')?.addEventListener('input', updateChange);
         $('#confirmPayBtn')?.addEventListener('click', completeSale);
 
+        // ✅ [LOGIC-1] ربط checkbox تسديد الدين
+        $('#payDebtCheckbox')?.addEventListener('change', (e) => {
+            State.payDebtFromChange = e.target.checked === true;
+            updateChange();
+        });
+
         $('#printReceiptBtn')?.addEventListener('click', printReceipt);
         $('#newSaleBtn')?.addEventListener('click', () => closeModal('receiptModal'));
 
@@ -1630,11 +1816,19 @@
             });
         });
 
+        // ✅ [BUG-7] F1–F5 لا تعمل أثناء الكتابة في أي input/textarea/select
         document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' && e.target.id !== 'productSearch') {
-                if (e.key === 'Escape') e.target.blur();
+            const t = e.target;
+            const isEditable = t.tagName === 'INPUT' ||
+                               t.tagName === 'TEXTAREA' ||
+                               t.tagName === 'SELECT' ||
+                               t.isContentEditable;
+
+            if (isEditable) {
+                if (e.key === 'Escape') t.blur();
                 return;
             }
+
             if (e.key === 'F1') { e.preventDefault(); $('#customerSearch')?.focus(); }
             if (e.key === 'F2') { e.preventDefault(); $('#productSearch')?.focus(); }
             if (e.key === 'F3') { e.preventDefault(); $('#productSearchInput')?.focus(); }
