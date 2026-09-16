@@ -1,15 +1,13 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 5.4.1
+   Version: 5.5.0
 
-   Changelog من v5.4.0:
-   - [POS-16] printReceipt: opacity:0 بدل visibility:hidden (iOS fix)
-   - [POS-17] printReceipt: print() متزامن (user gesture)
-   - [POS-18] printReceipt: afterprint للتنظيف الآمن
-   - [POS-19] printReceipt: try/catch شامل
-   - [POS-20] completeSale: dedup لا يعرض رصيدًا وهميًا
-   - [POS-21] توحيد formatBalance و balanceClass
-   - [POS-22] reloadProductsLocal يستخدم force=false دائمًا
+   Changelog من v5.4.1:
+   - [POS-23] تسديد دين سابق تلقائيًا عند الدفع الزائد
+   - [POS-24] معاينة "سيُسدد من الدين" في مودال الدفع
+   - [POS-25] الإيصال يعرض سطر "تسديد دين سابق"
+   - [POS-26] توزيع المبلغ المُستلم على cash/card بعد خصم الدين
+   - [POS-27] renderPaymentCustomerBalance يحسب الرصيد الجديد بعد التسديد
    ============================================= */
 (function() {
     'use strict';
@@ -718,28 +716,93 @@
         });
     }
 
-    function updateChange() {
+    /* ============================================
+       Payment math — ✅ [POS-23] موحّد
+       ============================================ */
+    function computePaymentBreakdown() {
         const { net } = calculateTotals();
         const method = State.paymentMethod;
         const cash = +$('#cashInput')?.value || 0;
         const card = +$('#cardInput')?.value || 0;
-        let paid = 0;
-        if (method === 'cash') paid = cash;
-        else if (method === 'card') paid = card;
-        else if (method === 'mixed') paid = cash + card;
-        const remaining = U.round(net - paid);
+
+        let totalReceived = 0;
+        if (method === 'cash') totalReceived = cash;
+        else if (method === 'card') totalReceived = card;
+        else if (method === 'mixed') totalReceived = cash + card;
+
+        const extra = U.round(Math.max(0, totalReceived - net));
+        const remaining = U.round(Math.max(0, net - totalReceived));
+        const paidForInvoice = Math.min(totalReceived, net);
+
+        // دين سابق
+        const oldBalance = State.selectedCustomer
+            ? (Number(State.selectedCustomer.balance) || 0)
+            : 0;
+        const canPayDebt = !!State.selectedCustomer && oldBalance < 0 && extra > 0;
+        const debtPayment = canPayDebt
+            ? U.round(Math.min(extra, Math.abs(oldBalance)))
+            : 0;
+
+        // الباقي النقدي الفعلي للعميل
+        const change = U.round(extra - debtPayment);
+
+        // توزيع المبالغ على cash/card بعد خصم debtPayment
+        let cashFinal = 0, cardFinal = 0;
+        if (method === 'cash') cashFinal = cash;
+        else if (method === 'card') cardFinal = card;
+        else if (method === 'mixed') { cashFinal = cash; cardFinal = card; }
+
+        let deduct = debtPayment;
+        const d1 = Math.min(cashFinal, deduct); cashFinal -= d1; deduct -= d1;
+        const d2 = Math.min(cardFinal, deduct); cardFinal -= d2; deduct -= d2;
+
+        // الرصيد المتوقع بعد الفاتورة
+        const newBalance = State.selectedCustomer
+            ? U.round(oldBalance + debtPayment - remaining, 3)
+            : 0;
+
+        return {
+            net,
+            cash, card,
+            totalReceived,
+            extra,
+            remaining,
+            paidForInvoice,
+            oldBalance,
+            debtPayment,
+            change,
+            cashFinal,
+            cardFinal,
+            newBalance
+        };
+    }
+
+    function updateChange() {
+        const b = computePaymentBreakdown();
+
         const display = $('#changeDisplay');
         const value = $('#changeValue');
-        if (remaining > 0) {
+        const span = display?.querySelector('span');
+
+        if (b.remaining > 0) {
             display?.classList.add('is-short');
-            const span = display?.querySelector('span');
             if (span) span.textContent = 'المتبقي:';
-            if (value) value.textContent = U.money(remaining);
+            if (value) value.textContent = U.money(b.remaining);
         } else {
             display?.classList.remove('is-short');
-            const span = display?.querySelector('span');
             if (span) span.textContent = 'الباقي للعميل:';
-            if (value) value.textContent = U.money(Math.abs(remaining));
+            if (value) value.textContent = U.money(b.change);
+        }
+
+        // ✅ [POS-24] سطر "سيُسدد من الدين"
+        const hintEl = $('#debtPaymentHint');
+        if (hintEl) {
+            if (b.debtPayment > 0) {
+                hintEl.textContent = `سيُسدد من الدين السابق: ${U.money(b.debtPayment)}`;
+                hintEl.style.display = 'block';
+            } else {
+                hintEl.style.display = 'none';
+            }
         }
 
         renderPaymentCustomerBalance();
@@ -760,29 +823,15 @@
         container.style.display = 'block';
         if (nameEl) nameEl.textContent = State.selectedCustomer.name || 'العميل';
 
-        const oldBalance = Number(State.selectedCustomer.balance) || 0;
-        const { net } = calculateTotals();
-        const method = State.paymentMethod;
-        const cash = +$('#cashInput')?.value || 0;
-        const card = +$('#cardInput')?.value || 0;
+        const b = computePaymentBreakdown();
 
-        let rawPaid = 0;
-        if (method === 'cash') rawPaid = cash;
-        else if (method === 'card') rawPaid = card;
-        else if (method === 'mixed') rawPaid = cash + card;
+        prevEl.textContent = formatBalance(b.oldBalance);
+        prevEl.className = 'pcb-value ' + balanceClass(b.oldBalance);
 
-        const remaining = Math.max(0, U.round(net - rawPaid, 2));
-        const usedBalance = 0;
+        newEl.textContent = formatBalance(b.newBalance);
+        newEl.className = 'pcb-value ' + balanceClass(b.newBalance);
 
-        const newBalance = U.round(oldBalance - remaining - usedBalance, 3);
-
-        prevEl.textContent = formatBalance(oldBalance);
-        prevEl.className = 'pcb-value ' + balanceClass(oldBalance);
-
-        newEl.textContent = formatBalance(newBalance);
-        newEl.className = 'pcb-value ' + balanceClass(newBalance);
-
-        if (newBalance < oldBalance - 0.001) {
+        if (b.newBalance < b.oldBalance - 0.001) {
             container.classList.add('pcb--increasing-debt');
         } else {
             container.classList.remove('pcb--increasing-debt');
@@ -790,7 +839,7 @@
     }
 
     /* ============================================
-       Balance helpers — ✅ [POS-21] موحّد
+       Balance helpers
        ============================================ */
     function formatBalance(bal) {
         const n = Number(bal) || 0;
@@ -814,7 +863,7 @@
     }
 
     /* ============================================
-       Complete Sale
+       Complete Sale — ✅ [POS-23, POS-26]
        ============================================ */
     async function completeSale() {
         if (!State.cart.length) return;
@@ -826,16 +875,10 @@
         const card = +$('#cardInput')?.value || 0;
         const notes = $('#paymentNotes')?.value.trim() || '';
 
-        let rawPaid = 0;
-        if (method === 'cash') rawPaid = cash;
-        else if (method === 'card') rawPaid = card;
-        else if (method === 'mixed') rawPaid = cash + card;
+        const b = computePaymentBreakdown();
 
-        const paid = Math.min(rawPaid, net);
-        const change = U.round(Math.max(0, rawPaid - net));
-        const remaining = U.round(Math.max(0, net - rawPaid));
-
-        if (remaining > 0 && !State.selectedCustomer) {
+        // ===== التحقق =====
+        if (b.remaining > 0 && !State.selectedCustomer) {
             showToast('اختر عميلاً لتسجيل الدين', 'warning');
             $('#customerSearch')?.focus();
             return;
@@ -844,26 +887,20 @@
             showToast('يجب اختيار عميل للدفع الآجل', 'warning');
             return;
         }
-        if (remaining > 0 && method !== 'credit') {
-            if (!confirm(`المتبقي ${U.money(remaining)}. سيتم تسجيله كدين على ${State.selectedCustomer.name}. متابعة؟`)) return;
+        if (b.remaining > 0 && method !== 'credit') {
+            if (!confirm(`المتبقي ${U.money(b.remaining)}. سيتم تسجيله كدين على ${State.selectedCustomer.name}. متابعة؟`)) return;
         }
         if (method === 'credit' && State.selectedCustomer) {
             if (!confirm(`سيتم تسجيل ${U.money(net)} كدين على العميل. متابعة؟`)) return;
+        }
+        if (b.debtPayment > 0) {
+            if (!confirm(`سيتم تخصيص ${U.money(b.debtPayment)} من المبلغ المُستلم لتسديد دين سابق. متابعة؟`)) return;
         }
 
         const btn = $('#confirmPayBtn');
         if (btn) btn.disabled = true;
 
         try {
-            const customerOldBalance = State.selectedCustomer
-                ? (Number(State.selectedCustomer.balance) || 0)
-                : 0;
-
-            const debtIncrease = method === 'credit' ? net : remaining;
-            const customerNewBalance = State.selectedCustomer
-                ? U.round(customerOldBalance - debtIncrease, 3)
-                : 0;
-
             const invoiceNumber = await DB.generateInvoiceNumber();
 
             const invoice = {
@@ -877,32 +914,54 @@
                 subtotal,
                 discount: disc,
                 total: net,
-                cash_paid: method === 'cash' || method === 'mixed' ? cash : 0,
-                card_paid: method === 'card' || method === 'mixed' ? card : 0,
+                cash_paid: method === 'credit' ? 0 : b.cashFinal,
+                card_paid: method === 'credit' ? 0 : b.cardFinal,
                 transfer_paid: 0,
                 used_balance: 0,
-                paid: method === 'credit' ? 0 : paid,
-                remaining: method === 'credit' ? net : remaining,
-                change_amount: change,
+                paid: method === 'credit' ? 0 : b.paidForInvoice,
+                remaining: method === 'credit' ? net : b.remaining,
+                change_amount: b.change,
                 payment_method: method,
-                status: method === 'credit' ? 'credit' : (remaining > 0 ? 'partial' : 'paid'),
+                status: method === 'credit' ? 'credit' : (b.remaining > 0 ? 'partial' : 'paid'),
                 notes,
+
+                // بيانات للعرض في الإيصال
                 _hasCustomer: !!State.selectedCustomer,
-                _oldBalance: customerOldBalance,
-                _newBalance: customerNewBalance
+                _oldBalance: b.oldBalance,
+                _newBalance: b.newBalance,
+                _debtPayment: b.debtPayment
             };
 
             const result = await DB.createInvoice(invoice);
             if (!result.success) throw new Error('فشل حفظ الفاتورة');
 
-            // ✅ [POS-20] عند dedup: الرصيد على السيرفر لم يتغير — أصلح العرض
+            // ✅ [POS-20] عند dedup: الرصيد لم يتغير
             if (result.deduplicated) {
                 invoice._newBalance = invoice._oldBalance;
                 invoice._hasCustomer = false;
+                invoice._debtPayment = 0;
+            }
+
+            // ✅ [POS-23] تسجيل تسديد الدين كمعاملة منفصلة
+            if (!result.deduplicated && b.debtPayment > 0 && State.selectedCustomer?.id) {
+                try {
+                    await DB.addPayment({
+                        party_id: State.selectedCustomer.id,
+                        type: 'payment_in',
+                        amount: b.debtPayment,
+                        payment_method: 'cash',
+                        reference: invoiceNumber,
+                        notes: `تسديد دين سابق من فاتورة ${invoiceNumber}`
+                    });
+                } catch (e) {
+                    console.error('Debt payment failed:', e);
+                    showToast('تم حفظ الفاتورة، لكن فشل تسجيل تسديد الدين', 'warning');
+                }
             }
 
             showReceipt(invoice);
 
+            // إعادة تعيين
             State.cart = [];
             State.discount = 0;
             State.discountType = 'amount';
@@ -929,7 +988,6 @@
         }
     }
 
-    // ✅ [POS-22] force=false — الاعتماد على IDB (المُحدَّث محليًا بواسطة RPC)
     async function reloadProductsLocal() {
         try {
             const products = await DB.getProducts(false) || [];
@@ -948,7 +1006,7 @@
     }
 
     /* ============================================
-       Receipt
+       Receipt — ✅ [POS-25] سطر تسديد الدين
        ============================================ */
     function showReceipt(invoice) {
         const settings = U.ls.get('settings', {}) || {};
@@ -975,9 +1033,10 @@
         const hasCustomer = invoice._hasCustomer === true;
         const oldBal = Number(invoice._oldBalance) || 0;
         const newBal = Number(invoice._newBalance) || 0;
+        const debtPayment = Number(invoice._debtPayment) || 0;
 
         let balanceHtml = '';
-        if (hasCustomer && (Math.abs(oldBal) > 0.001 || Math.abs(newBal) > 0.001 || invoice.remaining > 0)) {
+        if (hasCustomer && (Math.abs(oldBal) > 0.001 || Math.abs(newBal) > 0.001 || invoice.remaining > 0 || debtPayment > 0)) {
             balanceHtml = `
                 <div class="receipt-balance">
                     <div class="receipt-row">
@@ -1044,13 +1103,18 @@
             </div>
             ${invoice.cash_paid > 0 ? `
                 <div class="receipt-row">
-                    <span>نقدي:</span>
+                    <span>نقدي (للفاتورة):</span>
                     <span>${Number(invoice.cash_paid).toFixed(2)}</span>
                 </div>` : ''}
             ${invoice.card_paid > 0 ? `
                 <div class="receipt-row">
-                    <span>بطاقة:</span>
+                    <span>بطاقة (للفاتورة):</span>
                     <span>${Number(invoice.card_paid).toFixed(2)}</span>
+                </div>` : ''}
+            ${debtPayment > 0 ? `
+                <div class="receipt-row receipt-debt-payment">
+                    <span>تسديد دين سابق:</span>
+                    <span>${debtPayment.toFixed(2)}</span>
                 </div>` : ''}
             ${invoice.change_amount > 0 ? `
                 <div class="receipt-row">
@@ -1074,7 +1138,7 @@
     }
 
     /* ============================================
-       Print — ✅ [POS-16..19] متوافق مع iOS
+       Print
        ============================================ */
     function printReceipt() {
         const preview = $('#receiptPreview');
@@ -1084,7 +1148,6 @@
         try {
             iframe = document.createElement('iframe');
             iframe.setAttribute('aria-hidden', 'true');
-            // ✅ opacity بدل visibility — visibility:hidden يُفشل الطباعة على iOS
             iframe.style.cssText =
                 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;' +
                 'opacity:0;pointer-events:none;';
@@ -1117,6 +1180,7 @@
     .receipt-inv-num { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
     .receipt-total { font-weight: 800; font-size: 14px; margin-top: 4px; }
     .receipt-remaining { color: #d00; font-weight: 800; }
+    .receipt-debt-payment { color: #4f46e5; font-weight: 800; }
     .receipt-footer { font-weight: 700; margin-top: 8px; font-size: 12px; }
     .receipt-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
     .receipt-table th, .receipt-table td {
@@ -1163,10 +1227,8 @@
                 iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
             } catch {}
 
-            // احتياطي: احذف بعد 30 ثانية
             setTimeout(cleanup, 30000);
 
-            // ✅ [POS-17] اطبع متزامنًا إن أمكن — user gesture
             if (doc.readyState === 'complete') {
                 doPrint();
             } else {
