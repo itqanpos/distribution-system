@@ -1,19 +1,12 @@
 /* =============================================
    products.js - Products Page Logic
-   Version: 2.2.0
+   Version: 2.3.0
 
-   Changelog من v2.1:
-   - [PR-1] إصلاح حذف الوحدة — مرجع مباشر بدل index
-   - [PR-2] UUID يُولَّد مرة واحدة في addUnitToForm
-   - [PR-3] عملة من APP_CONFIG بدل hardcode
-   - [PR-4] Auth.onChange — توجيه عند الخروج
-   - [PR-5] refreshBtn محمي + رسالة نجاح دقيقة
-   - [PR-6] showToast يفضّل window.Toast
-   - [PR-7] exportProducts يستخدم State.filtered
-   - [PR-8] translateError للأخطاء
-   - [PR-9] فحص تكرار أسماء الوحدات
-   - [PR-10] console gated by DEBUG
-   - [PR-11] loadProducts بعد الحفظ لا يجبر السحابة
+   Changelog من v2.2.0:
+   - [PR-12] واجهة أوضح لحقل معامل التحويل
+   - [PR-13] معاينة فورية: "1 كرتونة = 20 علبة"
+   - [PR-14] تحذير قبل الحفظ إذا factor = 1 لوحدة ثانوية
+   - [PR-15] إعادة حساب المعاينة عند تغيير اسم الوحدة الأساسية
    ============================================= */
 (function() {
     'use strict';
@@ -54,7 +47,7 @@
         currentUser: null,
         editingId: null,
         deletingId: null,
-        pendingDeleteCard: null,   // ✅ [PR-1] مرجع مباشر بدل index
+        pendingDeleteCard: null,
         _saving: false,
         _refreshing: false,
         filters: {
@@ -91,7 +84,6 @@
             return;
         }
 
-        // ✅ [PR-4] مراقبة الجلسة
         Auth.onChange((u) => {
             if (!u && State.currentUser) {
                 State.currentUser = null;
@@ -238,7 +230,6 @@
         }
     }
 
-    // ✅ [PR-3] عملة من APP_CONFIG
     function renderProductCard(p) {
         const base = p.units?.[0] || { price: 0, stock: 0, name: 'وحدة' };
         const stock = base.stock || 0;
@@ -332,7 +323,7 @@
     }
 
     /* ============================================
-       Product Modal (Add/Edit)
+       Product Modal
        ============================================ */
     function openProductModal(id = null) {
         State.editingId = id;
@@ -379,9 +370,7 @@
     }
 
     /* ============================================
-       Add Unit — ✅ [PR-1, PR-2]
-       - UUID يُولَّد مرة واحدة ويُخزَّن في dataset
-       - زر الحذف يحمل مرجعاً مباشراً للبطاقة
+       Add Unit — ✅ [PR-12..15]
        ============================================ */
     function addUnitToForm(unit = {}) {
         const container = $('#unitsContainer');
@@ -389,14 +378,21 @@
 
         const index = container.children.length;
         const isBase = index === 0;
-
-        // ✅ [PR-2] UUID ثابت
         const unitId = unit.id || U.uuid();
 
         const div = document.createElement('div');
         div.className = 'unit-card';
         div.dataset.index = index;
         div.dataset.unitId = unitId;
+
+        // ✅ [PR-12, PR-13] نص واضح + معاينة
+        const factorLabel = isBase
+            ? 'معامل التحويل (الوحدة الأساسية)'
+            : 'معامل التحويل — كم من الوحدة الأساسية؟ *';
+
+        const factorPlaceholder = isBase
+            ? ''
+            : 'مثال: كرتونة = 20 علبة → اكتب 20';
 
         div.innerHTML = `
             <div class="unit-card__header">
@@ -412,7 +408,7 @@
             <div class="unit-card__grid">
                 <div class="form-group full">
                     <label>اسم الوحدة *</label>
-                    <input type="text" class="unit-name" value="${U.escape(unit.name || '')}" placeholder="مثال: قطعة، علبة، كرتونة" required>
+                    <input type="text" class="unit-name" value="${U.escape(unit.name || '')}" placeholder="مثال: علبة، كرتونة" required>
                 </div>
                 <div class="form-group">
                     <label>سعر البيع *</label>
@@ -426,9 +422,10 @@
                     <label>الرصيد (المخزون)</label>
                     <input type="number" class="unit-stock" value="${unit.stock || 0}" step="0.01" inputmode="decimal" ${!isBase ? 'readonly' : ''}>
                 </div>
-                <div class="form-group">
-                    <label>معامل التحويل ${!isBase ? '*' : ''}</label>
-                    <input type="number" class="unit-factor" value="${unit.factor || 1}" min="0.001" step="0.001" inputmode="decimal" ${isBase ? 'readonly' : ''}>
+                <div class="form-group full">
+                    <label>${factorLabel}</label>
+                    <input type="number" class="unit-factor" value="${unit.factor || 1}" min="0.001" step="0.001" inputmode="decimal" placeholder="${factorPlaceholder}" title="عدد الوحدات الأساسية في هذه الوحدة" ${isBase ? 'readonly' : ''}>
+                    ${!isBase ? '<div class="unit-factor-preview"></div>' : ''}
                 </div>
                 ${!isBase ? `
                     <div class="form-group">
@@ -455,7 +452,6 @@
 
         container.appendChild(div);
 
-        // ✅ [PR-1] زر الحذف — مرجع مباشر
         const removeBtn = div.querySelector('.unit-card__remove');
         if (removeBtn) {
             removeBtn.addEventListener('click', () => {
@@ -464,7 +460,50 @@
             });
         }
 
-        // تحديث تلميح نطاق السعر
+        // ✅ [PR-13] معاينة factor
+        const factorInput = div.querySelector('.unit-factor');
+        const nameInput = div.querySelector('.unit-name');
+        const previewEl = div.querySelector('.unit-factor-preview');
+
+        const updateFactorPreview = () => {
+            if (!previewEl) return;
+            const factor = +factorInput?.value || 1;
+            const thisUnitName = nameInput?.value.trim() || `وحدة ${index + 1}`;
+            const baseUnitName = getBaseUnitName();
+
+            if (factor > 1) {
+                previewEl.innerHTML = `
+                    <i class="fas fa-equals"></i>
+                    1 ${U.escape(thisUnitName)} = <strong>${factor}</strong> ${U.escape(baseUnitName)}
+                `;
+                previewEl.classList.remove('is-warning');
+            } else {
+                previewEl.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    معامل = 1 يعني أن "${U.escape(thisUnitName)}" = "${U.escape(baseUnitName)}" (بدون تحويل)
+                `;
+                previewEl.classList.add('is-warning');
+            }
+        };
+
+        factorInput?.addEventListener('input', updateFactorPreview);
+        nameInput?.addEventListener('input', () => {
+            updateFactorPreview();
+            // حدّث معاينات الوحدات الأخرى (تتضمن الوحدة الأساسية الجديدة)
+            const container2 = $('#unitsContainer');
+            if (container2) {
+                container2.querySelectorAll('.unit-card').forEach((card, i) => {
+                    if (i > 0) card.querySelector('.unit-factor-preview')?.dispatchEvent(new Event('refresh'));
+                });
+            }
+        });
+
+        // معالجة أحداث refresh
+        previewEl?.addEventListener('refresh', updateFactorPreview);
+
+        updateFactorPreview();
+
+        // نطاق السعر
         const priceInput = div.querySelector('.unit-price');
         const minInput = div.querySelector('.unit-min-price');
         const maxInput = div.querySelector('.unit-max-price');
@@ -498,6 +537,15 @@
         updateHint();
     }
 
+    // ✅ [PR-15] اسم الوحدة الأساسية الحالية
+    function getBaseUnitName() {
+        const container = $('#unitsContainer');
+        if (!container) return 'الوحدة';
+        const firstCard = container.querySelector('.unit-card');
+        if (!firstCard) return 'الوحدة';
+        return firstCard.querySelector('.unit-name')?.value.trim() || 'الوحدة';
+    }
+
     function reindexUnits() {
         const container = $('#unitsContainer');
         if (!container) return;
@@ -509,11 +557,12 @@
             const indexLabel = card.querySelector('.unit-card__index-label');
             const removeBtn = card.querySelector('.unit-card__remove');
             const header = card.querySelector('.unit-card__header');
+            const previewEl = card.querySelector('.unit-factor-preview');
+            const factorInput = card.querySelector('.unit-factor');
 
             if (!header) return;
 
             if (i === 0) {
-                // وحدة أساسية
                 if (!badge) {
                     const b = document.createElement('span');
                     b.className = 'unit-card__badge';
@@ -523,16 +572,17 @@
                 if (indexLabel) indexLabel.remove();
                 if (removeBtn) removeBtn.remove();
 
-                const factorInput = card.querySelector('.unit-factor');
                 if (factorInput) {
                     factorInput.value = 1;
                     factorInput.readOnly = true;
+                    factorInput.placeholder = '';
                 }
+
+                if (previewEl) previewEl.remove();
 
                 const stockInput = card.querySelector('.unit-stock');
                 if (stockInput) stockInput.readOnly = false;
             } else {
-                // وحدة ثانوية
                 if (badge) badge.remove();
                 if (!indexLabel) {
                     const span = document.createElement('span');
@@ -544,7 +594,6 @@
                     indexLabel.textContent = `وحدة #${i + 1}`;
                 }
 
-                // تأكد من وجود زر الحذف
                 if (!removeBtn) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
@@ -558,17 +607,31 @@
                     header.appendChild(btn);
                 }
 
-                const factorInput = card.querySelector('.unit-factor');
-                if (factorInput) factorInput.readOnly = false;
+                if (factorInput) {
+                    factorInput.readOnly = false;
+                    factorInput.placeholder = 'مثال: كرتونة = 20 علبة → اكتب 20';
+                }
+
+                // أعد إنشاء preview إن لم يكن موجودًا
+                if (!previewEl) {
+                    const preview = document.createElement('div');
+                    preview.className = 'unit-factor-preview';
+                    factorInput?.parentNode?.appendChild(preview);
+                }
 
                 const stockInput = card.querySelector('.unit-stock');
                 if (stockInput) stockInput.readOnly = true;
             }
         });
+
+        // حدّث كل المعاينات
+        container.querySelectorAll('.unit-factor-preview').forEach(el => {
+            el.dispatchEvent(new Event('refresh'));
+        });
     }
 
     /* ============================================
-       Save Product
+       Save Product — ✅ [PR-14] تحذير factor = 1
        ============================================ */
     async function saveProduct() {
         if (State._saving) return;
@@ -606,7 +669,6 @@
                 break;
             }
 
-            // ✅ [PR-9] فحص تكرار الأسماء
             const nameKey = unitName.toLowerCase();
             if (seenNames.has(nameKey)) {
                 showToast(`اسم الوحدة "${unitName}" مكرر`, 'warning');
@@ -625,6 +687,21 @@
                 showToast(`معامل التحويل للوحدة ${i + 1} يجب أن يكون أكبر من 0`, 'warning');
                 valid = false;
                 break;
+            }
+
+            // ✅ [PR-14] تحذير عند factor = 1 لوحدة ثانوية
+            if (i > 0 && unitFactor === 1) {
+                const baseUnitName = unitCards[0].querySelector('.unit-name')?.value.trim() || 'الوحدة الأساسية';
+                const confirmed = window.confirm(
+                    `⚠️ تنبيه: الوحدة "${unitName}" لها معامل تحويل = 1.\n\n` +
+                    `هذا يعني أنها تساوي "${baseUnitName}" تمامًا — لا يوجد تحويل.\n\n` +
+                    `مثال: إذا كانت "${unitName}" تحتوي على 20 من "${baseUnitName}"، يجب أن يكون المعامل 20.\n\n` +
+                    `هل أنت متأكد من المتابعة بالمعامل 1؟`
+                );
+                if (!confirmed) {
+                    valid = false;
+                    break;
+                }
             }
 
             if (unitMaxPrice > 0 && unitMinPrice > 0 && unitMinPrice > unitMaxPrice) {
@@ -646,7 +723,7 @@
             }
 
             units.push({
-                id: card.dataset.unitId,   // ✅ [PR-2] مضمون
+                id: card.dataset.unitId,
                 name: unitName,
                 price: unitPrice,
                 cost: unitCost,
@@ -683,7 +760,6 @@
             showToast(State.editingId ? 'تم تحديث المنتج' : 'تم إضافة المنتج', 'success');
             closeModal('productModal');
 
-            // ✅ [PR-11] loadProducts(false) — لا يجبر السحابة إن كان أوفلاين
             await loadProducts(false);
 
         } catch (e) {
@@ -777,7 +853,6 @@
             </div>
         `;
 
-        // ربط أزرار footer (clone للتخلص من المستمعين القدامى)
         const editBtn = $('#editFromViewBtn');
         if (editBtn) {
             const newEditBtn = editBtn.cloneNode(true);
@@ -834,7 +909,7 @@
     }
 
     /* ============================================
-       Export CSV — ✅ [PR-7] State.filtered
+       Export CSV
        ============================================ */
     function exportProducts() {
         if (!State.filtered.length) {
@@ -843,7 +918,7 @@
         }
 
         const rows = [
-            ['الاسم', 'الكود', 'الباركود', 'التصنيف', 'سعر البيع', 'التكلفة', 'المخزون', 'الوحدة', 'السعر الأدنى', 'السعر الأقصى']
+            ['الاسم', 'الكود', 'الباركود', 'التصنيف', 'سعر البيع', 'التكلفة', 'المخزون', 'الوحدة', 'معامل التحويل', 'السعر الأدنى', 'السعر الأقصى']
         ];
 
         State.filtered.forEach(p => {
@@ -857,9 +932,25 @@
                 base.cost || 0,
                 base.stock || 0,
                 base.name || '',
+                1,
                 base.minPrice || 0,
                 base.maxPrice || 0
             ]);
+            (p.units || []).slice(1).forEach(u => {
+                rows.push([
+                    p.name || '',
+                    p.code || '',
+                    p.barcode || '',
+                    p.category || '',
+                    u.price || 0,
+                    u.cost || 0,
+                    '',
+                    u.name || '',
+                    u.factor || 1,
+                    u.minPrice || 0,
+                    u.maxPrice || 0
+                ]);
+            });
         });
 
         const csv = rows.map(row =>
@@ -969,7 +1060,7 @@
     }
 
     /* ============================================
-       Toast — ✅ [PR-6] يفضل window.Toast
+       Toast
        ============================================ */
     function showToast(msg, type = 'info') {
         if (window.Toast && typeof window.Toast.show === 'function') {
@@ -1026,7 +1117,6 @@
        Events
        ============================================ */
     function bindEvents() {
-        // Sidebar
         $('#menuBtn')?.addEventListener('click', () => {
             $('#sidebar')?.classList.add('open');
             $('#sidebarOverlay')?.classList.add('show');
@@ -1042,7 +1132,6 @@
             });
         });
 
-        // Theme
         $('#themeBtn')?.addEventListener('click', () => {
             const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
             document.documentElement.dataset.theme = next;
@@ -1050,14 +1139,12 @@
             updateThemeIcon();
         });
 
-        // Logout
         $('#logoutBtn')?.addEventListener('click', async (e) => {
             e.preventDefault();
             if (!confirm('تسجيل الخروج؟')) return;
             await Auth.logout();
         });
 
-        // ✅ [PR-5] Refresh محمي
         const refreshBtn = $('#refreshBtn');
         refreshBtn?.addEventListener('click', async () => {
             if (State._refreshing) return;
@@ -1074,14 +1161,11 @@
             }
         });
 
-        // Export
         $('#exportBtn')?.addEventListener('click', exportProducts);
 
-        // Add Product
         $('#addProductBtn')?.addEventListener('click', () => openProductModal());
         $('#fabAddBtn')?.addEventListener('click', () => openProductModal());
 
-        // Search
         $('#searchInput')?.addEventListener('input', U.debounce((e) => {
             State.filters.search = e.target.value.trim();
             const clearBtn = $('#clearSearchBtn');
@@ -1098,7 +1182,6 @@
             applyFilters();
         });
 
-        // Filters
         $('#categoryFilter')?.addEventListener('change', (e) => {
             State.filters.category = e.target.value;
             applyFilters();
@@ -1112,10 +1195,8 @@
             applyFilters();
         });
 
-        // Save Product
         $('#saveProductBtn')?.addEventListener('click', saveProduct);
 
-        // Add Unit
         $('#addUnitBtn')?.addEventListener('click', () => {
             addUnitToForm({
                 name: '',
@@ -1128,10 +1209,8 @@
             });
         });
 
-        // Confirm Delete Product
         $('#confirmDeleteBtn')?.addEventListener('click', confirmDelete);
 
-        // ✅ [PR-1] Confirm Delete Unit — مرجع مباشر
         $('#confirmUnitDeleteBtn')?.addEventListener('click', () => {
             const card = State.pendingDeleteCard;
             const container = $('#unitsContainer');
@@ -1150,7 +1229,6 @@
             closeModal('confirmUnitDeleteModal');
         });
 
-        // Close modals
         document.querySelectorAll('[data-close]').forEach(btn => {
             btn.addEventListener('click', () => closeModal(btn.dataset.close));
         });
@@ -1166,7 +1244,6 @@
             }
         });
 
-        // Connection
         window.addEventListener('online', () => {
             updateConnStatus();
             showToast('عاد الاتصال', 'success');
