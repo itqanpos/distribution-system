@@ -1,12 +1,15 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 5.4.0
+   Version: 5.4.1
 
-   Changelog من v5.3.0:
-   - [POS-12] حساب رصيد العميل قبل عرض الإيصال
-   - [POS-13] عرض الرصيد السابق/الجديد في الإيصال
-   - [POS-14] طباعة عبر iframe مخفي (بدون نافذة منبثقة)
-   - [POS-15] تخطيط إيصال محسّن (شعار، صفوف، جدول)
+   Changelog من v5.4.0:
+   - [POS-16] printReceipt: opacity:0 بدل visibility:hidden (iOS fix)
+   - [POS-17] printReceipt: print() متزامن (user gesture)
+   - [POS-18] printReceipt: afterprint للتنظيف الآمن
+   - [POS-19] printReceipt: try/catch شامل
+   - [POS-20] completeSale: dedup لا يعرض رصيدًا وهميًا
+   - [POS-21] توحيد formatBalance و balanceClass
+   - [POS-22] reloadProductsLocal يستخدم force=false دائمًا
    ============================================= */
 (function() {
     'use strict';
@@ -193,7 +196,7 @@
             const stockClass = stock > 0 ? 'in' : 'out';
             const stockLabel = stock > 0 ? `متوفر: ${stock}` : 'نفذ';
             return `
-                <div class="product-card" data-id="${p.id}">
+                <div class="product-card" data-id="${U.escape(p.id)}">
                     <div class="product-card__icon"><i class="fas fa-cube"></i></div>
                     <div class="product-card__name">${U.escape(p.name)}</div>
                     <div class="product-card__price">${U.money(base.price)}</div>
@@ -233,7 +236,7 @@
             const stock = base.stock || 0;
             const stockClass = stock > 0 ? 'in' : 'out';
             return `
-                <div class="product-option" data-id="${p.id}">
+                <div class="product-option" data-id="${U.escape(p.id)}">
                     <div class="product-option__info">
                         <div class="product-option__name">${U.escape(p.name)}</div>
                         <div class="product-option__meta">${U.money(base.price)} ${p.barcode ? '· ' + U.escape(p.barcode) : ''}</div>
@@ -581,10 +584,11 @@
 
     function updateSummary() {
         const { subtotal, disc, net } = calculateTotals();
-        $('#subtotal').textContent = U.money(subtotal);
-        $('#netTotal').textContent = U.money(net);
-        $('#itemsCount').textContent = U.round(
-            State.cart.reduce((s, i) => s + (Number(i.quantity) || 0), 0), 3);
+        const s = $('#subtotal'); if (s) s.textContent = U.money(subtotal);
+        const n = $('#netTotal'); if (n) n.textContent = U.money(net);
+        const c = $('#itemsCount');
+        if (c) c.textContent = U.round(
+            State.cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), 3);
         const checkout = $('#checkoutBtn');
         if (checkout) checkout.disabled = !State.cart.length;
     }
@@ -628,7 +632,7 @@
                 const cls = bal > 0 ? 'pos' : bal < 0 ? 'neg' : 'zero';
                 const label = bal > 0 ? `+${U.moneyRaw(bal)}` :
                               bal < 0 ? `-${U.moneyRaw(-bal)}` : '0';
-                return `<div class="cust-item" data-id="${c.id}">
+                return `<div class="cust-item" data-id="${U.escape(c.id)}">
                     <div><div class="cust-item__name">${U.escape(c.name)}</div>
                     <div class="cust-item__phone">${U.escape(c.phone || '')}</div></div>
                     <div class="cust-item__balance ${cls}">${label}</div></div>`;
@@ -773,10 +777,10 @@
         const newBalance = U.round(oldBalance - remaining - usedBalance, 3);
 
         prevEl.textContent = formatBalance(oldBalance);
-        prevEl.className = 'pcb-value ' + getBalanceClass(oldBalance);
+        prevEl.className = 'pcb-value ' + balanceClass(oldBalance);
 
         newEl.textContent = formatBalance(newBalance);
-        newEl.className = 'pcb-value ' + getBalanceClass(newBalance);
+        newEl.className = 'pcb-value ' + balanceClass(newBalance);
 
         if (newBalance < oldBalance - 0.001) {
             container.classList.add('pcb--increasing-debt');
@@ -785,6 +789,9 @@
         }
     }
 
+    /* ============================================
+       Balance helpers — ✅ [POS-21] موحّد
+       ============================================ */
     function formatBalance(bal) {
         const n = Number(bal) || 0;
         if (Math.abs(n) < 0.001) return `0.00 ${CURRENCY}`;
@@ -792,11 +799,18 @@
         return `دائن ${U.money(n)}`;
     }
 
-    function getBalanceClass(bal) {
+    function balanceClass(bal) {
         const n = Number(bal) || 0;
         if (Math.abs(n) < 0.001) return 'pcb-value--zero';
         if (n < 0) return 'pcb-value--debit';
         return 'pcb-value--credit';
+    }
+
+    function receiptBalanceClass(bal) {
+        const n = Number(bal) || 0;
+        if (Math.abs(n) < 0.001) return 'receipt-balance-zero';
+        if (n < 0) return 'receipt-balance-debit';
+        return 'receipt-balance-credit';
     }
 
     /* ============================================
@@ -841,15 +855,11 @@
         if (btn) btn.disabled = true;
 
         try {
-            // ✅ [POS-12] احسب الرصيد قبل عرض الإيصال
             const customerOldBalance = State.selectedCustomer
                 ? (Number(State.selectedCustomer.balance) || 0)
                 : 0;
 
-            const debtIncrease = method === 'credit'
-                ? net
-                : remaining;
-
+            const debtIncrease = method === 'credit' ? net : remaining;
             const customerNewBalance = State.selectedCustomer
                 ? U.round(customerOldBalance - debtIncrease, 3)
                 : 0;
@@ -877,8 +887,6 @@
                 payment_method: method,
                 status: method === 'credit' ? 'credit' : (remaining > 0 ? 'partial' : 'paid'),
                 notes,
-
-                // ✅ [POS-13] بيانات للعرض في الإيصال
                 _hasCustomer: !!State.selectedCustomer,
                 _oldBalance: customerOldBalance,
                 _newBalance: customerNewBalance
@@ -886,6 +894,12 @@
 
             const result = await DB.createInvoice(invoice);
             if (!result.success) throw new Error('فشل حفظ الفاتورة');
+
+            // ✅ [POS-20] عند dedup: الرصيد على السيرفر لم يتغير — أصلح العرض
+            if (result.deduplicated) {
+                invoice._newBalance = invoice._oldBalance;
+                invoice._hasCustomer = false;
+            }
 
             showReceipt(invoice);
 
@@ -915,6 +929,7 @@
         }
     }
 
+    // ✅ [POS-22] force=false — الاعتماد على IDB (المُحدَّث محليًا بواسطة RPC)
     async function reloadProductsLocal() {
         try {
             const products = await DB.getProducts(false) || [];
@@ -933,7 +948,7 @@
     }
 
     /* ============================================
-       Receipt — ✅ [POS-15] تخطيط محسّن
+       Receipt
        ============================================ */
     function showReceipt(invoice) {
         const settings = U.ls.get('settings', {}) || {};
@@ -957,7 +972,6 @@
                 </tr>`;
         });
 
-        // ✅ [POS-13] قسم الرصيد
         const hasCustomer = invoice._hasCustomer === true;
         const oldBal = Number(invoice._oldBalance) || 0;
         const newBal = Number(invoice._newBalance) || 0;
@@ -968,11 +982,11 @@
                 <div class="receipt-balance">
                     <div class="receipt-row">
                         <span>الرصيد السابق:</span>
-                        <strong class="${balanceClass(oldBal)}">${receiptBalanceLabel(oldBal)}</strong>
+                        <strong class="${receiptBalanceClass(oldBal)}">${formatBalance(oldBal)}</strong>
                     </div>
                     <div class="receipt-row">
                         <span>الرصيد بعد الفاتورة:</span>
-                        <strong class="${balanceClass(newBal)}">${receiptBalanceLabel(newBal)}</strong>
+                        <strong class="${receiptBalanceClass(newBal)}">${formatBalance(newBal)}</strong>
                     </div>
                 </div>
             `;
@@ -1055,40 +1069,32 @@
         openModal('receiptModal');
     }
 
-    function receiptBalanceLabel(bal) {
-        const n = Number(bal) || 0;
-        if (Math.abs(n) < 0.001) return `0.00 ${CURRENCY}`;
-        if (n < 0) return `مدين ${U.money(Math.abs(n))}`;
-        return `دائن ${U.money(n)}`;
-    }
-
-    function balanceClass(bal) {
-        const n = Number(bal) || 0;
-        if (Math.abs(n) < 0.001) return 'receipt-balance-zero';
-        if (n < 0) return 'receipt-balance-debit';
-        return 'receipt-balance-credit';
-    }
-
     function paymentLabel(m) {
         return { cash: 'نقدي', card: 'بطاقة', credit: 'آجل', mixed: 'مختلط' }[m] || m;
     }
 
     /* ============================================
-       Print — ✅ [POS-14] iframe مخفي (بدون نافذة)
+       Print — ✅ [POS-16..19] متوافق مع iOS
        ============================================ */
     function printReceipt() {
         const preview = $('#receiptPreview');
         if (!preview) return;
 
-        // أنشئ iframe مخفي
-        const iframe = document.createElement('iframe');
-        iframe.setAttribute('aria-hidden', 'true');
-        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
-        document.body.appendChild(iframe);
+        let iframe;
+        try {
+            iframe = document.createElement('iframe');
+            iframe.setAttribute('aria-hidden', 'true');
+            // ✅ opacity بدل visibility — visibility:hidden يُفشل الطباعة على iOS
+            iframe.style.cssText =
+                'position:fixed;right:0;bottom:0;width:0;height:0;border:0;' +
+                'opacity:0;pointer-events:none;';
+            document.body.appendChild(iframe);
 
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        doc.open();
-        doc.write(`<!DOCTYPE html>
+            const doc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (!doc) throw new Error('Cannot access iframe document');
+
+            doc.open();
+            doc.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
@@ -1099,88 +1105,33 @@
     * { box-sizing: border-box; }
     body {
         font-family: 'Cairo', Arial, sans-serif;
-        padding: 6px;
-        margin: 0;
-        font-size: 12px;
-        color: #000;
-        background: #fff;
-        max-width: 80mm;
-        line-height: 1.5;
+        padding: 6px; margin: 0; font-size: 12px;
+        color: #000; background: #fff;
+        max-width: 80mm; line-height: 1.5;
     }
-    hr {
-        border: none;
-        border-top: 1px dashed #999;
-        margin: 8px 0;
-    }
-    .receipt-row {
-        display: flex;
-        justify-content: space-between;
-        margin: 3px 0;
-        gap: 8px;
-    }
+    hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }
+    .receipt-row { display: flex; justify-content: space-between; margin: 3px 0; gap: 8px; }
     .receipt-center { text-align: center; }
-    .receipt-shop {
-        font-size: 17px;
-        font-weight: 800;
-        margin-bottom: 2px;
+    .receipt-shop { font-size: 17px; font-weight: 800; margin-bottom: 2px; }
+    .receipt-phone { font-size: 10px; color: #666; margin-bottom: 4px; }
+    .receipt-inv-num { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
+    .receipt-total { font-weight: 800; font-size: 14px; margin-top: 4px; }
+    .receipt-remaining { color: #d00; font-weight: 800; }
+    .receipt-footer { font-weight: 700; margin-top: 8px; font-size: 12px; }
+    .receipt-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+    .receipt-table th, .receipt-table td {
+        padding: 4px 2px; border-bottom: 1px dashed #ddd;
+        font-size: 11px; text-align: right; vertical-align: top;
     }
-    .receipt-phone {
-        font-size: 10px;
-        color: #666;
-        margin-bottom: 4px;
-    }
-    .receipt-inv-num {
-        font-family: 'Courier New', monospace;
-        letter-spacing: 0.5px;
-    }
-    .receipt-total {
-        font-weight: 800;
-        font-size: 14px;
-        margin-top: 4px;
-    }
-    .receipt-remaining {
-        color: #d00;
-        font-weight: 800;
-    }
-    .receipt-footer {
-        font-weight: 700;
-        margin-top: 8px;
-        font-size: 12px;
-    }
-    .receipt-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 6px 0;
-    }
-    .receipt-table th,
-    .receipt-table td {
-        padding: 4px 2px;
-        border-bottom: 1px dashed #ddd;
-        font-size: 11px;
-        text-align: right;
-        vertical-align: top;
-    }
-    .receipt-table th {
-        font-weight: 800;
-        border-bottom: 1px solid #999;
-    }
+    .receipt-table th { font-weight: 800; border-bottom: 1px solid #999; }
     .receipt-col-center { text-align: center; }
     .receipt-col-total { text-align: left; font-weight: 700; }
-    .receipt-item-unit {
-        color: #666;
-        font-size: 9px;
-    }
+    .receipt-item-unit { color: #666; font-size: 9px; }
     .receipt-balance {
-        background: #f5f5f5;
-        padding: 6px 8px;
-        border-radius: 4px;
-        margin: 8px 0;
-        border: 1px solid #eee;
+        background: #f5f5f5; padding: 6px 8px; border-radius: 4px;
+        margin: 8px 0; border: 1px solid #eee;
     }
-    .receipt-balance .receipt-row {
-        font-weight: 700;
-        font-size: 12px;
-    }
+    .receipt-balance .receipt-row { font-weight: 700; font-size: 12px; }
     .receipt-balance-debit { color: #d00; }
     .receipt-balance-credit { color: #090; }
     .receipt-balance-zero { color: #666; }
@@ -1188,26 +1139,46 @@
 </head>
 <body>${preview.innerHTML}</body>
 </html>`);
-        doc.close();
+            doc.close();
 
-        const doPrint = () => {
+            const doPrint = () => {
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch (e) {
+                    console.error('Print call failed:', e);
+                    showToast('تعذر فتح حوار الطباعة', 'error');
+                }
+            };
+
+            const cleanup = () => {
+                setTimeout(() => {
+                    if (iframe && iframe.parentNode) {
+                        try { iframe.remove(); } catch {}
+                    }
+                }, 500);
+            };
+
             try {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            } catch (e) {
-                console.error('Print failed:', e);
-                showToast('تعذر الطباعة: ' + (e.message || ''), 'error');
-            }
-            setTimeout(() => {
-                try { iframe.remove(); } catch {}
-            }, 1500);
-        };
+                iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
+            } catch {}
 
-        // انتظر تحميل الخطوط إن أمكن
-        if (iframe.contentWindow.document.readyState === 'complete') {
-            setTimeout(doPrint, 300);
-        } else {
-            iframe.contentWindow.addEventListener('load', () => setTimeout(doPrint, 200));
+            // احتياطي: احذف بعد 30 ثانية
+            setTimeout(cleanup, 30000);
+
+            // ✅ [POS-17] اطبع متزامنًا إن أمكن — user gesture
+            if (doc.readyState === 'complete') {
+                doPrint();
+            } else {
+                iframe.contentWindow.addEventListener('load', doPrint, { once: true });
+            }
+
+        } catch (err) {
+            console.error('Print setup failed:', err);
+            showToast('تعذر الطباعة: ' + (err?.message || ''), 'error');
+            if (iframe?.parentNode) {
+                try { iframe.remove(); } catch {}
+            }
         }
     }
 
@@ -1502,12 +1473,12 @@
                 return;
             }
 
-            const result = addToCart(product.id, idx, qty, $('# price);
+            const result = addToCart(product.id, idx, qty, price);
             if (!result.ok) return;
 
-           cash closeModal('unitModal');
-Input            showToast('تمت الإ')ضافة للسلة', 'success');
-?.        });
+            closeModal('unitModal');
+            showToast('تمت الإضافة للسلة', 'success');
+        });
 
         $('#unitQty')?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') $('#unitAddBtn').click();
@@ -1516,7 +1487,7 @@ Input            showToast('تمت الإ')ضافة للسلة', 'success');
         $$('.method').forEach(btn => {
             btn.addEventListener('click', () => setPaymentMethod(btn.dataset.method));
         });
-       addEventListener('input', updateChange);
+        $('#cashInput')?.addEventListener('input', updateChange);
         $('#cardInput')?.addEventListener('input', updateChange);
         $('#confirmPayBtn')?.addEventListener('click', completeSale);
 
