@@ -1,12 +1,25 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 5.2.3
+   Version: 5.3.0
 
-   Changelog من v5.2.2:
-   - [DB-INV-NUM] generateInvoiceNumber:
-       * يحفظ آخر رقم سحابي في localStorage
-       * fallback محلي يبدأ من max(server, local) + 1
-       * الصيغة الجديدة: INV-YY-NNNNN
+   Changelog من v5.2.3:
+   - [DB-SEC-1] Fail-closed على كل عمليات القراءة:
+               requireTenant() بدل getTenantId() في getProducts,
+               getParties, getInvoices, getInvoicesLight,
+               getPayments, getInvoiceById.
+               + إزالة `!tenantId ||` من الفلاتر (كانت تسريب).
+   - [DB-SEC-2] MemCache مُقيَّد بـ tenant_id لمنع تسرب
+               كاش بين مستأجرين بعد تغيّر الجلسة.
+   - [DB-SYNC-1] saveProduct: حذف الوحدات المحذوفة (كانت تُترك أبديًا).
+               إضافة نوع عملية جديد save_units_full (يمسح الوحدات
+               غير المدرجة ثم يرفع القائمة الجديدة).
+   - [DB-LOCK-1] generateInvoiceNumber: يستخدم Web Locks API
+               لمنع التصادم بين التبويبات (Web Locks) مع صيغة
+               موحّدة YY-DEV-NNNN مطابقة لـ RPC next_invoice_number.
+   - [DB-LOCK-2] flushSyncQueue: علم _flushing لمنع التنفيذ المتزامن
+               عند تكرار حدث online.
+   - [DB-STOCK-1] _applyLocalStockDelta: يعتمد على isBase بدل
+               مقارنة مرجعية هشّة.
    ============================================= */
 (function() {
     'use strict';
@@ -64,6 +77,17 @@
     function isBusinessError(err) {
         const code = err?.code || '';
         return BUSINESS_ERROR_CODES.has(code);
+    }
+
+    /* ============================================
+       Web Locks (cross-tab coordination)
+       ============================================ */
+    async function withLock(name, fn) {
+        if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+            return navigator.locks.request(name, fn);
+        }
+        // Fallback: single-tab assumption
+        return fn();
     }
 
     /* ============================================
@@ -215,10 +239,19 @@
 
     function getClient() { return window.DB?.client || supabaseClient; }
 
+    /**
+     * ✅ [DB-SEC-1] الحصول على tenant_id دون فتح باب التسريب.
+     * ترجع null فقط — للاستخدام في مسارات الإصلاح/التشخيص.
+     * القاعدة: كل عمليات القراءة/الكتابة تستخدم requireTenant().
+     */
     function getTenantId() {
         return window.Auth?.user?.tenant_id || null;
     }
 
+    /**
+     * ✅ [DB-SEC-1] يرمي NO_TENANT إن لم يوجد مستأجر.
+     * يُستخدم في كل عمليات القراءة والكتابة.
+     */
     function requireTenant() {
         const t = getTenantId();
         if (!t) {
@@ -245,24 +278,53 @@
     }
 
     /* ============================================
-       Memory Cache
+       Memory Cache — ✅ [DB-SEC-2] مُقيَّد بـ tenant
        ============================================ */
     const MemCache = {
-        _data: {}, _time: {}, _max: 2000,
+        _data: {},
+        _time: {},
+        _max: 2000,
+
+        _scope() {
+            return window.Auth?.user?.tenant_id || 'anon';
+        },
+        _key(key) {
+            return `${this._scope()}::${key}`;
+        },
+
         set(key, data) {
             if (Array.isArray(data) && data.length > this._max) data = data.slice(0, this._max);
-            this._data[key] = Array.isArray(data) ? data.slice() : data;
-            this._time[key] = Date.now();
+            const k = this._key(key);
+            this._data[k] = Array.isArray(data) ? data.slice() : data;
+            this._time[k] = Date.now();
         },
+
         get(key, maxAge = 60000) {
-            if (!this._time[key]) return null;
-            if (Date.now() - this._time[key] > maxAge) return null;
-            const v = this._data[key];
+            const k = this._key(key);
+            if (!this._time[k]) return null;
+            if (Date.now() - this._time[k] > maxAge) return null;
+            const v = this._data[k];
             return Array.isArray(v) ? v.slice() : v;
         },
+
+        /**
+         * حذف كل النسخ من هذا المفتاح عبر كل المستأجرين.
+         * السبب: عند تعديل بيانات (منتج مثلًا)، نريد إبطال
+         * كاش كل المستأجرين المحتملين لتفادي بيانات قديمة.
+         */
         clear(key) {
-            if (key) { delete this._data[key]; delete this._time[key]; }
-            else { this._data = {}; this._time = {}; }
+            if (key) {
+                const suffix = `::${key}`;
+                Object.keys(this._data).forEach(k => {
+                    if (k.endsWith(suffix)) {
+                        delete this._data[k];
+                        delete this._time[k];
+                    }
+                });
+            } else {
+                this._data = {};
+                this._time = {};
+            }
         }
     };
 
@@ -322,6 +384,7 @@
         local: null,
         client: null,
         ready: null,
+        _flushing: false,
 
         async init() {
             if (this.ready) return this.ready;
@@ -343,35 +406,45 @@
             return this.ready;
         },
 
+        /**
+         * ✅ [DB-LOCK-2] يمنع التنفيذ المتزامن عند تكرار حدث online.
+         */
         async flushSyncQueue() {
+            if (this._flushing) return;
             if (!navigator.onLine || !this.client) return;
-            const ops = await SyncQueue.all();
-            if (!ops.length) return;
 
-            ops.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+            this._flushing = true;
+            try {
+                const ops = await SyncQueue.all();
+                if (!ops.length) return;
 
-            for (const op of ops) {
-                if (op.next_retry_at && Date.now() < op.next_retry_at) continue;
+                ops.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
 
-                try {
-                    const result = await this._dispatchSync(op);
-                    if (result?.error) throw result.error;
-                    await SyncQueue.dequeue(op);
-                } catch (e) {
-                    if (isBusinessError(e)) {
-                        console.error('Business error in sync op', op, e);
-                        await SyncQueue.moveToFailed(op, e);
-                        continue;
-                    }
-                    op.retries = (op.retries || 0) + 1;
-                    if (op.retries >= (CFG.SYNC_MAX_RETRIES || 8)) {
-                        console.error('Sync op failed permanently', op, e);
-                        await SyncQueue.moveToFailed(op, e);
-                    } else {
-                        op.next_retry_at = Date.now() + Math.min(60000, 1000 * 2 ** op.retries);
-                        await this.local.put('sync_queue', op);
+                for (const op of ops) {
+                    if (op.next_retry_at && Date.now() < op.next_retry_at) continue;
+
+                    try {
+                        const result = await this._dispatchSync(op);
+                        if (result?.error) throw result.error;
+                        await SyncQueue.dequeue(op);
+                    } catch (e) {
+                        if (isBusinessError(e)) {
+                            console.error('Business error in sync op', op, e);
+                            await SyncQueue.moveToFailed(op, e);
+                            continue;
+                        }
+                        op.retries = (op.retries || 0) + 1;
+                        if (op.retries >= (CFG.SYNC_MAX_RETRIES || 8)) {
+                            console.error('Sync op failed permanently', op, e);
+                            await SyncQueue.moveToFailed(op, e);
+                        } else {
+                            op.next_retry_at = Date.now() + Math.min(60000, 1000 * 2 ** op.retries);
+                            await this.local.put('sync_queue', op);
+                        }
                     }
                 }
+            } finally {
+                this._flushing = false;
             }
         },
 
@@ -385,8 +458,48 @@
                     return await this.client.rpc('add_payment_atomic', { p_payment: op.payload });
                 case 'save_product':
                     return await this.client.from('products').upsert(op.payload, { onConflict: 'id' });
+
+                // ✅ [DB-SYNC-1] النوع القديم — للحفاظ على توافق الطوابير الموجودة
                 case 'save_units':
                     return await this.client.from('product_units').upsert(op.payload, { onConflict: 'id' });
+
+                // ✅ [DB-SYNC-1] النوع الجديد — مسح الوحدات المحذوفة ثم رفع القائمة
+                case 'save_units_full': {
+                    const { product_id, units } = op.payload || {};
+                    if (!product_id) {
+                        const err = new Error('save_units_full: missing product_id');
+                        err.code = 'P0004';
+                        return { error: err };
+                    }
+
+                    const { data: existing, error: fetchErr } = await this.client
+                        .from('product_units')
+                        .select('id')
+                        .eq('product_id', product_id);
+                    if (fetchErr) throw fetchErr;
+
+                    const keepIds = new Set((units || []).map(u => u.id));
+                    const toDelete = (existing || [])
+                        .filter(e => !keepIds.has(e.id))
+                        .map(e => e.id);
+
+                    if (toDelete.length) {
+                        const { error: delErr } = await this.client
+                            .from('product_units')
+                            .delete()
+                            .in('id', toDelete);
+                        if (delErr) throw delErr;
+                    }
+
+                    if (units?.length) {
+                        const { error: upErr } = await this.client
+                            .from('product_units')
+                            .upsert(units, { onConflict: 'id' });
+                        if (upErr) throw upErr;
+                    }
+                    return { success: true };
+                }
+
                 case 'delete_product':
                     return await this.client.from('products')
                         .update({ deleted_at: new Date().toISOString() }).eq('id', op.payload.id);
@@ -411,17 +524,18 @@
            PRODUCTS
            ============================================ */
         async getProducts(force = false) {
+            // ✅ [DB-SEC-1] fail-closed: لا مستأجر = لا بيانات
+            const tenantId = requireTenant();
+
             if (!force) {
                 const c = MemCache.get('products');
                 if (c?.length) return c;
             }
 
-            const tenantId = getTenantId();
-
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('products');
                 const local = all.filter(p =>
-                    !p.deleted_at && (!tenantId || p.tenant_id === tenantId)
+                    !p.deleted_at && p.tenant_id === tenantId
                 );
                 MemCache.set('products', local);
                 return local;
@@ -471,12 +585,12 @@
             });
 
             const remoteIds = new Set(remote.map(p => p.id));
-            const pendingProductIds = await getPendingIds(['save_product', 'save_units']);
+            const pendingProductIds = await getPendingIds(['save_product', 'save_units', 'save_units_full']);
             const localPending = existing.filter(lp =>
                 !remoteIds.has(lp.id) &&
                 !lp.deleted_at &&
                 pendingProductIds.has(lp.id) &&
-                (!tenantId || !lp.tenant_id || lp.tenant_id === tenantId)
+                lp.tenant_id === tenantId
             );
 
             const finalList = [...merged, ...localPending];
@@ -524,6 +638,26 @@
                         .upsert(payload, { onConflict: 'id' });
                     if (error) throw error;
 
+                    // ✅ [DB-SYNC-1] احذف الوحدات المحذوفة قبل رفع القائمة الجديدة
+                    const { data: existingUnits, error: fetchErr } = await this.client
+                        .from('product_units')
+                        .select('id')
+                        .eq('product_id', id);
+                    if (fetchErr) throw fetchErr;
+
+                    const incomingIds = new Set(unitsPayload.map(u => u.id));
+                    const toDelete = (existingUnits || [])
+                        .filter(u => !incomingIds.has(u.id))
+                        .map(u => u.id);
+
+                    if (toDelete.length) {
+                        const { error: delErr } = await this.client
+                            .from('product_units')
+                            .delete()
+                            .in('id', toDelete);
+                        if (delErr) throw delErr;
+                    }
+
                     if (unitsPayload.length) {
                         const { error: uErr } = await this.client.from('product_units')
                             .upsert(unitsPayload, { onConflict: 'id' });
@@ -533,13 +667,22 @@
                     if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({ type: 'save_product', id, payload });
                     if (unitsPayload.length) {
-                        await SyncQueue.enqueue({ type: 'save_units', id, payload: unitsPayload });
+                        // ✅ [DB-SYNC-1] نرفع القائمة الكاملة
+                        await SyncQueue.enqueue({
+                            type: 'save_units_full',
+                            id,
+                            payload: { product_id: id, tenant_id: tenantId, units: unitsPayload }
+                        });
                     }
                 }
             } else {
                 await SyncQueue.enqueue({ type: 'save_product', id, payload });
                 if (unitsPayload.length) {
-                    await SyncQueue.enqueue({ type: 'save_units', id, payload: unitsPayload });
+                    await SyncQueue.enqueue({
+                        type: 'save_units_full',
+                        id,
+                        payload: { product_id: id, tenant_id: tenantId, units: unitsPayload }
+                    });
                 }
             }
 
@@ -576,6 +719,9 @@
            PARTIES
            ============================================ */
         async getParties(type = null, force = false) {
+            // ✅ [DB-SEC-1] fail-closed
+            const tenantId = requireTenant();
+
             if (!force) {
                 const c = MemCache.get('parties');
                 if (c?.length) {
@@ -583,12 +729,10 @@
                 }
             }
 
-            const tenantId = getTenantId();
-
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('parties');
                 const local = all.filter(p =>
-                    !p.deleted_at && (!tenantId || p.tenant_id === tenantId)
+                    !p.deleted_at && p.tenant_id === tenantId
                 );
                 MemCache.set('parties', local);
                 return type ? local.filter(p => p.type === type || p.type === 'both') : local;
@@ -621,7 +765,7 @@
                 !remoteIds.has(lp.id) &&
                 !lp.deleted_at &&
                 pendingPartyIds.has(lp.id) &&
-                (!tenantId || !lp.tenant_id || lp.tenant_id === tenantId)
+                lp.tenant_id === tenantId
             );
 
             const finalList = [...merged, ...localPending];
@@ -754,11 +898,12 @@
         },
 
         async getPayments(partyId = null) {
-            const tenantId = getTenantId();
+            // ✅ [DB-SEC-1] fail-closed
+            const tenantId = requireTenant();
 
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('transactions');
-                const local = all.filter(t => !tenantId || t.tenant_id === tenantId);
+                const local = all.filter(t => t.tenant_id === tenantId);
                 return partyId ? local.filter(t => t.party_id === partyId) : local;
             }
 
@@ -774,7 +919,7 @@
             const localPending = existing.filter(lt =>
                 !remoteIds.has(lt.id) &&
                 pendingPaymentIds.has(lt.id) &&
-                (!tenantId || !lt.tenant_id || lt.tenant_id === tenantId)
+                lt.tenant_id === tenantId
             );
 
             const finalList = [...(data || []), ...localPending];
@@ -789,16 +934,17 @@
            INVOICES
            ============================================ */
         async getInvoices(force = false) {
+            // ✅ [DB-SEC-1] fail-closed
+            const tenantId = requireTenant();
+
             if (!force) {
                 const c = MemCache.get('invoices', 30000);
                 if (c?.length) return c;
             }
 
-            const tenantId = getTenantId();
-
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('invoices');
-                const local = all.filter(i => !tenantId || i.tenant_id === tenantId);
+                const local = all.filter(i => i.tenant_id === tenantId);
                 local.sort((a,b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
                 return local;
             }
@@ -820,7 +966,7 @@
                 !remoteIds.has(li.id) &&
                 !li.deleted_at &&
                 pendingInvoiceIds.has(li.id) &&
-                (!tenantId || !li.tenant_id || li.tenant_id === tenantId)
+                li.tenant_id === tenantId
             );
 
             const finalList = [...(data || []), ...localPending];
@@ -830,11 +976,12 @@
         },
 
         async getInvoicesLight(force = false) {
-            const tenantId = getTenantId();
+            // ✅ [DB-SEC-1] fail-closed
+            const tenantId = requireTenant();
 
             if (!navigator.onLine || !this.client) {
                 const all = await this.local.getAll('invoices');
-                const local = all.filter(i => !tenantId || i.tenant_id === tenantId);
+                const local = all.filter(i => i.tenant_id === tenantId);
                 local.sort((a,b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
                 return local.map(i => {
                     const { items, ...light } = i;
@@ -856,7 +1003,7 @@
                     !remoteIds.has(li.id) &&
                     !li.deleted_at &&
                     pendingInvoiceIds.has(li.id) &&
-                    (!tenantId || !li.tenant_id || li.tenant_id === tenantId)
+                    li.tenant_id === tenantId
                 )
                 .map(i => {
                     const { items, ...light } = i;
@@ -867,14 +1014,20 @@
         },
 
         async getInvoiceById(id) {
+            // ✅ [DB-SEC-1] fail-closed حتى على قراءة سجل واحد
+            const tenantId = requireTenant();
+
             if (navigator.onLine && this.client) {
                 try {
                     const { data, error } = await this.client.from('invoices')
-                        .select('*').eq('id', id).maybeSingle();
+                        .select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
                     if (!error && data) return data;
                 } catch { /* ignore */ }
             }
-            return await this.local.get('invoices', id);
+
+            const local = await this.local.get('invoices', id);
+            if (local && local.tenant_id !== tenantId) return null;
+            return local;
         },
 
         /* ============================================
@@ -1161,7 +1314,10 @@
 
             const baseUnit = product.units.find(u => u.isBase) || product.units[0];
             const soldUnit = product.units.find(u => u.name === unitName) || baseUnit;
-            const factor = soldUnit === baseUnit ? 1 : (Number(soldUnit.factor) || 1);
+
+            // ✅ [DB-STOCK-1] نستخدم isBase بدل مقارنة مرجعية
+            const factor = soldUnit.isBase ? 1 : (Number(soldUnit.factor) || 1);
+
             const deltaBase = Number(qtyInSoldUnit) * factor;
             const oldStock = Number(baseUnit.stock) || 0;
             const newStock = oldStock + deltaBase;
@@ -1224,42 +1380,49 @@
         },
 
         /* ============================================
-           ✅ [DB-INV-NUM] Invoice Numbers — تسلسلي موحد
+           ✅ [DB-LOCK-1] Invoice Numbers — صيغة موحّدة YY-DEV-NNNN
+           تُطابق تمامًا next_invoice_number RPC
            ============================================ */
         async generateInvoiceNumber() {
             const year = new Date().getFullYear().toString().slice(-2);
-            const serverKey = `hesaby_invoice_server_counter_${year}`;
-            const localKey  = `hesaby_invoice_local_counter_${year}`;
-            const deviceId  = getDeviceId();
+            const deviceId = getDeviceId();
+            const dev4 = deviceId.slice(0, 4).toUpperCase();
 
-            // 1) حاول الخادم أولاً (المصدر الرسمي)
-            if (navigator.onLine && this.client) {
-                try {
-                    const { data, error } = await this.client
-                        .rpc('next_invoice_number', { p_device_id: deviceId });
-                    if (!error && data) {
-                        // احفظ آخر رقم سحابي لتجنب التصادم في الأوفلاين
-                        const m = String(data).match(/(\d+)$/);
-                        if (m) {
-                            const n = parseInt(m[1], 10);
-                            if (Number.isFinite(n)) {
-                                localStorage.setItem(serverKey, String(n));
+            // ✅ نطاق المفاتيح: tenant + year + device (كان tenant-agnostic)
+            const tenantId = getTenantId() || 'anon';
+            const serverKey = `hesaby_inv_srv_${tenantId}_${year}_${dev4}`;
+            const localKey  = `hesaby_inv_loc_${tenantId}_${year}_${dev4}`;
+
+            // ✅ [DB-LOCK-1] قفل عبر التبويبات لمنع التصادم في offline
+            return withLock(`hesaby:invoice:${tenantId}:${year}:${dev4}`, async () => {
+                // 1) الخادم أولًا
+                if (navigator.onLine && this.client) {
+                    try {
+                        const { data, error } = await this.client
+                            .rpc('next_invoice_number', { p_device_id: deviceId });
+                        if (!error && data) {
+                            const m = String(data).match(/(\d+)$/);
+                            if (m) {
+                                const n = parseInt(m[1], 10);
+                                if (Number.isFinite(n)) {
+                                    localStorage.setItem(serverKey, String(n));
+                                }
                             }
+                            return data;
                         }
-                        return data;
+                    } catch (e) {
+                        console.warn('Server invoice number failed, using local fallback', e);
                     }
-                } catch (e) {
-                    console.warn('Server invoice number failed, using local fallback', e);
                 }
-            }
 
-            // 2) Fallback محلي — يبدأ من max(server, local) + 1
-            const lastServer = parseInt(localStorage.getItem(serverKey) || '0', 10) || 0;
-            const lastLocal  = parseInt(localStorage.getItem(localKey)  || '0', 10) || 0;
-            const next = Math.max(lastServer, lastLocal) + 1;
-            localStorage.setItem(localKey, String(next));
+                // 2) Fallback محلي — نفس صيغة RPC
+                const lastServer = parseInt(localStorage.getItem(serverKey) || '0', 10) || 0;
+                const lastLocal  = parseInt(localStorage.getItem(localKey)  || '0', 10) || 0;
+                const next = Math.max(lastServer, lastLocal) + 1;
+                localStorage.setItem(localKey, String(next));
 
-            return `INV-${year}-${String(next).padStart(5, '0')}`;
+                return `${year}-${dev4}-${String(next).padStart(4, '0')}`;
+            });
         },
 
         /* ============================================
