@@ -1,13 +1,16 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 5.5.0
+   Version: 5.6.0
 
-   Changelog من v5.4.1:
-   - [POS-23] تسديد دين سابق تلقائيًا عند الدفع الزائد
-   - [POS-24] معاينة "سيُسدد من الدين" في مودال الدفع
-   - [POS-25] الإيصال يعرض سطر "تسديد دين سابق"
-   - [POS-26] توزيع المبلغ المُستلم على cash/card بعد خصم الدين
-   - [POS-27] renderPaymentCustomerBalance يحسب الرصيد الجديد بعد التسديد
+   Changelog من v5.5.0:
+   - [POS-28] تصميم إيصال جديد مطابق للطباعة الحرارية
+             * جدول بـ 5 أعمدة (م، الصنف، الكمية، السعر، الإجمالي)
+             * حد صلب بدل متقطع
+             * صف "المجموع الفرعي" داخل الجدول
+             * جدول ملخص رصيد منفصل
+   - [POS-29] عرض عنوان العميل في الإيصال
+   - [POS-30] تمرير _customerAddress في invoice
+   - [POS-31] طباعة iframe بنفس CSS الجديد
    ============================================= */
 (function() {
     'use strict';
@@ -716,9 +719,6 @@
         });
     }
 
-    /* ============================================
-       Payment math — ✅ [POS-23] موحّد
-       ============================================ */
     function computePaymentBreakdown() {
         const { net } = calculateTotals();
         const method = State.paymentMethod;
@@ -734,7 +734,6 @@
         const remaining = U.round(Math.max(0, net - totalReceived));
         const paidForInvoice = Math.min(totalReceived, net);
 
-        // دين سابق
         const oldBalance = State.selectedCustomer
             ? (Number(State.selectedCustomer.balance) || 0)
             : 0;
@@ -743,10 +742,8 @@
             ? U.round(Math.min(extra, Math.abs(oldBalance)))
             : 0;
 
-        // الباقي النقدي الفعلي للعميل
         const change = U.round(extra - debtPayment);
 
-        // توزيع المبالغ على cash/card بعد خصم debtPayment
         let cashFinal = 0, cardFinal = 0;
         if (method === 'cash') cashFinal = cash;
         else if (method === 'card') cardFinal = card;
@@ -756,7 +753,6 @@
         const d1 = Math.min(cashFinal, deduct); cashFinal -= d1; deduct -= d1;
         const d2 = Math.min(cardFinal, deduct); cardFinal -= d2; deduct -= d2;
 
-        // الرصيد المتوقع بعد الفاتورة
         const newBalance = State.selectedCustomer
             ? U.round(oldBalance + debtPayment - remaining, 3)
             : 0;
@@ -794,7 +790,6 @@
             if (value) value.textContent = U.money(b.change);
         }
 
-        // ✅ [POS-24] سطر "سيُسدد من الدين"
         const hintEl = $('#debtPaymentHint');
         if (hintEl) {
             if (b.debtPayment > 0) {
@@ -855,15 +850,8 @@
         return 'pcb-value--credit';
     }
 
-    function receiptBalanceClass(bal) {
-        const n = Number(bal) || 0;
-        if (Math.abs(n) < 0.001) return 'receipt-balance-zero';
-        if (n < 0) return 'receipt-balance-debit';
-        return 'receipt-balance-credit';
-    }
-
     /* ============================================
-       Complete Sale — ✅ [POS-23, POS-26]
+       Complete Sale
        ============================================ */
     async function completeSale() {
         if (!State.cart.length) return;
@@ -877,7 +865,6 @@
 
         const b = computePaymentBreakdown();
 
-        // ===== التحقق =====
         if (b.remaining > 0 && !State.selectedCustomer) {
             showToast('اختر عميلاً لتسجيل الدين', 'warning');
             $('#customerSearch')?.focus();
@@ -929,20 +916,20 @@
                 _hasCustomer: !!State.selectedCustomer,
                 _oldBalance: b.oldBalance,
                 _newBalance: b.newBalance,
-                _debtPayment: b.debtPayment
+                _debtPayment: b.debtPayment,
+                _customerAddress: State.selectedCustomer?.address || null,
+                _customerPhone: State.selectedCustomer?.phone || null
             };
 
             const result = await DB.createInvoice(invoice);
             if (!result.success) throw new Error('فشل حفظ الفاتورة');
 
-            // ✅ [POS-20] عند dedup: الرصيد لم يتغير
             if (result.deduplicated) {
                 invoice._newBalance = invoice._oldBalance;
                 invoice._hasCustomer = false;
                 invoice._debtPayment = 0;
             }
 
-            // ✅ [POS-23] تسجيل تسديد الدين كمعاملة منفصلة
             if (!result.deduplicated && b.debtPayment > 0 && State.selectedCustomer?.id) {
                 try {
                     await DB.addPayment({
@@ -961,7 +948,6 @@
 
             showReceipt(invoice);
 
-            // إعادة تعيين
             State.cart = [];
             State.discount = 0;
             State.discountType = 'amount';
@@ -1006,130 +992,130 @@
     }
 
     /* ============================================
-       Receipt — ✅ [POS-25] سطر تسديد الدين
+       Receipt — ✅ [POS-28, POS-29]
        ============================================ */
     function showReceipt(invoice) {
         const settings = U.ls.get('settings', {}) || {};
         const shopName = settings.shopName || 'حسابي';
         const shopPhone = settings.phone || '';
+        const shopAddress = settings.address || '';
         const footer = settings.footer || 'شكراً لتعاملكم معنا';
 
         let itemsHtml = '';
-        invoice.items.forEach(item => {
+        invoice.items.forEach((item, i) => {
             const price = Number(item.price) || 0;
             const qty = Number(item.quantity) || 0;
             const lineTotal = U.round(price * qty, 2);
             itemsHtml += `
                 <tr>
-                    <td>${U.escape(item.productName)}<br>
-                        <small class="receipt-item-unit">${U.escape(item.unitName)}</small>
-                    </td>
-                    <td class="receipt-col-center">${qty}</td>
-                    <td class="receipt-col-center">${price.toFixed(2)}</td>
-                    <td class="receipt-col-total">${lineTotal.toFixed(2)}</td>
+                    <td class="rc-num">${i + 1}</td>
+                    <td class="rc-name">${U.escape(item.productName)}</td>
+                    <td class="rc-qty">${qty} ${U.escape(item.unitName)}</td>
+                    <td class="rc-price">${price.toFixed(2)}</td>
+                    <td class="rc-total">${lineTotal.toFixed(2)}</td>
                 </tr>`;
         });
 
-        const hasCustomer = invoice._hasCustomer === true;
         const oldBal = Number(invoice._oldBalance) || 0;
         const newBal = Number(invoice._newBalance) || 0;
         const debtPayment = Number(invoice._debtPayment) || 0;
+        const paidNow = Number(invoice.paid) || 0;
 
-        let balanceHtml = '';
-        if (hasCustomer && (Math.abs(oldBal) > 0.001 || Math.abs(newBal) > 0.001 || invoice.remaining > 0 || debtPayment > 0)) {
-            balanceHtml = `
-                <div class="receipt-balance">
-                    <div class="receipt-row">
-                        <span>الرصيد السابق:</span>
-                        <strong class="${receiptBalanceClass(oldBal)}">${formatBalance(oldBal)}</strong>
-                    </div>
-                    <div class="receipt-row">
-                        <span>الرصيد بعد الفاتورة:</span>
-                        <strong class="${receiptBalanceClass(newBal)}">${formatBalance(newBal)}</strong>
-                    </div>
-                </div>
-            `;
-        }
+        const customerAddress = invoice._customerAddress || invoice.customer_address || '-';
 
         const preview = $('#receiptPreview');
         if (!preview) return;
 
         preview.innerHTML = `
-            <div class="receipt-shop receipt-center">${U.escape(shopName)}</div>
-            ${shopPhone ? `<div class="receipt-phone receipt-center">هاتف: ${U.escape(shopPhone)}</div>` : ''}
-            <hr>
-            <div class="receipt-row">
-                <span>رقم الفاتورة:</span>
-                <strong class="receipt-inv-num">${U.escape(invoice.invoice_number)}</strong>
+            <div class="rc-header">
+                <div class="rc-shop">${U.escape(shopName)}</div>
+                ${shopPhone ? `<div class="rc-sub">هاتف: ${U.escape(shopPhone)}</div>` : ''}
+                ${shopAddress ? `<div class="rc-sub">${U.escape(shopAddress)}</div>` : ''}
             </div>
-            <div class="receipt-row">
-                <span>التاريخ:</span>
-                <span>${U.date(invoice.date)} ${U.time(Date.now())}</span>
-            </div>
-            <div class="receipt-row">
-                <span>العميل:</span>
-                <strong>${U.escape(invoice.customer_name)}</strong>
-            </div>
-            <hr>
-            <table class="receipt-table">
+
+            <table class="rc-info">
+                <tr>
+                    <td class="rc-info-label">رقم الفاتورة:</td>
+                    <td class="rc-info-value">${U.escape(invoice.invoice_number)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-info-label">التاريخ:</td>
+                    <td class="rc-info-value">${U.date(invoice.date)} ${U.time(Date.now())}</td>
+                </tr>
+                <tr>
+                    <td class="rc-info-label">العميل:</td>
+                    <td class="rc-info-value">${U.escape(invoice.customer_name)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-info-label">العنوان:</td>
+                    <td class="rc-info-value">${U.escape(customerAddress)}</td>
+                </tr>
+            </table>
+
+            <table class="rc-items">
                 <thead>
                     <tr>
-                        <th>الصنف</th>
-                        <th class="receipt-col-center">كمية</th>
-                        <th class="receipt-col-center">سعر</th>
-                        <th class="receipt-col-total">إجمالي</th>
+                        <th class="rc-num">م</th>
+                        <th class="rc-name">الصنف</th>
+                        <th class="rc-qty">الكمية</th>
+                        <th class="rc-price">السعر</th>
+                        <th class="rc-total">الإجمالي</th>
                     </tr>
                 </thead>
-                <tbody>${itemsHtml}</tbody>
+                <tbody>
+                    ${itemsHtml || '<tr><td colspan="5" class="rc-empty">لا توجد عناصر</td></tr>'}
+                    <tr class="rc-subtotal-row">
+                        <td colspan="4" class="rc-subtotal-label">المجموع الفرعي</td>
+                        <td class="rc-total rc-subtotal-value">${Number(invoice.subtotal).toFixed(2)}</td>
+                    </tr>
+                </tbody>
             </table>
-            <hr>
-            <div class="receipt-row">
-                <span>الإجمالي:</span>
-                <span>${Number(invoice.subtotal).toFixed(2)}</span>
-            </div>
-            ${invoice.discount > 0 ? `
-                <div class="receipt-row">
-                    <span>الخصم:</span>
-                    <span>-${Number(invoice.discount).toFixed(2)}</span>
-                </div>` : ''}
-            <div class="receipt-row receipt-total">
-                <span>الصافي:</span>
-                <span>${Number(invoice.total).toFixed(2)}</span>
-            </div>
-            <hr>
-            <div class="receipt-row">
-                <span>طريقة الدفع:</span>
-                <span>${paymentLabel(invoice.payment_method)}</span>
-            </div>
-            ${invoice.cash_paid > 0 ? `
-                <div class="receipt-row">
-                    <span>نقدي (للفاتورة):</span>
-                    <span>${Number(invoice.cash_paid).toFixed(2)}</span>
-                </div>` : ''}
-            ${invoice.card_paid > 0 ? `
-                <div class="receipt-row">
-                    <span>بطاقة (للفاتورة):</span>
-                    <span>${Number(invoice.card_paid).toFixed(2)}</span>
-                </div>` : ''}
-            ${debtPayment > 0 ? `
-                <div class="receipt-row receipt-debt-payment">
-                    <span>تسديد دين سابق:</span>
-                    <span>${debtPayment.toFixed(2)}</span>
-                </div>` : ''}
-            ${invoice.change_amount > 0 ? `
-                <div class="receipt-row">
-                    <span>الباقي:</span>
-                    <span>${Number(invoice.change_amount).toFixed(2)}</span>
-                </div>` : ''}
-            ${invoice.remaining > 0 ? `
-                <div class="receipt-row receipt-remaining">
-                    <span>المتبقي:</span>
-                    <span>${Number(invoice.remaining).toFixed(2)}</span>
-                </div>` : ''}
-            ${balanceHtml}
-            <hr>
-            <div class="receipt-footer receipt-center">${U.escape(footer)}</div>
+
+            <table class="rc-summary">
+                ${invoice.discount > 0 ? `
+                <tr>
+                    <td class="rc-sum-label">الخصم:</td>
+                    <td class="rc-sum-value">${Number(invoice.discount).toFixed(2)}</td>
+                </tr>` : ''}
+                <tr>
+                    <td class="rc-sum-label">إجمالي الفاتورة:</td>
+                    <td class="rc-sum-value">${Number(invoice.total).toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-sum-label">طريقة الدفع:</td>
+                    <td class="rc-sum-value">${paymentLabel(invoice.payment_method)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-sum-label">صافي الرصيد السابق:</td>
+                    <td class="rc-sum-value">${oldBal.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-sum-label">إجمالي الفاتورة:</td>
+                    <td class="rc-sum-value">${Number(invoice.total).toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-sum-label">صافي الرصيد بعد الفاتورة:</td>
+                    <td class="rc-sum-value">${newBal.toFixed(2)}</td>
+                </tr>
+                ${debtPayment > 0 ? `
+                <tr>
+                    <td class="rc-sum-label">تسديد دين سابق:</td>
+                    <td class="rc-sum-value">${debtPayment.toFixed(2)}</td>
+                </tr>` : ''}
+                <tr>
+                    <td class="rc-sum-label">المدفوع الآن:</td>
+                    <td class="rc-sum-value">${(paidNow + debtPayment).toFixed(2)}</td>
+                </tr>
+                ${Number(invoice.change_amount) > 0 ? `
+                <tr>
+                    <td class="rc-sum-label">الباقي:</td>
+                    <td class="rc-sum-value">${Number(invoice.change_amount).toFixed(2)}</td>
+                </tr>` : ''}
+            </table>
+
+            <div class="rc-footer">${U.escape(footer)}</div>
         `;
+
         openModal('receiptModal');
     }
 
@@ -1138,7 +1124,7 @@
     }
 
     /* ============================================
-       Print
+       Print — ✅ [POS-31] iframe بتصميم جديد
        ============================================ */
     function printReceipt() {
         const preview = $('#receiptPreview');
@@ -1168,37 +1154,109 @@
     * { box-sizing: border-box; }
     body {
         font-family: 'Cairo', Arial, sans-serif;
-        padding: 6px; margin: 0; font-size: 12px;
+        padding: 4px; margin: 0; font-size: 11px;
         color: #000; background: #fff;
-        max-width: 80mm; line-height: 1.5;
+        max-width: 80mm; line-height: 1.4;
     }
-    hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }
-    .receipt-row { display: flex; justify-content: space-between; margin: 3px 0; gap: 8px; }
-    .receipt-center { text-align: center; }
-    .receipt-shop { font-size: 17px; font-weight: 800; margin-bottom: 2px; }
-    .receipt-phone { font-size: 10px; color: #666; margin-bottom: 4px; }
-    .receipt-inv-num { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
-    .receipt-total { font-weight: 800; font-size: 14px; margin-top: 4px; }
-    .receipt-remaining { color: #d00; font-weight: 800; }
-    .receipt-debt-payment { color: #4f46e5; font-weight: 800; }
-    .receipt-footer { font-weight: 700; margin-top: 8px; font-size: 12px; }
-    .receipt-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-    .receipt-table th, .receipt-table td {
-        padding: 4px 2px; border-bottom: 1px dashed #ddd;
-        font-size: 11px; text-align: right; vertical-align: top;
+
+    .rc-header {
+        text-align: center;
+        padding: 6px 0 8px;
+        border-bottom: 1px solid #000;
+        margin-bottom: 6px;
     }
-    .receipt-table th { font-weight: 800; border-bottom: 1px solid #999; }
-    .receipt-col-center { text-align: center; }
-    .receipt-col-total { text-align: left; font-weight: 700; }
-    .receipt-item-unit { color: #666; font-size: 9px; }
-    .receipt-balance {
-        background: #f5f5f5; padding: 6px 8px; border-radius: 4px;
-        margin: 8px 0; border: 1px solid #eee;
+    .rc-shop { font-size: 16px; font-weight: 800; margin-bottom: 2px; }
+    .rc-sub { font-size: 10px; color: #333; }
+
+    .rc-info {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
     }
-    .receipt-balance .receipt-row { font-weight: 700; font-size: 12px; }
-    .receipt-balance-debit { color: #d00; }
-    .receipt-balance-credit { color: #090; }
-    .receipt-balance-zero { color: #666; }
+    .rc-info td {
+        padding: 3px 6px;
+        font-size: 11px;
+        border: 1px solid #000;
+    }
+    .rc-info-label {
+        font-weight: 700;
+        width: 35%;
+        text-align: right;
+        background: #f5f5f5;
+    }
+    .rc-info-value {
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .rc-items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
+        table-layout: fixed;
+    }
+    .rc-items th,
+    .rc-items td {
+        border: 1px solid #000;
+        padding: 3px 4px;
+        font-size: 10px;
+        text-align: center;
+        vertical-align: middle;
+        word-wrap: break-word;
+    }
+    .rc-items th {
+        background: #e8e8e8;
+        font-weight: 800;
+        font-size: 11px;
+    }
+    .rc-num { width: 8%; }
+    .rc-name { width: 40%; text-align: right !important; font-weight: 700; }
+    .rc-qty { width: 18%; }
+    .rc-price { width: 16%; }
+    .rc-total { width: 18%; font-weight: 800; }
+
+    .rc-subtotal-row td {
+        background: #f5f5f5;
+        font-weight: 800;
+    }
+    .rc-subtotal-label { text-align: right !important; }
+    .rc-subtotal-value { font-size: 12px !important; }
+
+    .rc-empty {
+        padding: 10px !important;
+        text-align: center !important;
+    }
+
+    .rc-summary {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
+    }
+    .rc-summary td {
+        border: 1px solid #000;
+        padding: 4px 6px;
+        font-size: 11px;
+    }
+    .rc-sum-label {
+        font-weight: 700;
+        text-align: right;
+        background: #f5f5f5;
+        width: 55%;
+    }
+    .rc-sum-value {
+        font-weight: 800;
+        text-align: right;
+        width: 45%;
+    }
+
+    .rc-footer {
+        text-align: center;
+        font-weight: 700;
+        font-size: 11px;
+        padding-top: 6px;
+        border-top: 1px solid #000;
+        margin-top: 4px;
+    }
 </style>
 </head>
 <body>${preview.innerHTML}</body>
