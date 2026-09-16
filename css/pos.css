@@ -1,9 +1,12 @@
 /* =============================================
    pos.css - Point of Sale Styles
-   Version: 5.2
+   Version: 5.3
 
-   Changelog من v5.1:
-   - [CSS-POS-2] أنماط الإيصال الجديدة (شعار، صفوف، رصيد)
+   Changelog من v5.2:
+   - [CSS-POS-3] تصميم إيصال جديد (rc-*) مطابق للطباعة الحرارية
+                 * حدود صلبة بدل متقطعة
+                 * جدول بـ 5 أعمدة
+                 * جدول معلومات وجدول ملخص
    ============================================= */
 
 :root {
@@ -24,7 +27,7 @@ body {
 }
 
 /* =============================================
-   منع double-tap / pinch zoom على العناصر التفاعلية
+   منع double-tap / pinch zoom
    ============================================= */
 .cat-tab,
 .product-card,
@@ -1004,7 +1007,106 @@ textarea {
 .change-display.is-short { background: rgba(239,68,68,0.15); color: var(--danger); }
 
 /* =============================================
-   Receipt — ✅ [CSS-POS-2] محسّن
+   Debt Payment Hint — [POS-24]
+   ============================================= */
+.debt-payment-hint {
+    padding: 10px 14px;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px dashed rgba(79, 70, 229, 0.4);
+    color: var(--primary);
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    margin-top: 10px;
+    animation: pcbIn 0.25s ease-out;
+}
+
+/* =============================================
+   Payment Customer Balance — [POS-11]
+   ============================================= */
+.payment-customer-balance {
+    background: var(--bg-sunken);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    animation: pcbIn 0.25s ease-out;
+}
+
+@keyframes pcbIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.pcb-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed var(--border);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-soft);
+}
+.pcb-header i {
+    font-size: 16px;
+    color: var(--primary);
+}
+
+.pcb-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pcb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.pcb-label {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.pcb-value {
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.pcb-value--debit { color: var(--danger); }
+.pcb-value--credit { color: var(--success); }
+.pcb-value--zero { color: var(--text-muted); }
+
+.pcb-arrow {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 12px;
+    line-height: 1;
+    padding: 2px 0;
+}
+
+.pcb-row--total {
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+}
+.pcb-row--total .pcb-value {
+    font-size: 16px;
+}
+
+.payment-customer-balance.pcb--increasing-debt {
+    border-color: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+/* =============================================
+   Receipt — ✅ [CSS-POS-3] تصميم جديد
+   مطابق للطباعة الحرارية
    ============================================= */
 .receipt-toolbar {
     padding: 12px 16px;
@@ -1015,96 +1117,134 @@ textarea {
     background: var(--bg-elev);
 }
 .receipt-toolbar__actions { display: flex; gap: 8px; }
+
 .receipt-preview {
-    padding: 20px;
-    background: #fffef9;
+    padding: 14px;
+    background: #ffffff;
     color: #000;
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 12px;
+    line-height: 1.4;
     overflow-y: auto;
-    max-height: 65vh;
+    max-height: 70vh;
     font-family: 'Cairo', sans-serif;
     direction: rtl;
 }
-.receipt-preview hr {
-    border: none;
-    border-top: 1px dashed #999;
-    margin: 10px 0;
+
+/* ===== Header ===== */
+.receipt-preview .rc-header {
+    text-align: center;
+    padding: 6px 0 8px;
+    border-bottom: 1px solid #000;
+    margin-bottom: 8px;
 }
-.receipt-row {
-    display: flex;
-    justify-content: space-between;
-    margin: 4px 0;
-    gap: 8px;
-}
-.receipt-row span:first-child { color: #333; }
-.receipt-center { text-align: center; }
-.receipt-shop {
+.receipt-preview .rc-shop {
     font-size: 17px;
     font-weight: 800;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
-.receipt-phone {
+.receipt-preview .rc-sub {
     font-size: 11px;
-    color: #666;
-    margin-bottom: 4px;
+    color: #333;
 }
-.receipt-inv-num {
-    font-family: 'Courier New', monospace;
-    letter-spacing: 0.5px;
-    font-weight: 800;
-}
-.receipt-total {
-    font-weight: 800;
-    font-size: 15px;
-    margin-top: 6px;
-}
-.receipt-remaining {
-    color: #d00;
-    font-weight: 800;
-}
-.receipt-footer {
-    font-weight: 700;
-    margin-top: 8px;
-}
-.receipt-table {
+
+/* ===== Info table ===== */
+.receipt-preview .rc-info {
     width: 100%;
     border-collapse: collapse;
-    margin: 8px 0;
+    margin-bottom: 8px;
 }
-.receipt-table th,
-.receipt-table td {
-    padding: 5px 3px;
-    border-bottom: 1px dashed #ddd;
+.receipt-preview .rc-info td {
+    padding: 4px 6px;
     font-size: 12px;
+    border: 1px solid #000;
+}
+.receipt-preview .rc-info-label {
+    font-weight: 700;
+    width: 35%;
     text-align: right;
-    vertical-align: top;
-}
-.receipt-table th {
-    font-weight: 800;
-    border-bottom: 1px solid #999;
-}
-.receipt-col-center { text-align: center; }
-.receipt-col-total { text-align: left; font-weight: 700; }
-.receipt-item-unit {
-    color: #666;
-    font-size: 10px;
-}
-.receipt-balance {
     background: #f5f5f5;
-    padding: 8px 10px;
-    border-radius: 6px;
-    margin: 10px 0;
-    border: 1px solid #eee;
 }
-.receipt-balance .receipt-row {
+.receipt-preview .rc-info-value {
+    font-weight: 700;
+    text-align: right;
+}
+
+/* ===== Items table ===== */
+.receipt-preview .rc-items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    table-layout: fixed;
+}
+.receipt-preview .rc-items th,
+.receipt-preview .rc-items td {
+    border: 1px solid #000;
+    padding: 4px;
+    font-size: 11px;
+    text-align: center;
+    vertical-align: middle;
+    word-wrap: break-word;
+}
+.receipt-preview .rc-items th {
+    background: #e8e8e8;
+    font-weight: 800;
+    font-size: 12px;
+}
+.receipt-preview .rc-num { width: 8%; }
+.receipt-preview .rc-name {
+    width: 40%;
+    text-align: right !important;
+    font-weight: 700;
+}
+.receipt-preview .rc-qty { width: 18%; }
+.receipt-preview .rc-price { width: 16%; }
+.receipt-preview .rc-total { width: 18%; font-weight: 800; }
+
+.receipt-preview .rc-subtotal-row td {
+    background: #f5f5f5;
+    font-weight: 800;
+}
+.receipt-preview .rc-subtotal-label { text-align: right !important; }
+.receipt-preview .rc-subtotal-value { font-size: 13px !important; }
+
+.receipt-preview .rc-empty {
+    padding: 12px !important;
+    text-align: center !important;
+    color: #666;
+}
+
+/* ===== Summary table ===== */
+.receipt-preview .rc-summary {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.receipt-preview .rc-summary td {
+    border: 1px solid #000;
+    padding: 5px 6px;
+    font-size: 12px;
+}
+.receipt-preview .rc-sum-label {
+    font-weight: 700;
+    text-align: right;
+    background: #f5f5f5;
+    width: 55%;
+}
+.receipt-preview .rc-sum-value {
+    font-weight: 800;
+    text-align: right;
+    width: 45%;
+}
+
+/* ===== Footer ===== */
+.receipt-preview .rc-footer {
+    text-align: center;
     font-weight: 700;
     font-size: 12px;
-    padding: 2px 0;
+    padding-top: 8px;
+    border-top: 1px solid #000;
+    margin-top: 6px;
 }
-.receipt-balance-debit { color: #d00; }
-.receipt-balance-credit { color: #090; }
-.receipt-balance-zero { color: #666; }
 
 /* =============================================
    Held Invoices
@@ -1197,86 +1337,4 @@ textarea {
     .cart-item__controls { gap: 3px; }
     .cart-item__qty { width: 46px; }
     .cart-item__price-input { width: 60px; }
-}
-
-/* ============================================
-   [POS-11] معاينة رصيد العميل في مودال الدفع
-   ============================================ */
-.payment-customer-balance {
-    background: var(--bg-sunken);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 18px;
-    animation: pcbIn 0.25s ease-out;
-}
-
-@keyframes pcbIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.pcb-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    border-bottom: 1px dashed var(--border);
-    font-size: 13px;
-    font-weight: 800;
-    color: var(--text-soft);
-}
-.pcb-header i {
-    font-size: 16px;
-    color: var(--primary);
-}
-
-.pcb-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.pcb-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 0;
-    font-size: 13px;
-}
-
-.pcb-label {
-    color: var(--text-muted);
-    font-weight: 700;
-}
-
-.pcb-value {
-    font-weight: 800;
-    font-size: 14px;
-}
-
-.pcb-value--debit { color: var(--danger); }
-.pcb-value--credit { color: var(--success); }
-.pcb-value--zero { color: var(--text-muted); }
-
-.pcb-arrow {
-    text-align: center;
-    color: var(--text-faint);
-    font-size: 12px;
-    line-height: 1;
-    padding: 2px 0;
-}
-
-.pcb-row--total {
-    padding-top: 6px;
-    border-top: 1px dashed var(--border);
-}
-.pcb-row--total .pcb-value {
-    font-size: 16px;
-}
-
-.payment-customer-balance.pcb--increasing-debt {
-    border-color: rgba(239, 68, 68, 0.35);
-    background: rgba(239, 68, 68, 0.04);
 }
