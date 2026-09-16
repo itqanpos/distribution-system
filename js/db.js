@@ -1,25 +1,20 @@
 /* =============================================
    db.js - Data Layer (Supabase + IndexedDB)
-   Version: 5.3.0
+   Version: 5.4.0
 
-   Changelog من v5.2.3:
-   - [DB-SEC-1] Fail-closed على كل عمليات القراءة:
-               requireTenant() بدل getTenantId() في getProducts,
-               getParties, getInvoices, getInvoicesLight,
-               getPayments, getInvoiceById.
-               + إزالة `!tenantId ||` من الفلاتر (كانت تسريب).
-   - [DB-SEC-2] MemCache مُقيَّد بـ tenant_id لمنع تسرب
-               كاش بين مستأجرين بعد تغيّر الجلسة.
-   - [DB-SYNC-1] saveProduct: حذف الوحدات المحذوفة (كانت تُترك أبديًا).
-               إضافة نوع عملية جديد save_units_full (يمسح الوحدات
-               غير المدرجة ثم يرفع القائمة الجديدة).
-   - [DB-LOCK-1] generateInvoiceNumber: يستخدم Web Locks API
-               لمنع التصادم بين التبويبات (Web Locks) مع صيغة
-               موحّدة YY-DEV-NNNN مطابقة لـ RPC next_invoice_number.
-   - [DB-LOCK-2] flushSyncQueue: علم _flushing لمنع التنفيذ المتزامن
-               عند تكرار حدث online.
-   - [DB-STOCK-1] _applyLocalStockDelta: يعتمد على isBase بدل
-               مقارنة مرجعية هشّة.
+   Changelog من v5.3.0:
+   - [SCHEMA-4] _applyLocalEffects: رصيد العميل والمورد
+                لا يُحدَّث للفواتير held/voided.
+                يُطابق create_invoice_atomic v5.2.1.
+                (كان يُحدِّث الرصيد حتى لو لم يُخصم المخزون).
+
+   سابق (v5.3.0):
+   - [DB-SEC-1] fail-closed في كل عمليات القراءة
+   - [DB-SEC-2] MemCache مُقيَّد بـ tenant
+   - [DB-SYNC-1] saveProduct يحذف الوحدات المحذوفة
+   - [DB-LOCK-1] generateInvoiceNumber بصيغة موحّدة + Web Locks
+   - [DB-LOCK-2] flushSyncQueue بلوك _flushing
+   - [DB-STOCK-1] _applyLocalStockDelta يستخدم isBase
    ============================================= */
 (function() {
     'use strict';
@@ -239,19 +234,10 @@
 
     function getClient() { return window.DB?.client || supabaseClient; }
 
-    /**
-     * ✅ [DB-SEC-1] الحصول على tenant_id دون فتح باب التسريب.
-     * ترجع null فقط — للاستخدام في مسارات الإصلاح/التشخيص.
-     * القاعدة: كل عمليات القراءة/الكتابة تستخدم requireTenant().
-     */
     function getTenantId() {
         return window.Auth?.user?.tenant_id || null;
     }
 
-    /**
-     * ✅ [DB-SEC-1] يرمي NO_TENANT إن لم يوجد مستأجر.
-     * يُستخدم في كل عمليات القراءة والكتابة.
-     */
     function requireTenant() {
         const t = getTenantId();
         if (!t) {
@@ -278,7 +264,7 @@
     }
 
     /* ============================================
-       Memory Cache — ✅ [DB-SEC-2] مُقيَّد بـ tenant
+       Memory Cache — مُقيَّد بـ tenant
        ============================================ */
     const MemCache = {
         _data: {},
@@ -307,11 +293,6 @@
             return Array.isArray(v) ? v.slice() : v;
         },
 
-        /**
-         * حذف كل النسخ من هذا المفتاح عبر كل المستأجرين.
-         * السبب: عند تعديل بيانات (منتج مثلًا)، نريد إبطال
-         * كاش كل المستأجرين المحتملين لتفادي بيانات قديمة.
-         */
         clear(key) {
             if (key) {
                 const suffix = `::${key}`;
@@ -406,9 +387,6 @@
             return this.ready;
         },
 
-        /**
-         * ✅ [DB-LOCK-2] يمنع التنفيذ المتزامن عند تكرار حدث online.
-         */
         async flushSyncQueue() {
             if (this._flushing) return;
             if (!navigator.onLine || !this.client) return;
@@ -458,12 +436,8 @@
                     return await this.client.rpc('add_payment_atomic', { p_payment: op.payload });
                 case 'save_product':
                     return await this.client.from('products').upsert(op.payload, { onConflict: 'id' });
-
-                // ✅ [DB-SYNC-1] النوع القديم — للحفاظ على توافق الطوابير الموجودة
                 case 'save_units':
                     return await this.client.from('product_units').upsert(op.payload, { onConflict: 'id' });
-
-                // ✅ [DB-SYNC-1] النوع الجديد — مسح الوحدات المحذوفة ثم رفع القائمة
                 case 'save_units_full': {
                     const { product_id, units } = op.payload || {};
                     if (!product_id) {
@@ -524,7 +498,6 @@
            PRODUCTS
            ============================================ */
         async getProducts(force = false) {
-            // ✅ [DB-SEC-1] fail-closed: لا مستأجر = لا بيانات
             const tenantId = requireTenant();
 
             if (!force) {
@@ -638,7 +611,6 @@
                         .upsert(payload, { onConflict: 'id' });
                     if (error) throw error;
 
-                    // ✅ [DB-SYNC-1] احذف الوحدات المحذوفة قبل رفع القائمة الجديدة
                     const { data: existingUnits, error: fetchErr } = await this.client
                         .from('product_units')
                         .select('id')
@@ -667,7 +639,6 @@
                     if (isBusinessError(e)) throw e;
                     await SyncQueue.enqueue({ type: 'save_product', id, payload });
                     if (unitsPayload.length) {
-                        // ✅ [DB-SYNC-1] نرفع القائمة الكاملة
                         await SyncQueue.enqueue({
                             type: 'save_units_full',
                             id,
@@ -719,7 +690,6 @@
            PARTIES
            ============================================ */
         async getParties(type = null, force = false) {
-            // ✅ [DB-SEC-1] fail-closed
             const tenantId = requireTenant();
 
             if (!force) {
@@ -898,7 +868,6 @@
         },
 
         async getPayments(partyId = null) {
-            // ✅ [DB-SEC-1] fail-closed
             const tenantId = requireTenant();
 
             if (!navigator.onLine || !this.client) {
@@ -934,7 +903,6 @@
            INVOICES
            ============================================ */
         async getInvoices(force = false) {
-            // ✅ [DB-SEC-1] fail-closed
             const tenantId = requireTenant();
 
             if (!force) {
@@ -976,7 +944,6 @@
         },
 
         async getInvoicesLight(force = false) {
-            // ✅ [DB-SEC-1] fail-closed
             const tenantId = requireTenant();
 
             if (!navigator.onLine || !this.client) {
@@ -1014,7 +981,6 @@
         },
 
         async getInvoiceById(id) {
-            // ✅ [DB-SEC-1] fail-closed حتى على قراءة سجل واحد
             const tenantId = requireTenant();
 
             if (navigator.onLine && this.client) {
@@ -1197,12 +1163,18 @@
 
         /* ============================================
            Local Effects
+           ✅ [SCHEMA-4] رصيد العميل/المورد لا يُحدَّث
+                        للفواتير held/voided
            ============================================ */
         async _applyLocalEffects(invoice) {
             const status = invoice.status || 'paid';
             const type = invoice.type;
 
-            if (status !== 'held' && status !== 'voided') {
+            // ✅ [SCHEMA-4] أثر واحد مشترك للـ held/voided
+            const skipBalanceEffects = (status === 'held' || status === 'voided');
+
+            // ---- المخزون ----
+            if (!skipBalanceEffects) {
                 let sign = 0;
                 if (type === 'sale') sign = -1;
                 else if (type === 'purchase') sign = +1;
@@ -1219,7 +1191,12 @@
                 }
             }
 
-            if (invoice.customer_id && ['sale','return_sale'].includes(type)) {
+            // ---- رصيد العميل ----
+            // ✅ [SCHEMA-4] لا تحديث للـ held/voided
+            if (!skipBalanceEffects
+                && invoice.customer_id
+                && ['sale','return_sale'].includes(type)) {
+
                 const cust = await this.local.get('parties', invoice.customer_id);
                 if (cust && cust.tenant_id === invoice.tenant_id) {
                     const oldBal = Number(cust.balance) || 0;
@@ -1237,7 +1214,12 @@
                 }
             }
 
-            if (invoice.supplier_id && ['purchase','return_purchase'].includes(type)) {
+            // ---- رصيد المورد ----
+            // ✅ [SCHEMA-4] لا تحديث للـ held/voided
+            if (!skipBalanceEffects
+                && invoice.supplier_id
+                && ['purchase','return_purchase'].includes(type)) {
+
                 const sup = await this.local.get('parties', invoice.supplier_id);
                 if (sup && sup.tenant_id === invoice.tenant_id) {
                     const oldBal = Number(sup.balance) || 0;
@@ -1315,7 +1297,6 @@
             const baseUnit = product.units.find(u => u.isBase) || product.units[0];
             const soldUnit = product.units.find(u => u.name === unitName) || baseUnit;
 
-            // ✅ [DB-STOCK-1] نستخدم isBase بدل مقارنة مرجعية
             const factor = soldUnit.isBase ? 1 : (Number(soldUnit.factor) || 1);
 
             const deltaBase = Number(qtyInSoldUnit) * factor;
@@ -1380,22 +1361,19 @@
         },
 
         /* ============================================
-           ✅ [DB-LOCK-1] Invoice Numbers — صيغة موحّدة YY-DEV-NNNN
-           تُطابق تمامًا next_invoice_number RPC
+           Invoice Numbers — صيغة موحّدة YY-DEV-NNNN
+           تُطابق next_invoice_number RPC
            ============================================ */
         async generateInvoiceNumber() {
             const year = new Date().getFullYear().toString().slice(-2);
             const deviceId = getDeviceId();
             const dev4 = deviceId.slice(0, 4).toUpperCase();
 
-            // ✅ نطاق المفاتيح: tenant + year + device (كان tenant-agnostic)
             const tenantId = getTenantId() || 'anon';
             const serverKey = `hesaby_inv_srv_${tenantId}_${year}_${dev4}`;
             const localKey  = `hesaby_inv_loc_${tenantId}_${year}_${dev4}`;
 
-            // ✅ [DB-LOCK-1] قفل عبر التبويبات لمنع التصادم في offline
             return withLock(`hesaby:invoice:${tenantId}:${year}:${dev4}`, async () => {
-                // 1) الخادم أولًا
                 if (navigator.onLine && this.client) {
                     try {
                         const { data, error } = await this.client
@@ -1415,7 +1393,6 @@
                     }
                 }
 
-                // 2) Fallback محلي — نفس صيغة RPC
                 const lastServer = parseInt(localStorage.getItem(serverKey) || '0', 10) || 0;
                 const lastLocal  = parseInt(localStorage.getItem(localKey)  || '0', 10) || 0;
                 const next = Math.max(lastServer, lastLocal) + 1;
