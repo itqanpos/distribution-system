@@ -1,26 +1,22 @@
 /* =============================================
    Service Worker - PWA Cache
-   Version: 4.1.0
+   Version: 4.2.0
 
-   Changelog من v4.0.0:
-   - [SW-1] CACHE_VERSION = 4.1.0 (لإبطال الكاش القديم)
-   - [SW-2] PRECACHE_ASSETS كاملة (toast, dashboard, invoices, ...)
-   - [SW-3] networkFirstNavigation: يبحث في STATIC_CACHE أولاً
-   - [SW-4] offline.html مخصص بدل index.html
-   - [SW-5] message handler: فحص event.waitUntil
-   - [SW-6] isStaticAsset: يشمل .map
-   - [SW-7] cacheFirst: لا throw عند الفشل، Response فاضل
-   - [SW-8] staleWhileRevalidate: تعليق صحيح
+   Changelog من v4.1.0:
+   - [SW-K] CACHE_VERSION = 4.2.0 (إبطال الكاش القديم)
+   - [SW-B] CLEAR_CACHE يحذف RUNTIME_CACHE فقط
+           (كان يحذف كل شيء → يكسر offline بعد logout)
+   - [SW-C] networkFirstNavigation: أُزيل ignoreSearch
+           من مطابقة التنقلات (منع تسريب كامن)
    ============================================= */
 
-const CACHE_VERSION = '4.1.0';
+const CACHE_VERSION = '4.2.0';
 const STATIC_CACHE  = `hesaby-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `hesaby-runtime-${CACHE_VERSION}`;
 const MAX_RUNTIME_ENTRIES = 120;
 const SYNC_TAG = 'hesaby-sync-queue';
 const OFFLINE_URL = './offline.html';
 
-// ✅ [SW-2] قائمة كاملة — بعضها قد لا يوجد، install يتسامح
 const PRECACHE_ASSETS = [
     // Root
     './',
@@ -77,7 +73,7 @@ const PRECACHE_ASSETS = [
 ];
 
 /* ============================================
-   Install — tolerant of missing files
+   Install
    ============================================ */
 self.addEventListener('install', (event) => {
     event.waitUntil((async () => {
@@ -95,7 +91,7 @@ self.addEventListener('install', (event) => {
 });
 
 /* ============================================
-   Activate — حذف الكاشات القديمة
+   Activate
    ============================================ */
 self.addEventListener('activate', (event) => {
     event.waitUntil((async () => {
@@ -109,7 +105,8 @@ self.addEventListener('activate', (event) => {
 });
 
 /* ============================================
-   Message Handler — ✅ [SW-5] فحص waitUntil
+   Message Handler
+   ✅ [SW-B] CLEAR_CACHE يحذف RUNTIME فقط
    ============================================ */
 self.addEventListener('message', (event) => {
     const data = event.data || {};
@@ -120,16 +117,29 @@ self.addEventListener('message', (event) => {
     }
 
     if (data.type === 'CLEAR_CACHE') {
+        // ✅ [SW-B] امسح فقط الكاش الديناميكي، احتفظ بالأصول الثابتة
+        // السبب: بعد logout، نحتاج إبقاء HTML/CSS/JS للعمل offline.
+        // كل هذه الملفات static shells بدون بيانات مستخدم.
         tasks.push((async () => {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
+            try {
+                const keys = await caches.keys();
+                const runtimeKeys = keys.filter(k => k.startsWith('hesaby-runtime-'));
+                await Promise.all(runtimeKeys.map(k => caches.delete(k)));
+            } catch (e) {
+                console.warn('[SW] CLEAR_CACHE failed', e);
+            }
         })());
     }
 
     if (data.type === 'CACHE_URLS' && Array.isArray(data.urls)) {
         tasks.push((async () => {
             const cache = await caches.open(RUNTIME_CACHE);
-            await Promise.allSettled(data.urls.map(u => cache.add(u)));
+            // اقبل فقط URLs من نفس الأصل (منع تخزين موارد خارجية)
+            const sameOriginUrls = data.urls.filter(u => {
+                try { return new URL(u, self.location.origin).origin === self.location.origin; }
+                catch { return false; }
+            });
+            await Promise.allSettled(sameOriginUrls.map(u => cache.add(u)));
         })());
     }
 
@@ -137,7 +147,6 @@ self.addEventListener('message', (event) => {
         if (typeof event.waitUntil === 'function') {
             event.waitUntil(Promise.all(tasks));
         } else {
-            // fallback: shush, best-effort
             Promise.all(tasks).catch(() => {});
         }
     }
@@ -161,7 +170,6 @@ function isNavigation(request) {
             (request.headers.get('accept') || '').includes('text/html'));
 }
 
-// ✅ [SW-6] .map مُضاف
 function isStaticAsset(url) {
     return /\.(css|js|mjs|map|woff2?|ttf|eot|otf|png|jpg|jpeg|gif|svg|webp|ico|json)$/i.test(url.pathname);
 }
@@ -177,10 +185,9 @@ async function trimCache(cacheName, maxEntries) {
 }
 
 /* ============================================
-   Offline Response — ✅ [SW-4]
+   Offline Response
    ============================================ */
 async function offlineResponse() {
-    // حاول offline.html أولاً
     try {
         const staticCache = await caches.open(STATIC_CACHE);
         const offline = await staticCache.match(OFFLINE_URL);
@@ -191,7 +198,6 @@ async function offlineResponse() {
         if (offlineRuntime) return offlineRuntime;
     } catch { /* ignore */ }
 
-    // آخر ملاذ: HTML مضمّن
     return new Response(
         `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
          <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -221,8 +227,14 @@ async function offlineResponse() {
    Strategies
    ============================================ */
 
-// HTML: Network-first
-// ✅ [SW-3] يبحث في RUNTIME ثم STATIC (لنفس الـ URL) قبل offline
+/**
+ * ✅ [SW-C] بدون ignoreSearch في المطابقات.
+ * السبب: لو أصبح HTML حساسًا لـ query string مستقبلًا،
+ * فإن ignoreSearch قد يُرجع كاشًا من URL مختلف.
+ *
+ * ملاحظة: PRECACHE يضمن أن الروابط الأساسية (pos.html)
+ * موجودة في STATIC_CACHE بدون query.
+ */
 async function networkFirstNavigation(request) {
     try {
         const response = await fetch(request);
@@ -233,17 +245,17 @@ async function networkFirstNavigation(request) {
         }
         return response;
     } catch (err) {
-        // 1) حاول في RUNTIME_CACHE بنفس الـ URL
+        // 1) RUNTIME_CACHE بمطابقة دقيقة
         try {
             const runtimeCache = await caches.open(RUNTIME_CACHE);
-            const runtimeHit = await runtimeCache.match(request, { ignoreSearch: true });
+            const runtimeHit = await runtimeCache.match(request);
             if (runtimeHit) return runtimeHit;
         } catch { /* ignore */ }
 
-        // 2) ✅ [SW-3] حاول في STATIC_CACHE بنفس الـ URL
+        // 2) STATIC_CACHE بمطابقة دقيقة
         try {
             const staticCache = await caches.open(STATIC_CACHE);
-            const staticHit = await staticCache.match(request, { ignoreSearch: true });
+            const staticHit = await staticCache.match(request);
             if (staticHit) return staticHit;
         } catch { /* ignore */ }
 
@@ -252,8 +264,6 @@ async function networkFirstNavigation(request) {
     }
 }
 
-// JS/CSS/assets: Stale-While-Revalidate
-// ✅ [SW-8] تعليق صحيح — ignoreSearch: false للـ JS/CSS
 async function staleWhileRevalidate(request, cacheName) {
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
@@ -276,7 +286,6 @@ async function staleWhileRevalidate(request, cacheName) {
     throw new Error('Resource unavailable offline');
 }
 
-// ✅ [SW-7] cacheFirst — لا throw، Response 503
 async function cacheFirst(request, cacheName) {
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
@@ -290,7 +299,6 @@ async function cacheFirst(request, cacheName) {
         }
         return response;
     } catch (err) {
-        // ✅ لا throw — Response فاضل
         return new Response('Offline — resource unavailable', {
             status: 503,
             statusText: 'Service Unavailable',
@@ -306,16 +314,10 @@ self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // تجاهل غير GET
     if (request.method !== 'GET') return;
-
-    // تجاهل Supabase
     if (isSupabaseUrl(url)) return;
-
-    // تجاهل طلبات Range
     if (request.headers.get('range')) return;
 
-    // نفس المصدر
     if (isSameOrigin(url)) {
         if (isNavigation(request)) {
             event.respondWith(networkFirstNavigation(request));
@@ -329,7 +331,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // مصادر خارجية (CDN، خطوط): cache-first
+    // Cross-origin: cache-first
     event.respondWith(cacheFirst(request, RUNTIME_CACHE));
 });
 
