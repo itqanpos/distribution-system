@@ -1,23 +1,28 @@
 /* =============================================
    auth.js - Authentication Layer
-   Version: 5.2.0
+   Version: 5.3.0
 
-   Changelog:
-   - v4.1.0: منع admin افتراضي، wipeLocalData، refreshSession،
-             debounce، فحص is_active، resetPassword/changePassword
-
-   - v5.2.0 (بعد مراجعة):
-     [AUTH-FIX-1] كشف تغيير المستخدم → wipeLocalData تلقائي
-     [AUTH-FIX-2] logout: _notify قبل _listeners.clear()
-     [AUTH-FIX-3] logout: رسالة تحذير دقيقة قبل حذف الطابور
-     [AUTH-FIX-4] signup: فحص فشل إنشاء profile (trigger)
-     [AUTH-FIX-5] logout: إرسال CLEAR_CACHE إلى Service Worker
-     [AUTH-FIX-6] getCurrentUser: توثيق حالة tenant_id=null
+   Changelog من v5.2.0:
+   - [AUTH-1] getCurrentUser: عند خطأ عابر (شبكة/DB)
+              نحتفظ بـ this.user السابق بدل تصفيره،
+              مع fallback من JWT (session.user.app_metadata).
+              _lastError يميّز الفشل العابر عن النهائي.
+   - [AUTH-1b] requireAuth: 3 محاولات ثم logout({force:true})
+               (كان محاولة واحدة + انتظار 500ms ثم redirect).
+   - [AUTH-2] signup: signOut قبل throw عند فشل ربط المستأجر
+             (كان يترك جلسة معلقة).
+   - [AUTH-3] logout: signOut({scope:'global'}) → {scope:'local'}
+             → تنبيه المستخدم عند الفشل الكامل.
+   - [AUTH-7] _notify: dedup بواسطة _lastNotifiedKey
+             (منع تنبيه مزدوج في login).
+   - [AUTH-8] init: 20 محاولة حد أقصى لانتظار DB.
    ============================================= */
 (function() {
     'use strict';
 
     const PREV_USER_KEY = 'hesaby_prev_user_id';
+    const INIT_MAX_ATTEMPTS = 20;
+    const INIT_RETRY_MS = 500;
 
     window.Auth = {
         user: null,
@@ -25,10 +30,20 @@
         _fetchingUser: null,
         _initDone: false,
         _wipingInProgress: false,
+        _lastError: null,          // ✅ [AUTH-1] {type:'transient'|'definitive', ...}
+        _lastNotifiedKey: undefined, // ✅ [AUTH-7]
 
-        async init() {
+        /* ============================================
+           init
+           ✅ [AUTH-8] حد أقصى للمحاولات
+           ============================================ */
+        async init(attempt = 0) {
             if (!window.DB?.client) {
-                setTimeout(() => this.init(), 500);
+                if (attempt >= INIT_MAX_ATTEMPTS) {
+                    console.error('Auth init: DB never became ready');
+                    return;
+                }
+                setTimeout(() => this.init(attempt + 1), INIT_RETRY_MS);
                 return;
             }
             if (this._initDone) return;
@@ -37,6 +52,7 @@
             window.DB.client.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_OUT') {
                     this.user = null;
+                    this._lastError = { type: 'definitive', reason: 'signed-out' };
                     this._notify(null);
                 } else if (event === 'SIGNED_IN' && session) {
                     this.getCurrentUser().then(u => this._notify(u));
@@ -46,7 +62,15 @@
             await this.getCurrentUser();
         },
 
+        /* ============================================
+           _notify
+           ✅ [AUTH-7] dedup بحسب user.id
+           ============================================ */
         _notify(user) {
+            const key = user?.id || null;
+            if (this._lastNotifiedKey === key) return;
+            this._lastNotifiedKey = key;
+
             this._listeners.forEach(fn => {
                 try { fn(user); } catch (e) { console.error(e); }
             });
@@ -55,6 +79,8 @@
         onChange(fn) {
             this._listeners.add(fn);
             if (this.user) {
+                // ✅ [AUTH-7] سجّل التنبيه الأولي لمنع ازدواج لاحق
+                this._lastNotifiedKey = this.user.id;
                 try { fn(this.user); } catch (e) { console.error(e); }
             }
             return () => this._listeners.delete(fn);
@@ -79,7 +105,30 @@
         },
 
         /* ============================================
+           _userFromSession — fallback من JWT
+           يُستخدم فقط عند فشل جلب profile (شبكة/DB).
+           البيانات موقّعة بـ JWT، لذلك موثوقة.
+           ============================================ */
+        _userFromSession(session) {
+            if (!session?.user) return null;
+            const meta = session.user.user_metadata || {};
+            const appMeta = session.user.app_metadata || {};
+            const tenantId = appMeta.tenant_id || null;
+            return {
+                id: session.user.id,
+                email: session.user.email,
+                fullName: meta.full_name || session.user.email,
+                role: appMeta.role || 'rep',
+                tenant_id: tenantId,
+                phone: meta.phone || null,
+                _fromJwt: true
+            };
+        },
+
+        /* ============================================
            getCurrentUser
+           ✅ [AUTH-1] عند خطأ عابر نحتفظ بـ this.user
+                       ونجرب fallback من JWT.
            ✅ [AUTH-FIX-1] كشف تغيير المستخدم → wipe
            ✅ [AUTH-FIX-6] يقبل tenant_id = null (signup مؤقتًا)
            ============================================ */
@@ -90,7 +139,11 @@
             this._fetchingUser = (async () => {
                 try {
                     const { data: { session } } = await window.DB.client.auth.getSession();
-                    if (!session) { this.user = null; return null; }
+                    if (!session) {
+                        this.user = null;
+                        this._lastError = { type: 'definitive', reason: 'no-session' };
+                        return null;
+                    }
 
                     const { data: profile, error } = await window.DB.client
                         .from('profiles').select('*')
@@ -98,18 +151,32 @@
 
                     if (error && error.code !== 'PGRST116') {
                         console.error('Profile fetch error', error);
-                        return null;
+
+                        // ✅ [AUTH-1] خطأ عابر — حاول fallback من JWT
+                        const fallback = this._userFromSession(session);
+                        if (fallback?.tenant_id) {
+                            console.warn('Using JWT fallback for user (profile fetch failed)');
+                            this.user = fallback;
+                            this._lastError = { type: 'transient', error };
+                            return fallback;
+                        }
+
+                        // لا نُصفّر this.user — قد يكون من جلسة سابقة على نفس الصفحة
+                        this._lastError = { type: 'transient', error };
+                        return this.user;
                     }
 
                     if (!profile) {
                         console.warn('No profile for user', session.user.id);
                         this.user = null;
+                        this._lastError = { type: 'definitive', reason: 'no-profile' };
                         return null;
                     }
 
                     if (profile.is_active === false) {
                         console.warn('User is inactive:', session.user.id);
                         this.user = null;
+                        this._lastError = { type: 'definitive', reason: 'inactive' };
                         return null;
                     }
 
@@ -139,10 +206,13 @@
                     localStorage.setItem(PREV_USER_KEY, newUser.id);
 
                     this.user = newUser;
+                    this._lastError = null;
                     return this.user;
                 } catch (e) {
                     console.error('getCurrentUser failed', e);
-                    return null;
+                    this._lastError = { type: 'transient', error: e };
+                    // ✅ [AUTH-1] خطأ عابر — نُبقي this.user كما هو
+                    return this.user;
                 } finally {
                     this._fetchingUser = null;
                 }
@@ -170,12 +240,14 @@
                 throw new Error('حسابك موقوف أو غير مكتمل، تواصل مع الإدارة');
             }
 
+            // ✅ [AUTH-7] _notify أصبح dedup — نداء صريح لن يضر
             this._notify(user);
             return { success: true, user, redirect: this.getRedirect(user) };
         },
 
         /* ============================================
            signup
+           ✅ [AUTH-2] signOut قبل throw عند فشل ربط المستأجر
            ✅ [AUTH-FIX-4] فحص فشل إنشاء profile
            ============================================ */
         async signup(email, password, fullName, storeName, phone = '') {
@@ -230,6 +302,8 @@
                 .from('profiles').select('tenant_id, role').eq('id', authData.user.id).maybeSingle();
 
             if (!updatedProfile?.tenant_id) {
+                // ✅ [AUTH-2] لا تترك جلسة معلّقة
+                await window.DB.client.auth.signOut();
                 throw new Error('تم إنشاء الحساب لكن ربط المستأجر لم يكتمل. أعد تسجيل الدخول.');
             }
 
@@ -240,6 +314,7 @@
 
         /* ============================================
            logout
+           ✅ [AUTH-3] signOut(global) → signOut(local) → تنبيه
            ✅ [AUTH-FIX-2] _notify قبل _listeners.clear()
            ✅ [AUTH-FIX-3] رسالة تحذير دقيقة
            ✅ [AUTH-FIX-5] إرسال CLEAR_CACHE للـ SW
@@ -247,7 +322,7 @@
         async logout({ force = false } = {}) {
             if (!window.DB?.client) return;
 
-            // تحذير المستخدم من فقدان عمليات المزامنة المعلّقة
+            // 1) تحذير المستخدم من فقدان عمليات المزامنة المعلّقة
             if (!force) {
                 try {
                     const pending = await window.DB.getPendingSyncCount();
@@ -261,59 +336,88 @@
                 } catch { /* ignore */ }
             }
 
-            // امسح كاش Service Worker
+            // 2) امسح كاش Service Worker
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 try {
                     navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
                 } catch (e) { console.warn('SW CLEAR_CACHE failed', e); }
             }
 
-            // إنهاء الجلسة
+            // 3) ✅ [AUTH-3] إنهاء الجلسة — global أولاً ثم local
+            let signOutOk = false;
             try {
-                await window.DB.client.auth.signOut();
+                const { error } = await window.DB.client.auth.signOut({ scope: 'global' });
+                if (!error) signOutOk = true;
+                else console.warn('signOut(global) returned error', error);
             } catch (e) {
-                console.warn('signOut failed', e);
+                console.warn('signOut(global) threw', e);
+            }
+            if (!signOutOk) {
+                try {
+                    await window.DB.client.auth.signOut({ scope: 'local' });
+                    signOutOk = true;
+                } catch (e2) {
+                    console.error('signOut(local) also failed', e2);
+                }
             }
 
-            // امسح البيانات المحلية (بما فيها الطابور)
+            // 4) امسح البيانات المحلية (دائمًا، حتى لو فشل signOut)
             try {
                 await window.DB.wipeLocalData({ includePendingQueue: true });
             } catch (e) {
                 console.warn('wipe failed', e);
             }
 
-            // امسح علامة المستخدم السابق (المستخدم القادم لن يُقارَن)
+            // 5) امسح علامة المستخدم السابق
             try { localStorage.removeItem(PREV_USER_KEY); } catch { /* ignore */ }
 
-            // ✅ [AUTH-FIX-2] _notify قبل clear
+            // 6) ✅ [AUTH-FIX-2] _notify قبل clear
             this.user = null;
+            this._lastError = { type: 'definitive', reason: 'logged-out' };
             this._notify(null);
             this._listeners.clear();
 
-            // أعِد التوجيه إن لزم
+            // 7) ✅ [AUTH-3] تنبيه المستخدم عند الفشل الكامل
+            if (!signOutOk) {
+                try {
+                    alert(
+                        'تم الخروج محليًا، لكن تعذّر إبطال الجلسة على الخادم. ' +
+                        'إذا ظهر تسجيل دخول تلقائي، أعد المحاولة مع اتصال أفضل.'
+                    );
+                } catch { /* ignore */ }
+            }
+
+            // 8) أعِد التوجيه إن لزم
             if (!location.pathname.includes('index.html') && location.pathname !== '/') {
                 location.href = './index.html';
             }
         },
 
         /* ============================================
-           requireAuth / requireRole
+           requireAuth
+           ✅ [AUTH-1b] 3 محاولات ثم logout({force:true})
            ============================================ */
         async requireAuth() {
             await this.waitForSession();
-            const user = await this.getCurrentUser();
-            if (!user) {
-                await new Promise(r => setTimeout(r, 500));
-                const retry = await this.getCurrentUser();
-                if (!retry) {
-                    if (!location.pathname.includes('index.html') && location.pathname !== '/') {
-                        location.href = './index.html';
-                    }
-                    return null;
+
+            const RETRIES = 3;
+            const DELAY_MS = 400;
+
+            for (let attempt = 0; attempt < RETRIES; attempt++) {
+                const user = await this.getCurrentUser();
+                if (user) return user;
+
+                // فشل نهائي (لا session، لا profile، موقوف) → توقف فورًا
+                if (this._lastError?.type === 'definitive') break;
+
+                if (attempt < RETRIES - 1) {
+                    await new Promise(r => setTimeout(r, DELAY_MS));
                 }
-                return retry;
             }
-            return user;
+
+            // فشلت كل المحاولات
+            await this.logout({ force: true });
+            return null;
         },
 
         async requireRole(roles = []) {
