@@ -1,17 +1,17 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 6.3.0
+   Version: 6.4.0
 
-   Changelog من v6.2.0:
-   - [POS-47] منطق الرصيد الجديد في شاشة الدفع والإيصال:
-              * الرصيد السابق   = balance قبل الفاتورة (موجب = مدين)
-              * الإجمالي        = الرصيد السابق + إجمالي الفاتورة
-              * المدفوع         = ما دفعه العميل فعليًا
-              * الرصيد الحالي   = الإجمالي - المدفوع
-   - [POS-48] إزالة `#payMethodLabel` و `#payInvoiceTotal` من pos.html
-              واستبدالهما بـ `#payCumulativeTotal`
-   - [POS-49] showReceipt: قسم الرصيد = 4 صفوف بالترتيب المطلوب
-   - [POS-50] إزالة تكرار "إجمالي الفاتورة" من جدول الرصيد
+   Changelog من v6.3.0:
+   - [POS-51] تسديد الدين أصبح افتراضيًا عند:
+              * فتح مودال الدفع
+              * اختيار عميل
+              + checkbox يبقى قابلاً للإلغاء يدويًا
+              + updateChange يحترم اختيار المستخدم
+                (لا يُصفّر عند غياب extra مؤقتًا)
+
+   سابق (v6.3.0):
+   - منطق الرصيد: الرصيد السابق / الإجمالي / المدفوع / الرصيد الحالي
    ============================================= */
 (function() {
     'use strict';
@@ -638,6 +638,7 @@
 
     /* ============================================
        Customer
+       ✅ [POS-51] اختيار عميل = تفعيل تسديد الدين افتراضيًا
        ============================================ */
     function renderCustomerDropdown(term = '') {
         const dd = $('#customerDropdown');
@@ -682,6 +683,10 @@
             $('#customerSearch').value = '';
             $('#customerInfo').textContent = '';
             $('#customerInfo').style.color = '';
+            // ✅ [POS-51] لا عميل → لا تسديد دين
+            State.payDebtFromChange = false;
+            const cb = $('#payDebtCheckbox');
+            if (cb) cb.checked = false;
         } else {
             const c = State.customers.find(x => x.id === id);
             if (!c) return;
@@ -693,12 +698,12 @@
             else if (bal < 0) { info = `مدين: ${U.money(-bal)}`; color = 'var(--danger)'; }
             $('#customerInfo').textContent = info;
             $('#customerInfo').style.color = color;
+            // ✅ [POS-51] عميل جديد → تسديد الدين مفعّل افتراضيًا
+            State.payDebtFromChange = true;
+            const cb = $('#payDebtCheckbox');
+            if (cb) cb.checked = true;
         }
         $('#customerDropdown').classList.remove('show');
-
-        State.payDebtFromChange = false;
-        const cb = $('#payDebtCheckbox');
-        if (cb) cb.checked = false;
 
         if ($('#paymentModal')?.classList.contains('open')) {
             updateChange();
@@ -707,6 +712,7 @@
 
     /* ============================================
        Payment
+       ✅ [POS-51] openPayment يُفعّل تسديد الدين افتراضيًا
        ============================================ */
     function openPayment() {
         if (!State.cart.length) return;
@@ -719,9 +725,10 @@
         $('#cardInput').value = '';
         $('#paymentNotes').value = '';
 
-        State.payDebtFromChange = false;
+        // ✅ [POS-51] افتراضيًا: تفعيل تسديد الدين تلقائيًا
+        State.payDebtFromChange = true;
         const debtCb = $('#payDebtCheckbox');
-        if (debtCb) debtCb.checked = false;
+        if (debtCb) debtCb.checked = true;
 
         renderQuickCash(net);
         updateChange();
@@ -755,12 +762,6 @@
         });
     }
 
-    /**
-     * يُرجع مبالغ الفاتورة الحالية والرصيد.
-     * الاتفاقية الداخلية (كما في DB):
-     *   balance موجب = نحن مدينون للعميل
-     *   balance سالب = العميل مدين لنا
-     */
     function computePaymentBreakdown() {
         const { net } = calculateTotals();
         const method = State.paymentMethod;
@@ -776,7 +777,6 @@
         const remaining = U.round(Math.max(0, net - totalReceived));
         const paidForInvoice = Math.min(totalReceived, net);
 
-        // signed balance من DB
         const oldBalance = State.selectedCustomer
             ? (Number(State.selectedCustomer.balance) || 0)
             : 0;
@@ -821,22 +821,19 @@
     }
 
     /**
-     * ✅ منطق العرض الجديد:
-     *   الرصيد السابق   = -oldBalance (موجب = مدين لنا)
-     *   الإجمالي        = الرصيد السابق + net
-     *   المدفوع         = paidForInvoice + debtPayment
-     *   الرصيد الحالي   = الإجمالي - المدفوع  = -newBalance
+     * ✅ [POS-51] يحترم اختيار المستخدم للـ checkbox
+     * - عند ظهور المجموعة: مزامنة cb.checked مع State.payDebtFromChange
+     * - عند إخفائها: لا نُصفّر (حتى يعود canPayDebt ويحتفظ بالاختيار)
      */
     function updateChange() {
         const b = computePaymentBreakdown();
 
-        // تحويل للعرض: موجب = العميل مدين لنا
+        // عرض: موجب = العميل مدين لنا
         const displayOld = U.round(-b.oldBalance, 2);
         const displayNew = U.round(-b.newBalance, 2);
         const displayCum = U.round(displayOld + b.net, 2);
         const paidTotal = U.round(b.paidForInvoice + b.debtPayment, 2);
 
-        // ---- صفوف الملخص ----
         const subEl = $('#paySubtotal');
         if (subEl) subEl.textContent = U.moneyRaw(b.net);
 
@@ -867,18 +864,17 @@
             if (value) value.textContent = U.money(b.change);
         }
 
-        // ---- checkbox تسديد الدين ----
+        // ---- ✅ [POS-51] checkbox تسديد الدين ----
         const group = $('#debtPaymentGroup');
         if (group) {
             if (b.canPayDebt) {
                 group.style.display = 'block';
+                // مزامنة الـ checkbox مع الحالة الفعلية (دون تغيير اختيار المستخدم)
+                const cb = $('#payDebtCheckbox');
+                if (cb) cb.checked = (State.payDebtFromChange === true);
             } else {
                 group.style.display = 'none';
-                const cb = $('#payDebtCheckbox');
-                if (cb && cb.checked) {
-                    cb.checked = false;
-                    State.payDebtFromChange = false;
-                }
+                // لا نُصفّر State.payDebtFromChange — قد يعود canPayDebt لاحقًا
             }
         }
 
@@ -1025,8 +1021,7 @@
     }
 
     /* ============================================
-       Receipt — v6.3.0
-       قسم الرصيد = 4 صفوف: السابق / الإجمالي / المدفوع / الحالي
+       Receipt
        ============================================ */
     function showReceipt(invoice) {
         const settings = State.settings || {};
@@ -1052,14 +1047,12 @@
                 </tr>`;
         });
 
-        // signed balances (من DB)
         const oldSigned = Number(invoice._oldBalance) || 0;
         const newSigned = Number(invoice._newBalance) || 0;
         const debtPayment = Number(invoice._debtPayment) || 0;
         const paidNow = Number(invoice.paid) || 0;
         const paidTotal = U.round(paidNow + debtPayment, 2);
 
-        // عرض: موجب = العميل مدين لنا
         const displayOld = U.round(-oldSigned, 2);
         const displayNew = U.round(-newSigned, 2);
         const invoiceTotal = Number(invoice.total) || 0;
