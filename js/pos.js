@@ -1,28 +1,19 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 6.0.0
+   Version: 6.2.0
 
-   Changelog من v5.6.0:
-   - [POS-32] [BUG-1] إزالة صف "إجمالي الفاتورة" المكرر في الإيصال
-   - [POS-33] [BUG-2] إعادة كتابة printReceipt:
-              load event + readyState check + 2s fallback
-              + الانتظار لتحميل الخطوط (document.fonts.ready)
-   - [POS-34] [BUG-3] restoreCart يتحقق من وجود المنتجات والوحدات
-              ويسقط العناصر التالفة مع تحذير للمستخدم
-   - [POS-35] [BUG-4] clearCart يُعيد discountType إلى "amount"
-   - [POS-36] [BUG-5] addToCart يُحدّث cost/factor/minPrice/maxPrice
-              عند وجود العنصر مسبقًا (منع تكلفة قديمة)
-   - [POS-37] [BUG-7] F1–F5 تُتجاهل أثناء الكتابة في أي input
-              (كانت تُنفَّذ داخل productSearch)
-   - [POS-38] [LOGIC-1] تسديد الدين يتطلب موافقة صريحة
-              عبر checkbox #payDebtCheckbox
-   - [POS-39] [LOGIC-3] استخدام invoice._saleTimestamp للطباعة
-              (كانت تستخدم Date.now() = وقت العرض)
-   - [POS-40] [INT-1] State.settings من DB.getSettings()
-              (كانت من localStorage غير المتزامن مع DB)
-   - [POS-41] [HTML-5] طباعة تلقائية بعد إتمام البيع
-   - [POS-42] dedup: computePaymentBreakdown يُحسب مرة واحدة
-              لكل تحديث ويُمرَّر إلى renderPaymentCustomerBalance
+   Changelog من v6.1.0:
+   - [POS-44] showReceipt: هيكل مطابق للصورة:
+              * رأس باسم المتجر فقط
+              * 4 صفوف بيانات (رقم/تاريخ/عميل/عنوان)
+              * صف "المجموع الفرعي" داخل جدول الأصناف
+                يعرض إجمالي الكميات في عمود الكمية
+              * جدولان منفصلان للملخص:
+                - إجمالي الفاتورة + طريقة الدفع
+                - صافي الرصيد السابق/إجمالي/بعد/المدفوع الآن
+   - [POS-45] مودال الدفع: نفس بنية الملخص (6 صفوف)
+              وأُزيل renderPaymentCustomerBalance
+   - [POS-46] printReceipt CSS محدّث لتنسيق الجداول الجديدة
    ============================================= */
 (function() {
     'use strict';
@@ -45,6 +36,7 @@
         'P0004': 'بيانات غير صالحة',
         'P0005': 'عنصر غير صالح في الفاتورة',
         'P0006': 'عدم تطابق في الحسابات المالية',
+        'P0007': 'مبلغ تسديد الدين يتجاوز الدين المستحق',
         'NO_TENANT': 'لا يوجد مستأجر مرتبط بالحساب',
         '42501': 'ليس لديك صلاحية لهذه العملية',
         '23505': 'الفاتورة مسجلة مسبقاً'
@@ -70,7 +62,6 @@
         currentCategory: 'الكل',
         searchTerm: '',
         settings: {},
-        // ✅ [LOGIC-1] موافقة صريحة على تسديد دين سابق
         payDebtFromChange: false
     };
 
@@ -119,11 +110,6 @@
     /* ============================================
        Data
        ============================================ */
-
-    /**
-     * ✅ [INT-1] الإعدادات من DB (المصدر الرسمي)
-     * مع fallback إلى localStorage للتوافق مع تثبيتات قديمة
-     */
     async function loadSettings() {
         try {
             const fromDb = await DB.getSettings();
@@ -470,7 +456,6 @@
         if (existing) {
             existing.quantity = U.round(existing.quantity + qty, 3);
             existing.price = price;
-            // ✅ [BUG-5] حدّث الحقول التي قد تتغير على الخادم
             existing.cost = Number(unit.cost) || 0;
             existing.factor = Number(unit.factor) || 1;
             existing.minPrice = Number(unit.minPrice) || 0;
@@ -640,9 +625,9 @@
 
         State.cart = [];
         State.discount = 0;
-        State.discountType = 'amount';        // ✅ [BUG-4]
+        State.discountType = 'amount';
         State.selectedCustomer = null;
-        State.payDebtFromChange = false;      // ✅ [LOGIC-1]
+        State.payDebtFromChange = false;
 
         $('#discountValue').value = '0';
         $('#discountType').value = 'amount';
@@ -713,7 +698,6 @@
         }
         $('#customerDropdown').classList.remove('show');
 
-        // ✅ [LOGIC-1] عند تغيير العميل، ألغِ الموافقة القديمة
         State.payDebtFromChange = false;
         const cb = $('#payDebtCheckbox');
         if (cb) cb.checked = false;
@@ -728,16 +712,17 @@
        ============================================ */
     function openPayment() {
         if (!State.cart.length) return;
-        const { subtotal, disc, net } = calculateTotals();
-        $('#paySubtotal').textContent = U.moneyRaw(subtotal);
-        $('#payDiscount').textContent = U.moneyRaw(disc);
-        $('#payNet').textContent = U.moneyRaw(net);
+        const { net } = calculateTotals();
+
+        // إجمالي الفاتورة = الصافي (بعد الخصم)
+        const el = $('#paySubtotal'); if (el) el.textContent = U.moneyRaw(net);
+        const el2 = $('#payInvoiceTotal'); if (el2) el2.textContent = U.moneyRaw(net);
+
         setPaymentMethod('cash');
         $('#cashInput').value = '';
         $('#cardInput').value = '';
         $('#paymentNotes').value = '';
 
-        // ✅ [LOGIC-1] أعِد ضبط خيار تسديد الدين (الافتراضي: غير مُفعّل)
         State.payDebtFromChange = false;
         const debtCb = $('#payDebtCheckbox');
         if (debtCb) debtCb.checked = false;
@@ -793,7 +778,6 @@
             ? (Number(State.selectedCustomer.balance) || 0)
             : 0;
 
-        // ✅ [LOGIC-1] التسديد يتطلب: عميل + رصيد سالب + extra + موافقة صريحة
         const canPayDebt = !!State.selectedCustomer && oldBalance < 0 && extra > 0;
         const shouldPayDebt = canPayDebt && State.payDebtFromChange === true;
         const debtPayment = shouldPayDebt
@@ -807,7 +791,6 @@
         else if (method === 'card') cardFinal = card;
         else if (method === 'mixed') { cashFinal = cash; cardFinal = card; }
 
-        // اخصم debtPayment من cash ثم card بالتسلسل
         let deduct = debtPayment;
         const d1 = Math.min(cashFinal, deduct); cashFinal -= d1; deduct -= d1;
         const d2 = Math.min(cardFinal, deduct); cardFinal -= d2; deduct -= d2;
@@ -837,7 +820,23 @@
     function updateChange() {
         const b = computePaymentBreakdown();
 
-        // 1) display التغيير
+        // ---- صفوف الملخص (مطابقة للإيصال) ----
+        const subEl = $('#paySubtotal'); if (subEl) subEl.textContent = U.moneyRaw(b.net);
+        const subEl2 = $('#payInvoiceTotal'); if (subEl2) subEl2.textContent = U.moneyRaw(b.net);
+
+        const methodEl = $('#payMethodLabel');
+        if (methodEl) methodEl.textContent = paymentLabel(State.paymentMethod);
+
+        const prevEl = $('#payPrevBalance');
+        if (prevEl) prevEl.textContent = U.moneyRaw(b.oldBalance);
+
+        const newEl = $('#payNewBalance');
+        if (newEl) newEl.textContent = U.moneyRaw(b.newBalance);
+
+        const paidEl = $('#payPaidNow');
+        if (paidEl) paidEl.textContent = U.moneyRaw(U.round(b.paidForInvoice + b.debtPayment, 2));
+
+        // ---- الباقي / المتبقي ----
         const display = $('#changeDisplay');
         const value = $('#changeValue');
         const span = display?.querySelector('span');
@@ -852,7 +851,7 @@
             if (value) value.textContent = U.money(b.change);
         }
 
-        // 2) ✅ [LOGIC-1] إظهار/إخفاء مجموعة تسديد الدين
+        // ---- checkbox تسديد الدين ----
         const group = $('#debtPaymentGroup');
         if (group) {
             if (b.canPayDebt) {
@@ -867,7 +866,6 @@
             }
         }
 
-        // 3) ✅ [LOGIC-1] نص المبلغ الذي سيُسدَّد
         const hintEl = $('#debtPaymentHint');
         if (hintEl) {
             if (b.debtPayment > 0) {
@@ -876,43 +874,6 @@
             } else {
                 hintEl.style.display = 'none';
             }
-        }
-
-        // 4) رصيد العميل
-        renderPaymentCustomerBalance(b);
-    }
-
-    /**
-     * ✅ [POS-42] يقبل breakdown محسوبًا مسبقًا من updateChange
-     * (يمنع احتساب مزدوج)
-     */
-    function renderPaymentCustomerBalance(breakdown) {
-        const container = $('#paymentCustomerBalance');
-        const prevEl = $('#pcbPrevious');
-        const newEl = $('#pcbNew');
-        const nameEl = $('#pcbCustomerName');
-        if (!container || !prevEl || !newEl) return;
-
-        if (!State.selectedCustomer) {
-            container.style.display = 'none';
-            return;
-        }
-
-        container.style.display = 'block';
-        if (nameEl) nameEl.textContent = State.selectedCustomer.name || 'العميل';
-
-        const b = breakdown || computePaymentBreakdown();
-
-        prevEl.textContent = formatBalance(b.oldBalance);
-        prevEl.className = 'pcb-value ' + balanceClass(b.oldBalance);
-
-        newEl.textContent = formatBalance(b.newBalance);
-        newEl.className = 'pcb-value ' + balanceClass(b.newBalance);
-
-        if (b.newBalance < b.oldBalance - 0.001) {
-            container.classList.add('pcb--increasing-debt');
-        } else {
-            container.classList.remove('pcb--increasing-debt');
         }
     }
 
@@ -924,13 +885,6 @@
         if (Math.abs(n) < 0.001) return `0.00 ${CURRENCY}`;
         if (n < 0) return `مدين ${U.money(Math.abs(n))}`;
         return `دائن ${U.money(n)}`;
-    }
-
-    function balanceClass(bal) {
-        const n = Number(bal) || 0;
-        if (Math.abs(n) < 0.001) return 'pcb-value--zero';
-        if (n < 0) return 'pcb-value--debit';
-        return 'pcb-value--credit';
     }
 
     /* ============================================
@@ -963,8 +917,6 @@
         if (method === 'credit' && State.selectedCustomer) {
             if (!confirm(`سيتم تسجيل ${U.money(net)} كدين على العميل. متابعة؟`)) return;
         }
-        // ✅ [LOGIC-1] لا confirm لتسديد الدين —
-        // المستخدم أشّر الـ checkbox صراحةً ورأى المبلغ في #debtPaymentHint
 
         const btn = $('#confirmPayBtn');
         if (btn) btn.disabled = true;
@@ -977,7 +929,6 @@
                 invoice_number: invoiceNumber,
                 type: 'sale',
                 date: U.today(),
-                // ✅ [LOGIC-3] طابع وقت البيع الفعلي
                 _saleTimestamp: Date.now(),
                 customer_id: State.selectedCustomer?.id || null,
                 customer_name: State.selectedCustomer?.name || 'نقدي',
@@ -996,6 +947,8 @@
                 status: method === 'credit' ? 'credit' : (b.remaining > 0 ? 'partial' : 'paid'),
                 notes,
 
+                debt_payment_amount: method === 'credit' ? 0 : (b.debtPayment || 0),
+
                 _hasCustomer: !!State.selectedCustomer,
                 _oldBalance: b.oldBalance,
                 _newBalance: b.newBalance,
@@ -1013,32 +966,14 @@
                 invoice._debtPayment = 0;
             }
 
-            if (!result.deduplicated && b.debtPayment > 0 && State.selectedCustomer?.id) {
-                try {
-                    await DB.addPayment({
-                        party_id: State.selectedCustomer.id,
-                        type: 'payment_in',
-                        amount: b.debtPayment,
-                        payment_method: 'cash',
-                        reference: invoiceNumber,
-                        notes: `تسديد دين سابق من فاتورة ${invoiceNumber}`
-                    });
-                } catch (e) {
-                    console.error('Debt payment failed:', e);
-                    showToast('تم حفظ الفاتورة، لكن فشل تسجيل تسديد الدين', 'warning');
-                }
-            }
-
             showReceipt(invoice);
 
-            // ✅ [HTML-5] طباعة تلقائية بعد البيع (زر "تأكيد وطباعة")
             setTimeout(() => {
                 if ($('#receiptModal')?.classList.contains('open')) {
                     try { printReceipt(); } catch (e) { console.warn('Auto-print failed', e); }
                 }
             }, 400);
 
-            // إعادة ضبط الحالة
             State.cart = [];
             State.discount = 0;
             State.discountType = 'amount';
@@ -1084,20 +1019,22 @@
     }
 
     /* ============================================
-       Receipt — v6.0.0 (بدون صفوف مكررة)
+       Receipt — v6.2.0 (هيكل مطابق للصورة)
        ============================================ */
     function showReceipt(invoice) {
-        // ✅ [INT-1] الإعدادات من DB (مع fallback LS في loadSettings)
         const settings = State.settings || {};
         const shopName = settings.shopName || 'حسابي';
         const shopPhone = settings.phone || '';
         const shopAddress = settings.address || '';
         const footer = settings.footer || 'شكراً لتعاملكم معنا';
 
+        // حساب إجمالي الكميات
+        let totalQty = 0;
         let itemsHtml = '';
         invoice.items.forEach((item, i) => {
             const price = Number(item.price) || 0;
             const qty = Number(item.quantity) || 0;
+            totalQty += qty;
             const lineTotal = U.round(price * qty, 2);
             itemsHtml += `
                 <tr>
@@ -1113,15 +1050,17 @@
         const newBal = Number(invoice._newBalance) || 0;
         const debtPayment = Number(invoice._debtPayment) || 0;
         const paidNow = Number(invoice.paid) || 0;
+        const paidTotal = U.round(paidNow + debtPayment, 2);
 
         const customerAddress = invoice._customerAddress || invoice.customer_address || '-';
-
-        // ✅ [LOGIC-3] وقت البيع (وليس وقت العرض)
         const saleTs = Number(invoice._saleTimestamp) ||
                        (invoice.created_at ? new Date(invoice.created_at).getTime() : Date.now());
 
         const preview = $('#receiptPreview');
         if (!preview) return;
+
+        // إجمالي الكميات كعدد صحيح إن أمكن
+        const totalQtyStr = Number.isInteger(totalQty) ? String(totalQty) : totalQty.toFixed(3);
 
         preview.innerHTML = `
             <div class="rc-header">
@@ -1162,13 +1101,16 @@
                 <tbody>
                     ${itemsHtml || '<tr><td colspan="5" class="rc-empty">لا توجد عناصر</td></tr>'}
                     <tr class="rc-subtotal-row">
-                        <td colspan="4" class="rc-subtotal-label">المجموع الفرعي</td>
+                        <td class="rc-num"></td>
+                        <td class="rc-name rc-subtotal-label">المجموع الفرعي</td>
+                        <td class="rc-qty rc-subtotal-qty">${totalQtyStr}</td>
+                        <td class="rc-price"></td>
                         <td class="rc-total rc-subtotal-value">${Number(invoice.subtotal).toFixed(2)}</td>
                     </tr>
                 </tbody>
             </table>
 
-            <table class="rc-summary">
+            <table class="rc-summary rc-summary--top">
                 ${invoice.discount > 0 ? `
                 <tr>
                     <td class="rc-sum-label">الخصم:</td>
@@ -1182,28 +1124,25 @@
                     <td class="rc-sum-label">طريقة الدفع:</td>
                     <td class="rc-sum-value">${paymentLabel(invoice.payment_method)}</td>
                 </tr>
+            </table>
+
+            <table class="rc-summary rc-summary--balance">
                 <tr>
                     <td class="rc-sum-label">صافي الرصيد السابق:</td>
                     <td class="rc-sum-value">${oldBal.toFixed(2)}</td>
                 </tr>
                 <tr>
+                    <td class="rc-sum-label">إجمالي الفاتورة:</td>
+                    <td class="rc-sum-value">${Number(invoice.total).toFixed(2)}</td>
+                </tr>
+                <tr>
                     <td class="rc-sum-label">صافي الرصيد بعد الفاتورة:</td>
                     <td class="rc-sum-value">${newBal.toFixed(2)}</td>
                 </tr>
-                ${debtPayment > 0 ? `
-                <tr>
-                    <td class="rc-sum-label">تسديد دين سابق:</td>
-                    <td class="rc-sum-value">${debtPayment.toFixed(2)}</td>
-                </tr>` : ''}
                 <tr>
                     <td class="rc-sum-label">المدفوع الآن:</td>
-                    <td class="rc-sum-value">${(paidNow + debtPayment).toFixed(2)}</td>
+                    <td class="rc-sum-value">${paidTotal.toFixed(2)}</td>
                 </tr>
-                ${Number(invoice.change_amount) > 0 ? `
-                <tr>
-                    <td class="rc-sum-label">الباقي:</td>
-                    <td class="rc-sum-value">${Number(invoice.change_amount).toFixed(2)}</td>
-                </tr>` : ''}
             </table>
 
             <div class="rc-footer">${U.escape(footer)}</div>
@@ -1217,12 +1156,7 @@
     }
 
     /* ============================================
-       Print — v6.0.0
-       ✅ [BUG-2] ثلاث طبقات:
-         1) load event بعد إضافة المستمع
-         2) فحص readyState (cover load-fired-before)
-         3) fallback 2s لو فشل الكل
-       + الانتظار لتحميل الخطوط (document.fonts.ready)
+       Print — CSS محدّث
        ============================================ */
     function printReceipt() {
         const preview = $('#receiptPreview');
@@ -1257,36 +1191,39 @@
         max-width: 80mm; line-height: 1.4;
     }
 
+    /* الرأس */
     .rc-header {
         text-align: center;
         padding: 6px 0 8px;
-        border-bottom: 1px solid #000;
         margin-bottom: 6px;
     }
     .rc-shop { font-size: 16px; font-weight: 800; margin-bottom: 2px; }
     .rc-sub { font-size: 10px; color: #333; }
 
+    /* المعلومات (رقم/تاريخ/عميل/عنوان) */
     .rc-info {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 6px;
+        table-layout: fixed;
     }
     .rc-info td {
-        padding: 3px 6px;
+        padding: 4px 6px;
         font-size: 11px;
         border: 1px solid #000;
+        vertical-align: middle;
     }
     .rc-info-label {
         font-weight: 700;
-        width: 35%;
+        width: 40%;
         text-align: right;
-        background: #f5f5f5;
     }
     .rc-info-value {
         font-weight: 700;
-        text-align: right;
+        text-align: left;
     }
 
+    /* جدول الأصناف */
     .rc-items {
         width: 100%;
         border-collapse: collapse;
@@ -1313,47 +1250,55 @@
     .rc-price { width: 16%; }
     .rc-total { width: 18%; font-weight: 800; }
 
+    /* صف المجموع الفرعي داخل الجدول */
     .rc-subtotal-row td {
         background: #f5f5f5;
         font-weight: 800;
+        padding: 5px 4px;
     }
     .rc-subtotal-label { text-align: right !important; }
-    .rc-subtotal-value { font-size: 12px !important; }
+    .rc-subtotal-qty { text-align: center !important; }
+    .rc-subtotal-value { font-size: 12px !important; text-align: center !important; }
 
     .rc-empty {
         padding: 10px !important;
         text-align: center !important;
     }
 
+    /* جدولان الملخص */
     .rc-summary {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
+        table-layout: fixed;
     }
     .rc-summary td {
         border: 1px solid #000;
-        padding: 4px 6px;
+        padding: 5px 6px;
         font-size: 11px;
     }
     .rc-sum-label {
         font-weight: 700;
         text-align: right;
-        background: #f5f5f5;
         width: 55%;
     }
     .rc-sum-value {
         font-weight: 800;
-        text-align: right;
+        text-align: left;
         width: 45%;
     }
 
+    /* المسافة بين الجدولين */
+    .rc-summary--balance { margin-top: 4px; }
+
+    /* التذييل */
     .rc-footer {
         text-align: center;
         font-weight: 700;
         font-size: 11px;
         padding-top: 6px;
         border-top: 1px solid #000;
-        margin-top: 4px;
+        margin-top: 6px;
     }
 </style>
 </head>
@@ -1361,19 +1306,15 @@
 </html>`);
             doc.close();
 
-            // ✅ [BUG-2] طبقة واحدة للتنفيذ (تضمن تشغيل print مرة واحدة فقط)
             let printed = false;
             const doPrint = async () => {
                 if (printed) return;
                 printed = true;
-
-                // انتظر تحميل الخطوط (best-effort)
                 try {
                     const docFonts = iframe.contentDocument?.fonts;
                     if (docFonts?.ready) await docFonts.ready;
                 } catch { /* ignore */ }
 
-                // مهلة صغيرة لاستقرار الـ layout بعد تحميل الخطوط
                 setTimeout(() => {
                     try {
                         iframe.contentWindow.focus();
@@ -1385,20 +1326,13 @@
                 }, 50);
             };
 
-            // ✅ استمع لـ load أولًا (قبل فحص readyState)
             try {
                 iframe.contentWindow.addEventListener('load', doPrint, { once: true });
             } catch (e) { /* ignore */ }
 
-            // ✅ لو أن load قد اكتمل بالفعل
-            if (doc.readyState === 'complete') {
-                doPrint();
-            }
-
-            // ✅ [BUG-2] fallback أخير: إن لم يُنفَّذ أي مسار خلال 2 ثانية
+            if (doc.readyState === 'complete') doPrint();
             setTimeout(() => { if (!printed) doPrint(); }, 2000);
 
-            // تنظيف بعد الطباعة
             const cleanup = () => {
                 setTimeout(() => {
                     if (iframe && iframe.parentNode) {
@@ -1410,8 +1344,6 @@
             try {
                 iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
             } catch {}
-
-            // حد أقصى: 30 ثانية ثم نظّف
             setTimeout(cleanup, 30000);
 
         } catch (err) {
@@ -1527,12 +1459,6 @@
         });
     }
 
-    /**
-     * ✅ [BUG-3] يتحقق من صحة كل عنصر مقابل State.products:
-     * - يحذف المنتجات المحذوفة
-     * - يحذف الوحدات المحذوفة
-     * - يُحدّث الحقول (cost, factor, min/max price) من المنتج الحالي
-     */
     function restoreCart() {
         const data = U.ls.get('posCart');
         if (!data) { renderCart(); return; }
@@ -1559,7 +1485,6 @@
             const qty = Number(item.quantity) || 0;
             if (qty <= 0) continue;
 
-            // ✅ حدّث الحقول من المنتج الحالي
             validCart.push({
                 productId: item.productId,
                 productName: product.name,
@@ -1589,7 +1514,6 @@
 
         if (dropped.length) {
             console.warn('Dropped stale cart items:', dropped);
-            // defer toast حتى ينتهي init
             setTimeout(() => {
                 showToast(`تم حذف ${dropped.length} صنف غير متوفر من السلة`, 'warning');
             }, 500);
@@ -1791,7 +1715,6 @@
         $('#cardInput')?.addEventListener('input', updateChange);
         $('#confirmPayBtn')?.addEventListener('click', completeSale);
 
-        // ✅ [LOGIC-1] ربط checkbox تسديد الدين
         $('#payDebtCheckbox')?.addEventListener('change', (e) => {
             State.payDebtFromChange = e.target.checked === true;
             updateChange();
@@ -1816,7 +1739,6 @@
             });
         });
 
-        // ✅ [BUG-7] F1–F5 لا تعمل أثناء الكتابة في أي input/textarea/select
         document.addEventListener('keydown', (e) => {
             const t = e.target;
             const isEditable = t.tagName === 'INPUT' ||
