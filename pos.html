@@ -9,7 +9,6 @@
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#4f46e5">
 
-    <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="نقطة البيع">
@@ -224,31 +223,27 @@
                 <button type="button" class="icon-btn" data-close="paymentModal" aria-label="إغلاق"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__body">
-                <!-- ✅ ملخص مطابق للإيصال -->
+                <!-- ✅ ملخص الحساب: الرصيد السابق / الإجمالي / المدفوع / الرصيد الحالي -->
                 <div class="payment-summary-table">
                     <div class="pay-row">
                         <span class="pay-label">إجمالي الفاتورة:</span>
                         <strong class="pay-value" id="paySubtotal">0.00</strong>
                     </div>
                     <div class="pay-row">
-                        <span class="pay-label">طريقة الدفع:</span>
-                        <strong class="pay-value" id="payMethodLabel">نقدي</strong>
-                    </div>
-                    <div class="pay-row">
-                        <span class="pay-label">صافي الرصيد السابق:</span>
+                        <span class="pay-label">الرصيد السابق:</span>
                         <strong class="pay-value" id="payPrevBalance">0.00</strong>
                     </div>
                     <div class="pay-row">
-                        <span class="pay-label">إجمالي الفاتورة:</span>
-                        <strong class="pay-value" id="payInvoiceTotal">0.00</strong>
+                        <span class="pay-label">الإجمالي:</span>
+                        <strong class="pay-value" id="payCumulativeTotal">0.00</strong>
                     </div>
                     <div class="pay-row">
-                        <span class="pay-label">صافي الرصيد بعد الفاتورة:</span>
-                        <strong class="pay-value" id="payNewBalance">0.00</strong>
+                        <span class="pay-label">المدفوع:</span>
+                        <strong class="pay-value" id="payPaidNow">0.00</strong>
                     </div>
                     <div class="pay-row pay-row--total">
-                        <span class="pay-label">المدفوع الآن:</span>
-                        <strong class="pay-value" id="payPaidNow">0.00</strong>
+                        <span class="pay-label">الرصيد الحالي:</span>
+                        <strong class="pay-value" id="payNewBalance">0.00</strong>
                     </div>
                 </div>
 
@@ -328,10 +323,7 @@
 
     <div id="toastStack" class="toast-stack"></div>
 
-    <!-- Supabase CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- ملفات النظام -->
     <script defer src="./js/config.js"></script>
     <script defer src="./js/utils.js"></script>
     <script defer src="./js/toast.js"></script>
@@ -339,7 +331,6 @@
     <script defer src="./js/auth.js"></script>
     <script defer src="./js/pos.js"></script>
 
-    <!-- Post-load: SW + theme-color + logo fallback -->
     <script>
     (function() {
         'use strict';
