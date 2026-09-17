@@ -1,11 +1,9 @@
 /* =============================================
    pos.css - Point of Sale Styles
-   Version: 6.2.0
+   Version: 6.3.0
+   (بدون تغيير في الثيم — نفس v6.2.0)
    ============================================= */
 
-/* ============================================
-   CSS Variables (fallback إن لم تُعرَّف في main.css)
-   ============================================ */
 :root {
     --pos-primary: #4f46e5;
     --pos-primary-dark: #4338ca;
@@ -39,9 +37,7 @@
     --pos-text-muted: #94a3b8;
 }
 
-/* ============================================
-   Reset & Base
-   ============================================ */
+/* Reset & Base */
 * { box-sizing: border-box; }
 
 html, body {
@@ -61,36 +57,23 @@ body {
 }
 
 button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 
-input, select, textarea {
-    font-family: inherit;
-    font-size: inherit;
-    color: inherit;
-}
-
-/* ============================================
-   Loading Bar
-   ============================================ */
+/* Loading Bar */
 #loading-bar {
     position: fixed;
-    top: 0;
-    right: 0;
-    height: 3px;
-    width: 0;
+    top: 0; right: 0;
+    height: 3px; width: 0;
     background: linear-gradient(90deg, var(--pos-primary), var(--pos-success));
     transition: width 0.3s ease;
     z-index: 999999;
     box-shadow: 0 0 8px rgba(79,70,229,0.6);
 }
 
-/* ============================================
-   Offline Banner
-   ============================================ */
+/* Offline Banner */
 #offline-banner {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     z-index: 9999;
     padding: 8px 16px;
     text-align: center;
@@ -100,13 +83,10 @@ input, select, textarea {
     color: #fff;
     display: none;
 }
-
 body.is-offline #offline-banner { display: block; }
 body.is-offline .topbar { margin-top: 34px; }
 
-/* ============================================
-   Topbar
-   ============================================ */
+/* Topbar */
 .topbar {
     position: sticky;
     top: 0;
@@ -128,15 +108,10 @@ body.is-offline .topbar { margin-top: 34px; }
     gap: 8px;
 }
 
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+.brand { display: flex; align-items: center; gap: 10px; }
 
 .brand__logo {
-    width: 38px;
-    height: 38px;
+    width: 38px; height: 38px;
     border-radius: var(--pos-radius-sm);
     background: linear-gradient(135deg, var(--pos-primary), var(--pos-primary-dark));
     display: grid;
@@ -145,42 +120,17 @@ body.is-offline .topbar { margin-top: 34px; }
     flex-shrink: 0;
 }
 
-.brand__logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+.brand__logo img { width: 100%; height: 100%; object-fit: cover; }
+.brand__logo i { color: #fff; font-size: 18px; }
 
-.brand__logo i {
-    color: #fff;
-    font-size: 18px;
-}
+.brand__text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand__name { font-weight: 800; font-size: 15px; color: var(--pos-text); }
+.brand__status { font-size: 11px; color: var(--pos-success); font-weight: 600; }
 
-.brand__text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.2;
-}
-
-.brand__name {
-    font-weight: 800;
-    font-size: 15px;
-    color: var(--pos-text);
-}
-
-.brand__status {
-    font-size: 11px;
-    color: var(--pos-success);
-    font-weight: 600;
-}
-
-/* ============================================
-   Icon Buttons
-   ============================================ */
+/* Icon Buttons */
 .icon-btn {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     border-radius: var(--pos-radius-sm);
     background: transparent;
     border: none;
@@ -197,24 +147,13 @@ body.is-offline .topbar { margin-top: 34px; }
     outline: none;
 }
 
-.icon-btn--sm {
-    width: 32px;
-    height: 32px;
-    font-size: 13px;
-}
+.icon-btn--sm { width: 32px; height: 32px; font-size: 13px; }
 
-/* ============================================
-   User Chip
-   ============================================ */
-.user-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+/* User Chip */
+.user-chip { display: flex; align-items: center; gap: 8px; }
 
 .user-chip__avatar {
-    width: 38px;
-    height: 38px;
+    width: 38px; height: 38px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--pos-primary), var(--pos-primary-dark));
     color: #fff;
@@ -225,9 +164,7 @@ body.is-offline .topbar { margin-top: 34px; }
     flex-shrink: 0;
 }
 
-/* ============================================
-   Sidebar
-   ============================================ */
+/* Sidebar */
 .sidebar-overlay {
     position: fixed;
     inset: 0;
@@ -238,15 +175,11 @@ body.is-offline .topbar { margin-top: 34px; }
     z-index: 199;
 }
 
-.sidebar-overlay.show {
-    opacity: 1;
-    visibility: visible;
-}
+.sidebar-overlay.show { opacity: 1; visibility: visible; }
 
 .sidebar {
     position: fixed;
-    top: 0;
-    right: -300px;
+    top: 0; right: -300px;
     width: 280px;
     height: 100vh;
     background: var(--pos-surface);
@@ -268,11 +201,7 @@ body.is-offline .topbar { margin-top: 34px; }
     gap: 12px;
 }
 
-.sidebar__header .brand__logo {
-    width: 44px;
-    height: 44px;
-}
-
+.sidebar__header .brand__logo { width: 44px; height: 44px; }
 .sidebar__header h3 {
     margin: 0;
     font-size: 15px;
@@ -309,9 +238,7 @@ body.is-offline .topbar { margin-top: 34px; }
 }
 
 .nav-item:hover,
-.nav-item.active {
-    background: var(--pos-surface-2);
-}
+.nav-item.active { background: var(--pos-surface-2); }
 
 .nav-item.active {
     color: var(--pos-primary);
@@ -320,11 +247,9 @@ body.is-offline .topbar { margin-top: 34px; }
 
 .nav-item.active i { color: var(--pos-primary); }
 
-/* Badge على الأزرار */
 .badge {
     position: absolute;
-    top: 4px;
-    left: 4px;
+    top: 4px; left: 4px;
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
@@ -338,19 +263,14 @@ body.is-offline .topbar { margin-top: 34px; }
     line-height: 1;
 }
 
-/* ============================================
-   Layout
-   ============================================ */
+/* Layout */
 .layout {
     display: grid;
     grid-template-columns: 1fr 400px;
     height: calc(100vh - 60px);
-    gap: 0;
 }
 
-/* ============================================
-   Products Area
-   ============================================ */
+/* Products Area */
 .products-area {
     padding: 16px;
     overflow-y: auto;
@@ -360,10 +280,8 @@ body.is-offline .topbar { margin-top: 34px; }
 .mobile-close-btn {
     display: none;
     position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 40px;
-    height: 40px;
+    top: 12px; left: 12px;
+    width: 40px; height: 40px;
     border-radius: 50%;
     background: var(--pos-surface);
     border: none;
@@ -373,15 +291,11 @@ body.is-offline .topbar { margin-top: 34px; }
     color: var(--pos-text);
 }
 
-.search-bar {
-    position: relative;
-    margin-bottom: 14px;
-}
+.search-bar { position: relative; margin-bottom: 14px; }
 
 .search-bar i {
     position: absolute;
-    top: 50%;
-    right: 14px;
+    top: 50%; right: 14px;
     transform: translateY(-50%);
     color: var(--pos-text-muted);
     pointer-events: none;
@@ -435,9 +349,7 @@ body.is-offline .topbar { margin-top: 34px; }
     transition: all 0.15s;
 }
 
-.cat-tab:hover {
-    border-color: var(--pos-primary);
-}
+.cat-tab:hover { border-color: var(--pos-primary); }
 
 .cat-tab.active {
     background: var(--pos-primary);
@@ -472,8 +384,7 @@ body.is-offline .topbar { margin-top: 34px; }
 .product-card:active { transform: translateY(0); }
 
 .product-card__icon {
-    width: 46px;
-    height: 46px;
+    width: 46px; height: 46px;
     border-radius: var(--pos-radius-sm);
     background: linear-gradient(135deg, #eef2ff, #e0e7ff);
     color: var(--pos-primary);
@@ -523,9 +434,7 @@ body.is-offline .topbar { margin-top: 34px; }
     color: var(--pos-danger);
 }
 
-/* ============================================
-   Cart Area
-   ============================================ */
+/* Cart Area */
 .cart-area {
     background: var(--pos-surface);
     border-right: 1px solid var(--pos-border);
@@ -576,15 +485,10 @@ body.is-offline .topbar { margin-top: 34px; }
 }
 
 .customer-input-wrap > input:focus,
-.product-input-wrap > input:focus {
-    border-color: var(--pos-primary);
-}
+.product-input-wrap > input:focus { border-color: var(--pos-primary); }
 
 .customer-input-wrap > .icon-btn,
-.product-input-wrap > .icon-btn {
-    position: absolute;
-    left: 4px;
-}
+.product-input-wrap > .icon-btn { position: absolute; left: 4px; }
 
 .customer-info {
     font-size: 12px;
@@ -598,8 +502,7 @@ body.is-offline .topbar { margin-top: 34px; }
 .product-dropdown {
     position: absolute;
     top: 100%;
-    left: 16px;
-    right: 16px;
+    left: 16px; right: 16px;
     background: var(--pos-surface);
     border: 1px solid var(--pos-border);
     border-radius: var(--pos-radius-md);
@@ -709,9 +612,7 @@ body.is-offline .topbar { margin-top: 34px; }
     color: var(--pos-text);
 }
 
-.empty-cart small {
-    font-size: 12px;
-}
+.empty-cart small { font-size: 12px; }
 
 .cart-item {
     display: grid;
@@ -746,8 +647,7 @@ body.is-offline .topbar { margin-top: 34px; }
 }
 
 .qty-btn {
-    width: 28px;
-    height: 28px;
+    width: 28px; height: 28px;
     border-radius: var(--pos-radius-sm);
     border: 1px solid var(--pos-border);
     background: var(--pos-surface-2);
@@ -785,9 +685,7 @@ body.is-offline .topbar { margin-top: 34px; }
 }
 
 .cart-item__qty:focus,
-.cart-item__price-input:focus {
-    border-color: var(--pos-primary);
-}
+.cart-item__price-input:focus { border-color: var(--pos-primary); }
 
 .cart-item__price-input.invalid {
     border-color: var(--pos-danger);
@@ -802,8 +700,7 @@ body.is-offline .topbar { margin-top: 34px; }
 }
 
 .cart-item__remove {
-    width: 30px;
-    height: 30px;
+    width: 30px; height: 30px;
     border-radius: 50%;
     border: none;
     background: rgba(239,68,68,0.1);
@@ -841,9 +738,7 @@ body.is-offline .topbar { margin-top: 34px; }
     font-weight: 800;
 }
 
-.summary-row--discount {
-    gap: 10px;
-}
+.summary-row--discount { gap: 10px; }
 
 .discount-wrap {
     display: flex;
@@ -903,9 +798,7 @@ body.is-offline .topbar { margin-top: 34px; }
     margin-top: 12px;
 }
 
-/* ============================================
-   Buttons
-   ============================================ */
+/* Buttons */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -921,15 +814,8 @@ body.is-offline .topbar { margin-top: 34px; }
     white-space: nowrap;
 }
 
-.btn--sm {
-    padding: 7px 12px;
-    font-size: 12px;
-}
-
-.btn--lg {
-    padding: 12px 20px;
-    font-size: 15px;
-}
+.btn--sm { padding: 7px 12px; font-size: 12px; }
+.btn--lg { padding: 12px 20px; font-size: 15px; }
 
 .btn--primary {
     background: var(--pos-primary);
@@ -948,9 +834,7 @@ body.is-offline .topbar { margin-top: 34px; }
     border-color: var(--pos-success);
 }
 
-.btn--success:hover:not(:disabled) {
-    filter: brightness(0.95);
-}
+.btn--success:hover:not(:disabled) { filter: brightness(0.95); }
 
 .btn--ghost {
     background: var(--pos-surface);
@@ -969,14 +853,9 @@ body.is-offline .topbar { margin-top: 34px; }
     border-color: var(--pos-danger);
 }
 
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ============================================
-   Modals
-   ============================================ */
+/* Modals */
 .modal {
     position: fixed;
     inset: 0;
@@ -1051,12 +930,8 @@ body.is-offline .topbar { margin-top: 34px; }
     background: var(--pos-surface-2);
 }
 
-/* ============================================
-   Forms
-   ============================================ */
-.form-group {
-    margin-bottom: 14px;
-}
+/* Forms */
+.form-group { margin-bottom: 14px; }
 
 .form-group label {
     display: block;
@@ -1094,7 +969,7 @@ body.is-offline .topbar { margin-top: 34px; }
     gap: 12px;
 }
 
-/* Unit chips */
+/* Unit Chips */
 .unit-chips {
     display: flex;
     flex-wrap: wrap;
@@ -1112,9 +987,7 @@ body.is-offline .topbar { margin-top: 34px; }
     transition: all 0.15s;
 }
 
-.unit-chip:hover {
-    border-color: var(--pos-primary);
-}
+.unit-chip:hover { border-color: var(--pos-primary); }
 
 .unit-chip.active {
     background: var(--pos-primary);
@@ -1138,7 +1011,7 @@ body.is-offline .topbar { margin-top: 34px; }
 
 .stock-info:empty { display: none; }
 
-/* Price range hint */
+/* Price hints */
 .price-range-hint {
     padding: 10px 14px;
     border-radius: var(--pos-radius-sm);
@@ -1164,9 +1037,7 @@ body.is-offline .topbar { margin-top: 34px; }
     gap: 8px;
 }
 
-/* ============================================
-   Payment Modal Summary (matches receipt)
-   ============================================ */
+/* Payment summary table (matches receipt) */
 .payment-summary-table {
     display: flex;
     flex-direction: column;
@@ -1227,13 +1098,8 @@ body.is-offline .topbar { margin-top: 34px; }
     transition: all 0.15s;
 }
 
-.method i {
-    font-size: 18px;
-}
-
-.method:hover {
-    border-color: var(--pos-primary);
-}
+.method i { font-size: 18px; }
+.method:hover { border-color: var(--pos-primary); }
 
 .method.active {
     border-color: var(--pos-primary);
@@ -1321,8 +1187,7 @@ body.is-offline .topbar { margin-top: 34px; }
 [data-theme="dark"] .debt-payment-label { color: #fbbf24; }
 
 .debt-payment-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 18px; height: 18px;
     cursor: pointer;
     accent-color: var(--pos-warning);
 }
@@ -1336,9 +1201,7 @@ body.is-offline .topbar { margin-top: 34px; }
 
 [data-theme="dark"] .debt-payment-hint { color: #fbbf24; }
 
-/* ============================================
-   Receipt Modal
-   ============================================ */
+/* Receipt Modal */
 .receipt-toolbar {
     padding: 12px 16px;
     border-bottom: 1px solid var(--pos-border);
@@ -1348,10 +1211,7 @@ body.is-offline .topbar { margin-top: 34px; }
     background: var(--pos-surface);
 }
 
-.receipt-toolbar__actions {
-    display: flex;
-    gap: 8px;
-}
+.receipt-toolbar__actions { display: flex; gap: 8px; }
 
 .receipt-preview {
     padding: 20px;
@@ -1363,11 +1223,8 @@ body.is-offline .topbar { margin-top: 34px; }
     max-height: calc(90vh - 140px);
 }
 
-[data-theme="dark"] .receipt-preview {
-    background: #f5f5f5; /* يبقى فاتحًا للإيصال */
-}
+[data-theme="dark"] .receipt-preview { background: #f5f5f5; }
 
-/* Receipt header */
 .receipt-preview .rc-header {
     text-align: center;
     padding: 8px 0 12px;
@@ -1381,12 +1238,8 @@ body.is-offline .topbar { margin-top: 34px; }
     color: #000;
 }
 
-.receipt-preview .rc-sub {
-    font-size: 12px;
-    color: #333;
-}
+.receipt-preview .rc-sub { font-size: 12px; color: #333; }
 
-/* Receipt info table */
 .receipt-preview .rc-info {
     width: 100%;
     border-collapse: collapse;
@@ -1415,7 +1268,6 @@ body.is-offline .topbar { margin-top: 34px; }
     text-align: left;
 }
 
-/* Receipt items table */
 .receipt-preview .rc-items {
     width: 100%;
     border-collapse: collapse;
@@ -1462,7 +1314,6 @@ body.is-offline .topbar { margin-top: 34px; }
     text-align: center !important;
 }
 
-/* Receipt summary tables */
 .receipt-preview .rc-summary {
     width: 100%;
     border-collapse: collapse;
@@ -1503,9 +1354,7 @@ body.is-offline .topbar { margin-top: 34px; }
     color: #000;
 }
 
-/* ============================================
-   Held Items
-   ============================================ */
+/* Held Items */
 .held-item {
     padding: 12px 14px;
     border: 1px solid var(--pos-border);
@@ -1533,10 +1382,7 @@ body.is-offline .topbar { margin-top: 34px; }
     margin-bottom: 2px;
 }
 
-.held-item small {
-    font-size: 11px;
-    color: var(--pos-text-muted);
-}
+.held-item small { font-size: 11px; color: var(--pos-text-muted); }
 
 .held-item__total {
     font-weight: 800;
@@ -1545,9 +1391,7 @@ body.is-offline .topbar { margin-top: 34px; }
     white-space: nowrap;
 }
 
-/* ============================================
-   Toast Stack
-   ============================================ */
+/* Toast */
 .toast-stack {
     position: fixed;
     bottom: calc(20px + env(safe-area-inset-bottom, 0));
@@ -1562,13 +1406,9 @@ body.is-offline .topbar { margin-top: 34px; }
     max-width: 100%;
 }
 
-.toast-stack > * {
-    pointer-events: auto;
-}
+.toast-stack > * { pointer-events: auto; }
 
-/* ============================================
-   Responsive
-   ============================================ */
+/* Responsive */
 @media (max-width: 900px) {
     .layout {
         grid-template-columns: 1fr;
@@ -1586,55 +1426,31 @@ body.is-offline .topbar { margin-top: 34px; }
         padding-top: 60px;
     }
 
-    .products-area.show {
-        transform: translateX(0);
-    }
+    .products-area.show { transform: translateX(0); }
 
-    .mobile-close-btn {
-        display: grid;
-        place-items: center;
-    }
+    .mobile-close-btn { display: grid; place-items: center; }
 
     .cart-area {
         border-right: none;
         height: calc(100vh - 60px);
     }
 
-    .payment-methods {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .payment-methods { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 480px) {
-    .topbar {
-        padding: 0 8px;
-        height: 56px;
-    }
-
+    .topbar { padding: 0 8px; height: 56px; }
     .brand__text { display: none; }
-
-    .user-chip__avatar {
-        width: 34px;
-        height: 34px;
-    }
-
-    .cart-actions {
-        grid-template-columns: 1fr;
-    }
-
-    .products-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    }
-
+    .user-chip__avatar { width: 34px; height: 34px; }
+    .cart-actions { grid-template-columns: 1fr; }
+    .products-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
     .modal__content {
         border-radius: var(--pos-radius-md);
         max-height: 95vh;
     }
 }
 
-/* ============================================
-   Print-safe (عند الطباعة من الصفحة)
-   ============================================ */
+/* Print */
 @media print {
     .topbar,
     .sidebar,
@@ -1644,9 +1460,7 @@ body.is-offline .topbar { margin-top: 34px; }
     .modal:not(#receiptModal),
     .toast-stack,
     #loading-bar,
-    #offline-banner {
-        display: none !important;
-    }
+    #offline-banner { display: none !important; }
 
     #receiptModal {
         position: static;
