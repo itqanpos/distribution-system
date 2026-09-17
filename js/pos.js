@@ -1,19 +1,17 @@
 /* =============================================
    pos.js - Point of Sale Logic
-   Version: 6.2.0
+   Version: 6.3.0
 
-   Changelog من v6.1.0:
-   - [POS-44] showReceipt: هيكل مطابق للصورة:
-              * رأس باسم المتجر فقط
-              * 4 صفوف بيانات (رقم/تاريخ/عميل/عنوان)
-              * صف "المجموع الفرعي" داخل جدول الأصناف
-                يعرض إجمالي الكميات في عمود الكمية
-              * جدولان منفصلان للملخص:
-                - إجمالي الفاتورة + طريقة الدفع
-                - صافي الرصيد السابق/إجمالي/بعد/المدفوع الآن
-   - [POS-45] مودال الدفع: نفس بنية الملخص (6 صفوف)
-              وأُزيل renderPaymentCustomerBalance
-   - [POS-46] printReceipt CSS محدّث لتنسيق الجداول الجديدة
+   Changelog من v6.2.0:
+   - [POS-47] منطق الرصيد الجديد في شاشة الدفع والإيصال:
+              * الرصيد السابق   = balance قبل الفاتورة (موجب = مدين)
+              * الإجمالي        = الرصيد السابق + إجمالي الفاتورة
+              * المدفوع         = ما دفعه العميل فعليًا
+              * الرصيد الحالي   = الإجمالي - المدفوع
+   - [POS-48] إزالة `#payMethodLabel` و `#payInvoiceTotal` من pos.html
+              واستبدالهما بـ `#payCumulativeTotal`
+   - [POS-49] showReceipt: قسم الرصيد = 4 صفوف بالترتيب المطلوب
+   - [POS-50] إزالة تكرار "إجمالي الفاتورة" من جدول الرصيد
    ============================================= */
 (function() {
     'use strict';
@@ -714,9 +712,7 @@
         if (!State.cart.length) return;
         const { net } = calculateTotals();
 
-        // إجمالي الفاتورة = الصافي (بعد الخصم)
         const el = $('#paySubtotal'); if (el) el.textContent = U.moneyRaw(net);
-        const el2 = $('#payInvoiceTotal'); if (el2) el2.textContent = U.moneyRaw(net);
 
         setPaymentMethod('cash');
         $('#cashInput').value = '';
@@ -759,6 +755,12 @@
         });
     }
 
+    /**
+     * يُرجع مبالغ الفاتورة الحالية والرصيد.
+     * الاتفاقية الداخلية (كما في DB):
+     *   balance موجب = نحن مدينون للعميل
+     *   balance سالب = العميل مدين لنا
+     */
     function computePaymentBreakdown() {
         const { net } = calculateTotals();
         const method = State.paymentMethod;
@@ -774,6 +776,7 @@
         const remaining = U.round(Math.max(0, net - totalReceived));
         const paidForInvoice = Math.min(totalReceived, net);
 
+        // signed balance من DB
         const oldBalance = State.selectedCustomer
             ? (Number(State.selectedCustomer.balance) || 0)
             : 0;
@@ -817,24 +820,37 @@
         };
     }
 
+    /**
+     * ✅ منطق العرض الجديد:
+     *   الرصيد السابق   = -oldBalance (موجب = مدين لنا)
+     *   الإجمالي        = الرصيد السابق + net
+     *   المدفوع         = paidForInvoice + debtPayment
+     *   الرصيد الحالي   = الإجمالي - المدفوع  = -newBalance
+     */
     function updateChange() {
         const b = computePaymentBreakdown();
 
-        // ---- صفوف الملخص (مطابقة للإيصال) ----
-        const subEl = $('#paySubtotal'); if (subEl) subEl.textContent = U.moneyRaw(b.net);
-        const subEl2 = $('#payInvoiceTotal'); if (subEl2) subEl2.textContent = U.moneyRaw(b.net);
+        // تحويل للعرض: موجب = العميل مدين لنا
+        const displayOld = U.round(-b.oldBalance, 2);
+        const displayNew = U.round(-b.newBalance, 2);
+        const displayCum = U.round(displayOld + b.net, 2);
+        const paidTotal = U.round(b.paidForInvoice + b.debtPayment, 2);
 
-        const methodEl = $('#payMethodLabel');
-        if (methodEl) methodEl.textContent = paymentLabel(State.paymentMethod);
+        // ---- صفوف الملخص ----
+        const subEl = $('#paySubtotal');
+        if (subEl) subEl.textContent = U.moneyRaw(b.net);
 
         const prevEl = $('#payPrevBalance');
-        if (prevEl) prevEl.textContent = U.moneyRaw(b.oldBalance);
+        if (prevEl) prevEl.textContent = U.moneyRaw(displayOld);
 
-        const newEl = $('#payNewBalance');
-        if (newEl) newEl.textContent = U.moneyRaw(b.newBalance);
+        const cumEl = $('#payCumulativeTotal');
+        if (cumEl) cumEl.textContent = U.moneyRaw(displayCum);
 
         const paidEl = $('#payPaidNow');
-        if (paidEl) paidEl.textContent = U.moneyRaw(U.round(b.paidForInvoice + b.debtPayment, 2));
+        if (paidEl) paidEl.textContent = U.moneyRaw(paidTotal);
+
+        const newEl = $('#payNewBalance');
+        if (newEl) newEl.textContent = U.moneyRaw(displayNew);
 
         // ---- الباقي / المتبقي ----
         const display = $('#changeDisplay');
@@ -875,16 +891,6 @@
                 hintEl.style.display = 'none';
             }
         }
-    }
-
-    /* ============================================
-       Balance helpers
-       ============================================ */
-    function formatBalance(bal) {
-        const n = Number(bal) || 0;
-        if (Math.abs(n) < 0.001) return `0.00 ${CURRENCY}`;
-        if (n < 0) return `مدين ${U.money(Math.abs(n))}`;
-        return `دائن ${U.money(n)}`;
     }
 
     /* ============================================
@@ -1019,7 +1025,8 @@
     }
 
     /* ============================================
-       Receipt — v6.2.0 (هيكل مطابق للصورة)
+       Receipt — v6.3.0
+       قسم الرصيد = 4 صفوف: السابق / الإجمالي / المدفوع / الحالي
        ============================================ */
     function showReceipt(invoice) {
         const settings = State.settings || {};
@@ -1028,7 +1035,6 @@
         const shopAddress = settings.address || '';
         const footer = settings.footer || 'شكراً لتعاملكم معنا';
 
-        // حساب إجمالي الكميات
         let totalQty = 0;
         let itemsHtml = '';
         invoice.items.forEach((item, i) => {
@@ -1046,11 +1052,18 @@
                 </tr>`;
         });
 
-        const oldBal = Number(invoice._oldBalance) || 0;
-        const newBal = Number(invoice._newBalance) || 0;
+        // signed balances (من DB)
+        const oldSigned = Number(invoice._oldBalance) || 0;
+        const newSigned = Number(invoice._newBalance) || 0;
         const debtPayment = Number(invoice._debtPayment) || 0;
         const paidNow = Number(invoice.paid) || 0;
         const paidTotal = U.round(paidNow + debtPayment, 2);
+
+        // عرض: موجب = العميل مدين لنا
+        const displayOld = U.round(-oldSigned, 2);
+        const displayNew = U.round(-newSigned, 2);
+        const invoiceTotal = Number(invoice.total) || 0;
+        const displayCum = U.round(displayOld + invoiceTotal, 2);
 
         const customerAddress = invoice._customerAddress || invoice.customer_address || '-';
         const saleTs = Number(invoice._saleTimestamp) ||
@@ -1059,7 +1072,6 @@
         const preview = $('#receiptPreview');
         if (!preview) return;
 
-        // إجمالي الكميات كعدد صحيح إن أمكن
         const totalQtyStr = Number.isInteger(totalQty) ? String(totalQty) : totalQty.toFixed(3);
 
         preview.innerHTML = `
@@ -1118,7 +1130,7 @@
                 </tr>` : ''}
                 <tr>
                     <td class="rc-sum-label">إجمالي الفاتورة:</td>
-                    <td class="rc-sum-value">${Number(invoice.total).toFixed(2)}</td>
+                    <td class="rc-sum-value">${invoiceTotal.toFixed(2)}</td>
                 </tr>
                 <tr>
                     <td class="rc-sum-label">طريقة الدفع:</td>
@@ -1128,20 +1140,20 @@
 
             <table class="rc-summary rc-summary--balance">
                 <tr>
-                    <td class="rc-sum-label">صافي الرصيد السابق:</td>
-                    <td class="rc-sum-value">${oldBal.toFixed(2)}</td>
+                    <td class="rc-sum-label">الرصيد السابق:</td>
+                    <td class="rc-sum-value">${displayOld.toFixed(2)}</td>
                 </tr>
                 <tr>
-                    <td class="rc-sum-label">إجمالي الفاتورة:</td>
-                    <td class="rc-sum-value">${Number(invoice.total).toFixed(2)}</td>
+                    <td class="rc-sum-label">الإجمالي:</td>
+                    <td class="rc-sum-value">${displayCum.toFixed(2)}</td>
                 </tr>
                 <tr>
-                    <td class="rc-sum-label">صافي الرصيد بعد الفاتورة:</td>
-                    <td class="rc-sum-value">${newBal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td class="rc-sum-label">المدفوع الآن:</td>
+                    <td class="rc-sum-label">المدفوع:</td>
                     <td class="rc-sum-value">${paidTotal.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td class="rc-sum-label">الرصيد الحالي:</td>
+                    <td class="rc-sum-value">${displayNew.toFixed(2)}</td>
                 </tr>
             </table>
 
@@ -1156,7 +1168,7 @@
     }
 
     /* ============================================
-       Print — CSS محدّث
+       Print
        ============================================ */
     function printReceipt() {
         const preview = $('#receiptPreview');
@@ -1190,116 +1202,35 @@
         color: #000; background: #fff;
         max-width: 80mm; line-height: 1.4;
     }
-
-    /* الرأس */
-    .rc-header {
-        text-align: center;
-        padding: 6px 0 8px;
-        margin-bottom: 6px;
-    }
+    .rc-header { text-align: center; padding: 6px 0 8px; margin-bottom: 6px; }
     .rc-shop { font-size: 16px; font-weight: 800; margin-bottom: 2px; }
     .rc-sub { font-size: 10px; color: #333; }
-
-    /* المعلومات (رقم/تاريخ/عميل/عنوان) */
-    .rc-info {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 6px;
-        table-layout: fixed;
+    .rc-info { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+    .rc-info td { padding: 4px 6px; font-size: 11px; border: 1px solid #000; vertical-align: middle; }
+    .rc-info-label { font-weight: 700; width: 40%; text-align: right; }
+    .rc-info-value { font-weight: 700; text-align: left; }
+    .rc-items { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+    .rc-items th, .rc-items td {
+        border: 1px solid #000; padding: 3px 4px; font-size: 10px;
+        text-align: center; vertical-align: middle; word-wrap: break-word;
     }
-    .rc-info td {
-        padding: 4px 6px;
-        font-size: 11px;
-        border: 1px solid #000;
-        vertical-align: middle;
-    }
-    .rc-info-label {
-        font-weight: 700;
-        width: 40%;
-        text-align: right;
-    }
-    .rc-info-value {
-        font-weight: 700;
-        text-align: left;
-    }
-
-    /* جدول الأصناف */
-    .rc-items {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 6px;
-        table-layout: fixed;
-    }
-    .rc-items th,
-    .rc-items td {
-        border: 1px solid #000;
-        padding: 3px 4px;
-        font-size: 10px;
-        text-align: center;
-        vertical-align: middle;
-        word-wrap: break-word;
-    }
-    .rc-items th {
-        background: #e8e8e8;
-        font-weight: 800;
-        font-size: 11px;
-    }
+    .rc-items th { background: #e8e8e8; font-weight: 800; font-size: 11px; }
     .rc-num { width: 8%; }
     .rc-name { width: 40%; text-align: right !important; font-weight: 700; }
     .rc-qty { width: 18%; }
     .rc-price { width: 16%; }
     .rc-total { width: 18%; font-weight: 800; }
-
-    /* صف المجموع الفرعي داخل الجدول */
-    .rc-subtotal-row td {
-        background: #f5f5f5;
-        font-weight: 800;
-        padding: 5px 4px;
-    }
+    .rc-subtotal-row td { background: #f5f5f5; font-weight: 800; padding: 5px 4px; }
     .rc-subtotal-label { text-align: right !important; }
     .rc-subtotal-qty { text-align: center !important; }
     .rc-subtotal-value { font-size: 12px !important; text-align: center !important; }
-
-    .rc-empty {
-        padding: 10px !important;
-        text-align: center !important;
-    }
-
-    /* جدولان الملخص */
-    .rc-summary {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 4px;
-        table-layout: fixed;
-    }
-    .rc-summary td {
-        border: 1px solid #000;
-        padding: 5px 6px;
-        font-size: 11px;
-    }
-    .rc-sum-label {
-        font-weight: 700;
-        text-align: right;
-        width: 55%;
-    }
-    .rc-sum-value {
-        font-weight: 800;
-        text-align: left;
-        width: 45%;
-    }
-
-    /* المسافة بين الجدولين */
+    .rc-empty { padding: 10px !important; text-align: center !important; }
+    .rc-summary { width: 100%; border-collapse: collapse; margin-bottom: 4px; table-layout: fixed; }
+    .rc-summary td { border: 1px solid #000; padding: 5px 6px; font-size: 11px; }
+    .rc-sum-label { font-weight: 700; text-align: right; width: 55%; }
+    .rc-sum-value { font-weight: 800; text-align: left; width: 45%; }
     .rc-summary--balance { margin-top: 4px; }
-
-    /* التذييل */
-    .rc-footer {
-        text-align: center;
-        font-weight: 700;
-        font-size: 11px;
-        padding-top: 6px;
-        border-top: 1px solid #000;
-        margin-top: 6px;
-    }
+    .rc-footer { text-align: center; font-weight: 700; font-size: 11px; padding-top: 6px; border-top: 1px solid #000; margin-top: 6px; }
 </style>
 </head>
 <body>${preview.innerHTML}</body>
