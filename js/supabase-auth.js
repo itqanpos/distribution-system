@@ -114,7 +114,7 @@
             window.SessionStore.user = userInfo;
             let redirectUrl = './dashboard.html';
             if (userInfo.role === 'rep') redirectUrl = './pos.html';
-            else if (userInfo.role === 'super_admin') redirectUrl = './admin.html';
+            else if (userInfo.role === 'super_admin') redirectUrl = './dashboard.html';
             return { success: true, redirectUrl, user: userInfo };
         },
 
@@ -188,7 +188,7 @@
                 if (error) throw error;
                 if (tenant && tenant.plan === 'expired') {
                     alert('انتهت صلاحية الاشتراك. يرجى التجديد.');
-                    window.location.href = './expired.html';
+                    window.location.href = './index.html';
                 }
             } catch (e) {
                 console.warn('تعذر التحقق من حالة الاشتراك:', e);
