@@ -957,7 +957,7 @@
             }
 
             const { data, error } = await this.client.from('invoices')
-                .select('id, tenant_id, invoice_number, type, date, customer_id, customer_name, supplier_id, supplier_name, subtotal, discount, total, cash_paid, transfer_paid, card_paid, used_balance, paid, remaining, change_amount, payment_method, status, notes, created_at, updated_at, created_by, device_id')
+            .select('id, tenant_id, invoice_number, type, date, customer_id, customer_name, supplier_id, supplier_name, subtotal, discount, total, cash_paid, transfer_paid, card_paid, used_balance, paid, remaining, change_amount, payment_method, status, notes, created_at, updated_at, created_by, device_id, debt_payment_amount')
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false });
             if (error) throw error;
@@ -1040,6 +1040,7 @@
                 paid: Number(invoice.paid) || 0,
                 remaining: Number(invoice.remaining) || 0,
                 change_amount: Number(invoice.change_amount) || 0,
+                debt_payment_amount: Number(invoice.debt_payment_amount) || 0,
                 payment_method: invoice.payment_method || 'cash',
                 status: invoice.status || 'paid',
                 notes: invoice.notes || null,
@@ -1204,7 +1205,8 @@
                     if (type === 'sale') {
                         const remaining = Number(invoice.remaining) || 0;
                         const used      = Number(invoice.used_balance) || 0;
-                        delta = -remaining - used;
+                        const debtPayment = Number(invoice.debt_payment_amount) || 0;
+                        delta = -remaining - used + debtPayment;
                     } else {
                         delta = Number(invoice.total) || 0;
                     }
@@ -1262,7 +1264,8 @@
                     if (type === 'sale') {
                         const remaining = Number(invoice.remaining) || 0;
                         const used      = Number(invoice.used_balance) || 0;
-                        delta = +remaining + used;
+                        const debtPayment = Number(invoice.debt_payment_amount) || 0;
+                        delta = +remaining + used - debtPayment;
                     } else {
                         delta = -(Number(invoice.total) || 0);
                     }
