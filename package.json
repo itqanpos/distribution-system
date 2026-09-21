@@ -9,7 +9,7 @@
     "start": "npx serve . -l 3000",
     "lint": "npx eslint js/**/*.js",
     "format": "npx prettier --write \"**/*.{js,css,html,json,md}\"",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "node --test test/**/*.test.mjs"
   },
   "keywords": [
     "pos",
@@ -22,8 +22,9 @@
   "author": "Hesaby Team",
   "license": "MIT",
   "devDependencies": {
-    "serve": "^14.2.0",
-    "prettier": "^3.0.0"
+    "eslint": "^10.11.0",
+    "prettier": "^3.0.0",
+    "serve": "^14.2.0"
   },
   "engines": {
     "node": ">=16.0.0"
