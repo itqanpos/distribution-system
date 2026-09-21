@@ -199,8 +199,8 @@
             const term = State.searchTerm.toLowerCase();
             list = list.filter(p =>
                 (p.name || '').toLowerCase().includes(term) ||
-                (p.barcode || '').includes(State.searchTerm) ||
-                (p.code || '').includes(State.searchTerm)
+                String(p.barcode ?? '').toLowerCase().includes(term) ||
+                String(p.code ?? '').toLowerCase().includes(term)
             );
         }
         if (!list.length) {
@@ -232,6 +232,13 @@
     /* ============================================
        Product Search
        ============================================ */
+    function matchesProductCode(product, term) {
+        const value = String(term ?? '').trim();
+        if (!value) return false;
+        return String(product?.barcode ?? '').trim() === value ||
+               String(product?.code ?? '').trim() === value;
+    }
+
     function renderProductDropdown(term) {
         const dd = $('#productDropdown');
         if (!dd) return;
@@ -240,8 +247,8 @@
         const t = term.toLowerCase();
         const filtered = State.products.filter(p =>
             (p.name || '').toLowerCase().includes(t) ||
-            (p.barcode || '').includes(term) ||
-            (p.code || '').includes(term)
+            String(p.barcode ?? '').toLowerCase().includes(t) ||
+            String(p.code ?? '').toLowerCase().includes(t)
         ).slice(0, 20);
 
         if (!filtered.length) {
@@ -294,7 +301,7 @@
             if (e.key === 'Enter') {
                 const term = e.target.value.trim();
                 if (!term) return;
-                let product = State.products.find(p => p.barcode === term || p.code === term);
+                let product = State.products.find(p => matchesProductCode(p, term));
                 if (!product) {
                     const t = term.toLowerCase();
                     product = State.products.find(p => (p.name || '').toLowerCase().includes(t));
