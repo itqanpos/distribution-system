@@ -1,14 +1,10 @@
 /* =============================================
    main.css - Base Styles
-   Version: 2.0.0
+   Version: 2.0.1
 
-   Changelog من v1.0:
-   - [CSS-1] دمج كتل :root في كتلة واحدة
-   - [CSS-2] إضافة --topbar-h
-   - [CSS-3] تحسين html/body لـ iOS PWA (min-height: 100dvh)
-   - [CSS-4] إزالة تكرار -webkit-tap-highlight-color
-   - [CSS-5] استثناء input/textarea/[contenteditable] من touch-callout:none
-   - [CSS-6] إضافة -moz-text-size-adjust
+   Changelog من v2.0.0:
+   - إضافة touch-action: pan-y لمنع التكبير العشوائي
+   - إضافة -webkit-user-drag: none لمنع سحب العناصر
    ============================================= */
 
 :root {
@@ -90,6 +86,8 @@
     padding: 0;
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+    /* منع سحب العناصر (مثل الصور أو النصوص) بشكل عشوائي */
+    -webkit-user-drag: none; 
 }
 
 html {
@@ -106,12 +104,20 @@ body {
     -webkit-text-size-adjust: 100%;
     -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    touch-action: pan-y pan-x;
-    overscroll-behavior: none;
-    -webkit-touch-callout: none;
     
-    /* ✅ التعديل الوحيد هنا: إضافة مسافة الأمان العلوية لمنع اختفاء المحتوى تحت شريط الحالة */
+    /* ✅ منع التكبير والتصغير العشوائي:
+       pan-y تعني السماح بالتمرير العمودي فقط، ومنع التمرير الأفقي أو التكبير باللمس */
+    touch-action: pan-y; 
+    
+    overscroll-behavior: none; /* منع تأثير الارتداد (Pull to refresh) */
+    -webkit-touch-callout: none; /* منع ظهور قائمة النسخ عند الضغط المطول */
+    
+    /* ✅ مسافة الأمان العلوية */
     padding-top: var(--safe-top); 
+    
+    /* منع تحديد النصوص بشكل عشوائي أثناء السحب */
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 button, input, select, textarea {
@@ -124,7 +130,7 @@ input, textarea, [contenteditable="true"] {
     -webkit-user-select: text;
     -moz-user-select: text;
     user-select: text;
-    touch-action: auto;
+    touch-action: auto; /* السماح بالتفاعل الطبيعي داخل حقول الكتابة */
 }
 
 /* ========== Buttons ========== */
@@ -142,7 +148,9 @@ input, textarea, [contenteditable="true"] {
     transition: all 0.2s;
     text-decoration: none;
     color: inherit;
-    touch-action: manipulation;
+    
+    /* ✅ touch-action: manipulation تمنع الـ Double Tap Zoom وتسرع استجابة الأزرار */
+    touch-action: manipulation; 
 }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn--primary { background: var(--primary); color: #fff; }
