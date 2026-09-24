@@ -2,9 +2,18 @@
 <html lang="ar" dir="rtl" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    
+    <!-- ✅ التعديل 1: إضافة maximum-scale و user-scalable لمنع التكبير العشوائي -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <meta name="description" content="نظام POS - إدارة المبيعات والمخزون والمحاسبة">
     <meta name="theme-color" content="#4f46e5">
+    
+    <!-- ✅ التعديل 2: إضافة وسوم PWA الخاصة بـ iOS و Android لتطبيق أصلي -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <title>تسجيل الدخول · نظام POS</title>
 
     <!-- PWA -->
@@ -29,11 +38,18 @@
     <style>
         /* ============ Auth Page ============ */
         body.auth-page {
+            /* ✅ التعديل 3: تغيير 100vh إلى 100dvh وتعديل الـ padding ليتعامل مع النوتش */
             min-height: 100vh;
+            min-height: 100dvh; /* أفضل للجوال */
             display: flex;
             align-items: center;
             justify-content: center;
+            
+            /* نضيف مسافة الأمان العلوية والسفلية إلى الـ 20px الأصلية */
             padding: 20px;
+            padding-top: calc(20px + var(--safe-top));
+            padding-bottom: calc(20px + var(--safe-bottom));
+            
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             position: relative;
             overflow-x: hidden;
@@ -158,6 +174,7 @@
             outline: none;
             transition: all 0.25s;
             font-family: 'Cairo', sans-serif;
+            touch-action: auto; /* السماح بالتفاعل الطبيعي في حقول الكتابة */
         }
         .input-wrap input:focus {
             border-color: var(--primary);
@@ -214,6 +231,7 @@
             margin-top: 8px;
             box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.5);
             font-family: 'Cairo', sans-serif;
+            touch-action: manipulation; /* منع التكبير عند النقر المزدوج */
         }
         .btn-login:hover:not(:disabled) {
             transform: translateY(-2px);
@@ -331,6 +349,7 @@
             cursor: pointer;
             font-size: 15px;
             font-family: 'Cairo', sans-serif;
+            touch-action: manipulation;
         }
         .error-content .btn-retry:hover {
             background: #4338ca;
@@ -518,7 +537,7 @@
             setTimeout(() => { bar.style.width = '0%'; }, 300);
         }
 
-        /* ============ تسجيل Service Worker (global — لا يعتمد على حالة الدخول) ============ */
+        /* ============ تسجيل Service Worker ============ */
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js', { scope: './' })
@@ -567,7 +586,6 @@
                 return;
             }
 
-            // ✅ [FIX #1] انتظر جهوزية DB.client قبل فحص الجلسة
             let waited = 0;
             while (!window.DB?.client && waited < 5000) {
                 await new Promise(r => setTimeout(r, 100));
@@ -586,13 +604,11 @@
 
             log('%c✅ جميع الملفات محملة', 'color: #10b981; font-weight: bold;');
 
-            // ✅ فحص الجلسة الآن بعد أن جاهز DB.client
             try {
                 const user = await window.Auth.getCurrentUser();
                 if (user) {
                     const target = window.Auth.getRedirect(user);
                     log('👤 مستخدم مسجّل → إعادة توجيه:', target);
-                    // ✅ [FIX #5] replace بدل href
                     location.replace(target);
                     return;
                 }
@@ -600,7 +616,6 @@
                 console.warn('⚠️ فشل التحقق من الجلسة:', e);
             }
 
-            // ✅ استمع لأي تغيير في الجلسة (SIGNED_IN بعد نجاح login أو Auth.init)
             window.Auth.onChange((u) => {
                 if (u) {
                     location.replace(window.Auth.getRedirect(u));
