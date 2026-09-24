@@ -109,6 +109,9 @@ body {
     touch-action: pan-y pan-x;
     overscroll-behavior: none;
     -webkit-touch-callout: none;
+    
+    /* ✅ التعديل الوحيد هنا: إضافة مسافة الأمان العلوية لمنع اختفاء المحتوى تحت شريط الحالة */
+    padding-top: var(--safe-top); 
 }
 
 button, input, select, textarea {
