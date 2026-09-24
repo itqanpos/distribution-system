@@ -115,8 +115,8 @@
         let totalToday = 0;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!Auth.requireAuth()) return;
-            if (!Auth.requireRole(['rep', 'admin'])) return;
+            if (!(await Auth.requireAuth())) return;
+            if (!(await Auth.requireRole(['rep', 'admin']))) return;
             await UI.initPage('تحصيلات المندوب');
             document.getElementById('userAvatar').textContent = Auth.getUser().avatar;
             await loadData();

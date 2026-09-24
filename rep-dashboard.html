@@ -377,8 +377,8 @@
     <script src="js/ui.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
-            if (!Auth.requireAuth()) return;
-            if (!Auth.requireRole(['rep', 'admin'])) return;
+            if (!(await Auth.requireAuth())) return;
+            if (!(await Auth.requireRole(['rep', 'admin']))) return;
             await UI.initPage('لوحة المندوب');
 
             const user = Auth.getUser();

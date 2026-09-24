@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "npx serve . -l 3000",
     "start": "npx serve . -l 3000",
-    "lint": "npx eslint js/**/*.js",
+    "lint": "npx eslint \"js/**/*.js\" \"js/*.js\"",
     "format": "npx prettier --write \"**/*.{js,css,html,json,md}\"",
     "test": "node --test test/**/*.test.mjs"
   },

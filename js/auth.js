@@ -427,6 +427,10 @@
             return roles.includes(user.role);
         },
 
+        getUser() {
+            return this.user;
+        },
+
         getRedirect(user) {
             if (!user) return './index.html';
             if (user.role === 'rep') return './pos.html';

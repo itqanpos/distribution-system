@@ -24,8 +24,9 @@ test("HTML files reference existing local scripts and styles", () => {
   for (const name of readdirSync(root)) {
     if (!name.endsWith(".html")) continue;
     const html = readFileSync(join(root, name), "utf8");
-    const refs = [...html.matchAll(/(?:src|href)=["'](\.?\.?\/[^"'#?]+)["']/g)];
+    const refs = [...html.matchAll(/(?:src|href)=["']([^"'#?]+)["']/g)];
     for (const [, ref] of refs) {
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(ref)) continue;
       const target = join(root, ref.replace(/^\.\//, ""));
       assert.equal(
         statSync(target).isFile(),

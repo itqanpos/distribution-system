@@ -10,7 +10,7 @@
            من مطابقة التنقلات (منع تسريب كامن)
    ============================================= */
 
-const CACHE_VERSION = '4.2.0';
+const CACHE_VERSION = '4.2.1';
 const STATIC_CACHE  = `hesaby-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `hesaby-runtime-${CACHE_VERSION}`;
 const MAX_RUNTIME_ENTRIES = 120;
@@ -34,6 +34,11 @@ const PRECACHE_ASSETS = [
     './products.html',
     './settings.html',
     './offline.html',
+    './rep-dashboard.html',
+    './rep-customers.html',
+    './rep-orders.html',
+    './rep-collections.html',
+    './rep-pos.html',
 
     // CSS
     './css/main.css',
@@ -52,6 +57,8 @@ const PRECACHE_ASSETS = [
     './js/toast.js',
     './js/db.js',
     './js/auth.js',
+    './js/storage.js',
+    './js/ui.js',
 
     // JS pages
     './js/dashboard.js',
